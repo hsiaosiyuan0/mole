@@ -39,6 +39,7 @@ func (s *Source) RuneAtPos(pos int) (rune, int) {
 	return r, size
 }
 
+// read and push back a rune into `s.peaked` also advance `s.pos`
 func (s *Source) PeekRune() rune {
 	r, size := s.RuneAtPos(s.pos)
 	s.peeked = append(s.peeked, r)
@@ -46,11 +47,8 @@ func (s *Source) PeekRune() rune {
 	return r
 }
 
-// func (s *Source) PeekRune() rune {
-// 	r, _ := s.PeekRuneSized()
-// 	return r
-// }
-
+// firstly try to pop the front of the `s.peaked` otherwise read
+// a rune and advance `s.pos`
 func (s *Source) NextRune() rune {
 	if len(s.peeked) > 0 {
 		r, rest := s.peeked[0], s.peeked[1:]
