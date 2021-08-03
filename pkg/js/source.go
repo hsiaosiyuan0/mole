@@ -1,6 +1,9 @@
 package js
 
-import "unicode/utf8"
+import (
+	"fmt"
+	"unicode/utf8"
+)
 
 // hold the basic functionalities to manipulate the source
 // does not read the source from filesystem so the `code`
@@ -106,12 +109,37 @@ func (s *Source) NextIsEOF() bool {
 	return s.NextRune() == EOF
 }
 
-func (s *Source) next(loose bool) rune {
+func (s *Source) Line() int {
+	return s.line
+}
+
+func (s *Source) Pos() int {
+	return s.pos - len(s.peeked)
+}
+
+type SourceError struct {
+	file string
+	line int
+	col  int
+}
+
+func NewSourceError(file string, line, col int) *SourceError {
+	return &SourceError{
+		file: file,
+		line: line,
+		col:  col,
+	}
+}
+
+func (e *SourceError) Error() string {
+	return fmt.Sprintf("unexpected rune at %sL%d:%d\n", e.file, e.line, e.col)
+}
+
+func (s *Source) next(loose bool) (rune, error) {
 	c := s.NextJoinCRLF()
 
 	if c == utf8.RuneError && !loose {
-		// TODO: error report
-		panic("deformed codepoint at")
+		return 0, NewLexerError(s.path, s.line, s.Pos()-1)
 	}
 
 	if c == EOL {
@@ -120,13 +148,14 @@ func (s *Source) next(loose bool) rune {
 	} else {
 		s.col += 1
 	}
-	return c
+	return c, nil
 }
 
-func (s *Source) Next() rune {
+func (s *Source) NextStrict() (rune, error) {
 	return s.next(false)
 }
 
-func (s *Source) NextLoose() rune {
-	return s.next(true)
+func (s *Source) Next() rune {
+	r, _ := s.next(true)
+	return r
 }
