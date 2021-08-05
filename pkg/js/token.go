@@ -1,0 +1,161 @@
+package js
+
+type TokenKind int
+
+const (
+	T_EOF TokenKind = iota
+	T_COMMENT
+
+	// literals
+	T_NULL
+	T_TRUE
+	T_FALSE
+	T_NUM
+	T_STRING
+	T_TPL_HEAD
+
+	T_NAME
+	T_NAME_PRIVATE
+
+	// keywords
+	// https://tc39.es/ecma262/multipage/ecmascript-language-lexical-grammar.html#prod-ReservedWord
+	T_BREAK
+	T_CASE
+	T_CATCH
+	T_CLASS
+	T_CONTINUE
+	T_DEBUGGER
+	T_DEFAULT
+	T_DO
+	T_ELSE
+	T_ENUM
+	T_EXPORT
+	T_EXTENDS
+	T_FINALLY
+	T_FOR
+	T_FUNC
+	T_IF
+	T_IMPORT
+	T_NEW
+	T_RETURN
+	T_SUPER
+	T_SWITCH
+	T_THIS
+	T_THROW
+	T_TRY
+	T_VAR
+	T_WHILE
+	T_WITH
+
+	// contextual keywords
+	T_LET
+	T_STATIC
+	T_IMPLEMENTS
+	T_INTERFACE
+	T_PACKAGE
+	T_PRIVATE
+	T_PROTECTED
+	T_PUBLIC
+	T_AS
+	T_ASYNC
+	T_FROM
+	T_GET
+	T_META
+	T_OF
+	T_SET
+	T_TARGET
+	T_YIELD
+
+	T_REGEXP
+	T_BACK_QUOTE
+	T_BRACE_L
+	T_BRACE_R
+	T_PAREN_L
+	T_PAREN_R
+	T_BRACKET_L
+	T_BRACKET_R
+	T_DOT
+	T_DOT_TRI
+	T_SEMI
+	T_COMMA
+	T_HOOK
+	T_COLON
+	T_INC
+	T_DEC
+	T_OPT_CHAIN
+	T_ARROW
+
+	T_BIN_OP_BEGIN
+	T_COALESCE
+
+	// relational
+	T_LT
+	T_GT
+	T_LE
+	T_GE
+
+	// equality
+	T_EQ
+	T_NE
+	T_EQ_S
+	T_NE_S
+
+	// bitwise
+	T_LSH
+	T_RSH
+	T_RSH_U
+	T_BIT_OR
+	T_BIT_XOR
+	T_BIT_AND
+
+	T_OR
+	T_AND
+
+	T_INSTANCE_OF
+	T_IN
+
+	T_ADD
+	T_SUB
+	T_MUL
+	T_DIV
+	T_MOD
+	T_POW
+	T_BIN_OP_END
+
+	// unary
+	T_UNARY_OP_BEGIN
+	T_TYPE_OF
+	T_VOID
+	T_DELETE
+	T_NOT
+	T_BIT_NOT
+	T_UNARY_OP_END
+
+	// assignment
+	T_ASSIGN_BEGIN
+	T_ASSIGN
+	T_ASSIGN_ADD
+	T_ASSIGN_SUB
+	T_ASSIGN_COALESCE
+	T_ASSIGN_OR
+	T_ASSIGN_AND
+	T_ASSIGN_BIT_OR
+	T_ASSIGN_BIT_XOR
+	T_ASSIGN_BIT_AND
+	T_ASSIGN_BIT_LSH
+	T_ASSIGN_BIT_RSH
+	T_ASSIGN_BIT_RSH_U
+	T_ASSIGN_MUL
+	T_ASSIGN_DIV
+	T_ASSIGN_MOD
+	T_ASSIGN_POW
+	T_ASSIGN_END
+
+	T_TOKEN_DEF_END
+)
+
+type Token struct {
+	typ        TokenKind
+	beforeExpr bool
+	text       *SourceRange
+}

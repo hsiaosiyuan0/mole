@@ -1,7 +1,9 @@
 package js
 
 import (
-	"fmt"
+	"io/ioutil"
+	"path/filepath"
+	"sync"
 	"unicode/utf8"
 )
 
@@ -9,6 +11,9 @@ import (
 // does not read the source from filesystem so the `code`
 // should be prepared by the caller
 type Source struct {
+	id    int
+	store *SourceStore
+
 	// should be absolute path
 	path   string
 	code   string
@@ -117,22 +122,11 @@ func (s *Source) Pos() int {
 	return s.pos - len(s.peeked)
 }
 
-type SourceError struct {
-	file string
-	line int
-	col  int
-}
-
-func NewSourceError(file string, line, col int) *SourceError {
-	return &SourceError{
-		file: file,
-		line: line,
-		col:  col,
+func (s *Source) NewOpenRange() *SourceRange {
+	return &SourceRange{
+		src: s,
+		lo:  s.Pos(),
 	}
-}
-
-func (e *SourceError) Error() string {
-	return fmt.Sprintf("unexpected rune at %sL%d:%d\n", e.file, e.line, e.col)
 }
 
 func (s *Source) next(loose bool) (rune, error) {
@@ -158,4 +152,55 @@ func (s *Source) NextStrict() (rune, error) {
 func (s *Source) Next() rune {
 	r, _ := s.next(true)
 	return r
+}
+
+// TODO: description
+type SourceStore struct {
+	basepath string
+	sources  map[int]*Source
+	counter  int
+	mu       sync.Mutex
+}
+
+func NewSourceStore(basepath string) *SourceStore {
+	return &SourceStore{
+		basepath: basepath,
+		sources:  make(map[int]*Source),
+	}
+}
+
+func (s *SourceStore) AddSource(file string) (int, error) {
+	path := file
+	if !filepath.IsAbs(path) {
+		var err error
+		path, err = filepath.Rel(s.basepath, path)
+		if err != nil {
+			return 0, err
+		}
+	}
+	code, err := ioutil.ReadFile(path)
+	if err != nil {
+		return 0, err
+	}
+	id := s.AddSourceFromString(path, code)
+	return id, nil
+}
+
+func (s *SourceStore) AddSourceFromString(file string, code []byte) int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	src := NewSource(file, string(code))
+	src.store = s
+	src.id = s.counter
+	s.sources[s.counter] = src
+	s.counter += 1
+	return s.counter
+}
+
+// TODO: description
+type SourceRange struct {
+	src *Source
+	lo  int
+	hi  int
 }
