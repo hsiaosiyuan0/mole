@@ -1,6 +1,7 @@
 package js
 
 import (
+	"fmt"
 	"io/ioutil"
 	"path/filepath"
 	"sync"
@@ -21,12 +22,13 @@ type Source struct {
 	line int
 	col  int
 
-	peeked     [maxPeekCnt]rune
-	peekedHead int
-	peekedTail int
+	peeked    [sizeOfPeeked]rune
+	peekedLen int
+	peekedR   int
+	peekedW   int
 }
 
-const maxPeekCnt = 3
+const sizeOfPeeked = 5
 
 func NewSource(path string, code string) *Source {
 	return &Source{
@@ -51,32 +53,29 @@ func (s *Source) RuneAtPos(pos int) (rune, int) {
 
 // read and push back a rune into `s.peaked` also advance `s.pos`
 func (s *Source) PeekRune() rune {
+	if s.peekedLen == sizeOfPeeked {
+		panic(fmt.Sprintf("peek buffer is full, max len is %d\n", s.peekedLen))
+	}
 	r, size := s.RuneAtPos(s.pos)
-	s.peeked[s.peekedTail] = r
-	s.peekedTail += 1
-	if s.peekedTail > maxPeekCnt-1 {
-		s.peekedTail = 0
+	s.peeked[s.peekedW] = r
+	s.peekedW += 1
+	s.peekedLen += 1
+	if s.peekedW == sizeOfPeeked {
+		s.peekedW = 0
 	}
 	s.pos += size
 	return r
 }
 
-func (s *Source) PeekedCnt() int {
-	delta := s.peekedTail - s.peekedHead
-	if s.peekedHead > s.peekedTail {
-		return -delta
-	}
-	return delta
-}
-
 // firstly try to pop the front of the `s.peaked` otherwise read
 // a rune and advance `s.pos`
 func (s *Source) NextRune() rune {
-	if s.peekedHead != s.peekedTail {
-		r := s.peeked[s.peekedHead]
-		s.peekedHead += 1
-		if s.peekedHead > maxPeekCnt-1 {
-			s.peekedHead = 0
+	if s.peekedLen > 0 {
+		r := s.peeked[s.peekedR]
+		s.peekedR += 1
+		s.peekedLen -= 1
+		if s.peekedR == sizeOfPeeked {
+			s.peekedR = 0
 		}
 		return r
 	}
@@ -136,7 +135,7 @@ func (s *Source) Line() int {
 }
 
 func (s *Source) Pos() int {
-	return s.pos - s.PeekedCnt()
+	return s.pos - s.peekedLen
 }
 
 func (s *Source) NewOpenRange() *SourceRange {
