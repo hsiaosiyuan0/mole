@@ -15,22 +15,24 @@ type Source struct {
 	store *SourceStore
 
 	// should be absolute path
-	path   string
-	code   string
-	pos    int
-	peeked []rune
-	line   int
-	col    int
+	path string
+	code string
+	pos  int
+	line int
+	col  int
+
+	peeked     [maxPeekCnt]rune
+	peekedHead int
+	peekedTail int
 }
+
+const maxPeekCnt = 3
 
 func NewSource(path string, code string) *Source {
 	return &Source{
-		path:   path,
-		code:   code,
-		pos:    0,
-		peeked: make([]rune, 0),
-		line:   1,
-		col:    0,
+		path: path,
+		code: code,
+		line: 1,
 	}
 }
 
@@ -50,17 +52,32 @@ func (s *Source) RuneAtPos(pos int) (rune, int) {
 // read and push back a rune into `s.peaked` also advance `s.pos`
 func (s *Source) PeekRune() rune {
 	r, size := s.RuneAtPos(s.pos)
-	s.peeked = append(s.peeked, r)
+	s.peeked[s.peekedTail] = r
+	s.peekedTail += 1
+	if s.peekedTail > maxPeekCnt-1 {
+		s.peekedTail = 0
+	}
 	s.pos += size
 	return r
+}
+
+func (s *Source) PeekedCnt() int {
+	delta := s.peekedTail - s.peekedHead
+	if s.peekedHead > s.peekedTail {
+		return -delta
+	}
+	return delta
 }
 
 // firstly try to pop the front of the `s.peaked` otherwise read
 // a rune and advance `s.pos`
 func (s *Source) NextRune() rune {
-	if len(s.peeked) > 0 {
-		r, rest := s.peeked[0], s.peeked[1:]
-		s.peeked = rest
+	if s.peekedHead != s.peekedTail {
+		r := s.peeked[s.peekedHead]
+		s.peekedHead += 1
+		if s.peekedHead > maxPeekCnt-1 {
+			s.peekedHead = 0
+		}
 		return r
 	}
 
@@ -119,7 +136,7 @@ func (s *Source) Line() int {
 }
 
 func (s *Source) Pos() int {
-	return s.pos - len(s.peeked)
+	return s.pos - s.PeekedCnt()
 }
 
 func (s *Source) NewOpenRange() *SourceRange {

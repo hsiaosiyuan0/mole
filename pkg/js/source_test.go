@@ -28,7 +28,7 @@ func TestAhead(t *testing.T) {
 	assert.Equal(t, true, s.AheadIsChs2('e', 'l'), "ahead should be el")
 	assert.Equal(t, 'e', s.Next(), "next should be e")
 	assert.Equal(t, 'l', s.Next(), "next should be l")
-	assert.Equal(t, 0, len(s.peeked), "peek buf should be empty")
+	assert.Equal(t, 0, s.PeekedCnt(), "peek buf should be empty")
 
 	assert.Equal(t, 'l', s.Next(), "next should be l")
 	assert.Equal(t, 'o', s.Next(), "next should be o")
