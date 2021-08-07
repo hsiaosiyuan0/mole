@@ -4,14 +4,28 @@ type Token struct {
 	value TokenValue
 	text  string
 	loc   *SourceRange
+
+	ext interface{}
+}
+
+func (t *Token) IsLegal() bool {
+	return t.value != T_ILLEGAL
+}
+
+func (t *Token) RawText() string {
+	loc := t.loc
+	return loc.src.code[loc.lo:loc.hi]
 }
 
 func (t *Token) Text() string {
 	if t.text != "" {
 		return t.text
 	}
-	loc := t.loc
-	return loc.src.code[loc.lo:loc.hi]
+	return t.RawText()
+}
+
+type TokenExtStr struct {
+	open rune
 }
 
 type TokenValue int
@@ -230,7 +244,7 @@ var TokenKinds = [T_TOKEN_DEF_END - 1]*TokenKind{
 	{T_VAR, "var", false},
 	{T_WHILE, "while", false},
 	{T_WITH, "with", false},
-	{T_CTX_KEYWORD_END, "keyword end", false},
+	{T_KEYWORD_END, "keyword end", false},
 
 	// contextual keywords
 	{T_CTX_KEYWORD_BEGIN, "contextual keyword begin", false},
@@ -336,4 +350,16 @@ var TokenKinds = [T_TOKEN_DEF_END - 1]*TokenKind{
 	{T_ASSIGN_DIV, "/=", false},
 	{T_ASSIGN_MOD, "%=", false},
 	{T_ASSIGN_POW, "**=", false},
+}
+
+var Keywords = make(map[string]TokenValue)
+var ContextualKeywords = make(map[string]TokenValue)
+
+func init() {
+	for i := T_KEYWORD_BEGIN + 1; i < T_KEYWORD_END; i++ {
+		Keywords[TokenKinds[i].Name] = i
+	}
+	for i := T_CTX_KEYWORD_BEGIN + 1; i < T_CTX_KEYWORD_END; i++ {
+		Keywords[TokenKinds[i].Name] = i
+	}
 }

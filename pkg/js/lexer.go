@@ -14,39 +14,121 @@ func NewLexer(src *Source) *Lexer {
 	return &Lexer{Source: src}
 }
 
-func (l *Lexer) Next() (*Token, error) {
+func (l *Lexer) Next() *Token {
 	l.SkipSpace()
 	if l.aheadIsIdStart() {
 		return l.ReadName()
 	} else if l.aheadIsNumStart() {
 		return l.ReadNum()
+	} else if l.aheadIsStrStart() {
+		return l.ReadStr()
 	}
-	return nil, nil
+	return nil
 }
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-lexical-grammar.html#prod-IdentifierName
-func (l *Lexer) ReadName() (*Token, error) {
+func (l *Lexer) ReadName() *Token {
 	tok := l.newToken()
 
 	runes := make([]rune, 0, 10)
-	r, err := l.readIdStart()
-	if err != nil {
-		return tok, err
+	r := l.readIdStart()
+	if r == utf8.RuneError {
+		return l.errToken(tok)
 	}
 	runes = append(runes, r)
 
-	idPart, err := l.readIdPart()
-	if err != nil {
-		return tok, err
+	idPart, ok := l.readIdPart()
+	if !ok {
+		return l.errToken(tok)
 	}
 	runes = append(runes, idPart...)
 	tok.text = string(runes)
 
-	return l.finToken(tok, T_NAME), nil
+	return l.finToken(tok, T_NAME)
+}
+
+// https://tc39.es/ecma262/multipage/ecmascript-language-lexical-grammar.html#sec-literals-string-literals
+func (l *Lexer) ReadStr() *Token {
+	tok := l.newToken()
+	open := l.Read()
+	text := make([]rune, 0, 10)
+	for {
+		c := l.Read()
+		if c == utf8.RuneError || c == EOF {
+			return l.errToken(tok)
+		} else if c == '\\' {
+			nc := l.Peek()
+			if IsLineTerminator(nc) {
+				l.readLineTerminator()
+			} else {
+				r := l.readEscapeSeq()
+				if r == utf8.RuneError || r == EOF {
+					return l.errToken(tok)
+				}
+				text = append(text, r)
+			}
+		} else if c == open {
+			break
+		} else {
+			text = append(text, c)
+		}
+	}
+	tok.ext = &TokenExtStr{open}
+	tok.text = string(text)
+	return l.finToken(tok, T_STRING)
+}
+
+func (l *Lexer) readEscapeSeq() rune {
+	c := l.Read()
+	switch c {
+	case 'b':
+		return '\b'
+	case 'f':
+		return '\f'
+	case 'n':
+		return '\n'
+	case 'r':
+		return '\r'
+	case 't':
+		return '\t'
+	case 'v':
+		return '\v'
+	case '0':
+		return 0
+	case 'x':
+		return l.readHexEscapeSeq()
+	case 'u':
+		return l.readUnicodeEscapeSeq()
+	}
+	return c
+}
+
+func (l *Lexer) readHexEscapeSeq() rune {
+	hex := [2]rune{}
+	c := l.Read()
+	for i := 0; i < 2; i++ {
+		if IsHexDigit(c) {
+			hex[i] = c
+		} else {
+			return utf8.RuneError
+		}
+	}
+	r, err := strconv.ParseInt(string(hex[:]), 16, 32)
+	if err != nil {
+		return utf8.RuneError
+	}
+	return rune(r)
+}
+
+func (l *Lexer) readLineTerminator() {
+	c := l.Read()
+	if c == '\r' {
+		l.ReadIfNextIs('\n')
+	}
 }
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-lexical-grammar.html#prod-NumericLiteral
-func (l *Lexer) ReadNum() (*Token, error) {
+func (l *Lexer) ReadNum() *Token {
 	tok := l.newToken()
 	c := l.Read()
 	if c == '0' {
@@ -62,7 +144,7 @@ func (l *Lexer) ReadNum() (*Token, error) {
 	return l.readDecimalNum(tok, c)
 }
 
-func (l *Lexer) readDecimalNum(tok *Token, first rune) (*Token, error) {
+func (l *Lexer) readDecimalNum(tok *Token, first rune) *Token {
 	isFractionOpt := first == '.'
 	if first != '.' && first != '0' {
 		l.readDecimalDigits(true)
@@ -71,18 +153,18 @@ func (l *Lexer) readDecimalNum(tok *Token, first rune) (*Token, error) {
 	if first != '.' && l.AheadIsCh('.') || first == '.' {
 		// read the fraction part
 		if err := l.readDecimalDigits(isFractionOpt); err != nil {
-			return tok, err
+			return l.errToken(tok)
 		}
 	}
 
 	if l.AheadIsChOr('e', 'E') {
 		if err := l.readExpPart(); err != nil {
-			return tok, err
+			return l.errToken(tok)
 		}
 	}
 
 	l.ReadIfNextIs('n')
-	return l.finToken(tok, T_NUM), nil
+	return l.finToken(tok, T_NUM)
 }
 
 func (l *Lexer) readExpPart() error {
@@ -111,9 +193,8 @@ func (l *Lexer) readDecimalDigits(opt bool) error {
 	return nil
 }
 
-func (l *Lexer) readBinaryNum(tok *Token) (*Token, error) {
+func (l *Lexer) readBinaryNum(tok *Token) *Token {
 	l.Read()
-	err := l.unexpectedCharError()
 	i := 0
 	for {
 		c := l.Peek()
@@ -125,15 +206,14 @@ func (l *Lexer) readBinaryNum(tok *Token) (*Token, error) {
 		}
 	}
 	if i == 0 {
-		return tok, err
+		return l.errToken(tok)
 	}
 	l.ReadIfNextIs('n')
-	return l.finToken(tok, T_NUM), nil
+	return l.finToken(tok, T_NUM)
 }
 
-func (l *Lexer) readOctalNum(tok *Token) (*Token, error) {
+func (l *Lexer) readOctalNum(tok *Token) *Token {
 	l.Read()
-	err := l.unexpectedCharError()
 	i := 0
 	for {
 		c := l.Peek()
@@ -145,15 +225,14 @@ func (l *Lexer) readOctalNum(tok *Token) (*Token, error) {
 		}
 	}
 	if i == 0 {
-		return tok, err
+		return l.errToken(tok)
 	}
 	l.ReadIfNextIs('n')
-	return l.finToken(tok, T_NUM), nil
+	return l.finToken(tok, T_NUM)
 }
 
-func (l *Lexer) readHexNum(tok *Token) (*Token, error) {
+func (l *Lexer) readHexNum(tok *Token) *Token {
 	l.Read()
-	err := l.unexpectedCharError()
 	i := 0
 	for {
 		c := l.Peek()
@@ -165,89 +244,86 @@ func (l *Lexer) readHexNum(tok *Token) (*Token, error) {
 		}
 	}
 	if i == 0 {
-		return tok, err
+		return l.errToken(tok)
 	}
 	l.ReadIfNextIs('n')
-	return l.finToken(tok, T_NUM), nil
+	return l.finToken(tok, T_NUM)
 }
 
-func (l *Lexer) readIdStart() (rune, error) {
+func (l *Lexer) readIdStart() rune {
 	c := l.Read()
 	return l.readUnicodeEscape(c)
 }
 
-func (l *Lexer) readIdPart() ([]rune, error) {
+func (l *Lexer) readIdPart() ([]rune, bool) {
 	runes := make([]rune, 0, 10)
 	for {
 		c := l.Peek()
 		if IsId(c) {
-			c := l.Read() // advance
-			c, err := l.readUnicodeEscape(c)
-			if err != nil {
-				return nil, err
+			c := l.readUnicodeEscape(l.Read())
+			if c == utf8.RuneError {
+				return nil, false
 			}
 			runes = append(runes, c)
 		} else {
 			break
 		}
 	}
-	return runes, nil
+	return runes, true
 }
 
-func (l *Lexer) readUnicodeEscape(c rune) (rune, error) {
+func (l *Lexer) readUnicodeEscape(c rune) rune {
 	if c == '\\' && l.AheadIsCh('u') {
 		l.Read()
 		return l.readUnicodeEscapeSeq()
 	}
-	return c, nil
+	return c
 }
 
-func (l *Lexer) readUnicodeEscapeSeq() (rune, error) {
+func (l *Lexer) readUnicodeEscapeSeq() rune {
 	if l.AheadIsCh('{') {
 		return l.readCodepoint()
 	}
 	return l.readHex4Digits()
 }
 
-func (l *Lexer) readCodepoint() (rune, error) {
-	deformedHexErr := l.unexpectedCharError()
+func (l *Lexer) readCodepoint() rune {
 	hex := make([]byte, 0, 4)
 	l.Read() // consume `{`
 	for {
 		if l.AheadIsChThenConsume('}') {
 			break
 		} else if l.AheadIsEof() {
-			return 0, deformedHexErr
+			return utf8.RuneError
 		} else {
 			c := l.Read()
 			if c == utf8.RuneError || !IsHexDigit(c) {
-				return 0, deformedHexErr
+				return utf8.RuneError
 			}
 			hex = append(hex, byte(c))
 		}
 	}
 	r, err := strconv.ParseInt(string(hex), 16, 32)
 	if err != nil {
-		return 0, deformedHexErr
+		return utf8.RuneError
 	}
-	return rune(r), nil
+	return rune(r)
 }
 
-func (l *Lexer) readHex4Digits() (rune, error) {
-	deformedHexErr := l.unexpectedCharError()
+func (l *Lexer) readHex4Digits() rune {
 	hex := [4]byte{0}
 	for i := 0; i < 4; i++ {
 		c := l.Read()
 		if c == utf8.RuneError || !IsHexDigit(c) {
-			return 0, deformedHexErr
+			return utf8.RuneError
 		}
 		hex[i] = byte(c)
 	}
 	r, err := strconv.ParseInt(string(hex[:]), 16, 32)
 	if err != nil {
-		return 0, deformedHexErr
+		return utf8.RuneError
 	}
-	return rune(r), nil
+	return rune(r)
 }
 
 func (l *Lexer) error(msg string) *LexerError {
@@ -267,6 +343,11 @@ func (l *Lexer) aheadIsNumStart() bool {
 	return IsDecimalDigit(v) || v == '.'
 }
 
+func (l *Lexer) aheadIsStrStart() bool {
+	v := l.Peek()
+	return v == '\'' || v == '"'
+}
+
 func (l *Lexer) newToken() *Token {
 	return &Token{
 		value: T_ILLEGAL,
@@ -276,6 +357,11 @@ func (l *Lexer) newToken() *Token {
 
 func (l *Lexer) finToken(tok *Token, value TokenValue) *Token {
 	tok.value = value
+	tok.loc.hi = l.Pos()
+	return l.errToken(tok)
+}
+
+func (l *Lexer) errToken(tok *Token) *Token {
 	tok.loc.hi = l.Pos()
 	return tok
 }
@@ -310,4 +396,9 @@ func IsHexDigit(c rune) bool {
 
 func IsDecimalDigit(c rune) bool {
 	return c >= '0' && c <= '9'
+}
+
+func IsSingleEscapeChar(c rune) bool {
+	return c == '\'' || c == '"' || c == '\\' || c == 'b' ||
+		c == 'f' || c == 'n' || c == 'r' || c == 't' || c == 'v'
 }
