@@ -3,12 +3,13 @@ package js
 import "fmt"
 
 type SourceError struct {
+	msg  string
 	file string
 	line int
 	col  int
 }
 
-func NewSourceError(file string, line, col int) *SourceError {
+func NewSourceError(msg, file string, line, col int) *SourceError {
 	return &SourceError{
 		file: file,
 		line: line,
@@ -17,17 +18,19 @@ func NewSourceError(file string, line, col int) *SourceError {
 }
 
 func (e *SourceError) Error() string {
-	return fmt.Sprintf("unexpected rune at %sL%d:%d\n", e.file, e.line, e.col)
+	return fmt.Sprintf("%s at %sL%d:%d\n", e.msg, e.file, e.line, e.col)
 }
 
 type LexerError struct {
+	msg  string
 	file string
 	line int
 	col  int
 }
 
-func NewLexerError(file string, line, col int) *LexerError {
+func NewLexerError(msg, file string, line, col int) *LexerError {
 	return &LexerError{
+		msg:  msg,
 		file: file,
 		line: line,
 		col:  col,
@@ -35,5 +38,5 @@ func NewLexerError(file string, line, col int) *LexerError {
 }
 
 func (e *LexerError) Error() string {
-	return fmt.Sprintf("unexpected token at %sL%d:%c\n", e.file, e.line, e.col)
+	return fmt.Sprintf("%s at %sL%d:%c\n", e.msg, e.file, e.line, e.col)
 }

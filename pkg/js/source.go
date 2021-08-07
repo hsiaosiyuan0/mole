@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"sync"
+	"unicode"
 	"unicode/utf8"
 )
 
@@ -26,6 +27,8 @@ type Source struct {
 	peekedLen int
 	peekedR   int
 	peekedW   int
+
+	metLineTerminator bool
 }
 
 const sizeOfPeeked = 5
@@ -52,11 +55,20 @@ func (s *Source) RuneAtPos(pos int) (rune, int) {
 }
 
 // read and push back a rune into `s.peaked` also advance `s.pos`
-func (s *Source) PeekRune() rune {
+// returns `utf8.RuneError` if the rune is deformed
+//
+// be careful with the calling times of this method since it will panic
+// if its internal buffer for caching peeked rune is full
+func (s *Source) peek() rune {
 	if s.peekedLen == sizeOfPeeked {
-		panic(fmt.Sprintf("peek buffer is full, max len is %d\n", s.peekedLen))
+		panic(s.error(fmt.Sprintf("peek buffer is full, max len is %d\n", s.peekedLen)))
 	}
+
 	r, size := s.RuneAtPos(s.pos)
+	if r == EOF {
+		return EOF
+	}
+
 	s.peeked[s.peekedW] = r
 	s.peekedW += 1
 	s.peekedLen += 1
@@ -65,6 +77,13 @@ func (s *Source) PeekRune() rune {
 	}
 	s.pos += size
 	return r
+}
+
+func (s *Source) Peek() rune {
+	if s.peekedLen > 0 {
+		return s.peeked[s.peekedR]
+	}
+	return s.peek()
 }
 
 // firstly try to pop the front of the `s.peaked` otherwise read
@@ -86,36 +105,47 @@ func (s *Source) NextRune() rune {
 }
 
 func (s *Source) AheadIsCh(c rune) bool {
-	return s.PeekRune() == c
+	return s.Peek() == c
+}
+
+func (s *Source) AheadIsEof() bool {
+	return s.pos == len(s.code)
+}
+
+func (s *Source) AheadIsChThenConsume(c rune) bool {
+	if s.Peek() == c {
+		s.Read()
+		return true
+	}
+	return false
 }
 
 func (s *Source) AheadIsChs2(c1 rune, c2 rune) bool {
-	p1 := s.PeekRune()
-	if p1 != c1 {
+	if s.peek() != c1 {
 		return false
 	}
 
-	p2 := s.PeekRune()
-	return p2 == c2
+	return s.peek() == c2
 }
 
 func (s *Source) AheadIsChOr(c1 rune, c2 rune) bool {
-	p := s.PeekRune()
-	return p == c1 || p == c2
+	c := s.Peek()
+	return c == c1 || c == c2
 }
 
 func IsLineTerminator(c rune) bool {
 	return c == 0x0a || c == 0x0d || c == 0x2028 || c == 0x2029
 }
 
-func (s *Source) ReadIfNextIs(c rune) rune {
-	if s.PeekRune() == c {
-		return s.NextRune()
+func (s *Source) ReadIfNextIs(c rune) bool {
+	if s.Peek() == c {
+		s.NextRune()
+		return true
 	}
-	return utf8.RuneError
+	return false
 }
 
-func (s *Source) NextJoinCRLF() rune {
+func (s *Source) readJoinCRLF() rune {
 	c := s.NextRune()
 	if IsLineTerminator(c) {
 		if c == '\r' {
@@ -124,10 +154,6 @@ func (s *Source) NextJoinCRLF() rune {
 		return EOL
 	}
 	return c
-}
-
-func (s *Source) NextIsEOF() bool {
-	return s.NextRune() == EOF
 }
 
 func (s *Source) Line() int {
@@ -139,35 +165,41 @@ func (s *Source) Pos() int {
 }
 
 func (s *Source) NewOpenRange() *SourceRange {
+	pos := s.Pos()
 	return &SourceRange{
 		src: s,
-		lo:  s.Pos(),
+		lo:  pos,
+		hi:  pos,
 	}
 }
 
-func (s *Source) next(loose bool) (rune, error) {
-	c := s.NextJoinCRLF()
-
-	if c == utf8.RuneError && !loose {
-		return 0, NewLexerError(s.path, s.line, s.Pos()-1)
-	}
-
+// returns `utf8.RuneError` if the rune is deformed
+func (s *Source) Read() rune {
+	c := s.readJoinCRLF()
 	if c == EOL {
 		s.line += 1
 		s.col = 0
 	} else {
 		s.col += 1
 	}
-	return c, nil
+	return c
 }
 
-func (s *Source) NextStrict() (rune, error) {
-	return s.next(false)
+// skip spaces except line terminator
+func (s *Source) SkipSpace() {
+	for {
+		c := s.Peek()
+		if unicode.IsSpace(c) {
+			s.metLineTerminator = IsLineTerminator(c)
+			s.Read()
+		} else {
+			break
+		}
+	}
 }
 
-func (s *Source) Next() rune {
-	r, _ := s.next(true)
-	return r
+func (s *Source) error(msg string) *SourceError {
+	return NewSourceError(msg, s.path, s.line, s.Pos()-1)
 }
 
 // TODO: description
