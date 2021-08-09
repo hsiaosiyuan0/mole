@@ -93,14 +93,39 @@ func (l *Lexer) readEscapeSeq() rune {
 		return '\t'
 	case 'v':
 		return '\v'
-	case '0':
-		return 0
+	case '0', '1', '2', '3', '4', '5', '6', '7':
+		return l.readOctalEscapeSeq(c)
 	case 'x':
 		return l.readHexEscapeSeq()
 	case 'u':
 		return l.readUnicodeEscapeSeq()
 	}
 	return c
+}
+
+// https://tc39.es/ecma262/multipage/additional-ecmascript-features-for-web-browsers.html#prod-annexB-LegacyOctalEscapeSequence
+// TODO: disabled in strict mode
+func (l *Lexer) readOctalEscapeSeq(first rune) rune {
+	octal := make([]rune, 0, 3)
+	octal = append(octal, first)
+	zeroToThree := first >= '0' && first <= '3'
+	i := 1
+	for {
+		if !zeroToThree && i == 2 || zeroToThree && i == 3 {
+			break
+		}
+		c := l.Peek()
+		if !IsOctalDigit(c) {
+			break
+		}
+		octal = append(octal, l.Read())
+		i += 1
+	}
+	r, err := strconv.ParseInt(string(octal[:]), 8, 32)
+	if err != nil {
+		return utf8.RuneError
+	}
+	return rune(r)
 }
 
 func (l *Lexer) readHexEscapeSeq() rune {
@@ -387,7 +412,7 @@ func IsId(c rune) bool {
 }
 
 func IsOctalDigit(c rune) bool {
-	return c >= 0 && c <= '7'
+	return c >= '0' && c <= '7'
 }
 
 func IsHexDigit(c rune) bool {

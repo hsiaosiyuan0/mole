@@ -80,6 +80,9 @@ func TestReadStr(t *testing.T) {
   'h'
   'a\nb'
   't\u0065st'
+  '\012'
+  '\0012'
+  '\251'
   `)
 
 	l := NewLexer(s)
@@ -94,4 +97,16 @@ func TestReadStr(t *testing.T) {
 	tok = l.Next()
 	assert.Equal(t, true, tok.IsLegal(), "should be ok test")
 	assert.Equal(t, "test", tok.Text(), "should be test")
+
+	tok = l.Next()
+	assert.Equal(t, true, tok.IsLegal(), "should be ok \\n")
+	assert.Equal(t, "\n", tok.Text(), "should be \\n")
+
+	tok = l.Next()
+	assert.Equal(t, true, tok.IsLegal(), "should be ok \\u00012")
+	assert.Equal(t, "\u00012", tok.Text(), "should be \\u00012")
+
+	tok = l.Next()
+	assert.Equal(t, true, tok.IsLegal(), "should be ok ©")
+	assert.Equal(t, "©", tok.Text(), "should be ©")
 }
