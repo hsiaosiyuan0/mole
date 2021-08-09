@@ -128,7 +128,7 @@ func TestLabel(t *testing.T) {
 	assert.Equal(t, "=", TokenKinds[T_ASSIGN].Name, "should be =")
 	assert.Equal(t, "+=", TokenKinds[T_ASSIGN_ADD].Name, "should be +=")
 	assert.Equal(t, "-=", TokenKinds[T_ASSIGN_SUB].Name, "should be -=")
-	assert.Equal(t, "??=", TokenKinds[T_ASSIGN_COALESCE].Name, "should be ??=")
+	assert.Equal(t, "??=", TokenKinds[T_ASSIGN_NULLISH].Name, "should be ??=")
 	assert.Equal(t, "||=", TokenKinds[T_ASSIGN_OR].Name, "should be ||=")
 	assert.Equal(t, "&&=", TokenKinds[T_ASSIGN_AND].Name, "should be &&=")
 	assert.Equal(t, "|=", TokenKinds[T_ASSIGN_BIT_OR].Name, "should be |=")

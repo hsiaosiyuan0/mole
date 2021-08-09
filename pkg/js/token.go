@@ -5,11 +5,17 @@ type Token struct {
 	text  string
 	loc   *SourceRange
 
+	afterLineTerminator bool
+
 	ext interface{}
 }
 
 func (t *Token) IsLegal() bool {
 	return t.value != T_ILLEGAL
+}
+
+func (t *Token) isEof() bool {
+	return t.value == T_EOF
 }
 
 func (t *Token) RawText() string {
@@ -80,6 +86,7 @@ const (
 
 	// contextual keywords
 	T_CTX_KEYWORD_BEGIN
+	T_CTX_KEYWORD_STRICT_BEGIN
 	T_LET
 	T_STATIC
 	T_IMPLEMENTS
@@ -88,6 +95,7 @@ const (
 	T_PRIVATE
 	T_PROTECTED
 	T_PUBLIC
+	T_CTX_KEYWORD_STRICT_END
 	T_AS
 	T_ASYNC
 	T_FROM
@@ -96,6 +104,7 @@ const (
 	T_OF
 	T_SET
 	T_TARGET
+	T_AWAIT
 	T_YIELD
 	T_CTX_KEYWORD_END
 
@@ -169,7 +178,7 @@ const (
 	T_ASSIGN
 	T_ASSIGN_ADD
 	T_ASSIGN_SUB
-	T_ASSIGN_COALESCE
+	T_ASSIGN_NULLISH
 	T_ASSIGN_OR
 	T_ASSIGN_AND
 	T_ASSIGN_BIT_OR
@@ -191,10 +200,10 @@ type TokenKind struct {
 	Value TokenValue
 	Name  string
 
-	// here is a manner taken from [acorn](https://github.com/acornjs/acorn/blob/master/acorn/src/tokentype.js)
-	// it attaches a `beforeExpr` attribute to each token to indicate that the slashes after those tokens would be
-	// the beginning of regexp if the value of their `beforeExpr` attributes are `true`, it works at tokenizing phase
-	// therefore it can obey the definition of regexp to produce RegExprLiteral tokens
+	// reference [acorn](https://github.com/acornjs/acorn/blob/master/acorn/src/tokentype.js)
+	// a `beforeExpr` attribute is attached to each token to indicate that the slashes after those
+	// tokens would be the beginning of regexps if the value of `beforeExpr` are `true`, works at
+	// tokenizing phase
 	BeforeExpr bool
 }
 
@@ -205,12 +214,12 @@ var TokenKinds = [T_TOKEN_DEF_END - 1]*TokenKind{
 	{T_COMMENT, "comment", false},
 
 	// literals
-	{T_NULL, "null", false},
-	{T_TRUE, "true", false},
-	{T_FALSE, "false", false},
+	{T_NULL, "null", true},
+	{T_TRUE, "true", true},
+	{T_FALSE, "false", true},
 	{T_NUM, "number", false},
 	{T_STRING, "string", false},
-	{T_TPL_HEAD, "${", false},
+	{T_TPL_HEAD, "${", true},
 
 	{T_NAME, "identifer", false},
 	{T_NAME_PRIVATE, "private identifer", false},
@@ -218,28 +227,28 @@ var TokenKinds = [T_TOKEN_DEF_END - 1]*TokenKind{
 	// keywords
 	{T_KEYWORD_BEGIN, "keyword begin", false},
 	{T_BREAK, "break", false},
-	{T_CASE, "case", false},
+	{T_CASE, "case", true},
 	{T_CATCH, "catch", false},
 	{T_CLASS, "class", false},
 	{T_CONTINUE, "continue", false},
 	{T_DEBUGGER, "debugger", false},
-	{T_DEFAULT, "default", false},
-	{T_DO, "do", false},
-	{T_ELSE, "else", false},
+	{T_DEFAULT, "default", true},
+	{T_DO, "do", true},
+	{T_ELSE, "else", true},
 	{T_ENUM, "enum", false},
 	{T_EXPORT, "export", false},
-	{T_EXTENDS, "extends", false},
+	{T_EXTENDS, "extends", true},
 	{T_FINALLY, "finally", false},
 	{T_FOR, "for", false},
 	{T_FUNC, "function", false},
 	{T_IF, "if", false},
 	{T_IMPORT, "import", false},
-	{T_NEW, "new", false},
-	{T_RETURN, "return", false},
+	{T_NEW, "new", true},
+	{T_RETURN, "return", true},
 	{T_SUPER, "super", false},
 	{T_SWITCH, "switch", false},
 	{T_THIS, "this", false},
-	{T_THROW, "throw", false},
+	{T_THROW, "throw", true},
 	{T_TRY, "try", false},
 	{T_VAR, "var", false},
 	{T_WHILE, "while", false},
@@ -248,6 +257,7 @@ var TokenKinds = [T_TOKEN_DEF_END - 1]*TokenKind{
 
 	// contextual keywords
 	{T_CTX_KEYWORD_BEGIN, "contextual keyword begin", false},
+	{T_CTX_KEYWORD_STRICT_BEGIN, "contextual keyword strict begin", false},
 	{T_LET, "let", false},
 	{T_STATIC, "static", false},
 	{T_IMPLEMENTS, "implements", false},
@@ -256,6 +266,7 @@ var TokenKinds = [T_TOKEN_DEF_END - 1]*TokenKind{
 	{T_PRIVATE, "private", false},
 	{T_PROTECTED, "protected", false},
 	{T_PUBLIC, "public", false},
+	{T_CTX_KEYWORD_STRICT_END, "contextual keyword strict end", false},
 	{T_AS, "as", false},
 	{T_ASYNC, "async", false},
 	{T_FROM, "from", false},
@@ -264,27 +275,28 @@ var TokenKinds = [T_TOKEN_DEF_END - 1]*TokenKind{
 	{T_OF, "of", false},
 	{T_SET, "set", false},
 	{T_TARGET, "target", false},
+	{T_AWAIT, "await", false},
 	{T_YIELD, "yield", false},
 	{T_CTX_KEYWORD_END, "contextual keyword end", false},
 
 	{T_REGEXP, "regexp", false},
 	{T_BACK_QUOTE, "`", false},
-	{T_BRACE_L, "{", false},
+	{T_BRACE_L, "{", true},
 	{T_BRACE_R, "}", false},
-	{T_PAREN_L, "(", false},
+	{T_PAREN_L, "(", true},
 	{T_PAREN_R, ")", false},
-	{T_BRACKET_L, "[", false},
+	{T_BRACKET_L, "[", true},
 	{T_BRACKET_R, "]", false},
 	{T_DOT, ".", false},
 	{T_DOT_TRI, "...", false},
-	{T_SEMI, ";", false},
-	{T_COMMA, ",", false},
+	{T_SEMI, ";", true},
+	{T_COMMA, ",", true},
 	{T_HOOK, "?", false},
-	{T_COLON, ":", false},
+	{T_COLON, ":", true},
 	{T_INC, "++", false},
 	{T_DEC, "--", false},
 	{T_OPT_CHAIN, "?.", false},
-	{T_ARROW, "=>", false},
+	{T_ARROW, "=>", true},
 
 	{T_BIN_OP_BEGIN, "binary operator begin", false},
 	{T_NULLISH, "??", false},
@@ -313,14 +325,14 @@ var TokenKinds = [T_TOKEN_DEF_END - 1]*TokenKind{
 	{T_AND, "&&", false},
 
 	{T_INSTANCE_OF, "instanceof", false},
-	{T_IN, "in", false},
+	{T_IN, "in", true},
 
-	{T_ADD, "+", false},
-	{T_SUB, "-", false},
-	{T_MUL, "*", false},
-	{T_DIV, "/", false},
-	{T_MOD, "%", false},
-	{T_POW, "**", false},
+	{T_ADD, "+", true},
+	{T_SUB, "-", true},
+	{T_MUL, "*", true},
+	{T_DIV, "/", true},
+	{T_MOD, "%", true},
+	{T_POW, "**", true},
 	{T_BIN_OP_END, "binary operator end", false},
 
 	// unary
@@ -328,38 +340,57 @@ var TokenKinds = [T_TOKEN_DEF_END - 1]*TokenKind{
 	{T_TYPE_OF, "typeof", false},
 	{T_VOID, "void", false},
 	{T_DELETE, "delete", false},
-	{T_NOT, "!", false},
-	{T_BIT_NOT, "~", false},
+	{T_NOT, "!", true},
+	{T_BIT_NOT, "~", true},
 	{T_UNARY_OP_END, "unary operator end", false},
 
 	// assignment
 	{T_ASSIGN_BEGIN, "assignment begin", false},
-	{T_ASSIGN, "=", false},
-	{T_ASSIGN_ADD, "+=", false},
-	{T_ASSIGN_SUB, "-=", false},
-	{T_ASSIGN_COALESCE, "??=", false},
-	{T_ASSIGN_OR, "||=", false},
-	{T_ASSIGN_AND, "&&=", false},
-	{T_ASSIGN_BIT_OR, "|=", false},
-	{T_ASSIGN_BIT_XOR, "^=", false},
-	{T_ASSIGN_BIT_AND, "&=", false},
-	{T_ASSIGN_BIT_LSH, "<<=", false},
-	{T_ASSIGN_BIT_RSH, ">>=", false},
-	{T_ASSIGN_BIT_RSH_U, ">>>=", false},
-	{T_ASSIGN_MUL, "*=", false},
-	{T_ASSIGN_DIV, "/=", false},
-	{T_ASSIGN_MOD, "%=", false},
-	{T_ASSIGN_POW, "**=", false},
+	{T_ASSIGN, "=", true},
+	{T_ASSIGN_ADD, "+=", true},
+	{T_ASSIGN_SUB, "-=", true},
+	{T_ASSIGN_NULLISH, "??=", true},
+	{T_ASSIGN_OR, "||=", true},
+	{T_ASSIGN_AND, "&&=", true},
+	{T_ASSIGN_BIT_OR, "|=", true},
+	{T_ASSIGN_BIT_XOR, "^=", true},
+	{T_ASSIGN_BIT_AND, "&=", true},
+	{T_ASSIGN_BIT_LSH, "<<=", true},
+	{T_ASSIGN_BIT_RSH, ">>=", true},
+	{T_ASSIGN_BIT_RSH_U, ">>>=", true},
+	{T_ASSIGN_MUL, "*=", true},
+	{T_ASSIGN_DIV, "/=", true},
+	{T_ASSIGN_MOD, "%=", true},
+	{T_ASSIGN_POW, "**=", true},
 }
 
 var Keywords = make(map[string]TokenValue)
-var ContextualKeywords = make(map[string]TokenValue)
+var CtxKeywords = make(map[string]TokenValue)
+var StrictKeywords = make(map[string]TokenValue)
 
 func init() {
 	for i := T_KEYWORD_BEGIN + 1; i < T_KEYWORD_END; i++ {
 		Keywords[TokenKinds[i].Name] = i
 	}
 	for i := T_CTX_KEYWORD_BEGIN + 1; i < T_CTX_KEYWORD_END; i++ {
-		Keywords[TokenKinds[i].Name] = i
+		CtxKeywords[TokenKinds[i].Name] = i
 	}
+	for i := T_CTX_KEYWORD_STRICT_BEGIN + 1; i < T_CTX_KEYWORD_STRICT_END; i++ {
+		StrictKeywords[TokenKinds[i].Name] = i
+	}
+}
+
+func IsKeyword(str string) bool {
+	_, ok := Keywords[str]
+	return ok
+}
+
+func IsCtxKeywords(str string) bool {
+	_, ok := CtxKeywords[str]
+	return ok
+}
+
+func IsStrictKeywords(str string) bool {
+	_, ok := StrictKeywords[str]
+	return ok
 }

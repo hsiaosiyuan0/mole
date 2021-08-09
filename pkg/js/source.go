@@ -23,7 +23,7 @@ type Source struct {
 	line int
 	col  int
 
-	peeked    [sizeOfPeeked]rune
+	peeked    [sizeOfPeekedRune]rune
 	peekedLen int
 	peekedR   int
 	peekedW   int
@@ -31,7 +31,7 @@ type Source struct {
 	metLineTerminator bool
 }
 
-const sizeOfPeeked = 5
+const sizeOfPeekedRune = 4
 
 func NewSource(path string, code string) *Source {
 	return &Source{
@@ -60,8 +60,8 @@ func (s *Source) RuneAtPos(pos int) (rune, int) {
 // be careful with the calling times of this method since it will panic
 // if its internal buffer for caching peeked rune is full
 func (s *Source) peek() rune {
-	if s.peekedLen == sizeOfPeeked {
-		panic(s.error(fmt.Sprintf("peek buffer is full, max len is %d\n", s.peekedLen)))
+	if s.peekedLen == sizeOfPeekedRune {
+		panic(s.error(fmt.Sprintf("peek buffer of source is full, max len is %d\n", s.peekedLen)))
 	}
 
 	r, size := s.RuneAtPos(s.pos)
@@ -72,7 +72,7 @@ func (s *Source) peek() rune {
 	s.peeked[s.peekedW] = r
 	s.peekedW += 1
 	s.peekedLen += 1
-	if s.peekedW == sizeOfPeeked {
+	if s.peekedW == sizeOfPeekedRune {
 		s.peekedW = 0
 	}
 	s.pos += size
@@ -86,16 +86,21 @@ func (s *Source) Peek() rune {
 	return s.peek()
 }
 
+func (s *Source) peekedRInc() int {
+	r := s.peekedR + 1
+	if r == sizeOfPeekedRune {
+		return 0
+	}
+	return r
+}
+
 // firstly try to pop the front of the `s.peaked` otherwise read
 // a rune and advance `s.pos`
 func (s *Source) NextRune() rune {
 	if s.peekedLen > 0 {
 		r := s.peeked[s.peekedR]
-		s.peekedR += 1
+		s.peekedR = s.peekedRInc()
 		s.peekedLen -= 1
-		if s.peekedR == sizeOfPeeked {
-			s.peekedR = 0
-		}
 		return r
 	}
 
@@ -121,11 +126,13 @@ func (s *Source) AheadIsChThenConsume(c rune) bool {
 }
 
 func (s *Source) AheadIsChs2(c1 rune, c2 rune) bool {
-	if s.peek() != c1 {
-		return false
+	if s.peekedLen < 2 {
+		s.peek()
 	}
-
-	return s.peek() == c2
+	if s.peekedLen < 2 {
+		s.peek()
+	}
+	return s.peeked[s.peekedR] == c1 && s.peeked[s.peekedRInc()] == c2
 }
 
 func (s *Source) AheadIsChOr(c1 rune, c2 rune) bool {
@@ -187,10 +194,13 @@ func (s *Source) Read() rune {
 
 // skip spaces except line terminator
 func (s *Source) SkipSpace() {
+	s.metLineTerminator = false
 	for {
 		c := s.Peek()
 		if unicode.IsSpace(c) {
-			s.metLineTerminator = IsLineTerminator(c)
+			if IsLineTerminator(c) {
+				s.metLineTerminator = true
+			}
 			s.Read()
 		} else {
 			break

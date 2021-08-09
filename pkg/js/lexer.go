@@ -1,20 +1,74 @@
 package js
 
 import (
+	"fmt"
 	"strconv"
 	"unicode"
 	"unicode/utf8"
 )
 
+type LexerMode uint32
+
+const (
+	LM_NONE       LexerMode = 0
+	LM_STRICT               = 1
+	LM_TEMPLATE             = 1 << 2
+	LM_IMPORT               = 1 << 3
+	LM_NAMED_LIST           = 1 << 4
+	LM_ASYNC                = 1 << 5
+	LM_GENERATOR            = 1 << 6
+	LM_CLASS_BODY           = 1 << 7
+	LM_CLASS_CTOR           = 1 << 8
+	LM_FOR_OF               = 1 << 9
+	LM_NEW                  = 1 << 10
+)
+
+const sizeOfPeekedTok = 5
+
 type Lexer struct {
 	*Source
+
+	mode []LexerMode
+
+	peeked    [sizeOfPeekedTok]*Token
+	peekedLen int
+	peekedR   int
+	peekedW   int
 }
 
 func NewLexer(src *Source) *Lexer {
-	return &Lexer{Source: src}
+	lexer := &Lexer{Source: src, mode: make([]LexerMode, 0)}
+	lexer.mode = append(lexer.mode, LM_NONE)
+	return lexer
 }
 
-func (l *Lexer) Next() *Token {
+func (l *Lexer) extMode(mode LexerMode, inherit bool) {
+	if inherit {
+		mode |= l.curMode()
+	}
+	l.mode = append(l.mode, mode)
+}
+
+func (l *Lexer) pushMode(mode LexerMode) {
+	l.extMode(mode, true)
+}
+
+func (l *Lexer) popMode() LexerMode {
+	mLen := len(l.mode)
+	m, last := l.mode[:mLen-1], l.mode[mLen-1]
+	l.mode = m
+	return last
+}
+
+func (l *Lexer) curMode() LexerMode {
+	return l.mode[len(l.mode)-1]
+}
+
+func (l *Lexer) isMode(mode LexerMode) bool {
+	return l.curMode()&mode > 0
+}
+
+func (l *Lexer) readTok() *Token {
 	l.SkipSpace()
 	if l.aheadIsIdStart() {
 		return l.ReadName()
@@ -23,7 +77,49 @@ func (l *Lexer) Next() *Token {
 	} else if l.aheadIsStrStart() {
 		return l.ReadStr()
 	}
-	return nil
+	return l.ReadSymbol()
+}
+
+func (l *Lexer) PeekTok() *Token {
+	if l.peekedLen == sizeOfPeekedTok {
+		panic(l.error(fmt.Sprintf("peek buffer of lexer is full, max len is %d\n", l.peekedLen)))
+	}
+
+	tok := l.readTok()
+	if tok.isEof() {
+		return tok
+	}
+
+	l.peeked[l.peekedW] = tok
+	l.peekedW += 1
+	l.peekedLen += 1
+	if l.peekedW == sizeOfPeekedTok {
+		l.peekedW = 0
+	}
+	return tok
+}
+
+func (l *Lexer) nextTok() *Token {
+	if l.peekedLen > 0 {
+		tok := l.peeked[l.peekedR]
+		l.peekedR += 1
+		l.peekedLen -= 1
+		if l.peekedR == sizeOfPeekedTok {
+			l.peekedR = 0
+		}
+		return tok
+	}
+	return l.readTok()
+}
+
+func (l *Lexer) Next() *Token {
+	tok := l.nextTok()
+	if tok.value == T_NAME && tok.Text() == "async" && l.PeekTok().value == T_FUNC {
+		tok.value = T_ASYNC
+		tok.text = ""
+		l.pushMode(LM_ASYNC)
+	}
+	return tok
 }
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-lexical-grammar.html#prod-IdentifierName
@@ -42,9 +138,229 @@ func (l *Lexer) ReadName() *Token {
 		return l.errToken(tok)
 	}
 	runes = append(runes, idPart...)
-	tok.text = string(runes)
+	text := string(runes)
 
+	if IsKeyword(text) {
+		return l.finToken(tok, Keywords[text])
+	} else if l.isMode(LM_STRICT) && IsStrictKeywords(text) {
+		return l.finToken(tok, StrictKeywords[text])
+	} else if l.isMode(LM_IMPORT) && text == "meta" {
+		return l.finToken(tok, CtxKeywords[text])
+	} else if l.isMode(LM_ASYNC) && text == "await" {
+		return l.finToken(tok, T_AWAIT)
+	} else if l.isMode(LM_FOR_OF) && text == "of" {
+		return l.finToken(tok, T_OF)
+	} else if l.isMode(LM_CLASS_BODY) && (text == "set" || text == "get") {
+		return l.finToken(tok, CtxKeywords[text])
+	} else if l.isMode(LM_NAMED_LIST) && (text == "as" || text == "from") {
+		return l.finToken(tok, CtxKeywords[text])
+	}
+	tok.text = text
 	return l.finToken(tok, T_NAME)
+}
+
+func (l *Lexer) ReadSymbol() *Token {
+	c := l.Read()
+	tok := l.newToken()
+	val := tok.value
+	switch c {
+	case '{':
+		val = T_BRACE_L
+	case '}':
+		val = T_BRACE_R
+	case '(':
+		val = T_PAREN_L
+	case ')':
+		val = T_PAREN_R
+	case '[':
+		val = T_BRACKET_L
+	case ']':
+		val = T_BRACKET_R
+	case '`':
+		val = T_BACK_QUOTE
+	case ';':
+		val = T_SEMI
+	case ',':
+		val = T_COMMA
+	case ':':
+		val = T_COLON
+	case '.':
+		if l.AheadIsChs2('.', '.') {
+			l.Read()
+			l.Read()
+			val = T_DOT_TRI
+		} else {
+			val = T_DOT
+		}
+	case '?':
+		if l.AheadIsCh('.') {
+			l.Read()
+			val = T_OPT_CHAIN
+		} else if l.AheadIsCh('?') {
+			l.Read()
+			if l.AheadIsCh('=') {
+				l.Read()
+				val = T_ASSIGN_NULLISH
+			} else {
+				val = T_NULLISH
+			}
+		} else {
+			val = T_HOOK
+		}
+	case '+':
+		if l.AheadIsCh('+') {
+			l.Read()
+			val = T_INC
+		} else if l.AheadIsCh('=') {
+			l.Read()
+			val = T_ASSIGN_ADD
+		} else {
+			val = T_ADD
+		}
+	case '-':
+		if l.AheadIsCh('-') {
+			l.Read()
+			val = T_DEC
+		} else if l.AheadIsCh('=') {
+			l.Read()
+			val = T_ASSIGN_SUB
+		} else {
+			val = T_SUB
+		}
+	case '=':
+		if l.AheadIsCh('>') {
+			l.Read()
+			val = T_ARROW
+		} else if l.AheadIsChs2('=', '=') {
+			l.Read()
+			l.Read()
+			val = T_EQ_S
+		} else if l.AheadIsCh('=') {
+			l.Read()
+			val = T_EQ
+		} else {
+			val = T_ASSIGN
+		}
+	case '<':
+		if l.AheadIsCh('=') {
+			l.Read()
+			val = T_LE
+		} else if l.AheadIsCh('<') {
+			l.Read()
+			if l.AheadIsCh('=') {
+				l.Read()
+				val = T_ASSIGN_BIT_LSH
+			} else {
+				val = T_LSH
+			}
+		} else {
+			val = T_LT
+		}
+	case '>':
+		if l.AheadIsCh('=') {
+			l.Read()
+			val = T_GE
+		} else if l.AheadIsCh('>') {
+			l.Read()
+			if l.AheadIsCh('>') {
+				l.Read()
+				if l.AheadIsCh('=') {
+					l.Read()
+					val = T_ASSIGN_BIT_RSH_U
+				} else {
+					val = T_RSH_U
+				}
+			} else if l.AheadIsCh('=') {
+				l.Read()
+				val = T_ASSIGN_BIT_RSH
+			} else {
+				val = T_RSH
+			}
+		} else {
+			val = T_GT
+		}
+	case '*':
+		if l.AheadIsCh('*') {
+			l.Read()
+			if l.AheadIsCh('=') {
+				val = T_ASSIGN_POW
+			} else {
+				val = T_POW
+			}
+		} else if l.AheadIsCh('=') {
+			l.Read()
+			val = T_ASSIGN_MUL
+		} else {
+			val = T_MUL
+		}
+	case '|':
+		if l.AheadIsCh('|') {
+			l.Read()
+			if l.AheadIsCh('=') {
+				l.Read()
+				val = T_ASSIGN_OR
+			} else {
+				val = T_OR
+			}
+		} else if l.AheadIsCh('=') {
+			l.Read()
+			val = T_ASSIGN_BIT_OR
+		} else {
+			val = T_BIT_OR
+		}
+	case '&':
+		if l.AheadIsCh('&') {
+			l.Read()
+			if l.AheadIsCh('=') {
+				l.Read()
+				val = T_ASSIGN_AND
+			} else {
+				val = T_AND
+			}
+		} else if l.AheadIsCh('=') {
+			l.Read()
+			val = T_ASSIGN_BIT_AND
+		} else {
+			val = T_BIT_AND
+		}
+	case '%':
+		if l.AheadIsCh('=') {
+			l.Read()
+			val = T_ASSIGN_MOD
+		} else {
+			val = T_MOD
+		}
+	case '!':
+		if l.AheadIsCh('=') {
+			l.Read()
+			if l.AheadIsCh('=') {
+				l.Read()
+				val = T_NE_S
+			} else {
+				val = T_NE
+			}
+		} else {
+			val = T_NOT
+		}
+	case '~':
+		val = T_BIT_NOT
+	case '^':
+		if l.AheadIsCh('=') {
+			l.Read()
+			val = T_ASSIGN_BIT_XOR
+		} else {
+			val = T_BIT_XOR
+		}
+	case '/':
+		if l.AheadIsCh('=') {
+			l.Read()
+			val = T_ASSIGN_DIV
+		} else {
+			val = T_DIV
+		}
+	}
+	tok.value = val
+	return tok
 }
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-lexical-grammar.html#sec-literals-string-literals
@@ -365,7 +681,10 @@ func (l *Lexer) aheadIsIdStart() bool {
 
 func (l *Lexer) aheadIsNumStart() bool {
 	v := l.Peek()
-	return IsDecimalDigit(v) || v == '.'
+	if IsDecimalDigit(v) {
+		return true
+	}
+	return v == '.' && IsDecimalDigit(l.peek())
 }
 
 func (l *Lexer) aheadIsStrStart() bool {
@@ -383,6 +702,7 @@ func (l *Lexer) newToken() *Token {
 func (l *Lexer) finToken(tok *Token, value TokenValue) *Token {
 	tok.value = value
 	tok.loc.hi = l.Pos()
+	tok.afterLineTerminator = l.metLineTerminator
 	return l.errToken(tok)
 }
 
