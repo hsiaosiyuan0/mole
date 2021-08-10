@@ -295,3 +295,10 @@ func TestReadNestTpl(t *testing.T) {
 	assert.Equal(t, T_TPL_TAIL, tok.value, "should be tok tpl tail")
 	assert.Equal(t, "b", tok.Text(), "should be tok tpl b")
 }
+
+func TestReadTplOctalEscape(t *testing.T) {
+	s := NewSource("", "`\\1`")
+	l := NewLexer(s)
+	assert.Equal(t, T_ILLEGAL, l.Next().value, "should be tok illegal")
+	assert.Equal(t, 1, len(l.mode), "mode should be balanced")
+}

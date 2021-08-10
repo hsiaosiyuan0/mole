@@ -144,6 +144,11 @@ func (l *Lexer) Next() *Token {
 // https://tc39.es/ecma262/multipage/ecmascript-language-lexical-grammar.html#prod-Template
 func (l *Lexer) ReadTplSpan() *Token {
 	l.Read() // consume `\`` or `}`
+
+	// for inline spans can tell they are in template string
+	l.pushMode(LM_TEMPLATE)
+	defer l.popMode()
+
 	tok := l.newToken()
 	text, fin := l.readTplChs()
 	if text == nil {
@@ -554,6 +559,10 @@ func (l *Lexer) readOctalEscapeSeq(first rune) rune {
 	octal = append(octal, first)
 	zeroToThree := first >= '0' && first <= '3'
 	i := 1
+	if first != '0' && l.isMode(LM_TEMPLATE) {
+		// octal escape sequences are not allowed in template strings
+		return utf8.RuneError
+	}
 	for {
 		if !zeroToThree && i == 2 || zeroToThree && i == 3 {
 			break
