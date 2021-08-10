@@ -262,3 +262,7 @@ type SourceRange struct {
 	lo  int
 	hi  int
 }
+
+func (s *SourceRange) Text() string {
+	return s.src.code[s.lo:s.hi]
+}

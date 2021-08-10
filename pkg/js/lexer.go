@@ -34,6 +34,8 @@ type Lexer struct {
 	peekedLen int
 	peekedR   int
 	peekedW   int
+
+	prev *Token
 }
 
 func NewLexer(src *Source) *Lexer {
@@ -119,6 +121,7 @@ func (l *Lexer) Next() *Token {
 		tok.text = ""
 		l.pushMode(LM_ASYNC)
 	}
+	l.prev = tok
 	return tok
 }
 
@@ -356,11 +359,57 @@ func (l *Lexer) ReadSymbol() *Token {
 			l.Read()
 			val = T_ASSIGN_DIV
 		} else {
-			val = T_DIV
+			if l.prev == nil || TokenKinds[l.prev.value].BeforeExpr {
+				return l.readRegexp()
+			} else {
+				val = T_DIV
+			}
 		}
 	}
 	tok.value = val
 	return tok
+}
+
+// here is an assertion, for any valid regexp, the backslash is always escaped if it appears
+// at any point of the content of the regexp
+// base on above assertion, here we read the regexp roughly by stepping the content until the
+// close backslash is matched as well as no validation is applied on that content
+func (l *Lexer) readRegexp() *Token {
+	tok := l.newToken()
+	pattern := l.NewOpenRange()
+	escaped := false
+	for {
+		c := l.Peek()
+		if IsLineTerminator(c) || c == utf8.RuneError {
+			return l.errToken(tok)
+		} else if c == '\\' {
+			escaped = true
+		} else if !escaped && c == '/' {
+			break
+		}
+		l.Read()
+	}
+	pattern.hi = l.Pos()
+	l.Read() // consume the end `/`
+
+	flags := l.NewOpenRange()
+	i := 0
+	for {
+		if l.aheadIsIdPart() {
+			l.Read()
+			i += 1
+		} else {
+			break
+		}
+	}
+	if i == 0 {
+		flags = nil
+	} else {
+		flags.hi = l.Pos()
+	}
+
+	tok.ext = &TokExtRegexp{pattern, flags}
+	return l.finToken(tok, T_REGEXP)
 }
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-lexical-grammar.html#sec-literals-string-literals
@@ -389,7 +438,7 @@ func (l *Lexer) ReadStr() *Token {
 			text = append(text, c)
 		}
 	}
-	tok.ext = &TokenExtStr{open}
+	tok.ext = &TokExtStr{open}
 	tok.text = string(text)
 	return l.finToken(tok, T_STRING)
 }
@@ -600,7 +649,7 @@ func (l *Lexer) readIdPart() ([]rune, bool) {
 	runes := make([]rune, 0, 10)
 	for {
 		c := l.Peek()
-		if IsId(c) {
+		if IsIdPart(c) {
 			c := l.readUnicodeEscape(l.Read())
 			if c == utf8.RuneError {
 				return nil, false
@@ -679,6 +728,10 @@ func (l *Lexer) aheadIsIdStart() bool {
 	return IsIdStart(l.Peek())
 }
 
+func (l *Lexer) aheadIsIdPart() bool {
+	return IsIdPart(l.Peek())
+}
+
 func (l *Lexer) aheadIsNumStart() bool {
 	v := l.Peek()
 	if IsDecimalDigit(v) {
@@ -725,10 +778,6 @@ func IsIdStart(c rune) bool {
 
 func IsIdPart(c rune) bool {
 	return IsIdStart(c) || c >= '0' && c <= '9' || c == 0x200C || c == 0x200D
-}
-
-func IsId(c rune) bool {
-	return IsIdStart(c) || IsIdPart(c)
 }
 
 func IsOctalDigit(c rune) bool {

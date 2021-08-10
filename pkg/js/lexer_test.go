@@ -136,7 +136,8 @@ func TestReadSymbol(t *testing.T) {
   ?. =>
   ?? < > <= >= == != === !==
   << >> >>> | ^ & || &&
-  + - * / % ** ! ~
+  + - *
+  } / % ** ! ~
   = += -= ??= ||= &&= |= ^= &= <<= >>= >>>=
   *= /= %= **=
   `)
@@ -177,6 +178,7 @@ func TestReadSymbol(t *testing.T) {
 	assert.Equal(t, T_ADD, l.Next().value, "should be tok +")
 	assert.Equal(t, T_SUB, l.Next().value, "should be tok -")
 	assert.Equal(t, T_MUL, l.Next().value, "should be tok *")
+	assert.Equal(t, T_BRACE_R, l.Next().value, "should be tok }")
 	assert.Equal(t, T_DIV, l.Next().value, "should be tok /")
 	assert.Equal(t, T_MOD, l.Next().value, "should be tok %")
 	assert.Equal(t, T_POW, l.Next().value, "should be tok **")
@@ -228,13 +230,21 @@ func TestReadAsyncAwait(t *testing.T) {
 
 func TestReadRegexp(t *testing.T) {
 	s := NewSource("", `
-  /a/i
-  a / /a/i
+  /a/ig
+  a / /b/i
   `)
-	_ = NewLexer(s)
+	l := NewLexer(s)
 
-	// assert.Equal(t, T_REGEXP, l.Next().value, "should be tok regexp")
-	// assert.Equal(t, T_NAME, l.Next().value, "should be tok a")
-	// assert.Equal(t, T_DIV, l.Next().value, "should be tok div")
-	// assert.Equal(t, T_REGEXP, l.Next().value, "should be tok regexp")
+	tok := l.Next()
+	assert.Equal(t, T_REGEXP, tok.value, "should be tok regexp /a/ig")
+	assert.Equal(t, "a", tok.ext.(*TokExtRegexp).pattern.Text(), "should be tok regexp pattern /a/ig")
+	assert.Equal(t, "ig", tok.ext.(*TokExtRegexp).flags.Text(), "should be tok regexp flags /a/ig")
+
+	assert.Equal(t, T_NAME, l.Next().value, "should be tok a")
+	assert.Equal(t, T_DIV, l.Next().value, "should be tok div")
+
+	tok = l.Next()
+	assert.Equal(t, T_REGEXP, tok.value, "should be tok regexp /b/i")
+	assert.Equal(t, "b", tok.ext.(*TokExtRegexp).pattern.Text(), "should be tok regexp pattern /b/i")
+	assert.Equal(t, "i", tok.ext.(*TokExtRegexp).flags.Text(), "should be tok regexp flags /b/i")
 }

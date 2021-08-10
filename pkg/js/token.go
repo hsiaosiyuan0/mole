@@ -19,8 +19,7 @@ func (t *Token) isEof() bool {
 }
 
 func (t *Token) RawText() string {
-	loc := t.loc
-	return loc.src.code[loc.lo:loc.hi]
+	return t.loc.Text()
 }
 
 func (t *Token) Text() string {
@@ -30,8 +29,13 @@ func (t *Token) Text() string {
 	return t.RawText()
 }
 
-type TokenExtStr struct {
+type TokExtStr struct {
 	open rune
+}
+
+type TokExtRegexp struct {
+	pattern *SourceRange
+	flags   *SourceRange
 }
 
 type TokenValue int
