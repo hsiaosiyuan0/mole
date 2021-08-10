@@ -7,28 +7,35 @@ import (
 	"unicode/utf8"
 )
 
-type LexerMode uint32
+type LexerModeValue int
 
 const (
-	LM_NONE       LexerMode = 0
-	LM_STRICT               = 1
-	LM_TEMPLATE             = 1 << 2
-	LM_IMPORT               = 1 << 3
-	LM_NAMED_LIST           = 1 << 4
-	LM_ASYNC                = 1 << 5
-	LM_GENERATOR            = 1 << 6
-	LM_CLASS_BODY           = 1 << 7
-	LM_CLASS_CTOR           = 1 << 8
-	LM_FOR_OF               = 1 << 9
-	LM_NEW                  = 1 << 10
+	LM_NONE       LexerModeValue = 0
+	LM_STRICT                    = 1
+	LM_TEMPLATE                  = 1 << 2
+	LM_IMPORT                    = 1 << 3
+	LM_NAMED_LIST                = 1 << 4
+	LM_ASYNC                     = 1 << 5
+	LM_GENERATOR                 = 1 << 6
+	LM_CLASS_BODY                = 1 << 7
+	LM_CLASS_CTOR                = 1 << 8
+	LM_FOR_OF                    = 1 << 9
+	LM_NEW                       = 1 << 10
 )
+
+type LexerMode struct {
+	value   LexerModeValue
+	paren   int
+	brace   int
+	bracket int
+}
 
 const sizeOfPeekedTok = 5
 
 type Lexer struct {
 	*Source
 
-	mode []LexerMode
+	mode []*LexerMode
 
 	peeked    [sizeOfPeekedTok]*Token
 	peekedLen int
@@ -39,35 +46,42 @@ type Lexer struct {
 }
 
 func NewLexer(src *Source) *Lexer {
-	lexer := &Lexer{Source: src, mode: make([]LexerMode, 0)}
-	lexer.mode = append(lexer.mode, LM_NONE)
+	lexer := &Lexer{Source: src, mode: make([]*LexerMode, 0)}
+	lexer.mode = append(lexer.mode, &LexerMode{LM_NONE, 0, 0, 0})
 	return lexer
 }
 
-func (l *Lexer) extMode(mode LexerMode, inherit bool) {
+func (l *Lexer) extMode(mode LexerModeValue, inherit bool) {
 	if inherit {
-		mode |= l.curMode()
+		// only inherit the inheritable modes
+		v := LM_NONE
+		v |= l.curMode().value & LM_ASYNC
+		v |= l.curMode().value & LM_STRICT
+		mode |= v
 	}
-	l.mode = append(l.mode, mode)
+	l.mode = append(l.mode, &LexerMode{mode, 0, 0, 0})
 }
 
-func (l *Lexer) pushMode(mode LexerMode) {
+func (l *Lexer) pushMode(mode LexerModeValue) {
 	l.extMode(mode, true)
 }
 
-func (l *Lexer) popMode() LexerMode {
+func (l *Lexer) popMode() *LexerMode {
 	mLen := len(l.mode)
+	if mLen == 1 {
+		return l.mode[0]
+	}
 	m, last := l.mode[:mLen-1], l.mode[mLen-1]
 	l.mode = m
 	return last
 }
 
-func (l *Lexer) curMode() LexerMode {
+func (l *Lexer) curMode() *LexerMode {
 	return l.mode[len(l.mode)-1]
 }
 
-func (l *Lexer) isMode(mode LexerMode) bool {
-	return l.curMode()&mode > 0
+func (l *Lexer) isMode(mode LexerModeValue) bool {
+	return l.curMode().value&mode > 0
 }
 
 func (l *Lexer) readTok() *Token {
@@ -78,6 +92,8 @@ func (l *Lexer) readTok() *Token {
 		return l.ReadNum()
 	} else if l.aheadIsStrStart() {
 		return l.ReadStr()
+	} else if l.aheadIsTplStart() {
+		return l.ReadTplSpan()
 	}
 	return l.ReadSymbol()
 }
@@ -125,6 +141,61 @@ func (l *Lexer) Next() *Token {
 	return tok
 }
 
+// https://tc39.es/ecma262/multipage/ecmascript-language-lexical-grammar.html#prod-Template
+func (l *Lexer) ReadTplSpan() *Token {
+	l.Read() // consume `\`` or `}`
+	tok := l.newToken()
+	text, fin := l.readTplChs()
+	if text == nil {
+		return l.errToken(tok)
+	}
+	tok.text = string(text)
+	if fin {
+		l.popMode()
+		return l.finToken(tok, T_TPL_TAIL)
+	}
+	return l.finToken(tok, T_TPL_SPAN)
+}
+
+func (l *Lexer) readTplChs() (text []rune, fin bool) {
+	text = make([]rune, 0, 10)
+	for {
+		c := l.Peek()
+		if c == '$' {
+			l.Read()
+			if l.AheadIsCh('{') {
+				l.Read()
+				l.pushMode(LM_TEMPLATE)
+				break
+			}
+			text = append(text, c)
+		} else if c == '\\' {
+			l.Read()
+			nc := l.Peek()
+			if IsLineTerminator(nc) {
+				l.readLineTerminator() // LineContinuation
+			} else {
+				r := l.readEscapeSeq()
+				if r == utf8.RuneError || r == EOF {
+					text = nil
+					return
+				}
+				text = append(text, r)
+			}
+		} else if c == utf8.RuneError {
+			text = nil
+			return
+		} else if c == '`' {
+			l.Read()
+			fin = true
+			break
+		} else {
+			text = append(text, l.Read())
+		}
+	}
+	return
+}
+
 // https://tc39.es/ecma262/multipage/ecmascript-language-lexical-grammar.html#prod-IdentifierName
 func (l *Lexer) ReadName() *Token {
 	tok := l.newToken()
@@ -169,18 +240,26 @@ func (l *Lexer) ReadSymbol() *Token {
 	switch c {
 	case '{':
 		val = T_BRACE_L
+		if l.isMode(LM_ASYNC) && l.curMode().paren == 0 {
+			// this branch means the brace_l of the function body is met,
+			// skip push mode here to balance the pop of the brace_r of the
+			// function body
+		} else {
+			l.pushMode(LM_NONE)
+		}
 	case '}':
 		val = T_BRACE_R
+		l.popMode()
 	case '(':
 		val = T_PAREN_L
+		l.curMode().paren += 1
 	case ')':
 		val = T_PAREN_R
+		l.curMode().paren -= 1
 	case '[':
 		val = T_BRACKET_L
 	case ']':
 		val = T_BRACKET_R
-	case '`':
-		val = T_BACK_QUOTE
 	case ';':
 		val = T_SEMI
 	case ',':
@@ -424,7 +503,7 @@ func (l *Lexer) ReadStr() *Token {
 		} else if c == '\\' {
 			nc := l.Peek()
 			if IsLineTerminator(nc) {
-				l.readLineTerminator()
+				l.readLineTerminator() // LineContinuation
 			} else {
 				r := l.readEscapeSeq()
 				if r == utf8.RuneError || r == EOF {
@@ -566,7 +645,7 @@ func (l *Lexer) readExpPart() error {
 }
 
 func (l *Lexer) readDecimalDigits(opt bool) error {
-	err := l.unexpectedCharError()
+	err := l.errCharError()
 	i := 0
 	for {
 		c := l.Peek()
@@ -720,8 +799,8 @@ func (l *Lexer) error(msg string) *LexerError {
 	return NewLexerError(msg, l.path, l.line, l.Pos()-1)
 }
 
-func (l *Lexer) unexpectedCharError() *LexerError {
-	return l.error("unexpected chart")
+func (l *Lexer) errCharError() *LexerError {
+	return l.error("unexpected character")
 }
 
 func (l *Lexer) aheadIsIdStart() bool {
@@ -745,6 +824,10 @@ func (l *Lexer) aheadIsStrStart() bool {
 	return v == '\'' || v == '"'
 }
 
+func (l *Lexer) aheadIsTplStart() bool {
+	return l.Peek() == '`' || l.isMode(LM_TEMPLATE) && l.AheadIsCh('}')
+}
+
 func (l *Lexer) newToken() *Token {
 	return &Token{
 		value: T_ILLEGAL,
@@ -756,11 +839,12 @@ func (l *Lexer) finToken(tok *Token, value TokenValue) *Token {
 	tok.value = value
 	tok.loc.hi = l.Pos()
 	tok.afterLineTerminator = l.metLineTerminator
-	return l.errToken(tok)
+	return tok
 }
 
 func (l *Lexer) errToken(tok *Token) *Token {
 	tok.loc.hi = l.Pos()
+	tok.ext = l.errCharError()
 	return tok
 }
 

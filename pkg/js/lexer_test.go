@@ -223,7 +223,6 @@ func TestReadAsyncAwait(t *testing.T) {
 	assert.Equal(t, T_AWAIT, l.Next().value, "should be tok await")
 	assert.Equal(t, T_BRACE_R, l.Next().value, "should be tok }")
 
-	l.popMode()
 	assert.Equal(t, T_NAME, l.Next().value, "should be tok name")
 	assert.Equal(t, T_NAME, l.Next().value, "should be tok name")
 }
@@ -247,4 +246,52 @@ func TestReadRegexp(t *testing.T) {
 	assert.Equal(t, T_REGEXP, tok.value, "should be tok regexp /b/i")
 	assert.Equal(t, "b", tok.ext.(*TokExtRegexp).pattern.Text(), "should be tok regexp pattern /b/i")
 	assert.Equal(t, "i", tok.ext.(*TokExtRegexp).flags.Text(), "should be tok regexp flags /b/i")
+}
+func TestReadTpl(t *testing.T) {
+	s := NewSource("", "`abc`"+"`a${{}}b`")
+	l := NewLexer(s)
+
+	tok := l.Next()
+	assert.Equal(t, T_TPL_TAIL, tok.value, "should be tok tpl tail")
+	assert.Equal(t, "abc", tok.Text(), "should be tok tpl abc")
+
+	tok = l.Next()
+	assert.Equal(t, T_TPL_SPAN, tok.value, "should be tok tpl span")
+	assert.Equal(t, "a", tok.Text(), "should be tok tpl a")
+
+	assert.Equal(t, T_BRACE_L, l.Next().value, "should be tok {")
+	assert.Equal(t, T_BRACE_R, l.Next().value, "should be tok }")
+
+	tok = l.Next()
+	assert.Equal(t, T_TPL_TAIL, tok.value, "should be tok tpl tail")
+	assert.Equal(t, "b", tok.Text(), "should be tok tpl b")
+}
+
+func TestReadNestTpl(t *testing.T) {
+	s := NewSource("", "`a${1 + {{`c${d}e`}}}b`")
+	l := NewLexer(s)
+
+	tok := l.Next()
+	assert.Equal(t, T_TPL_SPAN, tok.value, "should be tok tpl span")
+	assert.Equal(t, "a", tok.Text(), "should be tok tpl a")
+
+	assert.Equal(t, T_NUM, l.Next().value, "should be tok 1")
+	assert.Equal(t, T_ADD, l.Next().value, "should be tok +")
+
+	assert.Equal(t, T_BRACE_L, l.Next().value, "should be tok {")
+	assert.Equal(t, T_BRACE_L, l.Next().value, "should be tok {")
+
+	tok = l.Next()
+	assert.Equal(t, T_TPL_SPAN, tok.value, "should be tok tpl span c")
+	assert.Equal(t, "c", tok.Text(), "should be tok tpl c")
+
+	assert.Equal(t, T_NAME, l.Next().value, "should be tok d")
+	assert.Equal(t, T_TPL_TAIL, l.Next().value, "should be tok tpl tail e")
+
+	assert.Equal(t, T_BRACE_R, l.Next().value, "should be tok }")
+	assert.Equal(t, T_BRACE_R, l.Next().value, "should be tok }")
+
+	tok = l.Next()
+	assert.Equal(t, T_TPL_TAIL, tok.value, "should be tok tpl tail")
+	assert.Equal(t, "b", tok.Text(), "should be tok tpl b")
 }

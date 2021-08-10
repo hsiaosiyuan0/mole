@@ -51,7 +51,9 @@ const (
 	T_FALSE
 	T_NUM
 	T_STRING
-	T_TPL_HEAD
+
+	T_TPL_SPAN
+	T_TPL_TAIL
 
 	T_NAME
 	T_NAME_PRIVATE
@@ -223,7 +225,9 @@ var TokenKinds = [T_TOKEN_DEF_END - 1]*TokenKind{
 	{T_FALSE, "false", true},
 	{T_NUM, "number", false},
 	{T_STRING, "string", false},
-	{T_TPL_HEAD, "${", true},
+
+	{T_TPL_SPAN, "template span", true},
+	{T_TPL_TAIL, "template tail", true},
 
 	{T_NAME, "identifer", false},
 	{T_NAME_PRIVATE, "private identifer", false},

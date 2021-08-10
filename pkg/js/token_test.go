@@ -17,7 +17,6 @@ func TestLabel(t *testing.T) {
 	assert.Equal(t, "number", TokenKinds[T_NUM].Name, "should be number")
 	assert.Equal(t, "string", TokenKinds[T_STRING].Name, "should be string")
 
-	assert.Equal(t, "template head", TokenKinds[T_TPL_HEAD].Name, "should be template head")
 	assert.Equal(t, "template span", TokenKinds[T_TPL_SPAN].Name, "should be template span")
 	assert.Equal(t, "template tail", TokenKinds[T_TPL_TAIL].Name, "should be template tail")
 
