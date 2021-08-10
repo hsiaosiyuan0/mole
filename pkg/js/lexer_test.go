@@ -3,7 +3,7 @@ package js
 import (
 	"testing"
 
-	"github.com/hsiaosiyuan0/mlint/pkg/assert"
+	"github.com/hsiaosiyuan0/mole/pkg/assert"
 )
 
 func TestReadName(t *testing.T) {
