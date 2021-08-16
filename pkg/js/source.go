@@ -42,8 +42,8 @@ func NewSource(path string, code string) *Source {
 }
 
 const (
-	EOF int32 = iota - 2
-	EOL
+	EOF = rune(-1)
+	EOL = rune(0x0a)
 )
 
 func (s *Source) RuneAtPos(pos int) (rune, int) {
@@ -59,7 +59,7 @@ func (s *Source) RuneAtPos(pos int) (rune, int) {
 //
 // be careful with the calling times of this method since it will panic
 // if its internal buffer for caching peeked rune is full
-func (s *Source) peek() rune {
+func (s *Source) peekGrow() rune {
 	if s.peekedLen == sizeOfPeekedRune {
 		panic(s.error(fmt.Sprintf("peek buffer of source is full, max len is %d\n", s.peekedLen)))
 	}
@@ -83,7 +83,7 @@ func (s *Source) Peek() rune {
 	if s.peekedLen > 0 {
 		return s.peeked[s.peekedR]
 	}
-	return s.peek()
+	return s.peekGrow()
 }
 
 func (s *Source) peekedRInc() int {
@@ -117,20 +117,12 @@ func (s *Source) AheadIsEof() bool {
 	return s.pos == len(s.code)
 }
 
-func (s *Source) AheadIsChThenConsume(c rune) bool {
-	if s.Peek() == c {
-		s.Read()
-		return true
-	}
-	return false
-}
-
 func (s *Source) AheadIsChs2(c1 rune, c2 rune) bool {
 	if s.peekedLen < 2 {
-		s.peek()
+		s.peekGrow()
 	}
 	if s.peekedLen < 2 {
-		s.peek()
+		s.peekGrow()
 	}
 	return s.peeked[s.peekedR] == c1 && s.peeked[s.peekedRInc()] == c2
 }

@@ -33,7 +33,7 @@ type LexerMode struct {
 const sizeOfPeekedTok = 5
 
 type Lexer struct {
-	*Source
+	src *Source
 
 	mode []*LexerMode
 
@@ -46,7 +46,7 @@ type Lexer struct {
 }
 
 func NewLexer(src *Source) *Lexer {
-	lexer := &Lexer{Source: src, mode: make([]*LexerMode, 0)}
+	lexer := &Lexer{src: src, mode: make([]*LexerMode, 0)}
 	lexer.mode = append(lexer.mode, &LexerMode{LM_NONE, 0, 0, 0})
 	return lexer
 }
@@ -85,7 +85,7 @@ func (l *Lexer) isMode(mode LexerModeValue) bool {
 }
 
 func (l *Lexer) readTok() *Token {
-	l.SkipSpace()
+	l.src.SkipSpace()
 	if l.aheadIsIdStart() {
 		return l.ReadName()
 	} else if l.aheadIsNumStart() {
@@ -98,7 +98,7 @@ func (l *Lexer) readTok() *Token {
 	return l.ReadSymbol()
 }
 
-func (l *Lexer) PeekTok() *Token {
+func (l *Lexer) peekGrow() *Token {
 	if l.peekedLen == sizeOfPeekedTok {
 		panic(l.error(fmt.Sprintf("peek buffer of lexer is full, max len is %d\n", l.peekedLen)))
 	}
@@ -117,6 +117,13 @@ func (l *Lexer) PeekTok() *Token {
 	return tok
 }
 
+func (l *Lexer) Peek() *Token {
+	if l.peekedLen > 0 {
+		return l.peeked[l.peekedR]
+	}
+	return l.peekGrow()
+}
+
 func (l *Lexer) nextTok() *Token {
 	if l.peekedLen > 0 {
 		tok := l.peeked[l.peekedR]
@@ -132,7 +139,7 @@ func (l *Lexer) nextTok() *Token {
 
 func (l *Lexer) Next() *Token {
 	tok := l.nextTok()
-	if tok.value == T_NAME && tok.Text() == "async" && l.PeekTok().value == T_FUNC {
+	if tok.value == T_NAME && tok.Text() == "async" && l.Peek().value == T_FUNC {
 		tok.value = T_ASYNC
 		tok.text = ""
 		l.pushMode(LM_ASYNC)
@@ -143,7 +150,7 @@ func (l *Lexer) Next() *Token {
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-lexical-grammar.html#prod-Template
 func (l *Lexer) ReadTplSpan() *Token {
-	l.Read() // consume `\`` or `}`
+	l.src.Read() // consume `\`` or `}`
 
 	// for inline spans can tell they are in template string
 	l.pushMode(LM_TEMPLATE)
@@ -165,18 +172,18 @@ func (l *Lexer) ReadTplSpan() *Token {
 func (l *Lexer) readTplChs() (text []rune, fin bool) {
 	text = make([]rune, 0, 10)
 	for {
-		c := l.Peek()
+		c := l.src.Peek()
 		if c == '$' {
-			l.Read()
-			if l.AheadIsCh('{') {
-				l.Read()
+			l.src.Read()
+			if l.src.AheadIsCh('{') {
+				l.src.Read()
 				l.pushMode(LM_TEMPLATE)
 				break
 			}
 			text = append(text, c)
 		} else if c == '\\' {
-			l.Read()
-			nc := l.Peek()
+			l.src.Read()
+			nc := l.src.Peek()
 			if IsLineTerminator(nc) {
 				l.readLineTerminator() // LineContinuation
 			} else {
@@ -191,11 +198,11 @@ func (l *Lexer) readTplChs() (text []rune, fin bool) {
 			text = nil
 			return
 		} else if c == '`' {
-			l.Read()
+			l.src.Read()
 			fin = true
 			break
 		} else {
-			text = append(text, l.Read())
+			text = append(text, l.src.Read())
 		}
 	}
 	return
@@ -239,8 +246,8 @@ func (l *Lexer) ReadName() *Token {
 }
 
 func (l *Lexer) ReadSymbol() *Token {
-	c := l.Read()
 	tok := l.newToken()
+	c := l.src.Read()
 	val := tok.value
 	switch c {
 	case '{':
@@ -272,21 +279,21 @@ func (l *Lexer) ReadSymbol() *Token {
 	case ':':
 		val = T_COLON
 	case '.':
-		if l.AheadIsChs2('.', '.') {
-			l.Read()
-			l.Read()
+		if l.src.AheadIsChs2('.', '.') {
+			l.src.Read()
+			l.src.Read()
 			val = T_DOT_TRI
 		} else {
 			val = T_DOT
 		}
 	case '?':
-		if l.AheadIsCh('.') {
-			l.Read()
+		if l.src.AheadIsCh('.') {
+			l.src.Read()
 			val = T_OPT_CHAIN
-		} else if l.AheadIsCh('?') {
-			l.Read()
-			if l.AheadIsCh('=') {
-				l.Read()
+		} else if l.src.AheadIsCh('?') {
+			l.src.Read()
+			if l.src.AheadIsCh('=') {
+				l.src.Read()
 				val = T_ASSIGN_NULLISH
 			} else {
 				val = T_NULLISH
@@ -295,47 +302,47 @@ func (l *Lexer) ReadSymbol() *Token {
 			val = T_HOOK
 		}
 	case '+':
-		if l.AheadIsCh('+') {
-			l.Read()
+		if l.src.AheadIsCh('+') {
+			l.src.Read()
 			val = T_INC
-		} else if l.AheadIsCh('=') {
-			l.Read()
+		} else if l.src.AheadIsCh('=') {
+			l.src.Read()
 			val = T_ASSIGN_ADD
 		} else {
 			val = T_ADD
 		}
 	case '-':
-		if l.AheadIsCh('-') {
-			l.Read()
+		if l.src.AheadIsCh('-') {
+			l.src.Read()
 			val = T_DEC
-		} else if l.AheadIsCh('=') {
-			l.Read()
+		} else if l.src.AheadIsCh('=') {
+			l.src.Read()
 			val = T_ASSIGN_SUB
 		} else {
 			val = T_SUB
 		}
 	case '=':
-		if l.AheadIsCh('>') {
-			l.Read()
+		if l.src.AheadIsCh('>') {
+			l.src.Read()
 			val = T_ARROW
-		} else if l.AheadIsChs2('=', '=') {
-			l.Read()
-			l.Read()
+		} else if l.src.AheadIsChs2('=', '=') {
+			l.src.Read()
+			l.src.Read()
 			val = T_EQ_S
-		} else if l.AheadIsCh('=') {
-			l.Read()
+		} else if l.src.AheadIsCh('=') {
+			l.src.Read()
 			val = T_EQ
 		} else {
 			val = T_ASSIGN
 		}
 	case '<':
-		if l.AheadIsCh('=') {
-			l.Read()
+		if l.src.AheadIsCh('=') {
+			l.src.Read()
 			val = T_LE
-		} else if l.AheadIsCh('<') {
-			l.Read()
-			if l.AheadIsCh('=') {
-				l.Read()
+		} else if l.src.AheadIsCh('<') {
+			l.src.Read()
+			if l.src.AheadIsCh('=') {
+				l.src.Read()
 				val = T_ASSIGN_BIT_LSH
 			} else {
 				val = T_LSH
@@ -344,21 +351,21 @@ func (l *Lexer) ReadSymbol() *Token {
 			val = T_LT
 		}
 	case '>':
-		if l.AheadIsCh('=') {
-			l.Read()
+		if l.src.AheadIsCh('=') {
+			l.src.Read()
 			val = T_GE
-		} else if l.AheadIsCh('>') {
-			l.Read()
-			if l.AheadIsCh('>') {
-				l.Read()
-				if l.AheadIsCh('=') {
-					l.Read()
+		} else if l.src.AheadIsCh('>') {
+			l.src.Read()
+			if l.src.AheadIsCh('>') {
+				l.src.Read()
+				if l.src.AheadIsCh('=') {
+					l.src.Read()
 					val = T_ASSIGN_BIT_RSH_U
 				} else {
 					val = T_RSH_U
 				}
-			} else if l.AheadIsCh('=') {
-				l.Read()
+			} else if l.src.AheadIsCh('=') {
+				l.src.Read()
 				val = T_ASSIGN_BIT_RSH
 			} else {
 				val = T_RSH
@@ -367,61 +374,61 @@ func (l *Lexer) ReadSymbol() *Token {
 			val = T_GT
 		}
 	case '*':
-		if l.AheadIsCh('*') {
-			l.Read()
-			if l.AheadIsCh('=') {
+		if l.src.AheadIsCh('*') {
+			l.src.Read()
+			if l.src.AheadIsCh('=') {
 				val = T_ASSIGN_POW
 			} else {
 				val = T_POW
 			}
-		} else if l.AheadIsCh('=') {
-			l.Read()
+		} else if l.src.AheadIsCh('=') {
+			l.src.Read()
 			val = T_ASSIGN_MUL
 		} else {
 			val = T_MUL
 		}
 	case '|':
-		if l.AheadIsCh('|') {
-			l.Read()
-			if l.AheadIsCh('=') {
-				l.Read()
+		if l.src.AheadIsCh('|') {
+			l.src.Read()
+			if l.src.AheadIsCh('=') {
+				l.src.Read()
 				val = T_ASSIGN_OR
 			} else {
 				val = T_OR
 			}
-		} else if l.AheadIsCh('=') {
-			l.Read()
+		} else if l.src.AheadIsCh('=') {
+			l.src.Read()
 			val = T_ASSIGN_BIT_OR
 		} else {
 			val = T_BIT_OR
 		}
 	case '&':
-		if l.AheadIsCh('&') {
-			l.Read()
-			if l.AheadIsCh('=') {
-				l.Read()
+		if l.src.AheadIsCh('&') {
+			l.src.Read()
+			if l.src.AheadIsCh('=') {
+				l.src.Read()
 				val = T_ASSIGN_AND
 			} else {
 				val = T_AND
 			}
-		} else if l.AheadIsCh('=') {
-			l.Read()
+		} else if l.src.AheadIsCh('=') {
+			l.src.Read()
 			val = T_ASSIGN_BIT_AND
 		} else {
 			val = T_BIT_AND
 		}
 	case '%':
-		if l.AheadIsCh('=') {
-			l.Read()
+		if l.src.AheadIsCh('=') {
+			l.src.Read()
 			val = T_ASSIGN_MOD
 		} else {
 			val = T_MOD
 		}
 	case '!':
-		if l.AheadIsCh('=') {
-			l.Read()
-			if l.AheadIsCh('=') {
-				l.Read()
+		if l.src.AheadIsCh('=') {
+			l.src.Read()
+			if l.src.AheadIsCh('=') {
+				l.src.Read()
 				val = T_NE_S
 			} else {
 				val = T_NE
@@ -432,38 +439,66 @@ func (l *Lexer) ReadSymbol() *Token {
 	case '~':
 		val = T_BIT_NOT
 	case '^':
-		if l.AheadIsCh('=') {
-			l.Read()
+		if l.src.AheadIsCh('=') {
+			l.src.Read()
 			val = T_ASSIGN_BIT_XOR
 		} else {
 			val = T_BIT_XOR
 		}
 	case '/':
-		if l.AheadIsCh('=') {
-			l.Read()
+		if l.src.AheadIsCh('=') {
+			l.src.Read()
 			val = T_ASSIGN_DIV
+		} else if l.src.AheadIsCh('/') {
+			return l.readSinglelineComment(tok)
+		} else if l.src.AheadIsCh('*') {
+			return l.readMultilineComment(tok)
+		} else if l.prev == nil || TokenKinds[l.prev.value].BeforeExpr {
+			return l.readRegexp(tok)
 		} else {
-			if l.prev == nil || TokenKinds[l.prev.value].BeforeExpr {
-				return l.readRegexp()
-			} else {
-				val = T_DIV
-			}
+			val = T_DIV
 		}
+
 	}
 	tok.value = val
 	return tok
+}
+
+func (l *Lexer) readMultilineComment(tok *Token) *Token {
+	l.src.Read() // consume `*`
+	for {
+		c := l.src.Read()
+		if c == '*' {
+			if l.src.AheadIsCh('/') {
+				l.src.Read()
+				break
+			}
+		}
+	}
+	return l.finToken(tok, T_COMMENT)
+}
+
+func (l *Lexer) readSinglelineComment(tok *Token) *Token {
+	l.src.Read() // consume `/`
+	for {
+		c := l.src.Peek()
+		if c == EOF || IsLineTerminator(c) {
+			break
+		}
+		l.src.Read()
+	}
+	return l.finToken(tok, T_COMMENT)
 }
 
 // here is an assertion, for any valid regexp, the backslash is always escaped if it appears
 // at any point of the content of the regexp
 // base on above assertion, here we read the regexp roughly by stepping the content until the
 // close backslash is matched as well as no validation is applied on that content
-func (l *Lexer) readRegexp() *Token {
-	tok := l.newToken()
-	pattern := l.NewOpenRange()
+func (l *Lexer) readRegexp(tok *Token) *Token {
+	pattern := l.src.NewOpenRange()
 	escaped := false
 	for {
-		c := l.Peek()
+		c := l.src.Peek()
 		if IsLineTerminator(c) || c == utf8.RuneError {
 			return l.errToken(tok)
 		} else if c == '\\' {
@@ -471,16 +506,16 @@ func (l *Lexer) readRegexp() *Token {
 		} else if !escaped && c == '/' {
 			break
 		}
-		l.Read()
+		l.src.Read()
 	}
-	pattern.hi = l.Pos()
-	l.Read() // consume the end `/`
+	pattern.hi = l.src.Pos()
+	l.src.Read() // consume the end `/`
 
-	flags := l.NewOpenRange()
+	flags := l.src.NewOpenRange()
 	i := 0
 	for {
 		if l.aheadIsIdPart() {
-			l.Read()
+			l.src.Read()
 			i += 1
 		} else {
 			break
@@ -489,7 +524,7 @@ func (l *Lexer) readRegexp() *Token {
 	if i == 0 {
 		flags = nil
 	} else {
-		flags.hi = l.Pos()
+		flags.hi = l.src.Pos()
 	}
 
 	tok.ext = &TokExtRegexp{pattern, flags}
@@ -499,14 +534,14 @@ func (l *Lexer) readRegexp() *Token {
 // https://tc39.es/ecma262/multipage/ecmascript-language-lexical-grammar.html#sec-literals-string-literals
 func (l *Lexer) ReadStr() *Token {
 	tok := l.newToken()
-	open := l.Read()
+	open := l.src.Read()
 	text := make([]rune, 0, 10)
 	for {
-		c := l.Read()
+		c := l.src.Read()
 		if c == utf8.RuneError || c == EOF {
 			return l.errToken(tok)
 		} else if c == '\\' {
-			nc := l.Peek()
+			nc := l.src.Peek()
 			if IsLineTerminator(nc) {
 				l.readLineTerminator() // LineContinuation
 			} else {
@@ -528,7 +563,7 @@ func (l *Lexer) ReadStr() *Token {
 }
 
 func (l *Lexer) readEscapeSeq() rune {
-	c := l.Read()
+	c := l.src.Read()
 	switch c {
 	case 'b':
 		return '\b'
@@ -567,11 +602,11 @@ func (l *Lexer) readOctalEscapeSeq(first rune) rune {
 		if !zeroToThree && i == 2 || zeroToThree && i == 3 {
 			break
 		}
-		c := l.Peek()
+		c := l.src.Peek()
 		if !IsOctalDigit(c) {
 			break
 		}
-		octal = append(octal, l.Read())
+		octal = append(octal, l.src.Read())
 		i += 1
 	}
 	r, err := strconv.ParseInt(string(octal[:]), 8, 32)
@@ -583,7 +618,7 @@ func (l *Lexer) readOctalEscapeSeq(first rune) rune {
 
 func (l *Lexer) readHexEscapeSeq() rune {
 	hex := [2]rune{}
-	c := l.Read()
+	c := l.src.Read()
 	for i := 0; i < 2; i++ {
 		if IsHexDigit(c) {
 			hex[i] = c
@@ -599,18 +634,18 @@ func (l *Lexer) readHexEscapeSeq() rune {
 }
 
 func (l *Lexer) readLineTerminator() {
-	c := l.Read()
+	c := l.src.Read()
 	if c == '\r' {
-		l.ReadIfNextIs('\n')
+		l.src.ReadIfNextIs('\n')
 	}
 }
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-lexical-grammar.html#prod-NumericLiteral
 func (l *Lexer) ReadNum() *Token {
 	tok := l.newToken()
-	c := l.Read()
+	c := l.src.Read()
 	if c == '0' {
-		switch l.Peek() {
+		switch l.src.Peek() {
 		case 'b', 'B':
 			return l.readBinaryNum(tok)
 		case 'o', 'O':
@@ -628,27 +663,27 @@ func (l *Lexer) readDecimalNum(tok *Token, first rune) *Token {
 		l.readDecimalDigits(true)
 	}
 
-	if first != '.' && l.AheadIsCh('.') || first == '.' {
+	if first != '.' && l.src.AheadIsCh('.') || first == '.' {
 		// read the fraction part
 		if err := l.readDecimalDigits(isFractionOpt); err != nil {
 			return l.errToken(tok)
 		}
 	}
 
-	if l.AheadIsChOr('e', 'E') {
+	if l.src.AheadIsChOr('e', 'E') {
 		if err := l.readExpPart(); err != nil {
 			return l.errToken(tok)
 		}
 	}
 
-	l.ReadIfNextIs('n')
+	l.src.ReadIfNextIs('n')
 	return l.finToken(tok, T_NUM)
 }
 
 func (l *Lexer) readExpPart() error {
-	l.Read() // consume `e` or `E`
-	if l.AheadIsChOr('+', '-') {
-		l.Read()
+	l.src.Read() // consume `e` or `E`
+	if l.src.AheadIsChOr('+', '-') {
+		l.src.Read()
 	}
 	return l.readDecimalDigits(false)
 }
@@ -657,9 +692,9 @@ func (l *Lexer) readDecimalDigits(opt bool) error {
 	err := l.errCharError()
 	i := 0
 	for {
-		c := l.Peek()
+		c := l.src.Peek()
 		if IsDecimalDigit(c) || i != 0 && c == '_' {
-			l.Read()
+			l.src.Read()
 			i += 1
 		} else {
 			break
@@ -672,12 +707,12 @@ func (l *Lexer) readDecimalDigits(opt bool) error {
 }
 
 func (l *Lexer) readBinaryNum(tok *Token) *Token {
-	l.Read()
+	l.src.Read()
 	i := 0
 	for {
-		c := l.Peek()
+		c := l.src.Peek()
 		if c == '0' || c == '1' || c == '_' {
-			l.Read()
+			l.src.Read()
 			i += 1
 		} else {
 			break
@@ -686,17 +721,17 @@ func (l *Lexer) readBinaryNum(tok *Token) *Token {
 	if i == 0 {
 		return l.errToken(tok)
 	}
-	l.ReadIfNextIs('n')
+	l.src.ReadIfNextIs('n')
 	return l.finToken(tok, T_NUM)
 }
 
 func (l *Lexer) readOctalNum(tok *Token) *Token {
-	l.Read()
+	l.src.Read()
 	i := 0
 	for {
-		c := l.Peek()
+		c := l.src.Peek()
 		if c >= '0' && c <= '7' || c == '_' {
-			l.Read()
+			l.src.Read()
 			i += 1
 		} else {
 			break
@@ -705,17 +740,17 @@ func (l *Lexer) readOctalNum(tok *Token) *Token {
 	if i == 0 {
 		return l.errToken(tok)
 	}
-	l.ReadIfNextIs('n')
+	l.src.ReadIfNextIs('n')
 	return l.finToken(tok, T_NUM)
 }
 
 func (l *Lexer) readHexNum(tok *Token) *Token {
-	l.Read()
+	l.src.Read()
 	i := 0
 	for {
-		c := l.Peek()
+		c := l.src.Peek()
 		if IsHexDigit(c) || c == '_' {
-			l.Read()
+			l.src.Read()
 			i += 1
 		} else {
 			break
@@ -724,21 +759,21 @@ func (l *Lexer) readHexNum(tok *Token) *Token {
 	if i == 0 {
 		return l.errToken(tok)
 	}
-	l.ReadIfNextIs('n')
+	l.src.ReadIfNextIs('n')
 	return l.finToken(tok, T_NUM)
 }
 
 func (l *Lexer) readIdStart() rune {
-	c := l.Read()
+	c := l.src.Read()
 	return l.readUnicodeEscape(c)
 }
 
 func (l *Lexer) readIdPart() ([]rune, bool) {
 	runes := make([]rune, 0, 10)
 	for {
-		c := l.Peek()
+		c := l.src.Peek()
 		if IsIdPart(c) {
-			c := l.readUnicodeEscape(l.Read())
+			c := l.readUnicodeEscape(l.src.Read())
 			if c == utf8.RuneError {
 				return nil, false
 			}
@@ -751,15 +786,15 @@ func (l *Lexer) readIdPart() ([]rune, bool) {
 }
 
 func (l *Lexer) readUnicodeEscape(c rune) rune {
-	if c == '\\' && l.AheadIsCh('u') {
-		l.Read()
+	if c == '\\' && l.src.AheadIsCh('u') {
+		l.src.Read()
 		return l.readUnicodeEscapeSeq()
 	}
 	return c
 }
 
 func (l *Lexer) readUnicodeEscapeSeq() rune {
-	if l.AheadIsCh('{') {
+	if l.src.AheadIsCh('{') {
 		return l.readCodepoint()
 	}
 	return l.readHex4Digits()
@@ -767,14 +802,14 @@ func (l *Lexer) readUnicodeEscapeSeq() rune {
 
 func (l *Lexer) readCodepoint() rune {
 	hex := make([]byte, 0, 4)
-	l.Read() // consume `{`
+	l.src.Read() // consume `{`
 	for {
-		if l.AheadIsChThenConsume('}') {
+		if l.src.ReadIfNextIs('}') {
 			break
-		} else if l.AheadIsEof() {
+		} else if l.src.AheadIsEof() {
 			return utf8.RuneError
 		} else {
-			c := l.Read()
+			c := l.src.Read()
 			if c == utf8.RuneError || !IsHexDigit(c) {
 				return utf8.RuneError
 			}
@@ -791,7 +826,7 @@ func (l *Lexer) readCodepoint() rune {
 func (l *Lexer) readHex4Digits() rune {
 	hex := [4]byte{0}
 	for i := 0; i < 4; i++ {
-		c := l.Read()
+		c := l.src.Read()
 		if c == utf8.RuneError || !IsHexDigit(c) {
 			return utf8.RuneError
 		}
@@ -805,7 +840,7 @@ func (l *Lexer) readHex4Digits() rune {
 }
 
 func (l *Lexer) error(msg string) *LexerError {
-	return NewLexerError(msg, l.path, l.line, l.Pos()-1)
+	return NewLexerError(msg, l.src.path, l.src.line, l.src.Pos()-1)
 }
 
 func (l *Lexer) errCharError() *LexerError {
@@ -813,46 +848,47 @@ func (l *Lexer) errCharError() *LexerError {
 }
 
 func (l *Lexer) aheadIsIdStart() bool {
-	return IsIdStart(l.Peek())
+	return IsIdStart(l.src.Peek())
 }
 
 func (l *Lexer) aheadIsIdPart() bool {
-	return IsIdPart(l.Peek())
+	return IsIdPart(l.src.Peek())
 }
 
 func (l *Lexer) aheadIsNumStart() bool {
-	v := l.Peek()
+	v := l.src.Peek()
 	if IsDecimalDigit(v) {
 		return true
 	}
-	return v == '.' && IsDecimalDigit(l.peek())
+	return v == '.' && IsDecimalDigit(l.src.peekGrow())
 }
 
 func (l *Lexer) aheadIsStrStart() bool {
-	v := l.Peek()
+	v := l.src.Peek()
 	return v == '\'' || v == '"'
 }
 
 func (l *Lexer) aheadIsTplStart() bool {
-	return l.Peek() == '`' || l.isMode(LM_TEMPLATE) && l.AheadIsCh('}')
+	return l.src.Peek() == '`' || l.isMode(LM_TEMPLATE) && l.src.AheadIsCh('}')
 }
 
 func (l *Lexer) newToken() *Token {
 	return &Token{
 		value: T_ILLEGAL,
-		loc:   l.NewOpenRange(),
+		raw:   l.src.NewOpenRange(),
+		loc:   Position{l.src.line, l.src.col},
 	}
 }
 
 func (l *Lexer) finToken(tok *Token, value TokenValue) *Token {
 	tok.value = value
-	tok.loc.hi = l.Pos()
-	tok.afterLineTerminator = l.metLineTerminator
+	tok.raw.hi = l.src.Pos()
+	tok.afterLineTerminator = l.src.metLineTerminator
 	return tok
 }
 
 func (l *Lexer) errToken(tok *Token) *Token {
-	tok.loc.hi = l.Pos()
+	tok.raw.hi = l.src.Pos()
 	tok.ext = l.errCharError()
 	return tok
 }

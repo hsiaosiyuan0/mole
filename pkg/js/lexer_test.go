@@ -12,7 +12,7 @@ func TestReadName(t *testing.T) {
 	tok := l.Next()
 	assert.Equal(t, true, tok.IsLegal(), "should be ok t")
 	assert.Equal(t, "t", tok.text, "should be t")
-	assert.Equal(t, 6, tok.loc.hi, "should be t")
+	assert.Equal(t, 6, tok.raw.hi, "should be t")
 
 	tok = l.Next()
 	assert.Equal(t, true, tok.IsLegal(), "should be ok test")
@@ -301,4 +301,41 @@ func TestReadTplOctalEscape(t *testing.T) {
 	l := NewLexer(s)
 	assert.Equal(t, T_ILLEGAL, l.Next().value, "should be tok illegal")
 	assert.Equal(t, 1, len(l.mode), "mode should be balanced")
+}
+
+func TestReadComment(t *testing.T) {
+	s := NewSource("", `
+  //
+  // comment1
+  /**/
+  /* comment2 */
+  /**
+
+  comment 3
+  **/
+  `)
+	l := NewLexer(s)
+
+	tok := l.Next()
+	assert.Equal(t, T_COMMENT, tok.value, "should be tok comment //")
+	assert.Equal(t, "//", tok.Text(), "should be tok comment //")
+
+	tok = l.Next()
+	assert.Equal(t, T_COMMENT, tok.value, "should be tok // comment1")
+	assert.Equal(t, "// comment1", tok.Text(), "should be tok // comment1")
+
+	tok = l.Next()
+	assert.Equal(t, T_COMMENT, tok.value, "should be tok /**/")
+	assert.Equal(t, "/**/", tok.Text(), "should be tok /**/")
+
+	tok = l.Next()
+	assert.Equal(t, T_COMMENT, tok.value, "should be tok /* comment2 */")
+	assert.Equal(t, "/* comment2 */", tok.Text(), "should be tok /* comment2 */")
+
+	tok = l.Next()
+	assert.Equal(t, T_COMMENT, tok.value, "should be tok comment3")
+	assert.Equal(t, `/**
+
+  comment 3
+  **/`, tok.Text(), "should be tok comment3")
 }
