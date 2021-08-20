@@ -47,11 +47,55 @@ func (p *Parser) expr() (Node, error) {
 }
 
 func (p *Parser) assignExpr() (Node, error) {
-	return p.condExpr()
+	loc := p.loc()
+	lhs, err := p.condExpr()
+	if err != nil {
+		return nil, err
+	}
+
+	assign := p.advanceIfTokIn(T_ASSIGN_BEGIN, T_ASSIGN_END)
+	if assign == nil {
+		return lhs, nil
+	}
+
+	rhs, err := p.assignExpr()
+	if err != nil {
+		return nil, err
+	}
+
+	node := &AssignExpr{N_EXPR_ASSIGN, p.finLoc(loc), assign, lhs, rhs}
+	return node, nil
 }
 
+// https://tc39.es/ecma262/multipage/ecmascript-language-expressions.html#prod-ConditionalExpression
 func (p *Parser) condExpr() (Node, error) {
-	return p.binExpr(nil, 0)
+	loc := p.loc()
+	test, err := p.binExpr(nil, 0)
+	if err != nil {
+		return nil, err
+	}
+
+	if hook := p.advanceIfTok(T_HOOK); hook == nil {
+		return test, nil
+	}
+
+	cons, err := p.assignExpr()
+	if err != nil {
+		return nil, err
+	}
+
+	err = p.nextMustTok(T_COLON)
+	if err != nil {
+		return nil, err
+	}
+
+	alt, err := p.assignExpr()
+	if err != nil {
+		return nil, err
+	}
+
+	node := &CondExpr{N_EXPR_BIN, p.finLoc(loc), test, cons, alt}
+	return node, nil
 }
 
 func (p *Parser) unaryExpr() (Node, error) {
@@ -148,7 +192,31 @@ func (p *Parser) primaryExpr() (Node, error) {
 		node.val = tok
 		return node, nil
 	}
-	return nil, p.error(loc)
+	return nil, p.error(&tok.loc)
+}
+
+func (p *Parser) nextMustTok(val TokenValue) error {
+	tok := p.lexer.Next()
+	if tok.value != val {
+		return p.error(&tok.loc)
+	}
+	return nil
+}
+
+func (p *Parser) advanceIfTok(val TokenValue) *Token {
+	tok := p.lexer.Peek()
+	if tok.value != val {
+		return nil
+	}
+	return p.lexer.Next()
+}
+
+func (p *Parser) advanceIfTokIn(begin, end TokenValue) *Token {
+	tok := p.lexer.Peek()
+	if tok.value <= begin || tok.value >= end {
+		return nil
+	}
+	return p.lexer.Next()
 }
 
 func (p *Parser) loc() *Loc {
@@ -165,9 +233,7 @@ func (p *Parser) finLoc(loc *Loc) *Loc {
 	return loc
 }
 
-func (p *Parser) error(loc *Loc) *ParserError {
+func (p *Parser) error(loc *Position) *ParserError {
 	return NewParserError("unexpected token at",
-		p.lexer.src.path,
-		loc.begin.line,
-		loc.begin.col)
+		p.lexer.src.path, loc.line, loc.col)
 }

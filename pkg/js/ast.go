@@ -32,6 +32,8 @@ const (
 	N_EXPR_MEMBER
 	N_EXPR_CALL
 	N_EXPR_BIN
+	N_EXPR_COND
+	N_EXPR_ASSIGN
 
 	N_NAME
 
@@ -217,6 +219,46 @@ func (n *BinExpr) Type() NodeType {
 }
 
 func (n *BinExpr) Loc() *Loc {
+	return n.loc
+}
+
+type CondExpr struct {
+	typ  NodeType
+	loc  *Loc
+	test Node
+	cons Node
+	alt  Node
+}
+
+func NewCondExpr() *CondExpr {
+	return &CondExpr{N_EXPR_COND, nil, nil, nil, nil}
+}
+
+func (n *CondExpr) Type() NodeType {
+	return n.typ
+}
+
+func (n *CondExpr) Loc() *Loc {
+	return n.loc
+}
+
+type AssignExpr struct {
+	typ NodeType
+	loc *Loc
+	op  *Token
+	lhs Node
+	rhs Node
+}
+
+func NewAssignExpr() *AssignExpr {
+	return &AssignExpr{N_EXPR_ASSIGN, nil, nil, nil, nil}
+}
+
+func (n *AssignExpr) Type() NodeType {
+	return n.typ
+}
+
+func (n *AssignExpr) Loc() *Loc {
 	return n.loc
 }
 
