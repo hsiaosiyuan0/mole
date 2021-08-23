@@ -5,6 +5,13 @@ type Position struct {
 	col  int
 }
 
+func (p Position) Clone() Position {
+	return Position{
+		line: p.line,
+		col:  p.col,
+	}
+}
+
 type Token struct {
 	value TokenValue
 	text  string

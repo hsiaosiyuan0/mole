@@ -139,13 +139,14 @@ func NewStrLit() *StrLit {
 }
 
 type Ident struct {
-	typ NodeType
-	loc *Loc
-	val *Token
+	typ     NodeType
+	loc     *Loc
+	val     *Token
+	private bool
 }
 
 func NewIdent() *Ident {
-	return &Ident{N_NAME, &Loc{}, nil}
+	return &Ident{N_NAME, &Loc{}, nil, false}
 }
 
 func (n *Ident) Type() NodeType {
@@ -175,9 +176,12 @@ func (n *NewExpr) Loc() *Loc {
 }
 
 type MemberExpr struct {
-	typ  NodeType
-	loc  *Loc
-	expr Node
+	typ      NodeType
+	loc      *Loc
+	obj      Node
+	prop     Node
+	compute  bool
+	optional bool
 }
 
 func (n *MemberExpr) Type() NodeType {
@@ -266,4 +270,12 @@ type Loc struct {
 	src   *Source
 	begin Position
 	end   Position
+}
+
+func (l *Loc) Clone() *Loc {
+	return &Loc{
+		src:   l.src,
+		begin: l.begin.Clone(),
+		end:   l.end.Clone(),
+	}
 }

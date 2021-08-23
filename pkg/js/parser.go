@@ -114,7 +114,7 @@ func (p *Parser) newExpr() (Node, error) {
 	loc := p.loc()
 	p.lexer.Next()
 
-	expr, err := p.memberExpr()
+	expr, err := p.memberExpr(nil)
 	if err != nil {
 		return nil, err
 	}
@@ -127,7 +127,7 @@ func (p *Parser) newExpr() (Node, error) {
 
 func (p *Parser) callExpr(callee Node) (Node, error) {
 	// TODO: SuperCall ImportCall
-	return p.memberExpr()
+	return p.memberExpr(nil)
 }
 
 func (p *Parser) binExpr(lhs Node, minPcd int) (Node, error) {
@@ -173,8 +173,62 @@ func (p *Parser) binExpr(lhs Node, minPcd int) (Node, error) {
 	return lhs, nil
 }
 
-func (p *Parser) memberExpr() (Node, error) {
+// https://tc39.es/ecma262/multipage/ecmascript-language-expressions.html#prod-MemberExpression
+func (p *Parser) memberExpr(obj Node) (Node, error) {
+	var err error
+	if obj == nil {
+		if obj, err = p.memberExprObj(); err != nil {
+			return nil, err
+		}
+	}
+	for {
+		tok := p.lexer.Peek()
+		if tok.value == T_BRACKET_L {
+			if obj, err = p.memberExprPropSubscript(obj); err != nil {
+				return nil, err
+			}
+		} else if tok.value == T_DOT {
+			if obj, err = p.memberExprPropDot(obj); err != nil {
+				return nil, err
+			}
+		} else {
+			break
+		}
+	}
+	return obj, nil
+}
+
+func (p *Parser) memberExprObj() (Node, error) {
 	return p.primaryExpr()
+}
+
+func (p *Parser) memberExprPropSubscript(obj Node) (Node, error) {
+	p.lexer.Next()
+	prop, err := p.expr()
+	if err != nil {
+		return nil, err
+	}
+	if err := p.nextMustTok(T_BRACKET_R); err != nil {
+		return nil, err
+	}
+	node := &MemberExpr{N_EXPR_MEMBER, p.finLoc(obj.Loc().Clone()), obj, prop, false, false}
+	return node, nil
+}
+
+func (p *Parser) memberExprPropDot(obj Node) (Node, error) {
+	p.lexer.Next()
+	loc := p.loc()
+	var private bool
+	if private = p.lexer.src.AheadIsCh('#'); private {
+		p.lexer.src.Read()
+	}
+	id := p.lexer.Next()
+	if id.value != T_NAME {
+		return nil, p.error(&id.loc)
+	}
+	prop := &Ident{N_NAME, p.finLoc(loc), id, private}
+	node := &MemberExpr{N_EXPR_MEMBER, p.finLoc(obj.Loc().Clone()), obj, prop, false, false}
+	return node, nil
 }
 
 func (p *Parser) primaryExpr() (Node, error) {

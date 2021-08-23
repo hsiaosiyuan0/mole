@@ -121,3 +121,31 @@ func TestAssign(t *testing.T) {
 	assert.Equal(t, ">", test.op.Kind().Name, "should be >")
 	assert.Equal(t, "a", a.val.Text(), "should be a")
 }
+
+func TestMemberExprSubscript(t *testing.T) {
+	s := NewSource("", "a[b][c]")
+	p := NewParser(s, make([]string, 0))
+	ast, err := p.Prog()
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	expr := ast.(*Prog).stmts[0].(*ExprStmt).expr.(*MemberExpr)
+	ab := expr.obj.(*MemberExpr)
+
+	assert.Equal(t, "a", ab.obj.(*Ident).val.Text(), "should be a")
+	assert.Equal(t, "b", ab.prop.(*Ident).val.Text(), "should be b")
+	assert.Equal(t, "c", expr.prop.(*Ident).val.Text(), "should be c")
+}
+
+func TestMemberExprDot(t *testing.T) {
+	s := NewSource("", "a.b.c")
+	p := NewParser(s, make([]string, 0))
+	ast, err := p.Prog()
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	expr := ast.(*Prog).stmts[0].(*ExprStmt).expr.(*MemberExpr)
+	ab := expr.obj.(*MemberExpr)
+
+	assert.Equal(t, "a", ab.obj.(*Ident).val.Text(), "should be a")
+	assert.Equal(t, "b", ab.prop.(*Ident).val.Text(), "should be b")
+	assert.Equal(t, "c", expr.prop.(*Ident).val.Text(), "should be c")
+}
