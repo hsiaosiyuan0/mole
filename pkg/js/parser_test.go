@@ -149,3 +149,37 @@ func TestMemberExprDot(t *testing.T) {
 	assert.Equal(t, "b", ab.prop.(*Ident).val.Text(), "should be b")
 	assert.Equal(t, "c", expr.prop.(*Ident).val.Text(), "should be c")
 }
+
+func TestUnaryExpr(t *testing.T) {
+	s := NewSource("", "a + void 0")
+	p := NewParser(s, make([]string, 0))
+	ast, err := p.Prog()
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	expr := ast.(*Prog).stmts[0].(*ExprStmt).expr.(*BinExpr)
+	a := expr.lhs.(*Ident)
+	assert.Equal(t, "a", a.val.Text(), "should be a")
+
+	v0 := expr.rhs.(*UnaryExpr)
+	assert.Equal(t, "void", v0.op.Text(), "should be void")
+	assert.Equal(t, "0", v0.arg.(*NumLit).val.Text(), "should be 0")
+}
+
+func TestUpdateExpr(t *testing.T) {
+	s := NewSource("", "a + ++b + c++")
+	p := NewParser(s, make([]string, 0))
+	ast, err := p.Prog()
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	expr := ast.(*Prog).stmts[0].(*ExprStmt).expr.(*BinExpr)
+	ab := expr.lhs.(*BinExpr)
+	assert.Equal(t, "a", ab.lhs.(*Ident).val.Text(), "should be a")
+
+	u1 := ab.rhs.(*UpdateExpr)
+	assert.Equal(t, "b", u1.arg.(*Ident).val.Text(), "should be b")
+	assert.Equal(t, true, u1.prefix, "should be prefix")
+
+	u2 := expr.rhs.(*UpdateExpr)
+	assert.Equal(t, "c", u2.arg.(*Ident).val.Text(), "should be c")
+	assert.Equal(t, false, u2.prefix, "should be postfix")
+}

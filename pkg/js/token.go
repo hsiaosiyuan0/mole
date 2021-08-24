@@ -46,6 +46,10 @@ func (t *Token) IsBin() bool {
 	return t.value > T_BIN_OP_BEGIN && t.value < T_BIN_OP_END
 }
 
+func (t *Token) IsUnary() bool {
+	return t.value > T_UNARY_OP_BEGIN && t.value < T_UNARY_OP_END
+}
+
 func (t *Token) Kind() *TokenKind {
 	return TokenKinds[t.value]
 }
@@ -403,6 +407,13 @@ func init() {
 	for i := T_KEYWORD_BEGIN + 1; i < T_KEYWORD_END; i++ {
 		Keywords[TokenKinds[i].Name] = i
 	}
+
+	// although below tokens are not keyword in strictly, put them
+	// the keywords map for convenience
+	Keywords[TokenKinds[T_VOID].Name] = T_VOID
+	Keywords[TokenKinds[T_TYPE_OF].Name] = T_TYPE_OF
+	Keywords[TokenKinds[T_DELETE].Name] = T_DELETE
+
 	for i := T_CTX_KEYWORD_BEGIN + 1; i < T_CTX_KEYWORD_END; i++ {
 		CtxKeywords[TokenKinds[i].Name] = i
 	}

@@ -32,6 +32,8 @@ const (
 	N_EXPR_MEMBER
 	N_EXPR_CALL
 	N_EXPR_BIN
+	N_EXPR_UNARY
+	N_EXPR_UPDATE
 	N_EXPR_COND
 	N_EXPR_ASSIGN
 
@@ -223,6 +225,45 @@ func (n *BinExpr) Type() NodeType {
 }
 
 func (n *BinExpr) Loc() *Loc {
+	return n.loc
+}
+
+type UnaryExpr struct {
+	typ NodeType
+	loc *Loc
+	op  *Token
+	arg Node
+}
+
+func NewUnaryExpr() *UnaryExpr {
+	return &UnaryExpr{N_EXPR_UNARY, nil, nil, nil}
+}
+
+func (n *UnaryExpr) Type() NodeType {
+	return n.typ
+}
+
+func (n *UnaryExpr) Loc() *Loc {
+	return n.loc
+}
+
+type UpdateExpr struct {
+	typ    NodeType
+	loc    *Loc
+	op     *Token
+	prefix bool
+	arg    Node
+}
+
+func NewUpdateExpr() *UpdateExpr {
+	return &UpdateExpr{N_EXPR_UPDATE, nil, nil, false, nil}
+}
+
+func (n *UpdateExpr) Type() NodeType {
+	return n.typ
+}
+
+func (n *UpdateExpr) Loc() *Loc {
 	return n.loc
 }
 

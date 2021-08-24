@@ -19,6 +19,25 @@ func TestReadName(t *testing.T) {
 	assert.Equal(t, "test", tok.text, "should be test")
 }
 
+func TestReadId(t *testing.T) {
+	s := NewSource("", "if with void")
+	l := NewLexer(s)
+	tok := l.Next()
+	assert.Equal(t, true, tok.IsLegal(), "should be ok if")
+	assert.Equal(t, "if", tok.Text(), "should be if")
+	assert.Equal(t, T_IF, tok.value, "should be tok if")
+
+	tok = l.Next()
+	assert.Equal(t, true, tok.IsLegal(), "should be ok with")
+	assert.Equal(t, "with", tok.Text(), "should be with")
+	assert.Equal(t, T_WITH, tok.value, "should be tok with")
+
+	tok = l.Next()
+	assert.Equal(t, true, tok.IsLegal(), "should be ok void")
+	assert.Equal(t, "void", tok.Text(), "should be void")
+	assert.Equal(t, T_VOID, tok.value, "should be tok void")
+}
+
 func TestReadNum(t *testing.T) {
 	s := NewSource("", "1 23 1e1 .1e1 .1_1 1n 0b01 0B01 0o01 0O01 0x01 0X01 0x0_1")
 	l := NewLexer(s)
@@ -109,20 +128,6 @@ func TestReadStr(t *testing.T) {
 	tok = l.Next()
 	assert.Equal(t, true, tok.IsLegal(), "should be ok ©")
 	assert.Equal(t, "©", tok.Text(), "should be ©")
-}
-
-func TestReadId(t *testing.T) {
-	s := NewSource("", "if with")
-	l := NewLexer(s)
-	tok := l.Next()
-	assert.Equal(t, true, tok.IsLegal(), "should be ok if")
-	assert.Equal(t, "if", tok.Text(), "should be if")
-	assert.Equal(t, T_IF, tok.value, "should be tok if")
-
-	tok = l.Next()
-	assert.Equal(t, true, tok.IsLegal(), "should be ok with")
-	assert.Equal(t, "with", tok.Text(), "should be with")
-	assert.Equal(t, T_WITH, tok.value, "should be tok with")
 }
 
 func TestReadSymbol(t *testing.T) {
@@ -338,4 +343,17 @@ func TestReadComment(t *testing.T) {
 
   comment 3
   **/`, tok.Text(), "should be tok comment3")
+}
+
+func TestAfterLineTerminator(t *testing.T) {
+	s := NewSource("", "a\n1")
+	l := NewLexer(s)
+
+	tok := l.Next()
+	assert.Equal(t, T_NAME, tok.value, "should be tok a")
+	assert.Equal(t, false, tok.afterLineTerminator, "mode should be afterLineTerminator false")
+
+	tok = l.Next()
+	assert.Equal(t, T_NUM, tok.value, "should be tok 1")
+	assert.Equal(t, true, tok.afterLineTerminator, "mode should be afterLineTerminator true")
 }

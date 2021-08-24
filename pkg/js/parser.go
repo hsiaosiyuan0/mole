@@ -99,7 +99,44 @@ func (p *Parser) condExpr() (Node, error) {
 }
 
 func (p *Parser) unaryExpr() (Node, error) {
-	return p.lhs()
+	loc := p.loc()
+	tok := p.lexer.Peek()
+	if tok.IsUnary() || tok.value == T_ADD || tok.value == T_SUB {
+		p.lexer.Next()
+		arg, err := p.unaryExpr()
+		if err != nil {
+			return nil, err
+		}
+		return &UnaryExpr{N_EXPR_UNARY, p.finLoc(loc), tok, arg}, nil
+	}
+	return p.updateExpr()
+}
+
+func (p *Parser) updateExpr() (Node, error) {
+	loc := p.loc()
+	tok := p.lexer.Peek()
+	if tok.value == T_INC || tok.value == T_DEC {
+		p.lexer.Next()
+		arg, err := p.unaryExpr()
+		if err != nil {
+			return nil, err
+		}
+		return &UpdateExpr{N_EXPR_UPDATE, p.finLoc(loc), tok, true, arg}, nil
+	}
+
+	arg, err := p.lhs()
+	if err != nil {
+		return nil, err
+	}
+
+	tok = p.lexer.Peek()
+	postfix := !tok.afterLineTerminator && (tok.value == T_INC || tok.value == T_DEC)
+	if !postfix {
+		return arg, nil
+	}
+
+	p.lexer.Next()
+	return &UpdateExpr{N_EXPR_UPDATE, p.finLoc(loc), tok, false, arg}, nil
 }
 
 func (p *Parser) lhs() (Node, error) {
