@@ -28,7 +28,243 @@ func (p *Parser) Prog() (Node, error) {
 }
 
 func (p *Parser) stmt() (Node, error) {
+	tok := p.lexer.Peek()
+	switch tok.value {
+	case T_BRACE_L:
+	case T_VAR:
+		return p.varDecStmt()
+	case T_LET:
+	case T_IF:
+	case T_BREAK:
+	case T_CONTINUE:
+	}
 	return p.exprStmt()
+}
+
+func (p *Parser) varDecStmt() (Node, error) {
+	loc := p.loc()
+	p.lexer.Next()
+
+	node := NewVarDecStmt()
+	for {
+		dec, err := p.varDec()
+		if err != nil {
+			return nil, err
+		}
+		node.decList = append(node.decList, dec)
+		if p.lexer.Peek().value == T_COMMA {
+			p.lexer.Next()
+		} else {
+			break
+		}
+	}
+	node.loc = p.finLoc(loc)
+	return node, nil
+}
+
+func (p *Parser) varDec() (*VarDec, error) {
+	loc := p.loc()
+
+	binding, err := p.bindingPattern()
+	if err != nil {
+		return nil, err
+	}
+
+	var init Node
+	if p.lexer.Peek().value == T_ASSIGN {
+		p.lexer.Next()
+		init, err = p.assignExpr()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	dec := &VarDec{N_VAR_DEC, p.finLoc(loc), binding, init}
+	return dec, nil
+}
+
+func (p *Parser) ident() (Node, error) {
+	loc := p.loc()
+	tok, err := p.nextMustTok(T_NAME)
+	if err != nil {
+		return nil, err
+	}
+	ident := NewIdent()
+	ident.loc = p.finLoc(loc)
+	ident.val = tok
+	return ident, nil
+}
+
+// https://tc39.es/ecma262/multipage/ecmascript-language-statements-and-declarations.html#sec-destructuring-binding-patterns
+func (p *Parser) bindingPattern() (Node, error) {
+	tok := p.lexer.Peek()
+	var binding Node
+	var err error
+	if tok.value == T_BRACE_L {
+		binding, err = p.patternObj()
+	} else if tok.value == T_BRACKET_L {
+		binding, err = p.patternArr()
+	} else {
+		binding, err = p.ident()
+	}
+	if err != nil {
+		return nil, err
+	}
+	return binding, nil
+}
+
+func (p *Parser) patternObj() (Node, error) {
+	loc := p.loc()
+	p.lexer.Next()
+
+	props := make([]Node, 0, 1)
+	for {
+		node, err := p.patternProp()
+		if err != nil {
+			return nil, err
+		}
+
+		tok := p.lexer.Peek()
+		if node.Type() == N_PATTERN_REST && tok.value != T_BRACE_R {
+			return nil, p.error(&node.Loc().begin)
+		}
+		props = append(props, node)
+
+		if tok.value == T_COMMA {
+			p.lexer.Next()
+		} else if tok.value == T_BRACKET_R {
+			p.lexer.Next()
+			break
+		} else {
+			return nil, p.error(&tok.loc)
+		}
+	}
+	return &ArrayPattern{N_PATTERN_OBJ, p.finLoc(loc), props}, nil
+}
+
+func (p *Parser) patternProp() (Node, error) {
+	loc := p.loc()
+
+	key, err := p.propName()
+	if err != nil {
+		return nil, err
+	}
+
+	if p.lexer.Peek().value != T_COLON {
+		if key.Type() == N_NAME {
+			return p.patternAssign(key)
+		}
+		return nil, p.error(&key.Loc().begin)
+	}
+
+	p.lexer.Next()
+	value, err := p.patternElem()
+	if err != nil {
+		return nil, err
+	}
+
+	return &Prop{N_PROP, p.finLoc(loc), key, value, !IsLitPropName(key)}, nil
+}
+
+func (p *Parser) propName() (Node, error) {
+	loc := p.loc()
+	tok := p.lexer.Next()
+	if tok.value == T_NAME {
+		return &Ident{N_NAME, p.finLoc(loc), tok, false}, nil
+	}
+	if tok.value == T_STRING {
+		return &StrLit{N_LITERAL_STRING, p.finLoc(loc), tok}, nil
+	}
+	if tok.value == T_NUM {
+		return &NumLit{N_LITERAL_NUMERIC, p.finLoc(loc), tok}, nil
+	}
+	if tok.value == T_BRACKET_L {
+		name, err := p.assignExpr()
+		if err != nil {
+			return nil, err
+		}
+		_, err = p.nextMustTok(T_BRACKET_R)
+		if err != nil {
+			return nil, err
+		}
+		return name, nil
+	}
+	return nil, p.error(&loc.begin)
+}
+
+func (p *Parser) patternArr() (Node, error) {
+	loc := p.loc()
+	p.lexer.Next()
+
+	elems := make([]Node, 0, 1)
+	for {
+		node, err := p.patternElem()
+		if err != nil {
+			return nil, err
+		}
+
+		tok := p.lexer.Peek()
+		if node.Type() == N_PATTERN_REST && tok.value != T_BRACKET_R {
+			return nil, p.error(&node.Loc().begin)
+		}
+		elems = append(elems, node)
+
+		if tok.value == T_COMMA {
+			p.lexer.Next()
+		} else if tok.value == T_BRACKET_R {
+			p.lexer.Next()
+			break
+		} else {
+			return nil, p.error(&tok.loc)
+		}
+	}
+	return &ArrayPattern{N_PATTERN_ARRAY, p.finLoc(loc), elems}, nil
+}
+
+func (p *Parser) patternElem() (Node, error) {
+	tok := p.lexer.Peek()
+	var binding Node
+	var err error
+	if tok.value == T_BRACE_L {
+		binding, err = p.patternObj()
+	} else if tok.value == T_BRACKET_L {
+		binding, err = p.patternArr()
+	} else if tok.value == T_DOT_TRI {
+		binding, err = p.patternRest()
+	} else {
+		binding, err = p.ident()
+	}
+	if err != nil {
+		return nil, err
+	}
+	return p.patternAssign(binding)
+}
+
+func (p *Parser) patternAssign(ident Node) (Node, error) {
+	var init Node
+	var err error
+	if p.lexer.Peek().value == T_ASSIGN {
+		p.lexer.Next()
+		init, err = p.assignExpr()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if init == nil {
+		return ident, nil
+	}
+	return &AssignPattern{N_PATTERN_ASSIGN, p.finLoc(ident.Loc().Clone()), ident, init}, nil
+}
+
+func (p *Parser) patternRest() (Node, error) {
+	loc := p.loc()
+	p.lexer.Next()
+	arg, err := p.ident()
+	if err != nil {
+		return nil, err
+	}
+	return &RestPattern{N_PATTERN_REST, p.finLoc(loc), arg}, nil
 }
 
 func (p *Parser) exprStmt() (Node, error) {
@@ -84,7 +320,7 @@ func (p *Parser) condExpr() (Node, error) {
 		return nil, err
 	}
 
-	err = p.nextMustTok(T_COLON)
+	_, err = p.nextMustTok(T_COLON)
 	if err != nil {
 		return nil, err
 	}
@@ -151,9 +387,18 @@ func (p *Parser) newExpr() (Node, error) {
 	loc := p.loc()
 	p.lexer.Next()
 
-	expr, err := p.memberExpr(nil)
-	if err != nil {
-		return nil, err
+	var expr Node
+	var err error
+	if p.lexer.Peek().value == T_NEW {
+		expr, err = p.newExpr()
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		expr, err = p.memberExpr(nil)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	node := NewNewExpr()
@@ -245,7 +490,7 @@ func (p *Parser) memberExprPropSubscript(obj Node) (Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := p.nextMustTok(T_BRACKET_R); err != nil {
+	if _, err := p.nextMustTok(T_BRACKET_R); err != nil {
 		return nil, err
 	}
 	node := &MemberExpr{N_EXPR_MEMBER, p.finLoc(obj.Loc().Clone()), obj, prop, false, false}
@@ -286,12 +531,12 @@ func (p *Parser) primaryExpr() (Node, error) {
 	return nil, p.error(&tok.loc)
 }
 
-func (p *Parser) nextMustTok(val TokenValue) error {
+func (p *Parser) nextMustTok(val TokenValue) (*Token, error) {
 	tok := p.lexer.Next()
 	if tok.value != val {
-		return p.error(&tok.loc)
+		return nil, p.error(&tok.loc)
 	}
-	return nil
+	return tok, nil
 }
 
 func (p *Parser) advanceIfTok(val TokenValue) *Token {
@@ -327,4 +572,9 @@ func (p *Parser) finLoc(loc *Loc) *Loc {
 func (p *Parser) error(loc *Position) *ParserError {
 	return NewParserError("unexpected token at",
 		p.lexer.src.path, loc.line, loc.col)
+}
+
+func IsLitPropName(node Node) bool {
+	typ := node.Type()
+	return typ == N_NAME || typ == N_LITERAL_STRING || typ == N_LITERAL_NUMERIC
 }

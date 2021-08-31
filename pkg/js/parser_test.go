@@ -183,3 +183,61 @@ func TestUpdateExpr(t *testing.T) {
 	assert.Equal(t, "c", u2.arg.(*Ident).val.Text(), "should be c")
 	assert.Equal(t, false, u2.prefix, "should be postfix")
 }
+
+func TestNewExpr(t *testing.T) {
+	s := NewSource("", "new new a")
+	p := NewParser(s, make([]string, 0))
+	ast, err := p.Prog()
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	expr := ast.(*Prog).stmts[0].(*ExprStmt).expr.(*NewExpr).expr.(*NewExpr)
+	assert.Equal(t, "a", expr.expr.(*Ident).val.Text(), "should be a")
+}
+
+func TestVarDec(t *testing.T) {
+	s := NewSource("", "var a = 1")
+	p := NewParser(s, make([]string, 0))
+	ast, err := p.Prog()
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	varDecStmt := ast.(*Prog).stmts[0].(*VarDecStmt)
+	varDec := varDecStmt.decList[0]
+	id := varDec.id.(*Ident)
+	init := varDec.init.(*NumLit)
+	assert.Equal(t, "a", id.val.Text(), "should be a")
+	assert.Equal(t, "1", init.val.Text(), "should be 1")
+}
+
+func TestVarDecArrPattern(t *testing.T) {
+	s := NewSource("", "var [a, b = 1, [c] = 1, [d = 1]] = e")
+	p := NewParser(s, make([]string, 0))
+	ast, err := p.Prog()
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	varDecStmt := ast.(*Prog).stmts[0].(*VarDecStmt)
+	varDec := varDecStmt.decList[0]
+
+	init := varDec.init.(*Ident)
+	assert.Equal(t, "e", init.val.Text(), "should be e")
+
+	arr := varDec.id.(*ArrayPattern)
+	elem0 := arr.elems[0].(*Ident)
+	assert.Equal(t, "a", elem0.val.Text(), "should be a")
+
+	elem1 := arr.elems[1].(*AssignPattern)
+	elem1Lhs := elem1.left.(*Ident)
+	elem1Rhs := elem1.right.(*NumLit)
+	assert.Equal(t, "b", elem1Lhs.val.Text(), "should be b")
+	assert.Equal(t, "1", elem1Rhs.val.Text(), "should be 1")
+
+	elem2 := arr.elems[2].(*AssignPattern)
+	elem2Lhs := elem2.left.(*ArrayPattern)
+	elem2Rhs := elem2.right.(*NumLit)
+	assert.Equal(t, "c", elem2Lhs.elems[0].(*Ident).val.Text(), "should be c")
+	assert.Equal(t, "1", elem2Rhs.val.Text(), "should be 1")
+
+	elem3 := arr.elems[3].(*ArrayPattern)
+	elem31 := elem3.elems[0].(*AssignPattern)
+	assert.Equal(t, "d", elem31.left.(*Ident).val.Text(), "should be d")
+	assert.Equal(t, "1", elem31.right.(*NumLit).val.Text(), "should be 1")
+}

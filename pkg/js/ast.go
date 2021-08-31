@@ -17,17 +17,16 @@ const (
 	N_STMT_BEGIN
 	N_STMT_EXPR
 	N_STMT_EMPTY
+	N_STMT_VAR_DEC
 	N_STMT_END
 
 	N_EXPR_BEGIN
-
 	N_LITERAL_BEGIN
 	N_LITERAL_NULL
 	N_LITERAL_BOOL
 	N_LITERAL_NUMERIC
 	N_LITERAL_STRING
 	N_LITERAL_END
-
 	N_EXPR_NEW
 	N_EXPR_MEMBER
 	N_EXPR_CALL
@@ -36,8 +35,14 @@ const (
 	N_EXPR_UPDATE
 	N_EXPR_COND
 	N_EXPR_ASSIGN
-
 	N_NAME
+
+	N_VAR_DEC
+	N_PATTERN_REST
+	N_PATTERN_ARRAY
+	N_PATTERN_ASSIGN
+	N_PATTERN_OBJ
+	N_PROP
 
 	N_EXPR_END
 )
@@ -134,10 +139,19 @@ func (n *NumLit) Loc() *Loc {
 type StrLit struct {
 	typ NodeType
 	loc *Loc
+	val *Token
 }
 
 func NewStrLit() *StrLit {
-	return &StrLit{N_LITERAL_BOOL, &Loc{}}
+	return &StrLit{N_LITERAL_BOOL, &Loc{}, nil}
+}
+
+func (n *StrLit) Type() NodeType {
+	return n.typ
+}
+
+func (n *StrLit) Loc() *Loc {
+	return n.loc
 }
 
 type Ident struct {
@@ -304,6 +318,113 @@ func (n *AssignExpr) Type() NodeType {
 }
 
 func (n *AssignExpr) Loc() *Loc {
+	return n.loc
+}
+
+type VarDecStmt struct {
+	typ     NodeType
+	loc     *Loc
+	kind    TokenValue
+	decList []*VarDec
+}
+
+func NewVarDecStmt() *VarDecStmt {
+	return &VarDecStmt{N_STMT_VAR_DEC, nil, T_ILLEGAL, make([]*VarDec, 0, 1)}
+}
+
+func (n *VarDecStmt) Type() NodeType {
+	return n.typ
+}
+
+func (n *VarDecStmt) Loc() *Loc {
+	return n.loc
+}
+
+type VarDec struct {
+	typ  NodeType
+	loc  *Loc
+	id   Node
+	init Node
+}
+
+func (n *VarDec) Type() NodeType {
+	return n.typ
+}
+
+func (n *VarDec) Loc() *Loc {
+	return n.loc
+}
+
+type ArrayPattern struct {
+	typ   NodeType
+	loc   *Loc
+	elems []Node
+}
+
+func (n *ArrayPattern) Type() NodeType {
+	return n.typ
+}
+
+func (n *ArrayPattern) Loc() *Loc {
+	return n.loc
+}
+
+type AssignPattern struct {
+	typ   NodeType
+	loc   *Loc
+	left  Node
+	right Node
+}
+
+func (n *AssignPattern) Type() NodeType {
+	return n.typ
+}
+
+func (n *AssignPattern) Loc() *Loc {
+	return n.loc
+}
+
+type RestPattern struct {
+	typ NodeType
+	loc *Loc
+	arg Node
+}
+
+func (n *RestPattern) Type() NodeType {
+	return n.typ
+}
+
+func (n *RestPattern) Loc() *Loc {
+	return n.loc
+}
+
+type ObjPattern struct {
+	typ   NodeType
+	loc   *Loc
+	props []Node
+}
+
+func (n *ObjPattern) Type() NodeType {
+	return n.typ
+}
+
+func (n *ObjPattern) Loc() *Loc {
+	return n.loc
+}
+
+type Prop struct {
+	typ      NodeType
+	loc      *Loc
+	key      Node
+	value    Node
+	computed bool
+}
+
+func (n *Prop) Type() NodeType {
+	return n.typ
+}
+
+func (n *Prop) Loc() *Loc {
 	return n.loc
 }
 
