@@ -41,6 +41,7 @@ func (p *Parser) stmt() (Node, error) {
 	return p.exprStmt()
 }
 
+// https://tc39.es/ecma262/multipage/ecmascript-language-statements-and-declarations.html#prod-VariableStatement
 func (p *Parser) varDecStmt() (Node, error) {
 	loc := p.loc()
 	p.lexer.Next()
@@ -198,6 +199,12 @@ func (p *Parser) patternArr() (Node, error) {
 
 	elems := make([]Node, 0, 1)
 	for {
+		elems = append(elems, p.elision()...)
+		if p.lexer.Peek().value == T_BRACKET_R {
+			p.lexer.Next()
+			break
+		}
+
 		node, err := p.patternElem()
 		if err != nil {
 			return nil, err
@@ -219,6 +226,19 @@ func (p *Parser) patternArr() (Node, error) {
 		}
 	}
 	return &ArrayPattern{N_PATTERN_ARRAY, p.finLoc(loc), elems}, nil
+}
+
+func (p *Parser) elision() []Node {
+	ret := make([]Node, 0, 1)
+	for {
+		if p.lexer.Peek().value == T_COMMA {
+			p.lexer.Next()
+			ret = append(ret, nil)
+		} else {
+			break
+		}
+	}
+	return ret
 }
 
 func (p *Parser) patternElem() (Node, error) {
@@ -527,6 +547,10 @@ func (p *Parser) primaryExpr() (Node, error) {
 		node.loc = p.finLoc(loc)
 		node.val = tok
 		return node, nil
+		// case T_BRACKET_L:
+		// 	return p.arrLit()
+		// case T_BRACE_L:
+		// 	return p.objLit()
 	}
 	return nil, p.error(&tok.loc)
 }

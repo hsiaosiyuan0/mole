@@ -241,3 +241,40 @@ func TestVarDecArrPattern(t *testing.T) {
 	assert.Equal(t, "d", elem31.left.(*Ident).val.Text(), "should be d")
 	assert.Equal(t, "1", elem31.right.(*NumLit).val.Text(), "should be 1")
 }
+
+func TestVarDecArrPatternElision(t *testing.T) {
+	s := NewSource("", "var [a, , b, , , c, ,] = e")
+	p := NewParser(s, make([]string, 0))
+	ast, err := p.Prog()
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	varDecStmt := ast.(*Prog).stmts[0].(*VarDecStmt)
+	varDec := varDecStmt.decList[0]
+
+	init := varDec.init.(*Ident)
+	assert.Equal(t, "e", init.val.Text(), "should be e")
+
+	arr := varDec.id.(*ArrayPattern)
+	assert.Equal(t, 7, len(arr.elems), "should be len 7")
+
+	elem0 := arr.elems[0].(*Ident)
+	assert.Equal(t, "a", elem0.val.Text(), "should be a")
+
+	elem1 := arr.elems[1]
+	assert.Equal(t, nil, elem1, "should be nil")
+
+	elem2 := arr.elems[2].(*Ident)
+	assert.Equal(t, "b", elem2.val.Text(), "should be b")
+
+	elem3 := arr.elems[3]
+	assert.Equal(t, nil, elem3, "should be nil")
+
+	elem4 := arr.elems[4]
+	assert.Equal(t, nil, elem4, "should be nil")
+
+	elem5 := arr.elems[5].(*Ident)
+	assert.Equal(t, "c", elem5.val.Text(), "should be c")
+
+	elem6 := arr.elems[6]
+	assert.Equal(t, nil, elem6, "should be nil")
+}
