@@ -21,12 +21,14 @@ const (
 	N_STMT_END
 
 	N_EXPR_BEGIN
-	N_LITERAL_BEGIN
-	N_LITERAL_NULL
-	N_LITERAL_BOOL
-	N_LITERAL_NUMERIC
-	N_LITERAL_STRING
-	N_LITERAL_END
+	N_LIT_BEGIN
+	N_LIT_NULL
+	N_LIT_BOOL
+	N_LIT_NUM
+	N_LIT_STR
+	N_LIT_ARR
+	N_LIT_OBJ
+	N_LIT_END
 	N_EXPR_NEW
 	N_EXPR_MEMBER
 	N_EXPR_CALL
@@ -43,6 +45,7 @@ const (
 	N_PATTERN_ASSIGN
 	N_PATTERN_OBJ
 	N_PROP
+	N_SPREAD
 
 	N_EXPR_END
 )
@@ -106,7 +109,7 @@ type NullLit struct {
 }
 
 func NewNullLit() *NullLit {
-	return &NullLit{N_LITERAL_NULL, &Loc{}}
+	return &NullLit{N_LIT_NULL, &Loc{}}
 }
 
 type BoolLit struct {
@@ -115,7 +118,7 @@ type BoolLit struct {
 }
 
 func NewBoolLiteral() *BoolLit {
-	return &BoolLit{N_LITERAL_BOOL, &Loc{}}
+	return &BoolLit{N_LIT_BOOL, &Loc{}}
 }
 
 type NumLit struct {
@@ -125,7 +128,7 @@ type NumLit struct {
 }
 
 func NewNumLit() *NumLit {
-	return &NumLit{N_LITERAL_NUMERIC, &Loc{}, nil}
+	return &NumLit{N_LIT_NUM, &Loc{}, nil}
 }
 
 func (n *NumLit) Type() NodeType {
@@ -143,7 +146,7 @@ type StrLit struct {
 }
 
 func NewStrLit() *StrLit {
-	return &StrLit{N_LITERAL_BOOL, &Loc{}, nil}
+	return &StrLit{N_LIT_BOOL, &Loc{}, nil}
 }
 
 func (n *StrLit) Type() NodeType {
@@ -151,6 +154,48 @@ func (n *StrLit) Type() NodeType {
 }
 
 func (n *StrLit) Loc() *Loc {
+	return n.loc
+}
+
+type ArrLit struct {
+	typ   NodeType
+	loc   *Loc
+	elems []Node
+}
+
+func (n *ArrLit) Type() NodeType {
+	return n.typ
+}
+
+func (n *ArrLit) Loc() *Loc {
+	return n.loc
+}
+
+type Spread struct {
+	typ NodeType
+	loc *Loc
+	arg Node
+}
+
+func (n *Spread) Type() NodeType {
+	return n.typ
+}
+
+func (n *Spread) Loc() *Loc {
+	return n.loc
+}
+
+type ObjLit struct {
+	typ   NodeType
+	loc   *Loc
+	props []Node
+}
+
+func (n *ObjLit) Type() NodeType {
+	return n.typ
+}
+
+func (n *ObjLit) Loc() *Loc {
 	return n.loc
 }
 

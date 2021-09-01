@@ -133,14 +133,14 @@ func (p *Parser) patternObj() (Node, error) {
 
 		if tok.value == T_COMMA {
 			p.lexer.Next()
-		} else if tok.value == T_BRACKET_R {
+		} else if tok.value == T_BRACE_R {
 			p.lexer.Next()
 			break
 		} else {
 			return nil, p.error(&tok.loc)
 		}
 	}
-	return &ArrayPattern{N_PATTERN_OBJ, p.finLoc(loc), props}, nil
+	return &ObjPattern{N_PATTERN_OBJ, p.finLoc(loc), props}, nil
 }
 
 func (p *Parser) patternProp() (Node, error) {
@@ -174,10 +174,10 @@ func (p *Parser) propName() (Node, error) {
 		return &Ident{N_NAME, p.finLoc(loc), tok, false}, nil
 	}
 	if tok.value == T_STRING {
-		return &StrLit{N_LITERAL_STRING, p.finLoc(loc), tok}, nil
+		return &StrLit{N_LIT_STR, p.finLoc(loc), tok}, nil
 	}
 	if tok.value == T_NUM {
-		return &NumLit{N_LITERAL_NUMERIC, p.finLoc(loc), tok}, nil
+		return &NumLit{N_LIT_NUM, p.finLoc(loc), tok}, nil
 	}
 	if tok.value == T_BRACKET_L {
 		name, err := p.assignExpr()
@@ -280,7 +280,18 @@ func (p *Parser) patternAssign(ident Node) (Node, error) {
 func (p *Parser) patternRest() (Node, error) {
 	loc := p.loc()
 	p.lexer.Next()
-	arg, err := p.ident()
+
+	var arg Node
+	var err error
+	tok := p.lexer.Peek()
+	if tok.value == T_BRACE_L {
+		arg, err = p.patternObj()
+	} else if tok.value == T_BRACKET_L {
+		arg, err = p.patternArr()
+	} else {
+		arg, err = p.ident()
+	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -535,24 +546,140 @@ func (p *Parser) memberExprPropDot(obj Node) (Node, error) {
 
 func (p *Parser) primaryExpr() (Node, error) {
 	loc := p.loc()
-	tok := p.lexer.Next()
+	tok := p.lexer.Peek()
+
 	switch tok.value {
 	case T_NUM:
+		p.lexer.Next()
 		node := NewNumLit()
 		node.loc = p.finLoc(loc)
 		node.val = tok
 		return node, nil
 	case T_NAME:
+		p.lexer.Next()
 		node := NewIdent()
 		node.loc = p.finLoc(loc)
 		node.val = tok
 		return node, nil
-		// case T_BRACKET_L:
-		// 	return p.arrLit()
-		// case T_BRACE_L:
-		// 	return p.objLit()
+	case T_BRACKET_L:
+		return p.arrLit()
+	case T_BRACE_L:
+		return p.objLit()
 	}
 	return nil, p.error(&tok.loc)
+}
+
+// https://tc39.es/ecma262/multipage/ecmascript-language-expressions.html#prod-ArrayLiteral
+func (p *Parser) arrLit() (Node, error) {
+	loc := p.loc()
+	p.lexer.Next()
+
+	elems := make([]Node, 0, 1)
+	for {
+		elems = append(elems, p.elision()...)
+		if p.lexer.Peek().value == T_BRACKET_R {
+			p.lexer.Next()
+			break
+		}
+
+		node, err := p.arrElem()
+		if err != nil {
+			return nil, err
+		}
+
+		tok := p.lexer.Peek()
+		if node.Type() == N_PATTERN_REST && tok.value != T_BRACKET_R {
+			return nil, p.error(&node.Loc().begin)
+		}
+		elems = append(elems, node)
+
+		if tok.value == T_COMMA {
+			p.lexer.Next()
+		} else if tok.value == T_BRACKET_R {
+			p.lexer.Next()
+			break
+		} else {
+			return nil, p.error(&tok.loc)
+		}
+	}
+	return &ArrLit{N_LIT_ARR, p.finLoc(loc), elems}, nil
+}
+
+func (p *Parser) arrElem() (Node, error) {
+	if p.lexer.Peek().value == T_DOT_TRI {
+		return p.spread()
+	}
+	return p.assignExpr()
+}
+
+func (p *Parser) spread() (Node, error) {
+	loc := p.loc()
+	p.lexer.Next()
+
+	node, err := p.assignExpr()
+	if err != nil {
+		return nil, err
+	}
+
+	return &Spread{N_SPREAD, p.finLoc(loc), node}, nil
+}
+
+// https://tc39.es/ecma262/multipage/ecmascript-language-expressions.html#prod-ObjectLiteral
+func (p *Parser) objLit() (Node, error) {
+	loc := p.loc()
+	p.lexer.Next()
+
+	props := make([]Node, 0, 1)
+	for {
+		node, err := p.objProp()
+		if err != nil {
+			return nil, err
+		}
+
+		props = append(props, node)
+
+		tok := p.lexer.Peek()
+		if tok.value == T_COMMA {
+			p.lexer.Next()
+		} else if tok.value == T_BRACE_R {
+			p.lexer.Next()
+			break
+		} else {
+			return nil, p.error(&tok.loc)
+		}
+	}
+	return &ObjLit{N_LIT_OBJ, p.finLoc(loc), props}, nil
+}
+
+func (p *Parser) objProp() (Node, error) {
+	loc := p.loc()
+
+	tok := p.lexer.Peek()
+	if tok.value == T_DOT_TRI {
+		return p.spread()
+	}
+
+	key, err := p.propName()
+	if err != nil {
+		return nil, err
+	}
+
+	if p.lexer.Peek().value != T_COLON {
+		if key.Type() == N_NAME {
+			return key, nil
+		}
+		return nil, p.error(&key.Loc().begin)
+	}
+
+	p.lexer.Next()
+	value, err := p.assignExpr()
+	if err != nil {
+		return nil, err
+	}
+
+	return &Prop{N_PROP, p.finLoc(loc), key, value, !IsLitPropName(key)}, nil
+
+	// TODO: MethodDefinition
 }
 
 func (p *Parser) nextMustTok(val TokenValue) (*Token, error) {
@@ -600,5 +727,5 @@ func (p *Parser) error(loc *Position) *ParserError {
 
 func IsLitPropName(node Node) bool {
 	typ := node.Type()
-	return typ == N_NAME || typ == N_LITERAL_STRING || typ == N_LITERAL_NUMERIC
+	return typ == N_NAME || typ == N_LIT_STR || typ == N_LIT_NUM
 }

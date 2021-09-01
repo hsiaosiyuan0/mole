@@ -278,3 +278,71 @@ func TestVarDecArrPatternElision(t *testing.T) {
 	elem6 := arr.elems[6]
 	assert.Equal(t, nil, elem6, "should be nil")
 }
+
+func TestArrLit(t *testing.T) {
+	s := NewSource("", "[a, , b, , , c, ,]")
+	p := NewParser(s, make([]string, 0))
+	ast, err := p.Prog()
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	arrLit := ast.(*Prog).stmts[0].(*ExprStmt).expr.(*ArrLit)
+	assert.Equal(t, 7, len(arrLit.elems), "should be len 7")
+
+	elem0 := arrLit.elems[0].(*Ident)
+	assert.Equal(t, "a", elem0.val.Text(), "should be a")
+
+	elem1 := arrLit.elems[1]
+	assert.Equal(t, nil, elem1, "should be nil")
+
+	elem2 := arrLit.elems[2].(*Ident)
+	assert.Equal(t, "b", elem2.val.Text(), "should be b")
+
+	elem3 := arrLit.elems[3]
+	assert.Equal(t, nil, elem3, "should be nil")
+
+	elem4 := arrLit.elems[4]
+	assert.Equal(t, nil, elem4, "should be nil")
+
+	elem5 := arrLit.elems[5].(*Ident)
+	assert.Equal(t, "c", elem5.val.Text(), "should be c")
+
+	elem6 := arrLit.elems[6]
+	assert.Equal(t, nil, elem6, "should be nil")
+}
+
+func TestObjLit(t *testing.T) {
+	s := NewSource("", "var a = {...a, b, ...c, \"d\": 1, [e]: {f: 1}, ...g}")
+	p := NewParser(s, make([]string, 0))
+	ast, err := p.Prog()
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	varDecStmt := ast.(*Prog).stmts[0].(*VarDecStmt)
+	varDec := varDecStmt.decList[0]
+
+	id := varDec.id.(*Ident)
+	assert.Equal(t, "a", id.val.Text(), "should be a")
+
+	objLit := varDec.init.(*ObjLit)
+	assert.Equal(t, 6, len(objLit.props), "should be len 6")
+
+	prop0 := objLit.props[0].(*Spread)
+	assert.Equal(t, "a", prop0.arg.(*Ident).val.Text(), "should be ...a")
+
+	prop1 := objLit.props[1].(*Ident)
+	assert.Equal(t, "b", prop1.val.Text(), "should be b")
+
+	prop2 := objLit.props[2].(*Spread)
+	assert.Equal(t, "c", prop2.arg.(*Ident).val.Text(), "should be ...c")
+
+	prop3 := objLit.props[3].(*Prop)
+	assert.Equal(t, "d", prop3.key.(*StrLit).val.Text(), "should be d")
+	assert.Equal(t, "1", prop3.value.(*NumLit).val.Text(), "should be 1")
+
+	prop4 := objLit.props[4].(*Prop)
+	assert.Equal(t, "e", prop4.key.(*Ident).val.Text(), "should be e")
+	assert.Equal(t, "f", prop4.value.(*ObjLit).props[0].(*Prop).key.(*Ident).val.Text(), "should be f")
+	assert.Equal(t, "1", prop4.value.(*ObjLit).props[0].(*Prop).value.(*NumLit).val.Text(), "should be 1")
+
+	prop5 := objLit.props[5].(*Spread)
+	assert.Equal(t, "g", prop5.arg.(*Ident).val.Text(), "should be ...g")
+}
