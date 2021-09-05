@@ -355,7 +355,20 @@ func TestFnDec(t *testing.T) {
 	ast, err := p.Prog()
 	assert.Equal(t, nil, err, "should be prog ok")
 
-	fn := ast.(*Prog).stmts[0].(*FnDecStmt)
+	fn := ast.(*Prog).stmts[0].(*FnDec)
+	id := fn.id.(*Ident)
+	assert.Equal(t, "a", id.val.Text(), "should be a")
+}
+
+func TestFnExpr(t *testing.T) {
+	s := NewSource("", `
+  let a = function a({ b }) {}
+  `)
+	p := NewParser(s, make([]string, 0))
+	ast, err := p.Prog()
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	fn := ast.(*Prog).stmts[0].(*VarDecStmt).decList[0].init.(*FnDec)
 	id := fn.id.(*Ident)
 	assert.Equal(t, "a", id.val.Text(), "should be a")
 }
@@ -368,7 +381,7 @@ func TestAsyncFnDec(t *testing.T) {
 	ast, err := p.Prog()
 	assert.Equal(t, nil, err, "should be prog ok")
 
-	fn := ast.(*Prog).stmts[0].(*FnDecStmt)
+	fn := ast.(*Prog).stmts[0].(*FnDec)
 	id := fn.id.(*Ident)
 	assert.Equal(t, "a", id.val.Text(), "should be a")
 	assert.Equal(t, true, fn.async, "should be true")

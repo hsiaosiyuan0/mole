@@ -27,15 +27,20 @@ func (p *Parser) Prog() (Node, error) {
 	return pg, nil
 }
 
+func (p *Parser) aheadIsVarDec(tok *Token) bool {
+	if tok.value == T_VAR {
+		return true
+	}
+	return IsName(tok, "let") || IsName(tok, "const")
+}
+
 func (p *Parser) stmt() (Node, error) {
 	tok := p.lexer.Peek()
 	switch tok.value {
 	case T_BRACE_L:
 		return p.blockStmt()
-	case T_VAR, T_LET, T_CONST:
-		return p.varDecStmt()
 	case T_FUNC:
-		return p.fnDecStmt()
+		return p.fnDecStmt(false, false)
 	case T_DO:
 		return p.doWhileStmt()
 	case T_WHILE:
@@ -46,7 +51,9 @@ func (p *Parser) stmt() (Node, error) {
 	case T_BREAK:
 	case T_CONTINUE:
 	}
-	if IsName(tok, "async") {
+	if p.aheadIsVarDec(tok) {
+		return p.varDecStmt()
+	} else if IsName(tok, "async") {
 		ahead := p.lexer.PeekGrow()
 		if ahead.value == T_FUNC && !ahead.afterLineTerminator {
 			return p.asyncFnDecStmt()
@@ -181,23 +188,15 @@ func (p *Parser) forStmt() (Node, error) {
 }
 
 func (p *Parser) asyncFnDecStmt() (Node, error) {
-	loc := p.loc()
-	p.lexer.Next()
-
-	node, err := p.fnDecStmt()
-	if err != nil {
-		return nil, err
-	}
-
-	fn := node.(*FnDecStmt)
-	fn.loc = p.finLoc(loc)
-	fn.async = true
-	return fn, nil
+	return p.fnDecStmt(false, true)
 }
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-statements-and-declarations.html#prod-HoistableDeclaration
-func (p *Parser) fnDecStmt() (Node, error) {
+func (p *Parser) fnDecStmt(expr bool, async bool) (Node, error) {
 	loc := p.loc()
+	if async {
+		p.lexer.Next()
+	}
 	p.lexer.Next()
 
 	generator := p.lexer.Peek().value == T_MUL
@@ -207,11 +206,15 @@ func (p *Parser) fnDecStmt() (Node, error) {
 
 	var id Node
 	var err error
-	if p.lexer.Peek().value != T_PAREN_L {
+	tok := p.lexer.Peek()
+	if tok.value != T_PAREN_L {
 		id, err = p.ident()
 		if err != nil {
 			return nil, err
 		}
+	}
+	if !expr && id == nil {
+		return nil, p.error(&tok.loc)
 	}
 
 	params, err := p.formalParams()
@@ -231,7 +234,11 @@ func (p *Parser) fnDecStmt() (Node, error) {
 		return nil, err
 	}
 
-	return &FnDecStmt{N_STMT_FN_DEC, p.finLoc(loc), id, generator, false, params, body}, nil
+	typ := N_STMT_FN_DEC
+	if expr {
+		typ = N_EXPR_FN
+	}
+	return &FnDec{typ, p.finLoc(loc), id, generator, async, params, body}, nil
 }
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-functions-and-classes.html#prod-FormalParameters
@@ -293,7 +300,13 @@ func (p *Parser) varDecStmt() (Node, error) {
 			break
 		}
 	}
-	node.kind = kind.value
+	if IsName(kind, "let") {
+		node.kind = T_LET
+	} else if IsName(kind, "const") {
+		node.kind = T_CONST
+	} else {
+		node.kind = T_VAR
+	}
 	node.loc = p.finLoc(loc)
 	return node, nil
 }
@@ -800,6 +813,11 @@ func (p *Parser) primaryExpr() (Node, error) {
 		return p.arrLit()
 	case T_BRACE_L:
 		return p.objLit()
+	case T_FUNC:
+		return p.fnDecStmt(true, false)
+	}
+	if IsName(tok, "async") {
+		return p.fnDecStmt(true, true)
 	}
 	return nil, p.error(&tok.loc)
 }

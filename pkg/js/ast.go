@@ -494,7 +494,7 @@ func (n *Prop) Loc() *Loc {
 	return n.loc
 }
 
-type FnDecStmt struct {
+type FnDec struct {
 	typ       NodeType
 	loc       *Loc
 	id        Node
@@ -504,29 +504,11 @@ type FnDecStmt struct {
 	body      Node
 }
 
-func (n *FnDecStmt) Type() NodeType {
+func (n *FnDec) Type() NodeType {
 	return n.typ
 }
 
-func (n *FnDecStmt) Loc() *Loc {
-	return n.loc
-}
-
-type FnExpr struct {
-	typ       NodeType
-	loc       *Loc
-	id        Node
-	generator bool
-	async     bool
-	params    []Node
-	body      Node
-}
-
-func (n *FnExpr) Type() NodeType {
-	return n.typ
-}
-
-func (n *FnExpr) Loc() *Loc {
+func (n *FnDec) Loc() *Loc {
 	return n.loc
 }
 
