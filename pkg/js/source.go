@@ -117,6 +117,10 @@ func (s *Source) AheadIsEof() bool {
 	return s.pos == len(s.code)
 }
 
+func (s *Source) AheadIsEofAndNoPeeked() bool {
+	return s.pos == len(s.code) && s.peekedLen == 0
+}
+
 func (s *Source) AheadIsChs2(c1 rune, c2 rune) bool {
 	if s.peekedLen < 2 {
 		s.peekGrow()
@@ -185,7 +189,7 @@ func (s *Source) Read() rune {
 }
 
 // skip spaces except line terminator
-func (s *Source) SkipSpace() {
+func (s *Source) SkipSpace() *Source {
 	s.metLineTerminator = false
 	for {
 		c := s.Peek()
@@ -198,6 +202,7 @@ func (s *Source) SkipSpace() {
 			break
 		}
 	}
+	return s
 }
 
 func (s *Source) error(msg string) *SourceError {

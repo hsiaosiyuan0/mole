@@ -8,6 +8,20 @@ type Node interface {
 	Loc() *Loc
 }
 
+type Loc struct {
+	src   *Source
+	begin Position
+	end   Position
+}
+
+func (l *Loc) Clone() *Loc {
+	return &Loc{
+		src:   l.src,
+		begin: l.begin.Clone(),
+		end:   l.end.Clone(),
+	}
+}
+
 type NodeType int
 
 const (
@@ -18,6 +32,12 @@ const (
 	N_STMT_EXPR
 	N_STMT_EMPTY
 	N_STMT_VAR_DEC
+	N_STMT_FN_DEC
+	N_STMT_BLOCK
+	N_STMT_DO_WHILE
+	N_STMT_WHILE
+	N_STMT_FOR
+	N_STMT_FOR_IN_OF
 	N_STMT_END
 
 	N_EXPR_BEGIN
@@ -37,6 +57,7 @@ const (
 	N_EXPR_UPDATE
 	N_EXPR_COND
 	N_EXPR_ASSIGN
+	N_EXPR_FN
 	N_NAME
 
 	N_VAR_DEC
@@ -473,16 +494,117 @@ func (n *Prop) Loc() *Loc {
 	return n.loc
 }
 
-type Loc struct {
-	src   *Source
-	begin Position
-	end   Position
+type FnDecStmt struct {
+	typ       NodeType
+	loc       *Loc
+	id        Node
+	generator bool
+	async     bool
+	params    []Node
+	body      Node
 }
 
-func (l *Loc) Clone() *Loc {
-	return &Loc{
-		src:   l.src,
-		begin: l.begin.Clone(),
-		end:   l.end.Clone(),
-	}
+func (n *FnDecStmt) Type() NodeType {
+	return n.typ
+}
+
+func (n *FnDecStmt) Loc() *Loc {
+	return n.loc
+}
+
+type FnExpr struct {
+	typ       NodeType
+	loc       *Loc
+	id        Node
+	generator bool
+	async     bool
+	params    []Node
+	body      Node
+}
+
+func (n *FnExpr) Type() NodeType {
+	return n.typ
+}
+
+func (n *FnExpr) Loc() *Loc {
+	return n.loc
+}
+
+type BlockStmt struct {
+	typ  NodeType
+	loc  *Loc
+	body []Node
+}
+
+func (n *BlockStmt) Type() NodeType {
+	return n.typ
+}
+
+func (n *BlockStmt) Loc() *Loc {
+	return n.loc
+}
+
+type DoWhileStmt struct {
+	typ  NodeType
+	loc  *Loc
+	test Node
+	body Node
+}
+
+func (n *DoWhileStmt) Type() NodeType {
+	return n.typ
+}
+
+func (n *DoWhileStmt) Loc() *Loc {
+	return n.loc
+}
+
+type WhileStmt struct {
+	typ  NodeType
+	loc  *Loc
+	test Node
+	body Node
+}
+
+func (n *WhileStmt) Type() NodeType {
+	return n.typ
+}
+
+func (n *WhileStmt) Loc() *Loc {
+	return n.loc
+}
+
+type ForStmt struct {
+	typ    NodeType
+	loc    *Loc
+	init   Node
+	test   Node
+	update Node
+	body   Node
+}
+
+func (n *ForStmt) Type() NodeType {
+	return n.typ
+}
+
+func (n *ForStmt) Loc() *Loc {
+	return n.loc
+}
+
+type ForInOfStmt struct {
+	typ   NodeType
+	loc   *Loc
+	in    bool
+	await bool
+	left  Node
+	right Node
+	body  Node
+}
+
+func (n *ForInOfStmt) Type() NodeType {
+	return n.typ
+}
+
+func (n *ForInOfStmt) Loc() *Loc {
+	return n.loc
 }

@@ -166,8 +166,8 @@ func TestReadSymbol(t *testing.T) {
 	assert.Equal(t, T_NULLISH, l.Next().value, "should be tok ??")
 	assert.Equal(t, T_LT, l.Next().value, "should be tok <")
 	assert.Equal(t, T_GT, l.Next().value, "should be tok >")
-	assert.Equal(t, T_LE, l.Next().value, "should be tok <=")
-	assert.Equal(t, T_GE, l.Next().value, "should be tok >=")
+	assert.Equal(t, T_LTE, l.Next().value, "should be tok <=")
+	assert.Equal(t, T_GTE, l.Next().value, "should be tok >=")
 	assert.Equal(t, T_EQ, l.Next().value, "should be tok ==")
 	assert.Equal(t, T_NE, l.Next().value, "should be tok !=")
 	assert.Equal(t, T_EQ_S, l.Next().value, "should be tok ===")
@@ -205,31 +205,6 @@ func TestReadSymbol(t *testing.T) {
 	assert.Equal(t, T_ASSIGN_DIV, l.Next().value, "should be tok /=")
 	assert.Equal(t, T_ASSIGN_MOD, l.Next().value, "should be tok %=")
 	assert.Equal(t, T_ASSIGN_POW, l.Next().value, "should be tok **=")
-}
-
-func TestReadAsyncAwait(t *testing.T) {
-	s := NewSource("", `async function(a = {}) {async await}
-  async await
-  `)
-	l := NewLexer(s)
-
-	assert.Equal(t, T_ASYNC, l.Next().value, "should be tok async")
-	assert.Equal(t, T_FUNC, l.Next().value, "should be tok function")
-
-	assert.Equal(t, T_PAREN_L, l.Next().value, "should be tok (")
-	assert.Equal(t, T_NAME, l.Next().value, "should be tok name")
-	assert.Equal(t, T_ASSIGN, l.Next().value, "should be tok =")
-	assert.Equal(t, T_BRACE_L, l.Next().value, "should be tok {")
-	assert.Equal(t, T_BRACE_R, l.Next().value, "should be tok }")
-	assert.Equal(t, T_PAREN_R, l.Next().value, "should be tok )")
-
-	assert.Equal(t, T_BRACE_L, l.Next().value, "should be tok {")
-	assert.Equal(t, T_NAME, l.Next().value, "should be tok async:name")
-	assert.Equal(t, T_AWAIT, l.Next().value, "should be tok await")
-	assert.Equal(t, T_BRACE_R, l.Next().value, "should be tok }")
-
-	assert.Equal(t, T_NAME, l.Next().value, "should be tok name")
-	assert.Equal(t, T_NAME, l.Next().value, "should be tok name")
 }
 
 func TestReadRegexp(t *testing.T) {

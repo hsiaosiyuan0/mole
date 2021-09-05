@@ -119,6 +119,7 @@ const (
 	T_CTX_KEYWORD_BEGIN
 	T_CTX_KEYWORD_STRICT_BEGIN
 	T_LET
+	T_CONST
 	T_STATIC
 	T_IMPLEMENTS
 	T_INTERFACE
@@ -164,8 +165,8 @@ const (
 	// relational
 	T_LT
 	T_GT
-	T_LE
-	T_GE
+	T_LTE
+	T_GTE
 
 	// equality
 	T_EQ
@@ -256,8 +257,8 @@ var TokenKinds = [T_TOKEN_DEF_END - 1]*TokenKind{
 	{T_TPL_SPAN, "template span", 0, false, true},
 	{T_TPL_TAIL, "template tail", 0, false, true},
 
-	{T_NAME, "identifer", 0, false, false},
-	{T_NAME_PRIVATE, "private identifer", 0, false, false},
+	{T_NAME, "identifier", 0, false, false},
+	{T_NAME_PRIVATE, "private identifier", 0, false, false},
 
 	// keywords
 	{T_KEYWORD_BEGIN, "keyword begin", 0, false, false},
@@ -294,6 +295,7 @@ var TokenKinds = [T_TOKEN_DEF_END - 1]*TokenKind{
 	{T_CTX_KEYWORD_BEGIN, "contextual keyword begin", 0, false, false},
 	{T_CTX_KEYWORD_STRICT_BEGIN, "contextual keyword strict begin", 0, false, false},
 	{T_LET, "let", 0, false, false},
+	{T_CONST, "const", 0, false, false},
 	{T_STATIC, "static", 0, false, false},
 	{T_IMPLEMENTS, "implements", 0, false, false},
 	{T_INTERFACE, "interface", 0, false, false},
@@ -337,10 +339,10 @@ var TokenKinds = [T_TOKEN_DEF_END - 1]*TokenKind{
 	{T_NULLISH, "??", 0, false, false},
 
 	// relational
-	{T_LE, "<", 12, false, false},
-	{T_GE, ">", 12, false, false},
-	{T_LET, "<=", 12, false, false},
-	{T_GET, ">=", 12, false, false},
+	{T_LT, "<", 12, false, false},
+	{T_GT, ">", 12, false, false},
+	{T_LTE, "<=", 12, false, false},
+	{T_GTE, ">=", 12, false, false},
 
 	// equality
 	{T_EQ, "==", 11, false, false},
@@ -413,6 +415,8 @@ func init() {
 	Keywords[TokenKinds[T_VOID].Name] = T_VOID
 	Keywords[TokenKinds[T_TYPE_OF].Name] = T_TYPE_OF
 	Keywords[TokenKinds[T_DELETE].Name] = T_DELETE
+	Keywords[TokenKinds[T_IN].Name] = T_IN
+	Keywords[TokenKinds[T_INSTANCE_OF].Name] = T_INSTANCE_OF
 
 	for i := T_CTX_KEYWORD_BEGIN + 1; i < T_CTX_KEYWORD_END; i++ {
 		CtxKeywords[TokenKinds[i].Name] = i
@@ -435,4 +439,8 @@ func IsCtxKeywords(str string) bool {
 func IsStrictKeywords(str string) bool {
 	_, ok := StrictKeywords[str]
 	return ok
+}
+
+func IsName(tok *Token, name string) bool {
+	return tok.value == T_NAME && tok.Text() == name
 }

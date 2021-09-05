@@ -15,7 +15,7 @@ func NewParser(src *Source, externals []string) *Parser {
 func (p *Parser) Prog() (Node, error) {
 	pg := NewProg()
 	for {
-		if p.lexer.src.AheadIsEof() {
+		if p.lexer.Peek().value == T_EOF {
 			break
 		}
 		stmt, err := p.stmt()
@@ -31,20 +31,254 @@ func (p *Parser) stmt() (Node, error) {
 	tok := p.lexer.Peek()
 	switch tok.value {
 	case T_BRACE_L:
-	case T_VAR:
+		return p.blockStmt()
+	case T_VAR, T_LET, T_CONST:
 		return p.varDecStmt()
-	case T_LET:
+	case T_FUNC:
+		return p.fnDecStmt()
+	case T_DO:
+		return p.doWhileStmt()
+	case T_WHILE:
+		return p.whileStmt()
+	case T_FOR:
+		return p.forStmt()
 	case T_IF:
 	case T_BREAK:
 	case T_CONTINUE:
 	}
+	if IsName(tok, "async") {
+		ahead := p.lexer.PeekGrow()
+		if ahead.value == T_FUNC && !ahead.afterLineTerminator {
+			return p.asyncFnDecStmt()
+		}
+	}
 	return p.exprStmt()
+}
+
+func (p *Parser) doWhileStmt() (Node, error) {
+	loc := p.loc()
+	p.lexer.Next()
+
+	body, err := p.stmt()
+	if err != nil {
+		return nil, err
+	}
+
+	p.nextMustTok(T_WHILE)
+	p.nextMustTok(T_PAREN_L)
+	test, err := p.expr()
+	if err != nil {
+		return nil, err
+	}
+	p.nextMustTok(T_PAREN_R)
+
+	return &DoWhileStmt{N_STMT_DO_WHILE, p.finLoc(loc), test, body}, nil
+}
+
+func (p *Parser) whileStmt() (Node, error) {
+	loc := p.loc()
+	p.lexer.Next()
+
+	p.nextMustTok(T_PAREN_L)
+	test, err := p.expr()
+	if err != nil {
+		return nil, err
+	}
+	p.nextMustTok(T_PAREN_R)
+
+	body, err := p.stmt()
+	if err != nil {
+		return nil, err
+	}
+
+	return &WhileStmt{N_STMT_WHILE, p.finLoc(loc), test, body}, nil
+}
+
+func (p *Parser) forStmt() (Node, error) {
+	loc := p.loc()
+	p.lexer.Next()
+
+	await := false
+	if IsName(p.lexer.Peek(), "await") {
+		await = true
+		p.lexer.Next()
+	}
+
+	p.nextMustTok(T_PAREN_L)
+
+	tok := p.lexer.Peek()
+
+	var init Node
+	var err error
+	if tok.value == T_LET || tok.value == T_CONST || tok.value == T_VAR {
+		init, err = p.varDecStmt()
+		if err != nil {
+			return nil, err
+		}
+	} else if tok.value != T_SEMI {
+		init, err = p.expr()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if init != nil && init.Type() == N_EXPR_BIN && init.(*BinExpr).op.value == T_IN {
+		p.nextMustTok(T_PAREN_R)
+		body, err := p.stmt()
+		if err != nil {
+			return nil, err
+		}
+		expr := init.(*BinExpr)
+		return &ForInOfStmt{N_STMT_FOR_IN_OF, p.finLoc(loc), true, await, expr.lhs, expr.rhs, body}, nil
+	}
+
+	tok = p.lexer.Peek()
+	if IsName(tok, "of") {
+		if init == nil {
+			return nil, p.error(&tok.loc)
+		}
+
+		p.lexer.Next()
+		right, err := p.expr()
+		if err != nil {
+			return nil, err
+		}
+		p.nextMustTok(T_PAREN_R)
+		body, err := p.stmt()
+		if err != nil {
+			return nil, err
+		}
+		return &ForInOfStmt{N_STMT_FOR_IN_OF, p.finLoc(loc), false, await, init, right, body}, nil
+	}
+
+	p.nextMustTok(T_SEMI)
+	var test Node
+	if p.lexer.Peek().value == T_SEMI {
+		p.lexer.Next()
+	} else {
+		test, err = p.expr()
+		if err != nil {
+			return nil, err
+		}
+		p.nextMustTok(T_SEMI)
+	}
+
+	var update Node
+	if p.lexer.Peek().value != T_PAREN_R {
+		update, err = p.expr()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	p.nextMustTok(T_PAREN_R)
+	body, err := p.stmt()
+	if err != nil {
+		return nil, err
+	}
+
+	return &ForStmt{N_STMT_FOR, p.finLoc(loc), init, test, update, body}, nil
+}
+
+func (p *Parser) asyncFnDecStmt() (Node, error) {
+	loc := p.loc()
+	p.lexer.Next()
+
+	node, err := p.fnDecStmt()
+	if err != nil {
+		return nil, err
+	}
+
+	fn := node.(*FnDecStmt)
+	fn.loc = p.finLoc(loc)
+	fn.async = true
+	return fn, nil
+}
+
+// https://tc39.es/ecma262/multipage/ecmascript-language-statements-and-declarations.html#prod-HoistableDeclaration
+func (p *Parser) fnDecStmt() (Node, error) {
+	loc := p.loc()
+	p.lexer.Next()
+
+	generator := p.lexer.Peek().value == T_MUL
+	if generator {
+		p.lexer.Next()
+	}
+
+	var id Node
+	var err error
+	if p.lexer.Peek().value != T_PAREN_L {
+		id, err = p.ident()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	params, err := p.formalParams()
+	if err != nil {
+		return nil, err
+	}
+
+	if generator {
+		p.lexer.extMode(LM_GENERATOR, true)
+	}
+	body, err := p.fnBody()
+	if generator {
+		p.lexer.popMode()
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &FnDecStmt{N_STMT_FN_DEC, p.finLoc(loc), id, generator, false, params, body}, nil
+}
+
+// https://tc39.es/ecma262/multipage/ecmascript-language-functions-and-classes.html#prod-FormalParameters
+func (p *Parser) formalParams() ([]Node, error) {
+	p.lexer.Next()
+	params := make([]Node, 0)
+	for {
+		if p.lexer.Peek().value == T_PAREN_R {
+			p.lexer.Next()
+			break
+		}
+		param, err := p.bindingElem()
+		if err != nil {
+			return nil, err
+		}
+		params = append(params, param)
+	}
+	return params, nil
+}
+
+func (p *Parser) fnBody() (Node, error) {
+	return p.blockStmt()
+}
+
+func (p *Parser) blockStmt() (Node, error) {
+	loc := p.loc()
+	p.lexer.Next()
+
+	stmts := make([]Node, 0)
+	for {
+		if p.lexer.Peek().value == T_BRACE_R {
+			p.lexer.Next()
+			break
+		}
+		stmt, err := p.stmt()
+		if err != nil {
+			return nil, err
+		}
+		stmts = append(stmts, stmt)
+	}
+	return &BlockStmt{N_STMT_BLOCK, p.finLoc(loc), stmts}, nil
 }
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-statements-and-declarations.html#prod-VariableStatement
 func (p *Parser) varDecStmt() (Node, error) {
 	loc := p.loc()
-	p.lexer.Next()
+	kind := p.lexer.Next()
 
 	node := NewVarDecStmt()
 	for {
@@ -59,6 +293,7 @@ func (p *Parser) varDecStmt() (Node, error) {
 			break
 		}
 	}
+	node.kind = kind.value
 	node.loc = p.finLoc(loc)
 	return node, nil
 }
@@ -159,7 +394,7 @@ func (p *Parser) patternProp() (Node, error) {
 	}
 
 	p.lexer.Next()
-	value, err := p.patternElem()
+	value, err := p.bindingElem()
 	if err != nil {
 		return nil, err
 	}
@@ -205,7 +440,7 @@ func (p *Parser) patternArr() (Node, error) {
 			break
 		}
 
-		node, err := p.patternElem()
+		node, err := p.bindingElem()
 		if err != nil {
 			return nil, err
 		}
@@ -241,7 +476,7 @@ func (p *Parser) elision() []Node {
 	return ret
 }
 
-func (p *Parser) patternElem() (Node, error) {
+func (p *Parser) bindingElem() (Node, error) {
 	tok := p.lexer.Peek()
 	var binding Node
 	var err error

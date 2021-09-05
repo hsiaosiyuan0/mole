@@ -346,3 +346,89 @@ func TestObjLit(t *testing.T) {
 	prop5 := objLit.props[5].(*Spread)
 	assert.Equal(t, "g", prop5.arg.(*Ident).val.Text(), "should be ...g")
 }
+
+func TestFnDec(t *testing.T) {
+	s := NewSource("", `
+  function a({ b }) {}
+  `)
+	p := NewParser(s, make([]string, 0))
+	ast, err := p.Prog()
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	fn := ast.(*Prog).stmts[0].(*FnDecStmt)
+	id := fn.id.(*Ident)
+	assert.Equal(t, "a", id.val.Text(), "should be a")
+}
+
+func TestAsyncFnDec(t *testing.T) {
+	s := NewSource("", `
+  async function a({ b }) {}
+  `)
+	p := NewParser(s, make([]string, 0))
+	ast, err := p.Prog()
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	fn := ast.(*Prog).stmts[0].(*FnDecStmt)
+	id := fn.id.(*Ident)
+	assert.Equal(t, "a", id.val.Text(), "should be a")
+	assert.Equal(t, true, fn.async, "should be true")
+}
+
+func TestDoWhileStmt(t *testing.T) {
+	s := NewSource("", `
+  do {} while(1)
+  `)
+	p := NewParser(s, make([]string, 0))
+	ast, err := p.Prog()
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	_ = ast.(*Prog).stmts[0].(*DoWhileStmt)
+}
+
+func TestWhileStmt(t *testing.T) {
+	s := NewSource("", `
+  while(1) {}
+  `)
+	p := NewParser(s, make([]string, 0))
+	ast, err := p.Prog()
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	_ = ast.(*Prog).stmts[0].(*WhileStmt)
+}
+
+func TestForStmt(t *testing.T) {
+	s := NewSource("", `
+  for(;;) {}
+  `)
+	p := NewParser(s, make([]string, 0))
+	ast, err := p.Prog()
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	_ = ast.(*Prog).stmts[0].(*ForStmt)
+}
+
+func TestForInStmt(t *testing.T) {
+	s := NewSource("", `
+  for (a in b) {}
+  `)
+	p := NewParser(s, make([]string, 0))
+	ast, err := p.Prog()
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	_ = ast.(*Prog).stmts[0].(*ForInOfStmt)
+}
+
+func TestForOfStmt(t *testing.T) {
+	s := NewSource("", `
+  for (a of b) {}
+  for await (a of b) {}
+  `)
+	p := NewParser(s, make([]string, 0))
+	ast, err := p.Prog()
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	_ = ast.(*Prog).stmts[0].(*ForInOfStmt)
+
+	forAwait := ast.(*Prog).stmts[1].(*ForInOfStmt)
+	assert.Equal(t, true, forAwait.await, "should be await")
+}

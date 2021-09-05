@@ -11,16 +11,13 @@ type LexerModeValue int
 
 const (
 	LM_NONE       LexerModeValue = 0
-	LM_STRICT                    = 1
-	LM_TEMPLATE                  = 1 << 2
-	LM_IMPORT                    = 1 << 3
-	LM_NAMED_LIST                = 1 << 4
-	LM_ASYNC                     = 1 << 5
-	LM_GENERATOR                 = 1 << 6
-	LM_CLASS_BODY                = 1 << 7
-	LM_CLASS_CTOR                = 1 << 8
-	LM_FOR_OF                    = 1 << 9
-	LM_NEW                       = 1 << 10
+	LM_STRICT                    = 1 << 0
+	LM_TEMPLATE                  = 1 << 1
+	LM_ASYNC                     = 1 << 2
+	LM_GENERATOR                 = 1 << 3
+	LM_CLASS_BODY                = 1 << 4
+	LM_CLASS_CTOR                = 1 << 5
+	LM_NEW                       = 1 << 6
 )
 
 type LexerMode struct {
@@ -85,7 +82,12 @@ func (l *Lexer) isMode(mode LexerModeValue) bool {
 }
 
 func (l *Lexer) readTok() *Token {
-	l.src.SkipSpace()
+	if l.src.SkipSpace().AheadIsEofAndNoPeeked() {
+		tok := l.newToken()
+		tok.value = T_EOF
+		return tok
+	}
+
 	if l.aheadIsIdStart() {
 		return l.ReadName()
 	} else if l.aheadIsNumStart() {
@@ -98,7 +100,7 @@ func (l *Lexer) readTok() *Token {
 	return l.ReadSymbol()
 }
 
-func (l *Lexer) peekGrow() *Token {
+func (l *Lexer) PeekGrow() *Token {
 	if l.peekedLen == sizeOfPeekedTok {
 		panic(l.error(fmt.Sprintf("peek buffer of lexer is full, max len is %d\n", l.peekedLen)))
 	}
@@ -121,7 +123,8 @@ func (l *Lexer) Peek() *Token {
 	if l.peekedLen > 0 {
 		return l.peeked[l.peekedR]
 	}
-	return l.peekGrow()
+
+	return l.PeekGrow()
 }
 
 func (l *Lexer) nextTok() *Token {
@@ -139,11 +142,6 @@ func (l *Lexer) nextTok() *Token {
 
 func (l *Lexer) Next() *Token {
 	tok := l.nextTok()
-	if tok.value == T_NAME && tok.Text() == "async" && l.Peek().value == T_FUNC {
-		tok.value = T_ASYNC
-		tok.text = ""
-		l.pushMode(LM_ASYNC)
-	}
 	l.prev = tok
 	return tok
 }
@@ -230,16 +228,8 @@ func (l *Lexer) ReadName() *Token {
 		return l.finToken(tok, Keywords[text])
 	} else if l.isMode(LM_STRICT) && IsStrictKeywords(text) {
 		return l.finToken(tok, StrictKeywords[text])
-	} else if l.isMode(LM_IMPORT) && text == "meta" {
-		return l.finToken(tok, CtxKeywords[text])
 	} else if l.isMode(LM_ASYNC) && text == "await" {
 		return l.finToken(tok, T_AWAIT)
-	} else if l.isMode(LM_FOR_OF) && text == "of" {
-		return l.finToken(tok, T_OF)
-	} else if l.isMode(LM_CLASS_BODY) && (text == "set" || text == "get") {
-		return l.finToken(tok, CtxKeywords[text])
-	} else if l.isMode(LM_NAMED_LIST) && (text == "as" || text == "from") {
-		return l.finToken(tok, CtxKeywords[text])
 	}
 	tok.text = text
 	return l.finToken(tok, T_NAME)
@@ -338,7 +328,7 @@ func (l *Lexer) ReadSymbol() *Token {
 	case '<':
 		if l.src.AheadIsCh('=') {
 			l.src.Read()
-			val = T_LE
+			val = T_LTE
 		} else if l.src.AheadIsCh('<') {
 			l.src.Read()
 			if l.src.AheadIsCh('=') {
@@ -353,7 +343,7 @@ func (l *Lexer) ReadSymbol() *Token {
 	case '>':
 		if l.src.AheadIsCh('=') {
 			l.src.Read()
-			val = T_GE
+			val = T_GTE
 		} else if l.src.AheadIsCh('>') {
 			l.src.Read()
 			if l.src.AheadIsCh('>') {

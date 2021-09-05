@@ -20,8 +20,8 @@ func TestLabel(t *testing.T) {
 	assert.Equal(t, "template span", TokenKinds[T_TPL_SPAN].Name, "should be template span")
 	assert.Equal(t, "template tail", TokenKinds[T_TPL_TAIL].Name, "should be template tail")
 
-	assert.Equal(t, "identifer", TokenKinds[T_NAME].Name, "should be identifer")
-	assert.Equal(t, "private identifer", TokenKinds[T_NAME_PRIVATE].Name, "should be private identifer")
+	assert.Equal(t, "identifier", TokenKinds[T_NAME].Name, "should be identifier")
+	assert.Equal(t, "private identifier", TokenKinds[T_NAME_PRIVATE].Name, "should be private identifier")
 
 	// keywords
 	assert.Equal(t, "break", TokenKinds[T_BREAK].Name, "should be break")
@@ -54,6 +54,7 @@ func TestLabel(t *testing.T) {
 
 	// contextual keywords
 	assert.Equal(t, "let", TokenKinds[T_LET].Name, "should be let")
+	assert.Equal(t, "const", TokenKinds[T_CONST].Name, "should be const")
 	assert.Equal(t, "static", TokenKinds[T_STATIC].Name, "should be static")
 	assert.Equal(t, "implements", TokenKinds[T_IMPLEMENTS].Name, "should be implements")
 	assert.Equal(t, "interface", TokenKinds[T_INTERFACE].Name, "should be interface")
@@ -95,8 +96,8 @@ func TestLabel(t *testing.T) {
 	// relational
 	assert.Equal(t, "<", TokenKinds[T_LT].Name, "should be <")
 	assert.Equal(t, ">", TokenKinds[T_GT].Name, "should be >")
-	assert.Equal(t, "<=", TokenKinds[T_LE].Name, "should be <=")
-	assert.Equal(t, ">=", TokenKinds[T_GE].Name, "should be >=")
+	assert.Equal(t, "<=", TokenKinds[T_LTE].Name, "should be <=")
+	assert.Equal(t, ">=", TokenKinds[T_GTE].Name, "should be >=")
 
 	// equality
 	assert.Equal(t, "==", TokenKinds[T_EQ].Name, "should be ==")
