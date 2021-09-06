@@ -38,6 +38,7 @@ const (
 	N_STMT_WHILE
 	N_STMT_FOR
 	N_STMT_FOR_IN_OF
+	N_STMT_IF
 	N_STMT_END
 
 	N_EXPR_BEGIN
@@ -588,5 +589,21 @@ func (n *ForInOfStmt) Type() NodeType {
 }
 
 func (n *ForInOfStmt) Loc() *Loc {
+	return n.loc
+}
+
+type IfStmt struct {
+	typ  NodeType
+	loc  *Loc
+	test Node
+	cons Node
+	alt  Node
+}
+
+func (n *IfStmt) Type() NodeType {
+	return n.typ
+}
+
+func (n *IfStmt) Loc() *Loc {
 	return n.loc
 }

@@ -34,6 +34,15 @@ func (p *Parser) aheadIsVarDec(tok *Token) bool {
 	return IsName(tok, "let") || IsName(tok, "const")
 }
 
+func (p *Parser) aheadIsAsync(tok *Token) bool {
+	if IsName(tok, "async") {
+		ahead := p.lexer.PeekGrow()
+		return ahead.value == T_FUNC && !ahead.afterLineTerminator
+	}
+	return false
+}
+
+// https://tc39.es/ecma262/multipage/ecmascript-language-statements-and-declarations.html#prod-Statement
 func (p *Parser) stmt() (Node, error) {
 	tok := p.lexer.Peek()
 	switch tok.value {
@@ -48,18 +57,43 @@ func (p *Parser) stmt() (Node, error) {
 	case T_FOR:
 		return p.forStmt()
 	case T_IF:
+		return p.ifStmt()
 	case T_BREAK:
 	case T_CONTINUE:
 	}
 	if p.aheadIsVarDec(tok) {
 		return p.varDecStmt()
-	} else if IsName(tok, "async") {
-		ahead := p.lexer.PeekGrow()
-		if ahead.value == T_FUNC && !ahead.afterLineTerminator {
-			return p.asyncFnDecStmt()
-		}
+	} else if p.aheadIsAsync(tok) {
+		return p.asyncFnDecStmt()
 	}
 	return p.exprStmt()
+}
+
+func (p *Parser) ifStmt() (Node, error) {
+	loc := p.loc()
+	p.lexer.Next()
+
+	p.nextMustTok(T_PAREN_L)
+	test, err := p.expr()
+	if err != nil {
+		return nil, err
+	}
+	p.nextMustTok(T_PAREN_R)
+
+	cons, err := p.stmt()
+	if err != nil {
+		return nil, err
+	}
+
+	var alt Node
+	if p.lexer.Peek().value == T_ELSE {
+		p.lexer.Next()
+		alt, err = p.stmt()
+		if err != nil {
+			return nil, err
+		}
+	}
+	return &IfStmt{N_STMT_IF, p.finLoc(loc), test, cons, alt}, nil
 }
 
 func (p *Parser) doWhileStmt() (Node, error) {

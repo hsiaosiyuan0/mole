@@ -445,3 +445,19 @@ func TestForOfStmt(t *testing.T) {
 	forAwait := ast.(*Prog).stmts[1].(*ForInOfStmt)
 	assert.Equal(t, true, forAwait.await, "should be await")
 }
+
+func TestIfStmt(t *testing.T) {
+	s := NewSource("", `
+  if (a) {} else b
+  if (c) {}
+  `)
+	p := NewParser(s, make([]string, 0))
+	ast, err := p.Prog()
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	stmt := ast.(*Prog).stmts[0].(*IfStmt)
+	assert.Equal(t, "a", stmt.test.(*Ident).val.Text(), "should be a")
+
+	stmt = ast.(*Prog).stmts[1].(*IfStmt)
+	assert.Equal(t, "c", stmt.test.(*Ident).val.Text(), "should be c")
+}
