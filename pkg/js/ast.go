@@ -40,6 +40,8 @@ const (
 	N_STMT_FOR_IN_OF
 	N_STMT_IF
 	N_STMT_SWITCH
+	N_STMT_BRK
+	N_STMT_CONT
 	N_STMT_END
 
 	N_EXPR_BEGIN
@@ -637,5 +639,33 @@ func (n *SwitchCase) Type() NodeType {
 }
 
 func (n *SwitchCase) Loc() *Loc {
+	return n.loc
+}
+
+type BrkStmt struct {
+	typ   NodeType
+	loc   *Loc
+	label *Ident
+}
+
+func (n *BrkStmt) Type() NodeType {
+	return n.typ
+}
+
+func (n *BrkStmt) Loc() *Loc {
+	return n.loc
+}
+
+type ContStmt struct {
+	typ   NodeType
+	loc   *Loc
+	label *Ident
+}
+
+func (n *ContStmt) Type() NodeType {
+	return n.typ
+}
+
+func (n *ContStmt) Loc() *Loc {
 	return n.loc
 }

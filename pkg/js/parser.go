@@ -27,21 +27,6 @@ func (p *Parser) Prog() (Node, error) {
 	return pg, nil
 }
 
-func (p *Parser) aheadIsVarDec(tok *Token) bool {
-	if tok.value == T_VAR {
-		return true
-	}
-	return IsName(tok, "let") || IsName(tok, "const")
-}
-
-func (p *Parser) aheadIsAsync(tok *Token) bool {
-	if IsName(tok, "async") {
-		ahead := p.lexer.PeekGrow()
-		return ahead.value == T_FUNC && !ahead.afterLineTerminator
-	}
-	return false
-}
-
 // https://tc39.es/ecma262/multipage/ecmascript-language-statements-and-declarations.html#prod-Statement
 func (p *Parser) stmt() (Node, error) {
 	tok := p.lexer.Peek()
@@ -59,7 +44,9 @@ func (p *Parser) stmt() (Node, error) {
 	case T_IF:
 		return p.ifStmt()
 	case T_BREAK:
+		return p.brkStmt()
 	case T_CONTINUE:
+		return p.contStmt()
 	case T_SWITCH:
 		return p.switchStmt()
 	}
@@ -69,6 +56,48 @@ func (p *Parser) stmt() (Node, error) {
 		return p.asyncFnDecStmt()
 	}
 	return p.exprStmt()
+}
+
+// https://tc39.es/ecma262/multipage/ecmascript-language-statements-and-declarations.html#prod-BreakStatement
+func (p *Parser) brkStmt() (Node, error) {
+	loc := p.loc()
+	p.lexer.Next()
+
+	var label *Ident
+	var err error
+	tok := p.lexer.Peek()
+	if tok.value == T_SEMI {
+		p.lexer.Next()
+	} else if tok.value == T_NAME {
+		label, err = p.ident()
+		if err != nil {
+			return nil, err
+		}
+		p.advanceIfSemi()
+	}
+
+	return &BrkStmt{N_STMT_BRK, p.finLoc(loc), label}, nil
+}
+
+// https://tc39.es/ecma262/multipage/ecmascript-language-statements-and-declarations.html#prod-ContinueStatement
+func (p *Parser) contStmt() (Node, error) {
+	loc := p.loc()
+	p.lexer.Next()
+
+	var label *Ident
+	var err error
+	tok := p.lexer.Peek()
+	if tok.value == T_SEMI {
+		p.lexer.Next()
+	} else if tok.value == T_NAME {
+		label, err = p.ident()
+		if err != nil {
+			return nil, err
+		}
+		p.advanceIfSemi()
+	}
+
+	return &ContStmt{N_STMT_CONT, p.finLoc(loc), label}, nil
 }
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-statements-and-declarations.html#prod-SwitchStatement
@@ -298,6 +327,14 @@ func (p *Parser) forStmt() (Node, error) {
 	return &ForStmt{N_STMT_FOR, p.finLoc(loc), init, test, update, body}, nil
 }
 
+func (p *Parser) aheadIsAsync(tok *Token) bool {
+	if IsName(tok, "async") {
+		ahead := p.lexer.PeekGrow()
+		return ahead.value == T_FUNC && !ahead.afterLineTerminator
+	}
+	return false
+}
+
 func (p *Parser) asyncFnDecStmt() (Node, error) {
 	return p.fnDecStmt(false, true)
 }
@@ -393,6 +430,13 @@ func (p *Parser) blockStmt() (Node, error) {
 	return &BlockStmt{N_STMT_BLOCK, p.finLoc(loc), stmts}, nil
 }
 
+func (p *Parser) aheadIsVarDec(tok *Token) bool {
+	if tok.value == T_VAR {
+		return true
+	}
+	return IsName(tok, "let") || IsName(tok, "const")
+}
+
 // https://tc39.es/ecma262/multipage/ecmascript-language-statements-and-declarations.html#prod-VariableStatement
 func (p *Parser) varDecStmt() (Node, error) {
 	loc := p.loc()
@@ -443,7 +487,7 @@ func (p *Parser) varDec() (*VarDec, error) {
 	return dec, nil
 }
 
-func (p *Parser) ident() (Node, error) {
+func (p *Parser) ident() (*Ident, error) {
 	loc := p.loc()
 	tok, err := p.nextMustTok(T_NAME)
 	if err != nil {
@@ -689,6 +733,7 @@ func (p *Parser) assignExpr() (Node, error) {
 		return nil, err
 	}
 
+	p.advanceIfSemi()
 	node := &AssignExpr{N_EXPR_ASSIGN, p.finLoc(loc), assign, lhs, rhs}
 	return node, nil
 }
@@ -1044,6 +1089,12 @@ func (p *Parser) objProp() (Node, error) {
 	return &Prop{N_PROP, p.finLoc(loc), key, value, !IsLitPropName(key)}, nil
 
 	// TODO: MethodDefinition
+}
+
+func (p *Parser) advanceIfSemi() {
+	if p.lexer.Peek().value == T_SEMI {
+		p.lexer.Next()
+	}
 }
 
 func (p *Parser) nextMustTok(val TokenValue) (*Token, error) {

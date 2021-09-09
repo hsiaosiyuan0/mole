@@ -487,5 +487,34 @@ func TestSwitchStmtDefaultMiddle(t *testing.T) {
 
 	case2 := stmt.cases[2]
 	assert.Equal(t, "f", case2.test.(*Ident).val.Text(), "should be prog f")
+}
 
+func TestBrkStmt(t *testing.T) {
+	ast, err := compile(`
+  break
+  `)
+	assert.Equal(t, nil, err, "should be prog ok")
+	_ = ast.(*Prog).stmts[0].(*BrkStmt)
+
+	ast, err = compile(`
+  break a;
+  `)
+	assert.Equal(t, nil, err, "should be prog ok")
+	stmt := ast.(*Prog).stmts[0].(*BrkStmt)
+	assert.Equal(t, "a", stmt.label.val.Text(), "should be a")
+}
+
+func TestContStmt(t *testing.T) {
+	ast, err := compile(`
+  continue
+  `)
+	assert.Equal(t, nil, err, "should be prog ok")
+	_ = ast.(*Prog).stmts[0].(*ContStmt)
+
+	ast, err = compile(`
+  continue a;
+  `)
+	assert.Equal(t, nil, err, "should be prog ok")
+	stmt := ast.(*Prog).stmts[0].(*ContStmt)
+	assert.Equal(t, "a", stmt.label.val.Text(), "should be a")
 }

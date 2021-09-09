@@ -1,9 +1,23 @@
 package js
 
+type LoopKind int
+
+const (
+	LOOP_NONE LoopKind = iota
+	LOOP_DIRECT
+	LOOP_INDIRECT
+)
+
+type Binding struct {
+	at   *Token
+	refs []Position
+}
+
 type Scope struct {
 	// an auto-increment number which is generated according
 	// the depth-first walk over the entire AST
-	Id uint
+	Id       uint
+	LoopKind LoopKind
 
 	Parent *Scope
 	Subs   []*Scope
