@@ -6,10 +6,14 @@ import (
 	"github.com/hsiaosiyuan0/mole/pkg/assert"
 )
 
-func TestExpr(t *testing.T) {
-	s := NewSource("", "a + b - c")
+func compile(code string) (Node, error) {
+	s := NewSource("", code)
 	p := NewParser(s, make([]string, 0))
-	ast, err := p.Prog()
+	return p.Prog()
+}
+
+func TestExpr(t *testing.T) {
+	ast, err := compile("a + b - c")
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	expr := ast.(*Prog).stmts[0].(*ExprStmt).expr.(*BinExpr)
@@ -28,9 +32,7 @@ func TestExpr(t *testing.T) {
 }
 
 func TestExprPcdHigherRight(t *testing.T) {
-	s := NewSource("", "a + b * c")
-	p := NewParser(s, make([]string, 0))
-	ast, err := p.Prog()
+	ast, err := compile("a + b * c")
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	expr := ast.(*Prog).stmts[0].(*ExprStmt).expr.(*BinExpr)
@@ -52,9 +54,7 @@ func TestExprPcdHigherRight(t *testing.T) {
 }
 
 func TestExprPcdHigherLeft(t *testing.T) {
-	s := NewSource("", "a * b + c")
-	p := NewParser(s, make([]string, 0))
-	ast, err := p.Prog()
+	ast, err := compile("a * b + c")
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	expr := ast.(*Prog).stmts[0].(*ExprStmt).expr.(*BinExpr)
@@ -72,9 +72,7 @@ func TestExprPcdHigherLeft(t *testing.T) {
 }
 
 func TestExprAssoc(t *testing.T) {
-	s := NewSource("", "a ** b ** c")
-	p := NewParser(s, make([]string, 0))
-	ast, err := p.Prog()
+	ast, err := compile("a ** b ** c")
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	expr := ast.(*Prog).stmts[0].(*ExprStmt).expr.(*BinExpr)
@@ -96,9 +94,7 @@ func TestExprAssoc(t *testing.T) {
 }
 
 func TestCond(t *testing.T) {
-	s := NewSource("", "a > 0 ? a : b")
-	p := NewParser(s, make([]string, 0))
-	ast, err := p.Prog()
+	ast, err := compile("a > 0 ? a : b")
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	expr := ast.(*Prog).stmts[0].(*ExprStmt).expr.(*CondExpr)
@@ -107,9 +103,7 @@ func TestCond(t *testing.T) {
 }
 
 func TestAssign(t *testing.T) {
-	s := NewSource("", "a = a > 0 ? a : b")
-	p := NewParser(s, make([]string, 0))
-	ast, err := p.Prog()
+	ast, err := compile("a = a > 0 ? a : b")
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	expr := ast.(*Prog).stmts[0].(*ExprStmt).expr.(*AssignExpr)
@@ -123,9 +117,7 @@ func TestAssign(t *testing.T) {
 }
 
 func TestMemberExprSubscript(t *testing.T) {
-	s := NewSource("", "a[b][c]")
-	p := NewParser(s, make([]string, 0))
-	ast, err := p.Prog()
+	ast, err := compile("a[b][c]")
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	expr := ast.(*Prog).stmts[0].(*ExprStmt).expr.(*MemberExpr)
@@ -137,9 +129,7 @@ func TestMemberExprSubscript(t *testing.T) {
 }
 
 func TestMemberExprDot(t *testing.T) {
-	s := NewSource("", "a.b.c")
-	p := NewParser(s, make([]string, 0))
-	ast, err := p.Prog()
+	ast, err := compile("a.b.c")
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	expr := ast.(*Prog).stmts[0].(*ExprStmt).expr.(*MemberExpr)
@@ -151,9 +141,7 @@ func TestMemberExprDot(t *testing.T) {
 }
 
 func TestUnaryExpr(t *testing.T) {
-	s := NewSource("", "a + void 0")
-	p := NewParser(s, make([]string, 0))
-	ast, err := p.Prog()
+	ast, err := compile("a + void 0")
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	expr := ast.(*Prog).stmts[0].(*ExprStmt).expr.(*BinExpr)
@@ -166,9 +154,7 @@ func TestUnaryExpr(t *testing.T) {
 }
 
 func TestUpdateExpr(t *testing.T) {
-	s := NewSource("", "a + ++b + c++")
-	p := NewParser(s, make([]string, 0))
-	ast, err := p.Prog()
+	ast, err := compile("a + ++b + c++")
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	expr := ast.(*Prog).stmts[0].(*ExprStmt).expr.(*BinExpr)
@@ -185,9 +171,7 @@ func TestUpdateExpr(t *testing.T) {
 }
 
 func TestNewExpr(t *testing.T) {
-	s := NewSource("", "new new a")
-	p := NewParser(s, make([]string, 0))
-	ast, err := p.Prog()
+	ast, err := compile("new new a")
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	expr := ast.(*Prog).stmts[0].(*ExprStmt).expr.(*NewExpr).expr.(*NewExpr)
@@ -195,9 +179,7 @@ func TestNewExpr(t *testing.T) {
 }
 
 func TestVarDec(t *testing.T) {
-	s := NewSource("", "var a = 1")
-	p := NewParser(s, make([]string, 0))
-	ast, err := p.Prog()
+	ast, err := compile("var a = 1")
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	varDecStmt := ast.(*Prog).stmts[0].(*VarDecStmt)
@@ -209,9 +191,7 @@ func TestVarDec(t *testing.T) {
 }
 
 func TestVarDecArrPattern(t *testing.T) {
-	s := NewSource("", "var [a, b = 1, [c] = 1, [d = 1]] = e")
-	p := NewParser(s, make([]string, 0))
-	ast, err := p.Prog()
+	ast, err := compile("var [a, b = 1, [c] = 1, [d = 1]] = e")
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	varDecStmt := ast.(*Prog).stmts[0].(*VarDecStmt)
@@ -243,9 +223,7 @@ func TestVarDecArrPattern(t *testing.T) {
 }
 
 func TestVarDecArrPatternElision(t *testing.T) {
-	s := NewSource("", "var [a, , b, , , c, ,] = e")
-	p := NewParser(s, make([]string, 0))
-	ast, err := p.Prog()
+	ast, err := compile("var [a, , b, , , c, ,] = e")
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	varDecStmt := ast.(*Prog).stmts[0].(*VarDecStmt)
@@ -280,9 +258,7 @@ func TestVarDecArrPatternElision(t *testing.T) {
 }
 
 func TestArrLit(t *testing.T) {
-	s := NewSource("", "[a, , b, , , c, ,]")
-	p := NewParser(s, make([]string, 0))
-	ast, err := p.Prog()
+	ast, err := compile("[a, , b, , , c, ,]")
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	arrLit := ast.(*Prog).stmts[0].(*ExprStmt).expr.(*ArrLit)
@@ -311,9 +287,7 @@ func TestArrLit(t *testing.T) {
 }
 
 func TestObjLit(t *testing.T) {
-	s := NewSource("", "var a = {...a, b, ...c, \"d\": 1, [e]: {f: 1}, ...g}")
-	p := NewParser(s, make([]string, 0))
-	ast, err := p.Prog()
+	ast, err := compile("var a = {...a, b, ...c, \"d\": 1, [e]: {f: 1}, ...g}")
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	varDecStmt := ast.(*Prog).stmts[0].(*VarDecStmt)
@@ -348,11 +322,9 @@ func TestObjLit(t *testing.T) {
 }
 
 func TestFnDec(t *testing.T) {
-	s := NewSource("", `
+	ast, err := compile(`
   function a({ b }) {}
   `)
-	p := NewParser(s, make([]string, 0))
-	ast, err := p.Prog()
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	fn := ast.(*Prog).stmts[0].(*FnDec)
@@ -361,11 +333,9 @@ func TestFnDec(t *testing.T) {
 }
 
 func TestFnExpr(t *testing.T) {
-	s := NewSource("", `
+	ast, err := compile(`
   let a = function a({ b }) {}
   `)
-	p := NewParser(s, make([]string, 0))
-	ast, err := p.Prog()
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	fn := ast.(*Prog).stmts[0].(*VarDecStmt).decList[0].init.(*FnDec)
@@ -374,11 +344,9 @@ func TestFnExpr(t *testing.T) {
 }
 
 func TestAsyncFnDec(t *testing.T) {
-	s := NewSource("", `
+	ast, err := compile(`
   async function a({ b }) {}
   `)
-	p := NewParser(s, make([]string, 0))
-	ast, err := p.Prog()
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	fn := ast.(*Prog).stmts[0].(*FnDec)
@@ -388,56 +356,46 @@ func TestAsyncFnDec(t *testing.T) {
 }
 
 func TestDoWhileStmt(t *testing.T) {
-	s := NewSource("", `
+	ast, err := compile(`
   do {} while(1)
   `)
-	p := NewParser(s, make([]string, 0))
-	ast, err := p.Prog()
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	_ = ast.(*Prog).stmts[0].(*DoWhileStmt)
 }
 
 func TestWhileStmt(t *testing.T) {
-	s := NewSource("", `
+	ast, err := compile(`
   while(1) {}
   `)
-	p := NewParser(s, make([]string, 0))
-	ast, err := p.Prog()
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	_ = ast.(*Prog).stmts[0].(*WhileStmt)
 }
 
 func TestForStmt(t *testing.T) {
-	s := NewSource("", `
+	ast, err := compile(`
   for(;;) {}
   `)
-	p := NewParser(s, make([]string, 0))
-	ast, err := p.Prog()
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	_ = ast.(*Prog).stmts[0].(*ForStmt)
 }
 
 func TestForInStmt(t *testing.T) {
-	s := NewSource("", `
+	ast, err := compile(`
   for (a in b) {}
   `)
-	p := NewParser(s, make([]string, 0))
-	ast, err := p.Prog()
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	_ = ast.(*Prog).stmts[0].(*ForInOfStmt)
 }
 
 func TestForOfStmt(t *testing.T) {
-	s := NewSource("", `
+	ast, err := compile(`
   for (a of b) {}
   for await (a of b) {}
   `)
-	p := NewParser(s, make([]string, 0))
-	ast, err := p.Prog()
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	_ = ast.(*Prog).stmts[0].(*ForInOfStmt)
@@ -447,12 +405,10 @@ func TestForOfStmt(t *testing.T) {
 }
 
 func TestIfStmt(t *testing.T) {
-	s := NewSource("", `
+	ast, err := compile(`
   if (a) {} else b
   if (c) {}
   `)
-	p := NewParser(s, make([]string, 0))
-	ast, err := p.Prog()
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	stmt := ast.(*Prog).stmts[0].(*IfStmt)
@@ -460,4 +416,76 @@ func TestIfStmt(t *testing.T) {
 
 	stmt = ast.(*Prog).stmts[1].(*IfStmt)
 	assert.Equal(t, "c", stmt.test.(*Ident).val.Text(), "should be c")
+}
+
+func TestSwitchStmtEmpty(t *testing.T) {
+	ast, err := compile(`
+	switch (a) {
+	}
+	`)
+	assert.Equal(t, nil, err, "should be prog ok")
+	_ = ast.(*Prog).stmts[0].(*SwitchStmt)
+}
+
+func TestSwitchStmt(t *testing.T) {
+	ast, err := compile(`
+  switch (a) {
+    case b in c:
+      d
+      e
+    case f:
+    default:
+  }
+  `)
+	assert.Equal(t, nil, err, "should be prog ok")
+	stmt := ast.(*Prog).stmts[0].(*SwitchStmt)
+
+	case0 := stmt.cases[0]
+	test0 := case0.test.(*BinExpr)
+	assert.Equal(t, "b", test0.lhs.(*Ident).val.Text(), "should be prog b")
+	assert.Equal(t, "c", test0.rhs.(*Ident).val.Text(), "should be prog c")
+
+	cons00 := case0.cons[0].(*ExprStmt)
+	assert.Equal(t, "d", cons00.expr.(*Ident).val.Text(), "should be prog d")
+
+	cons01 := case0.cons[1].(*ExprStmt)
+	assert.Equal(t, "e", cons01.expr.(*Ident).val.Text(), "should be prog e")
+
+	case1 := stmt.cases[1]
+	assert.Equal(t, "f", case1.test.(*Ident).val.Text(), "should be prog f")
+
+	case2 := stmt.cases[2]
+	assert.Equal(t, nil, case2.test, "should be default")
+}
+
+func TestSwitchStmtDefaultMiddle(t *testing.T) {
+	ast, err := compile(`
+  switch (a) {
+    case b in c:
+      d
+      e
+    default:
+    case f:
+  }
+  `)
+	assert.Equal(t, nil, err, "should be prog ok")
+	stmt := ast.(*Prog).stmts[0].(*SwitchStmt)
+
+	case0 := stmt.cases[0]
+	test0 := case0.test.(*BinExpr)
+	assert.Equal(t, "b", test0.lhs.(*Ident).val.Text(), "should be prog b")
+	assert.Equal(t, "c", test0.rhs.(*Ident).val.Text(), "should be prog c")
+
+	cons00 := case0.cons[0].(*ExprStmt)
+	assert.Equal(t, "d", cons00.expr.(*Ident).val.Text(), "should be prog d")
+
+	cons01 := case0.cons[1].(*ExprStmt)
+	assert.Equal(t, "e", cons01.expr.(*Ident).val.Text(), "should be prog e")
+
+	case1 := stmt.cases[1]
+	assert.Equal(t, nil, case1.test, "should be default")
+
+	case2 := stmt.cases[2]
+	assert.Equal(t, "f", case2.test.(*Ident).val.Text(), "should be prog f")
+
 }

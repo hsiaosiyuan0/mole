@@ -39,6 +39,7 @@ const (
 	N_STMT_FOR
 	N_STMT_FOR_IN_OF
 	N_STMT_IF
+	N_STMT_SWITCH
 	N_STMT_END
 
 	N_EXPR_BEGIN
@@ -68,6 +69,7 @@ const (
 	N_PATTERN_OBJ
 	N_PROP
 	N_SPREAD
+	N_SWITCH_CASE
 
 	N_EXPR_END
 )
@@ -605,5 +607,35 @@ func (n *IfStmt) Type() NodeType {
 }
 
 func (n *IfStmt) Loc() *Loc {
+	return n.loc
+}
+
+type SwitchStmt struct {
+	typ   NodeType
+	loc   *Loc
+	test  Node
+	cases []*SwitchCase
+}
+
+func (n *SwitchStmt) Type() NodeType {
+	return n.typ
+}
+
+func (n *SwitchStmt) Loc() *Loc {
+	return n.loc
+}
+
+type SwitchCase struct {
+	typ  NodeType
+	loc  *Loc
+	test Node // nil in default clause
+	cons []Node
+}
+
+func (n *SwitchCase) Type() NodeType {
+	return n.typ
+}
+
+func (n *SwitchCase) Loc() *Loc {
 	return n.loc
 }

@@ -60,6 +60,8 @@ func (p *Parser) stmt() (Node, error) {
 		return p.ifStmt()
 	case T_BREAK:
 	case T_CONTINUE:
+	case T_SWITCH:
+		return p.switchStmt()
 	}
 	if p.aheadIsVarDec(tok) {
 		return p.varDecStmt()
@@ -69,6 +71,78 @@ func (p *Parser) stmt() (Node, error) {
 	return p.exprStmt()
 }
 
+// https://tc39.es/ecma262/multipage/ecmascript-language-statements-and-declarations.html#prod-SwitchStatement
+func (p *Parser) switchStmt() (Node, error) {
+	loc := p.loc()
+	p.lexer.Next()
+
+	p.nextMustTok(T_PAREN_L)
+	test, err := p.expr()
+	if err != nil {
+		return nil, err
+	}
+	p.nextMustTok(T_PAREN_R)
+
+	cases := make([]*SwitchCase, 0)
+	p.nextMustTok(T_BRACE_L)
+	metDefault := false
+	for {
+		tok := p.lexer.Peek()
+		if tok.value == T_BRACE_R {
+			break
+		} else if tok.value != T_CASE && tok.value != T_DEFAULT {
+			return nil, p.error(&tok.loc)
+		}
+		if tok.value == T_DEFAULT && metDefault {
+			return nil, p.error(&tok.loc)
+		}
+
+		caseClause, err := p.switchCase(tok)
+		if err != nil {
+			return nil, err
+		}
+		if caseClause != nil {
+			metDefault = caseClause.test == nil
+			cases = append(cases, caseClause)
+		} else {
+			break
+		}
+	}
+	p.nextMustTok(T_BRACE_R)
+
+	return &SwitchStmt{N_STMT_SWITCH, p.finLoc(loc), test, cases}, nil
+}
+
+func (p *Parser) switchCase(tok *Token) (*SwitchCase, error) {
+	loc := p.loc()
+	p.lexer.nextTok()
+
+	var test Node
+	var err error
+	if tok.value == T_CASE {
+		test, err = p.expr()
+		if err != nil {
+			return nil, err
+		}
+	}
+	p.nextMustTok(T_COLON)
+
+	cons := make([]Node, 0)
+	for {
+		tok := p.lexer.Peek()
+		if tok.value == T_CASE || tok.value == T_DEFAULT || tok.value == T_BRACE_R {
+			break
+		}
+		stmt, err := p.stmt()
+		if err != nil {
+			return nil, err
+		}
+		cons = append(cons, stmt)
+	}
+	return &SwitchCase{N_SWITCH_CASE, p.finLoc(loc), test, cons}, nil
+}
+
+// https://tc39.es/ecma262/multipage/ecmascript-language-statements-and-declarations.html#prod-IfStatement
 func (p *Parser) ifStmt() (Node, error) {
 	loc := p.loc()
 	p.lexer.Next()
@@ -96,6 +170,7 @@ func (p *Parser) ifStmt() (Node, error) {
 	return &IfStmt{N_STMT_IF, p.finLoc(loc), test, cons, alt}, nil
 }
 
+// https://tc39.es/ecma262/multipage/ecmascript-language-statements-and-declarations.html#prod-DoWhileStatement
 func (p *Parser) doWhileStmt() (Node, error) {
 	loc := p.loc()
 	p.lexer.Next()
@@ -116,6 +191,7 @@ func (p *Parser) doWhileStmt() (Node, error) {
 	return &DoWhileStmt{N_STMT_DO_WHILE, p.finLoc(loc), test, body}, nil
 }
 
+// https://tc39.es/ecma262/multipage/ecmascript-language-statements-and-declarations.html#prod-WhileStatement
 func (p *Parser) whileStmt() (Node, error) {
 	loc := p.loc()
 	p.lexer.Next()
@@ -135,6 +211,7 @@ func (p *Parser) whileStmt() (Node, error) {
 	return &WhileStmt{N_STMT_WHILE, p.finLoc(loc), test, body}, nil
 }
 
+// https://tc39.es/ecma262/multipage/ecmascript-language-statements-and-declarations.html#prod-ForStatement
 func (p *Parser) forStmt() (Node, error) {
 	loc := p.loc()
 	p.lexer.Next()
