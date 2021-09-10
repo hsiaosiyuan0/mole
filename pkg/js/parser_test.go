@@ -580,6 +580,20 @@ func TestLabelStmt(t *testing.T) {
 
 	expr := ast.(*Prog).stmts[1].(*ExprStmt)
 	assert.Equal(t, "c", expr.expr.(*Ident).val.Text(), "should be c")
+
+	ast, err = compile(`
+  a: b
+  c
+  `)
+	assert.Equal(t, nil, err, "should be prog ok")
+	lbStmt = ast.(*Prog).stmts[0].(*LabelStmt)
+	assert.Equal(t, "a", lbStmt.label.val.Text(), "should be a")
+
+	lbBody = lbStmt.body.(*ExprStmt)
+	assert.Equal(t, "b", lbBody.expr.(*Ident).val.Text(), "should be b")
+
+	expr = ast.(*Prog).stmts[1].(*ExprStmt)
+	assert.Equal(t, "c", expr.expr.(*Ident).val.Text(), "should be c")
 }
 
 func TestRetStmt(t *testing.T) {
