@@ -552,9 +552,31 @@ func TestRetStmt(t *testing.T) {
   `)
 	assert.Equal(t, nil, err, "should be prog ok")
 
-	retStmt = ast.(*Prog).stmts[0].(*RetStmt)
-	assert.Equal(t, nil, retStmt.arg, "should be nil")
+	stmt0 := ast.(*Prog).stmts[0].(*RetStmt)
+	assert.Equal(t, nil, stmt0.arg, "should be nil")
 
-	exprStmt := ast.(*Prog).stmts[1].(*ExprStmt)
-	assert.Equal(t, "a", exprStmt.expr.(*Ident).val.Text(), "should be a")
+	stmt1 := ast.(*Prog).stmts[1].(*ExprStmt)
+	assert.Equal(t, "a", stmt1.expr.(*Ident).val.Text(), "should be a")
+}
+
+func TestThrowStmt(t *testing.T) {
+	ast, err := compile(`
+  throw a
+  `)
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	stmt0 := ast.(*Prog).stmts[0].(*ThrowStmt)
+	assert.Equal(t, "a", stmt0.arg.(*Ident).val.Text(), "should be a")
+
+	ast, err = compile(`
+  throw
+  a
+  `)
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	stmt0 = ast.(*Prog).stmts[0].(*ThrowStmt)
+	assert.Equal(t, nil, stmt0.arg, "should be nil")
+
+	stmt1 := ast.(*Prog).stmts[1].(*ExprStmt)
+	assert.Equal(t, "a", stmt1.expr.(*Ident).val.Text(), "should be a")
 }

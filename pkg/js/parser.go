@@ -51,6 +51,8 @@ func (p *Parser) stmt() (Node, error) {
 		return p.switchStmt()
 	case T_RETURN:
 		return p.retStmt()
+	case T_THROW:
+		return p.throwStmt()
 	}
 	if p.aheadIsVarDec(tok) {
 		return p.varDecStmt()
@@ -60,6 +62,25 @@ func (p *Parser) stmt() (Node, error) {
 		return p.labelStmt()
 	}
 	return p.exprStmt()
+}
+
+// https://tc39.es/ecma262/multipage/ecmascript-language-statements-and-declarations.html#prod-ThrowStatement
+func (p *Parser) throwStmt() (Node, error) {
+	loc := p.loc()
+	p.lexer.Next()
+
+	tok := p.lexer.Peek()
+	var arg Node
+	var err error
+	if tok.value == T_SEMI {
+		p.lexer.Next()
+	} else if tok.value != T_ILLEGAL && tok.value != T_EOF && !tok.afterLineTerminator {
+		arg, err = p.expr()
+		if err != nil {
+			return nil, err
+		}
+	}
+	return &ThrowStmt{N_STMT_THROW, p.finLoc(loc), arg}, nil
 }
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-statements-and-declarations.html#prod-ReturnStatement
