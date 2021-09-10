@@ -53,6 +53,8 @@ func (p *Parser) stmt() (Node, error) {
 		return p.retStmt()
 	case T_THROW:
 		return p.throwStmt()
+	case T_TRY:
+		return p.tryStmt()
 	}
 	if p.aheadIsVarDec(tok) {
 		return p.varDecStmt()
@@ -62,6 +64,51 @@ func (p *Parser) stmt() (Node, error) {
 		return p.labelStmt()
 	}
 	return p.exprStmt()
+}
+
+// https://tc39.es/ecma262/multipage/ecmascript-language-statements-and-declarations.html#prod-TryStatement
+func (p *Parser) tryStmt() (Node, error) {
+	loc := p.loc()
+	p.lexer.Next()
+
+	try, err := p.blockStmt()
+	if err != nil {
+		return nil, err
+	}
+
+	tok := p.lexer.Peek()
+	if tok.value != T_CATCH && tok.value != T_FINALLY {
+		return nil, p.error(&tok.loc)
+	}
+
+	var catch *Catch
+	if tok.value == T_CATCH {
+		loc := p.loc()
+		p.lexer.Next()
+		p.nextMustTok(T_PAREN_L)
+		param, err := p.bindingPattern()
+		if err != nil {
+			return nil, err
+		}
+		p.nextMustTok(T_PAREN_R)
+
+		body, err := p.blockStmt()
+		if err != nil {
+			return nil, err
+		}
+		catch = &Catch{N_CATCH, p.finLoc(loc), param, body}
+	}
+
+	var fin *BlockStmt
+	if p.lexer.Peek().value == T_FINALLY {
+		p.lexer.Next()
+		fin, err = p.blockStmt()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return &TryStmt{N_STMT_TRY, p.finLoc(loc), try, catch, fin}, nil
 }
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-statements-and-declarations.html#prod-ThrowStatement
@@ -481,7 +528,7 @@ func (p *Parser) fnBody() (Node, error) {
 	return p.blockStmt()
 }
 
-func (p *Parser) blockStmt() (Node, error) {
+func (p *Parser) blockStmt() (*BlockStmt, error) {
 	loc := p.loc()
 	p.lexer.Next()
 

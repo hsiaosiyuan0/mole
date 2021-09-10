@@ -45,6 +45,7 @@ const (
 	N_STMT_LABEL
 	N_STMT_RET
 	N_STMT_THROW
+	N_STMT_TRY
 	N_STMT_END
 
 	N_EXPR_BEGIN
@@ -75,6 +76,7 @@ const (
 	N_PROP
 	N_SPREAD
 	N_SWITCH_CASE
+	N_CATCH
 
 	N_EXPR_END
 )
@@ -713,5 +715,36 @@ func (n *ThrowStmt) Type() NodeType {
 }
 
 func (n *ThrowStmt) Loc() *Loc {
+	return n.loc
+}
+
+type Catch struct {
+	typ   NodeType
+	loc   *Loc
+	param Node
+	body  Node
+}
+
+func (n *Catch) Type() NodeType {
+	return n.typ
+}
+
+func (n *Catch) Loc() *Loc {
+	return n.loc
+}
+
+type TryStmt struct {
+	typ   NodeType
+	loc   *Loc
+	try   *BlockStmt
+	catch *Catch
+	fin   *BlockStmt
+}
+
+func (n *TryStmt) Type() NodeType {
+	return n.typ
+}
+
+func (n *TryStmt) Loc() *Loc {
 	return n.loc
 }

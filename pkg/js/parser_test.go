@@ -580,3 +580,28 @@ func TestThrowStmt(t *testing.T) {
 	stmt1 := ast.(*Prog).stmts[1].(*ExprStmt)
 	assert.Equal(t, "a", stmt1.expr.(*Ident).val.Text(), "should be a")
 }
+
+func TestTryStmt(t *testing.T) {
+	ast, err := compile(`
+  try {} catch(e) {} finally {}
+  `)
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	stmt0 := ast.(*Prog).stmts[0].(*TryStmt)
+	catch := stmt0.catch
+	assert.Equal(t, "e", catch.param.(*Ident).val.Text(), "should be e")
+
+	assert.Equal(t, true, stmt0.fin != nil, "should have fin")
+
+	ast, err = compile(`
+  try {} finally {}
+  `)
+	assert.Equal(t, nil, err, "should be prog ok")
+	stmt0 = ast.(*Prog).stmts[0].(*TryStmt)
+	assert.Equal(t, true, stmt0.fin != nil, "should have fin")
+
+	_, err = compile(`
+  try {}
+  `)
+	assert.Equal(t, true, err != nil, "should be err")
+}
