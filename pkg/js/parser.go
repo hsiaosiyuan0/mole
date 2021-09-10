@@ -35,26 +35,28 @@ func (p *Parser) stmt() (Node, error) {
 		return p.blockStmt()
 	case T_FUNC:
 		return p.fnDecStmt(false, false)
-	case T_DO:
-		return p.doWhileStmt()
-	case T_WHILE:
-		return p.whileStmt()
-	case T_FOR:
-		return p.forStmt()
 	case T_IF:
 		return p.ifStmt()
 	case T_BREAK:
 		return p.brkStmt()
 	case T_CONTINUE:
 		return p.contStmt()
-	case T_SWITCH:
-		return p.switchStmt()
+	case T_FOR:
+		return p.forStmt()
 	case T_RETURN:
 		return p.retStmt()
+	case T_WHILE:
+		return p.whileStmt()
+	case T_CLASS:
+		return p.classDec()
 	case T_THROW:
 		return p.throwStmt()
 	case T_TRY:
 		return p.tryStmt()
+	case T_DO:
+		return p.doWhileStmt()
+	case T_SWITCH:
+		return p.switchStmt()
 	case T_DEBUGGER:
 		return p.debugStmt()
 	case T_SEMI:
@@ -68,6 +70,11 @@ func (p *Parser) stmt() (Node, error) {
 		return p.labelStmt()
 	}
 	return p.exprStmt()
+}
+
+// https://tc39.es/ecma262/multipage/ecmascript-language-functions-and-classes.html#prod-ClassDeclaration
+func (p *Parser) classDec() (Node, error) {
+	return nil, nil
 }
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-statements-and-declarations.html#prod-EmptyStatement
