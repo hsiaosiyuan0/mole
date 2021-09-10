@@ -49,13 +49,62 @@ func (p *Parser) stmt() (Node, error) {
 		return p.contStmt()
 	case T_SWITCH:
 		return p.switchStmt()
+	case T_RETURN:
+		return p.retStmt()
 	}
 	if p.aheadIsVarDec(tok) {
 		return p.varDecStmt()
 	} else if p.aheadIsAsync(tok) {
 		return p.asyncFnDecStmt()
+	} else if p.aheadIsLabel(tok) {
+		return p.labelStmt()
 	}
 	return p.exprStmt()
+}
+
+// https://tc39.es/ecma262/multipage/ecmascript-language-statements-and-declarations.html#prod-ReturnStatement
+func (p *Parser) retStmt() (Node, error) {
+	loc := p.loc()
+	p.lexer.Next()
+
+	tok := p.lexer.Peek()
+	var arg Node
+	var err error
+	if tok.value == T_SEMI {
+		p.lexer.Next()
+	} else if tok.value != T_ILLEGAL && tok.value != T_EOF && !tok.afterLineTerminator {
+		arg, err = p.expr()
+		if err != nil {
+			return nil, err
+		}
+	}
+	return &RetStmt{N_STMT_RET, p.finLoc(loc), arg}, nil
+}
+
+func (p *Parser) aheadIsLabel(tok *Token) bool {
+	if tok.value == T_NAME {
+		ahead := p.lexer.PeekGrow()
+		return ahead.value == T_COLON
+	}
+	return false
+}
+
+// https://tc39.es/ecma262/multipage/ecmascript-language-statements-and-declarations.html#prod-LabelledStatement
+func (p *Parser) labelStmt() (Node, error) {
+	loc := p.loc()
+	label, err := p.ident()
+	if err != nil {
+		return nil, err
+	}
+
+	// advance `:`
+	p.lexer.Next()
+
+	body, err := p.stmt()
+	if err != nil {
+		return nil, err
+	}
+	return &LabelStmt{N_STMT_LABEL, p.finLoc(loc), label, body}, nil
 }
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-statements-and-declarations.html#prod-BreakStatement

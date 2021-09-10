@@ -518,3 +518,43 @@ func TestContStmt(t *testing.T) {
 	stmt := ast.(*Prog).stmts[0].(*ContStmt)
 	assert.Equal(t, "a", stmt.label.val.Text(), "should be a")
 }
+
+func TestLabelStmt(t *testing.T) {
+	ast, err := compile(`
+  a:
+  b
+  c
+  `)
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	lbStmt := ast.(*Prog).stmts[0].(*LabelStmt)
+	assert.Equal(t, "a", lbStmt.label.val.Text(), "should be a")
+
+	lbBody := lbStmt.body.(*ExprStmt)
+	assert.Equal(t, "b", lbBody.expr.(*Ident).val.Text(), "should be b")
+
+	expr := ast.(*Prog).stmts[1].(*ExprStmt)
+	assert.Equal(t, "c", expr.expr.(*Ident).val.Text(), "should be c")
+}
+
+func TestRetStmt(t *testing.T) {
+	ast, err := compile(`
+  return a
+  `)
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	retStmt := ast.(*Prog).stmts[0].(*RetStmt)
+	assert.Equal(t, "a", retStmt.arg.(*Ident).val.Text(), "should be a")
+
+	ast, err = compile(`
+  return
+  a
+  `)
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	retStmt = ast.(*Prog).stmts[0].(*RetStmt)
+	assert.Equal(t, nil, retStmt.arg, "should be nil")
+
+	exprStmt := ast.(*Prog).stmts[1].(*ExprStmt)
+	assert.Equal(t, "a", exprStmt.expr.(*Ident).val.Text(), "should be a")
+}

@@ -42,6 +42,8 @@ const (
 	N_STMT_SWITCH
 	N_STMT_BRK
 	N_STMT_CONT
+	N_STMT_LABEL
+	N_STMT_RET
 	N_STMT_END
 
 	N_EXPR_BEGIN
@@ -667,5 +669,34 @@ func (n *ContStmt) Type() NodeType {
 }
 
 func (n *ContStmt) Loc() *Loc {
+	return n.loc
+}
+
+type LabelStmt struct {
+	typ   NodeType
+	loc   *Loc
+	label *Ident
+	body  Node
+}
+
+func (n *LabelStmt) Type() NodeType {
+	return n.typ
+}
+
+func (n *LabelStmt) Loc() *Loc {
+	return n.loc
+}
+
+type RetStmt struct {
+	typ NodeType
+	loc *Loc
+	arg Node
+}
+
+func (n *RetStmt) Type() NodeType {
+	return n.typ
+}
+
+func (n *RetStmt) Loc() *Loc {
 	return n.loc
 }
