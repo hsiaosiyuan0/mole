@@ -978,9 +978,68 @@ func (p *Parser) newExpr() (Node, error) {
 	return node, nil
 }
 
+// https://tc39.es/ecma262/multipage/ecmascript-language-expressions.html#prod-CallExpression
 func (p *Parser) callExpr(callee Node) (Node, error) {
 	// TODO: SuperCall ImportCall
-	return p.memberExpr(nil)
+	loc := p.loc()
+
+	var err error
+	if callee == nil {
+		callee, err = p.memberExpr(nil)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	tok := p.lexer.Peek()
+	if tok.value == T_BRACKET_L {
+		callee, err = p.memberExpr(callee)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if tok.value != T_PAREN_L {
+		return callee, nil
+	}
+
+	args, err := p.argList()
+	if err != nil {
+		return nil, err
+	}
+	node := &CallExpr{N_EXPR_CALL, p.finLoc(loc), callee, args}
+
+	if p.lexer.Peek().value == T_PAREN_L {
+		return p.callExpr(node)
+	}
+	return node, nil
+}
+
+func (p *Parser) argList() ([]Node, error) {
+	p.lexer.Next()
+	args := make([]Node, 0)
+	for {
+		tok := p.lexer.Peek()
+		if tok.value == T_COMMA {
+			p.lexer.Next()
+		} else if tok.value == T_PAREN_R {
+			break
+		}
+		arg, err := p.arg()
+		if err != nil {
+			return nil, err
+		}
+		args = append(args, arg)
+	}
+	p.nextMustTok(T_PAREN_R)
+	return args, nil
+}
+
+func (p *Parser) arg() (Node, error) {
+	if p.lexer.Peek().value == T_DOT_TRI {
+		return p.spread()
+	}
+	return p.assignExpr()
 }
 
 func (p *Parser) binExpr(lhs Node, minPcd int) (Node, error) {
@@ -1047,6 +1106,9 @@ func (p *Parser) memberExpr(obj Node) (Node, error) {
 		} else {
 			break
 		}
+	}
+	if p.lexer.Peek().value == T_PAREN_L {
+		return p.callExpr(obj)
 	}
 	return obj, nil
 }

@@ -178,6 +178,51 @@ func TestNewExpr(t *testing.T) {
 	assert.Equal(t, "a", expr.expr.(*Ident).val.Text(), "should be a")
 }
 
+func TestCallExpr(t *testing.T) {
+	ast, err := compile("a()(c, ...a, b)")
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	expr := ast.(*Prog).stmts[0].(*ExprStmt).expr.(*CallExpr)
+	callee := expr.callee.(*CallExpr)
+	assert.Equal(t, "a", callee.callee.(*Ident).val.Text(), "should be a")
+
+	params := expr.args
+	assert.Equal(t, "c", params[0].(*Ident).val.Text(), "should be c")
+	assert.Equal(t, "a", params[1].(*Spread).arg.(*Ident).val.Text(), "should be a")
+	assert.Equal(t, "b", params[2].(*Ident).val.Text(), "should be b")
+}
+
+func TestCallCascadeExpr(t *testing.T) {
+	ast, err := compile("a[b][c]()[d][e]()")
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	expr := ast.(*Prog).stmts[0].(*ExprStmt).expr.(*CallExpr)
+
+	// a[b][c]()[d][e]
+	expr0 := expr.callee.(*MemberExpr)
+
+	// a[b][c]()[d]
+	expr1 := expr0.obj.(*MemberExpr)
+	e := expr0.prop.(*Ident)
+	assert.Equal(t, "e", e.val.Text(), "should be e")
+
+	// a[b][c]()
+	expr2 := expr1.obj.(*CallExpr)
+	d := expr1.prop.(*Ident)
+	assert.Equal(t, "d", d.val.Text(), "should be d")
+
+	// a[b][c]
+	expr3 := expr2.callee.(*MemberExpr)
+	c := expr3.prop.(*Ident)
+	assert.Equal(t, "c", c.val.Text(), "should be c")
+
+	// a[b]
+	expr4 := expr3.obj.(*MemberExpr)
+	b := expr4.prop.(*Ident)
+	assert.Equal(t, "b", b.val.Text(), "should be b")
+	assert.Equal(t, "a", expr4.obj.(*Ident).val.Text(), "should be a")
+}
+
 func TestVarDec(t *testing.T) {
 	ast, err := compile("var a = 1")
 	assert.Equal(t, nil, err, "should be prog ok")

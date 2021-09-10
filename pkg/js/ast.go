@@ -1,7 +1,7 @@
 package js
 
-// AST nodes is described as https://github.com/estree/estree/blob/master/es5.md but with
-// one big difference - flatterned struct is used instead of inheritance
+// AST nodes is described as: https://github.com/estree/estree/blob/master/es5.md
+// flatterned struct is used instead of inheritance
 
 type Node interface {
 	Type() NodeType
@@ -286,9 +286,10 @@ func (n *MemberExpr) Loc() *Loc {
 }
 
 type CallExpr struct {
-	typ  NodeType
-	loc  *Loc
-	expr Node
+	typ    NodeType
+	loc    *Loc
+	callee Node
+	args   []Node
 }
 
 func (n *CallExpr) Type() NodeType {
