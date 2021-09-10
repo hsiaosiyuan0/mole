@@ -618,3 +618,16 @@ func TestDebugStmt(t *testing.T) {
 	_ = ast.(*Prog).stmts[1].(*DebugStmt)
 	_ = ast.(*Prog).stmts[2].(*ExprStmt)
 }
+
+func TestEmptyStmt(t *testing.T) {
+	ast, err := compile(`
+  ;a;;
+  ;
+  `)
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	_ = ast.(*Prog).stmts[0].(*EmptyStmt)
+	_ = ast.(*Prog).stmts[1].(*ExprStmt)
+	_ = ast.(*Prog).stmts[2].(*EmptyStmt)
+	_ = ast.(*Prog).stmts[3].(*EmptyStmt)
+}

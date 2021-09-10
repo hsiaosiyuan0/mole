@@ -57,6 +57,8 @@ func (p *Parser) stmt() (Node, error) {
 		return p.tryStmt()
 	case T_DEBUGGER:
 		return p.debugStmt()
+	case T_SEMI:
+		return p.emptyStmt()
 	}
 	if p.aheadIsVarDec(tok) {
 		return p.varDecStmt()
@@ -66,6 +68,13 @@ func (p *Parser) stmt() (Node, error) {
 		return p.labelStmt()
 	}
 	return p.exprStmt()
+}
+
+// https://tc39.es/ecma262/multipage/ecmascript-language-statements-and-declarations.html#prod-EmptyStatement
+func (p *Parser) emptyStmt() (Node, error) {
+	loc := p.loc()
+	p.lexer.Next()
+	return &EmptyStmt{N_STMT_EMPTY, p.finLoc(loc)}, nil
 }
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-statements-and-declarations.html#prod-DebuggerStatement
