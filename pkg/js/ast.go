@@ -46,6 +46,7 @@ const (
 	N_STMT_RET
 	N_STMT_THROW
 	N_STMT_TRY
+	N_STMT_DEBUG
 	N_STMT_END
 
 	N_EXPR_BEGIN
@@ -746,5 +747,18 @@ func (n *TryStmt) Type() NodeType {
 }
 
 func (n *TryStmt) Loc() *Loc {
+	return n.loc
+}
+
+type DebugStmt struct {
+	typ NodeType
+	loc *Loc
+}
+
+func (n *DebugStmt) Type() NodeType {
+	return n.typ
+}
+
+func (n *DebugStmt) Loc() *Loc {
 	return n.loc
 }

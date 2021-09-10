@@ -605,3 +605,16 @@ func TestTryStmt(t *testing.T) {
   `)
 	assert.Equal(t, true, err != nil, "should be err")
 }
+
+func TestDebugStmt(t *testing.T) {
+	ast, err := compile(`
+  a
+  debugger
+  b
+  `)
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	_ = ast.(*Prog).stmts[0].(*ExprStmt)
+	_ = ast.(*Prog).stmts[1].(*DebugStmt)
+	_ = ast.(*Prog).stmts[2].(*ExprStmt)
+}
