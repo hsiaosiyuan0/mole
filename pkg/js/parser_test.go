@@ -337,7 +337,7 @@ func TestArrLit(t *testing.T) {
 }
 
 func TestObjLit(t *testing.T) {
-	ast, err := compile("var a = {...a, b, ...c, \"d\": 1, [e]: {f: 1}, ...g}")
+	ast, err := compile(`var a = {...a, b, ...c, "d": 1, [e]: {f: 1}, ...g}`)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	varDecStmt := ast.(*Prog).stmts[0].(*VarDecStmt)
@@ -352,8 +352,8 @@ func TestObjLit(t *testing.T) {
 	prop0 := objLit.props[0].(*Spread)
 	assert.Equal(t, "a", prop0.arg.(*Ident).val.Text(), "should be ...a")
 
-	prop1 := objLit.props[1].(*Ident)
-	assert.Equal(t, "b", prop1.val.Text(), "should be b")
+	prop1 := objLit.props[1].(*Prop)
+	assert.Equal(t, "b", prop1.key.(*Ident).val.Text(), "should be b")
 
 	prop2 := objLit.props[2].(*Spread)
 	assert.Equal(t, "c", prop2.arg.(*Ident).val.Text(), "should be ...c")
@@ -369,6 +369,41 @@ func TestObjLit(t *testing.T) {
 
 	prop5 := objLit.props[5].(*Spread)
 	assert.Equal(t, "g", prop5.arg.(*Ident).val.Text(), "should be ...g")
+}
+
+func TestObjLitMethod(t *testing.T) {
+	ast, err := compile(`
+  var o = {
+    a,
+    [b] () {},
+    c,
+    e: () => {},
+  }
+  `)
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	varDecStmt := ast.(*Prog).stmts[0].(*VarDecStmt)
+	varDec := varDecStmt.decList[0]
+
+	id := varDec.id.(*Ident)
+	assert.Equal(t, "o", id.val.Text(), "should be o")
+
+	objLit := varDec.init.(*ObjLit)
+	assert.Equal(t, 4, len(objLit.props), "should be len 6")
+
+	prop0 := objLit.props[0].(*Prop)
+	assert.Equal(t, "a", prop0.key.(*Ident).val.Text(), "should be a")
+
+	prop1 := objLit.props[1].(*Prop)
+	assert.Equal(t, "b", prop1.key.(*Ident).val.Text(), "should be b")
+	_ = prop1.value.(*FnDec)
+
+	prop2 := objLit.props[2].(*Prop)
+	assert.Equal(t, "c", prop2.key.(*Ident).val.Text(), "should be c")
+
+	prop3 := objLit.props[3].(*Prop)
+	assert.Equal(t, "e", prop3.key.(*Ident).val.Text(), "should be e")
+	_ = prop3.value.(*ArrowFn)
 }
 
 func TestFnDec(t *testing.T) {

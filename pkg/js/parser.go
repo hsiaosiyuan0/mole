@@ -1455,14 +1455,19 @@ func (p *Parser) objLit() (Node, error) {
 
 	props := make([]Node, 0, 1)
 	for {
+		tok := p.lexer.Peek()
+		if tok.value == T_BRACE_R {
+			p.lexer.Next()
+			break
+		}
+
 		node, err := p.objProp()
 		if err != nil {
 			return nil, err
 		}
-
 		props = append(props, node)
 
-		tok := p.lexer.Peek()
+		tok = p.lexer.Peek()
 		if tok.value == T_COMMA {
 			p.lexer.Next()
 		} else if tok.value == T_BRACE_R {
@@ -1476,34 +1481,90 @@ func (p *Parser) objLit() (Node, error) {
 }
 
 func (p *Parser) objProp() (Node, error) {
-	loc := p.loc()
-
 	tok := p.lexer.Peek()
 	if tok.value == T_DOT_TRI {
 		return p.spread()
 	}
 
+	if tok.value == T_NAME {
+		name := tok.Text()
+		if name == "get" || name == "set" {
+			ahead := p.lexer.PeekGrow()
+			isField := ahead.value == T_ASSIGN || ahead.value == T_SEMI || ahead.afterLineTerminator
+			if !isField {
+				p.lexer.Next()
+				return p.method(false, nil, tok, false, false)
+			}
+		}
+	} else if tok.value == T_MUL {
+		return p.propMethod(nil, tok, true, false)
+	} else if p.aheadIsAsync(tok) {
+		return p.propMethod(nil, tok, false, true)
+	}
+
+	return p.propField()
+}
+
+func (p *Parser) propField() (Node, error) {
+	loc := p.loc()
 	key, err := p.propName()
 	if err != nil {
 		return nil, err
 	}
 
-	if p.lexer.Peek().value != T_COLON {
-		if key.Type() == N_NAME {
-			return key, nil
+	var value Node
+	tok := p.lexer.Peek()
+	if tok.value == T_COLON {
+		p.lexer.Next()
+		value, err = p.assignExpr()
+		if err != nil {
+			return nil, err
 		}
-		return nil, p.error(&key.Loc().begin)
+	} else if tok.value == T_PAREN_L {
+		return p.propMethod(key, nil, false, false)
 	}
 
-	p.lexer.Next()
-	value, err := p.assignExpr()
+	return &Prop{N_PROP, p.finLoc(loc), key, value, !IsLitPropName(key)}, nil
+}
+
+func (p *Parser) propMethod(key Node, kind *Token, gen bool, async bool) (Node, error) {
+	loc := p.loc()
+
+	if async {
+		p.lexer.Next()
+		gen = p.lexer.Peek().value == T_MUL
+	}
+	if gen {
+		p.lexer.Next()
+	}
+
+	var err error
+	if key == nil {
+		key, err = p.propName()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	fnLoc := p.loc()
+	params, err := p.formalParams()
 	if err != nil {
 		return nil, err
 	}
 
-	return &Prop{N_PROP, p.finLoc(loc), key, value, !IsLitPropName(key)}, nil
+	if gen {
+		p.lexer.extMode(LM_GENERATOR, true)
+	}
+	body, err := p.fnBody()
+	if gen {
+		p.lexer.popMode()
+	}
+	if err != nil {
+		return nil, err
+	}
 
-	// TODO: MethodDefinition
+	value := &FnDec{N_EXPR_FN, p.finLoc(fnLoc), nil, gen, async, params, body}
+	return &Prop{N_PROP, p.finLoc(loc), key, value, !IsLitPropName(key)}, nil
 }
 
 func (p *Parser) advanceIfSemi() {
