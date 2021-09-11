@@ -690,3 +690,51 @@ func TestEmptyStmt(t *testing.T) {
 	_ = ast.(*Prog).stmts[2].(*EmptyStmt)
 	_ = ast.(*Prog).stmts[3].(*EmptyStmt)
 }
+
+func TestClassStmt(t *testing.T) {
+	ast, err := compile(`
+  class a {}
+  `)
+	assert.Equal(t, nil, err, "should be prog ok")
+	_ = ast.(*Prog).stmts[0].(*ClassStmt)
+}
+
+func TestClassField(t *testing.T) {
+	ast, err := compile(`
+  class a {
+    #f1
+  }
+  `)
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	cls := ast.(*Prog).stmts[0].(*ClassStmt)
+	elem0 := cls.body.elems[0].(*Field)
+	assert.Equal(t, true, elem0.key.(*Ident).pvt, "should be pvt")
+	assert.Equal(t, "f1", elem0.key.(*Ident).val.Text(), "should be f1")
+}
+
+func TestClassMethod(t *testing.T) {
+	ast, err := compile(`
+  class a {
+    [a] (b) {
+      c
+    }
+
+    e
+    #f () {}
+  }
+  `)
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	cls := ast.(*Prog).stmts[0].(*ClassStmt)
+	elem0 := cls.body.elems[0].(*Method)
+	assert.Equal(t, "a", elem0.key.(*Ident).val.Text(), "should be a")
+	assert.Equal(t, "b", elem0.value.(*FnDec).params[0].(*Ident).val.Text(), "should be b")
+
+	elem1 := cls.body.elems[1].(*Field)
+	assert.Equal(t, "e", elem1.key.(*Ident).val.Text(), "should be e")
+
+	elem2 := cls.body.elems[2].(*Method)
+	assert.Equal(t, true, elem2.key.(*Ident).pvt, "should be pvt")
+	assert.Equal(t, "f", elem2.key.(*Ident).val.Text(), "should be f")
+}

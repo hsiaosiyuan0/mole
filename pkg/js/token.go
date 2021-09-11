@@ -81,7 +81,7 @@ const (
 	T_TPL_TAIL
 
 	T_NAME
-	T_NAME_PRIVATE
+	T_NAME_PVT
 
 	// keywords
 	// https://tc39.es/ecma262/multipage/ecmascript-language-lexical-grammar.html#prod-ReservedWord
@@ -258,7 +258,7 @@ var TokenKinds = [T_TOKEN_DEF_END - 1]*TokenKind{
 	{T_TPL_TAIL, "template tail", 0, false, true},
 
 	{T_NAME, "identifier", 0, false, false},
-	{T_NAME_PRIVATE, "private identifier", 0, false, false},
+	{T_NAME_PVT, "private identifier", 0, false, false},
 
 	// keywords
 	{T_KEYWORD_BEGIN, "keyword begin", 0, false, false},

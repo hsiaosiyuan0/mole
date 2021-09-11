@@ -47,6 +47,7 @@ const (
 	N_STMT_THROW
 	N_STMT_TRY
 	N_STMT_DEBUG
+	N_STMT_CLASS
 	N_STMT_END
 
 	N_EXPR_BEGIN
@@ -78,6 +79,10 @@ const (
 	N_SPREAD
 	N_SWITCH_CASE
 	N_CATCH
+	N_ClASS_BODY
+	N_STATIC_BLOCK
+	N_METHOD
+	N_FIELD
 
 	N_EXPR_END
 )
@@ -232,10 +237,10 @@ func (n *ObjLit) Loc() *Loc {
 }
 
 type Ident struct {
-	typ     NodeType
-	loc     *Loc
-	val     *Token
-	private bool
+	typ NodeType
+	loc *Loc
+	val *Token
+	pvt bool
 }
 
 func NewIdent() *Ident {
@@ -761,5 +766,84 @@ func (n *DebugStmt) Type() NodeType {
 }
 
 func (n *DebugStmt) Loc() *Loc {
+	return n.loc
+}
+
+type ClassStmt struct {
+	typ   NodeType
+	loc   *Loc
+	id    Node
+	super Node
+	body  *ClassBody
+}
+
+func (n *ClassStmt) Type() NodeType {
+	return n.typ
+}
+
+func (n *ClassStmt) Loc() *Loc {
+	return n.loc
+}
+
+type ClassBody struct {
+	typ   NodeType
+	loc   *Loc
+	elems []Node
+}
+
+func (n *ClassBody) Type() NodeType {
+	return n.typ
+}
+
+func (n *ClassBody) Loc() *Loc {
+	return n.loc
+}
+
+type Method struct {
+	typ      NodeType
+	loc      *Loc
+	key      Node
+	static   bool
+	computed bool
+	kind     *Token
+	value    Node
+}
+
+func (n *Method) Type() NodeType {
+	return n.typ
+}
+
+func (n *Method) Loc() *Loc {
+	return n.loc
+}
+
+type Field struct {
+	typ      NodeType
+	loc      *Loc
+	key      Node
+	static   bool
+	computed bool
+	value    Node
+}
+
+func (n *Field) Type() NodeType {
+	return n.typ
+}
+
+func (n *Field) Loc() *Loc {
+	return n.loc
+}
+
+type StaticBlock struct {
+	typ  NodeType
+	loc  *Loc
+	body []Node
+}
+
+func (n *StaticBlock) Type() NodeType {
+	return n.typ
+}
+
+func (n *StaticBlock) Loc() *Loc {
 	return n.loc
 }

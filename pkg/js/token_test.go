@@ -21,7 +21,7 @@ func TestLabel(t *testing.T) {
 	assert.Equal(t, "template tail", TokenKinds[T_TPL_TAIL].Name, "should be template tail")
 
 	assert.Equal(t, "identifier", TokenKinds[T_NAME].Name, "should be identifier")
-	assert.Equal(t, "private identifier", TokenKinds[T_NAME_PRIVATE].Name, "should be private identifier")
+	assert.Equal(t, "private identifier", TokenKinds[T_NAME_PVT].Name, "should be private identifier")
 
 	// keywords
 	assert.Equal(t, "break", TokenKinds[T_BREAK].Name, "should be break")

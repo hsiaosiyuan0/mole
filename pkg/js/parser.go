@@ -31,8 +31,6 @@ func (p *Parser) Prog() (Node, error) {
 func (p *Parser) stmt() (Node, error) {
 	tok := p.lexer.Peek()
 	switch tok.value {
-	case T_BRACE_L:
-		return p.blockStmt()
 	case T_FUNC:
 		return p.fnDecStmt(false, false)
 	case T_IF:
@@ -53,6 +51,8 @@ func (p *Parser) stmt() (Node, error) {
 		return p.throwStmt()
 	case T_TRY:
 		return p.tryStmt()
+	case T_BRACE_L:
+		return p.blockStmt()
 	case T_DO:
 		return p.doWhileStmt()
 	case T_SWITCH:
@@ -74,7 +74,153 @@ func (p *Parser) stmt() (Node, error) {
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-functions-and-classes.html#prod-ClassDeclaration
 func (p *Parser) classDec() (Node, error) {
-	return nil, nil
+	loc := p.loc()
+	p.lexer.Next()
+
+	var id Node
+	var err error
+	if p.lexer.Peek().value != T_BRACE_L {
+		id, err = p.ident()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	var super Node
+	if p.lexer.Peek().value == T_EXTENDS {
+		super, err = p.lhs()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	body, err := p.classBody()
+	if err != nil {
+		return nil, err
+	}
+	return &ClassStmt{N_STMT_CLASS, p.finLoc(loc), id, super, body}, nil
+}
+
+func (p *Parser) classBody() (*ClassBody, error) {
+	loc := p.loc()
+	p.nextMustTok(T_BRACE_L)
+	elems := make([]Node, 0)
+	for {
+		if p.lexer.Peek().value == T_BRACE_R {
+			break
+		}
+		if p.lexer.Peek().value == T_SEMI {
+			p.lexer.Next()
+		}
+		elem, err := p.classElem()
+		if err != nil {
+			return nil, err
+		}
+		elems = append(elems, elem)
+	}
+	p.nextMustTok(T_BRACE_R)
+	return &ClassBody{N_ClASS_BODY, p.finLoc(loc), elems}, nil
+}
+
+func (p *Parser) classElem() (Node, error) {
+	static := p.lexer.Peek().value == T_STATIC
+	if static {
+		p.lexer.Next()
+		if p.lexer.Peek().value == T_BRACE_L {
+			return p.staticBlock()
+		}
+	}
+
+	tok := p.lexer.Peek()
+	if tok.value == T_NAME {
+		name := tok.Text()
+		if name == "constructor" {
+			return p.method(static, nil, tok, false, false)
+		} else if name == "get" || name == "set" {
+			ahead := p.lexer.PeekGrow()
+			isField := ahead.value == T_ASSIGN || ahead.value == T_SEMI || ahead.afterLineTerminator
+			if !isField {
+				return p.method(static, nil, tok, false, false)
+			}
+		}
+	} else if tok.value == T_MUL {
+		return p.method(static, nil, tok, true, false)
+	} else if p.aheadIsAsync(tok) {
+		return p.method(static, nil, tok, false, true)
+	}
+
+	return p.field(static)
+}
+
+func (p *Parser) method(static bool, key Node, kind *Token, gen bool, async bool) (Node, error) {
+	loc := p.loc()
+
+	if async {
+		p.lexer.Next()
+		gen = p.lexer.Peek().value == T_MUL
+	}
+	if gen {
+		p.lexer.Next()
+	}
+
+	var err error
+	if key == nil {
+		key, err = p.classElemName()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	fnLoc := p.loc()
+	params, err := p.formalParams()
+	if err != nil {
+		return nil, err
+	}
+
+	if gen {
+		p.lexer.extMode(LM_GENERATOR, true)
+	}
+	body, err := p.fnBody()
+	if gen {
+		p.lexer.popMode()
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	value := &FnDec{N_EXPR_FN, p.finLoc(fnLoc), nil, gen, async, params, body}
+	return &Method{N_METHOD, p.finLoc(loc), key, static, key.Type() != N_NAME, kind, value}, nil
+}
+
+func (p *Parser) field(static bool) (Node, error) {
+	loc := p.loc()
+	key, err := p.classElemName()
+	if err != nil {
+		return nil, err
+	}
+	var value Node
+	tok := p.lexer.Peek()
+	if tok.value == T_ASSIGN {
+		value, err = p.assignExpr()
+		if err != nil {
+			return nil, err
+		}
+	} else if tok.value == T_PAREN_L {
+		return p.method(static, key, nil, false, false)
+	}
+	return &Field{N_FIELD, p.finLoc(loc), key, static, key.Type() != N_NAME, value}, nil
+}
+
+func (p *Parser) classElemName() (Node, error) {
+	return p.propName()
+}
+
+func (p *Parser) staticBlock() (Node, error) {
+	block, err := p.blockStmt()
+	if err != nil {
+		return nil, err
+	}
+	return &StaticBlock{N_STATIC_BLOCK, block.loc, block.body}, nil
 }
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-statements-and-declarations.html#prod-EmptyStatement
@@ -716,8 +862,8 @@ func (p *Parser) patternProp() (Node, error) {
 func (p *Parser) propName() (Node, error) {
 	loc := p.loc()
 	tok := p.lexer.Next()
-	if tok.value == T_NAME {
-		return &Ident{N_NAME, p.finLoc(loc), tok, false}, nil
+	if tok.value == T_NAME || tok.value == T_NAME_PVT {
+		return &Ident{N_NAME, p.finLoc(loc), tok, tok.value == T_NAME_PVT}, nil
 	}
 	if tok.value == T_STRING {
 		return &StrLit{N_LIT_STR, p.finLoc(loc), tok}, nil
@@ -1137,18 +1283,25 @@ func (p *Parser) memberExprPropSubscript(obj Node) (Node, error) {
 	return node, nil
 }
 
-func (p *Parser) memberExprPropDot(obj Node) (Node, error) {
-	p.lexer.Next()
+func (p *Parser) aheadIsPvt() bool {
+	return p.lexer.src.AheadIsCh('#')
+}
+
+func (p *Parser) namePvt() (Node, error) {
 	loc := p.loc()
-	var private bool
-	if private = p.lexer.src.AheadIsCh('#'); private {
-		p.lexer.src.Read()
-	}
 	id := p.lexer.Next()
-	if id.value != T_NAME {
+	if id.value != T_NAME && id.value != T_NAME_PVT {
 		return nil, p.error(&id.loc)
 	}
-	prop := &Ident{N_NAME, p.finLoc(loc), id, private}
+	return &Ident{N_NAME, p.finLoc(loc), id, id.value == T_NAME_PVT}, nil
+}
+
+func (p *Parser) memberExprPropDot(obj Node) (Node, error) {
+	p.lexer.Next()
+	prop, err := p.namePvt()
+	if err != nil {
+		return nil, err
+	}
 	node := &MemberExpr{N_EXPR_MEMBER, p.finLoc(obj.Loc().Clone()), obj, prop, false, false}
 	return node, nil
 }

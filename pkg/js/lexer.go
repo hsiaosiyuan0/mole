@@ -96,6 +96,8 @@ func (l *Lexer) readTok() *Token {
 		return l.ReadStr()
 	} else if l.aheadIsTplStart() {
 		return l.ReadTplSpan()
+	} else if l.aheadIsPvt() {
+		return l.ReadNumPvt()
 	}
 	return l.ReadSymbol()
 }
@@ -630,6 +632,16 @@ func (l *Lexer) readLineTerminator() {
 	}
 }
 
+func (l *Lexer) ReadNumPvt() *Token {
+	l.src.Read()
+	tok := l.ReadName()
+	if tok.value != T_NAME {
+		return tok
+	}
+	tok.value = T_NAME_PVT
+	return tok
+}
+
 // https://tc39.es/ecma262/multipage/ecmascript-language-lexical-grammar.html#prod-NumericLiteral
 func (l *Lexer) ReadNum() *Token {
 	tok := l.newToken()
@@ -839,6 +851,10 @@ func (l *Lexer) errCharError() *LexerError {
 
 func (l *Lexer) aheadIsIdStart() bool {
 	return IsIdStart(l.src.Peek())
+}
+
+func (l *Lexer) aheadIsPvt() bool {
+	return l.src.AheadIsCh('#')
 }
 
 func (l *Lexer) aheadIsIdPart() bool {
