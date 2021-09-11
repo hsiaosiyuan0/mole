@@ -32,7 +32,7 @@ const (
 	N_STMT_EXPR
 	N_STMT_EMPTY
 	N_STMT_VAR_DEC
-	N_STMT_FN_DEC
+	N_STMT_FN
 	N_STMT_BLOCK
 	N_STMT_DO_WHILE
 	N_STMT_WHILE
@@ -58,7 +58,9 @@ const (
 	N_LIT_STR
 	N_LIT_ARR
 	N_LIT_OBJ
+	N_LIT_REGEXP
 	N_LIT_END
+
 	N_EXPR_NEW
 	N_EXPR_MEMBER
 	N_EXPR_CALL
@@ -68,6 +70,11 @@ const (
 	N_EXPR_COND
 	N_EXPR_ASSIGN
 	N_EXPR_FN
+	N_EXPR_THIS
+	N_EXPR_PAREN
+	N_EXPR_ARROW
+	N_EXPR_SEQ
+	N_EXPR_CLASS
 	N_NAME
 
 	N_VAR_DEC
@@ -183,7 +190,7 @@ type StrLit struct {
 }
 
 func NewStrLit() *StrLit {
-	return &StrLit{N_LIT_BOOL, &Loc{}, nil}
+	return &StrLit{N_LIT_STR, &Loc{}, nil}
 }
 
 func (n *StrLit) Type() NodeType {
@@ -191,6 +198,20 @@ func (n *StrLit) Type() NodeType {
 }
 
 func (n *StrLit) Loc() *Loc {
+	return n.loc
+}
+
+type RegexpLit struct {
+	typ NodeType
+	loc *Loc
+	val *Token
+}
+
+func (n *RegexpLit) Type() NodeType {
+	return n.typ
+}
+
+func (n *RegexpLit) Loc() *Loc {
 	return n.loc
 }
 
@@ -529,6 +550,23 @@ func (n *FnDec) Loc() *Loc {
 	return n.loc
 }
 
+type ArrowFn struct {
+	typ       NodeType
+	loc       *Loc
+	generator bool
+	async     bool
+	params    []Node
+	body      Node
+}
+
+func (n *ArrowFn) Type() NodeType {
+	return n.typ
+}
+
+func (n *ArrowFn) Loc() *Loc {
+	return n.loc
+}
+
 type BlockStmt struct {
 	typ  NodeType
 	loc  *Loc
@@ -769,7 +807,7 @@ func (n *DebugStmt) Loc() *Loc {
 	return n.loc
 }
 
-type ClassStmt struct {
+type ClassDec struct {
 	typ   NodeType
 	loc   *Loc
 	id    Node
@@ -777,11 +815,11 @@ type ClassStmt struct {
 	body  *ClassBody
 }
 
-func (n *ClassStmt) Type() NodeType {
+func (n *ClassDec) Type() NodeType {
 	return n.typ
 }
 
-func (n *ClassStmt) Loc() *Loc {
+func (n *ClassDec) Loc() *Loc {
 	return n.loc
 }
 
@@ -845,5 +883,46 @@ func (n *StaticBlock) Type() NodeType {
 }
 
 func (n *StaticBlock) Loc() *Loc {
+	return n.loc
+}
+
+type ThisExpr struct {
+	typ NodeType
+	loc *Loc
+}
+
+func (n *ThisExpr) Type() NodeType {
+	return n.typ
+}
+
+func (n *ThisExpr) Loc() *Loc {
+	return n.loc
+}
+
+type ParenExpr struct {
+	typ  NodeType
+	loc  *Loc
+	expr Node
+}
+
+func (n *ParenExpr) Type() NodeType {
+	return n.typ
+}
+
+func (n *ParenExpr) Loc() *Loc {
+	return n.loc
+}
+
+type SeqExpr struct {
+	typ   NodeType
+	loc   *Loc
+	elems []Node
+}
+
+func (n *SeqExpr) Type() NodeType {
+	return n.typ
+}
+
+func (n *SeqExpr) Loc() *Loc {
 	return n.loc
 }

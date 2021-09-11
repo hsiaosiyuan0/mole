@@ -32,7 +32,7 @@ func (p *Parser) stmt() (Node, error) {
 	tok := p.lexer.Peek()
 	switch tok.value {
 	case T_FUNC:
-		return p.fnDecStmt(false, false)
+		return p.fnDec(false, false)
 	case T_IF:
 		return p.ifStmt()
 	case T_BREAK:
@@ -46,7 +46,7 @@ func (p *Parser) stmt() (Node, error) {
 	case T_WHILE:
 		return p.whileStmt()
 	case T_CLASS:
-		return p.classDec()
+		return p.classDec(false)
 	case T_THROW:
 		return p.throwStmt()
 	case T_TRY:
@@ -73,7 +73,7 @@ func (p *Parser) stmt() (Node, error) {
 }
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-functions-and-classes.html#prod-ClassDeclaration
-func (p *Parser) classDec() (Node, error) {
+func (p *Parser) classDec(expr bool) (Node, error) {
 	loc := p.loc()
 	p.lexer.Next()
 
@@ -98,7 +98,12 @@ func (p *Parser) classDec() (Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &ClassStmt{N_STMT_CLASS, p.finLoc(loc), id, super, body}, nil
+
+	typ := N_STMT_CLASS
+	if expr {
+		typ = N_EXPR_CLASS
+	}
+	return &ClassDec{typ, p.finLoc(loc), id, super, body}, nil
 }
 
 func (p *Parser) classBody() (*ClassBody, error) {
@@ -625,11 +630,11 @@ func (p *Parser) aheadIsAsync(tok *Token) bool {
 }
 
 func (p *Parser) asyncFnDecStmt() (Node, error) {
-	return p.fnDecStmt(false, true)
+	return p.fnDec(false, true)
 }
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-statements-and-declarations.html#prod-HoistableDeclaration
-func (p *Parser) fnDecStmt(expr bool, async bool) (Node, error) {
+func (p *Parser) fnDec(expr bool, async bool) (Node, error) {
 	loc := p.loc()
 	if async {
 		p.lexer.Next()
@@ -671,7 +676,7 @@ func (p *Parser) fnDecStmt(expr bool, async bool) (Node, error) {
 		return nil, err
 	}
 
-	typ := N_STMT_FN_DEC
+	typ := N_STMT_FN
 	if expr {
 		typ = N_EXPR_FN
 	}
@@ -690,6 +695,9 @@ func (p *Parser) formalParams() ([]Node, error) {
 		param, err := p.bindingElem()
 		if err != nil {
 			return nil, err
+		}
+		if p.lexer.Peek().value == T_COMMA {
+			p.lexer.Next()
 		}
 		params = append(params, param)
 	}
@@ -1014,6 +1022,7 @@ func (p *Parser) assignExpr() (Node, error) {
 
 	assign := p.advanceIfTokIn(T_ASSIGN_BEGIN, T_ASSIGN_END)
 	if assign == nil {
+		p.advanceIfSemi()
 		return lhs, nil
 	}
 
@@ -1283,10 +1292,6 @@ func (p *Parser) memberExprPropSubscript(obj Node) (Node, error) {
 	return node, nil
 }
 
-func (p *Parser) aheadIsPvt() bool {
-	return p.lexer.src.AheadIsCh('#')
-}
-
 func (p *Parser) namePvt() (Node, error) {
 	loc := p.loc()
 	id := p.lexer.Next()
@@ -1317,23 +1322,75 @@ func (p *Parser) primaryExpr() (Node, error) {
 		node.loc = p.finLoc(loc)
 		node.val = tok
 		return node, nil
+	case T_STRING:
+		p.lexer.Next()
+		node := NewStrLit()
+		node.loc = p.finLoc(loc)
+		node.val = tok
+		return node, nil
 	case T_NAME:
 		p.lexer.Next()
 		node := NewIdent()
 		node.loc = p.finLoc(loc)
 		node.val = tok
 		return node, nil
+	case T_THIS:
+		p.lexer.Next()
+		node := &ThisExpr{N_EXPR_THIS, p.finLoc(loc)}
+		return node, nil
+	case T_PAREN_L:
+		return p.parenExpr()
 	case T_BRACKET_L:
 		return p.arrLit()
 	case T_BRACE_L:
 		return p.objLit()
 	case T_FUNC:
-		return p.fnDecStmt(true, false)
+		return p.fnDec(true, false)
+	case T_REGEXP:
+		p.lexer.Next()
+		node := &RegexpLit{N_LIT_REGEXP, p.finLoc(loc), tok}
+		return node, nil
+	case T_CLASS:
+		return p.classDec(true)
 	}
-	if IsName(tok, "async") {
-		return p.fnDecStmt(true, true)
+	if p.aheadIsAsync(tok) {
+		return p.fnDec(true, true)
 	}
 	return nil, p.error(&tok.loc)
+}
+
+func (p *Parser) parenExpr() (Node, error) {
+	loc := p.loc()
+	params, err := p.argList()
+	if err != nil {
+		return nil, err
+	}
+	if p.lexer.Peek().value == T_ARROW {
+		p.lexer.Next()
+
+		// TODO: check params
+
+		var body Node
+		var err error
+		if p.lexer.Peek().value == T_BRACE_L {
+			body, err = p.fnBody()
+		} else {
+			body, err = p.expr()
+		}
+		if err != nil {
+			return nil, err
+		}
+
+		return &ArrowFn{N_EXPR_ARROW, p.finLoc(loc), false, false, params, body}, nil
+	}
+	if len(params) == 0 {
+		return nil, p.error(&p.loc().begin)
+	}
+	if len(params) == 1 {
+		return &ParenExpr{N_EXPR_PAREN, p.finLoc(loc), params[0]}, nil
+	}
+	// TODO: check spread
+	return &SeqExpr{N_EXPR_SEQ, p.finLoc(loc), params}, nil
 }
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-expressions.html#prod-ArrayLiteral

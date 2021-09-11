@@ -192,6 +192,11 @@ func TestCallExpr(t *testing.T) {
 	assert.Equal(t, "b", params[2].(*Ident).val.Text(), "should be b")
 }
 
+func TestCallExprLit(t *testing.T) {
+	_, err := compile("a('b')")
+	assert.Equal(t, nil, err, "should be prog ok")
+}
+
 func TestCallCascadeExpr(t *testing.T) {
 	ast, err := compile("a[b][c]()[d][e]()")
 	assert.Equal(t, nil, err, "should be prog ok")
@@ -696,7 +701,7 @@ func TestClassStmt(t *testing.T) {
   class a {}
   `)
 	assert.Equal(t, nil, err, "should be prog ok")
-	_ = ast.(*Prog).stmts[0].(*ClassStmt)
+	_ = ast.(*Prog).stmts[0].(*ClassDec)
 }
 
 func TestClassField(t *testing.T) {
@@ -707,7 +712,7 @@ func TestClassField(t *testing.T) {
   `)
 	assert.Equal(t, nil, err, "should be prog ok")
 
-	cls := ast.(*Prog).stmts[0].(*ClassStmt)
+	cls := ast.(*Prog).stmts[0].(*ClassDec)
 	elem0 := cls.body.elems[0].(*Field)
 	assert.Equal(t, true, elem0.key.(*Ident).pvt, "should be pvt")
 	assert.Equal(t, "f1", elem0.key.(*Ident).val.Text(), "should be f1")
@@ -726,7 +731,7 @@ func TestClassMethod(t *testing.T) {
   `)
 	assert.Equal(t, nil, err, "should be prog ok")
 
-	cls := ast.(*Prog).stmts[0].(*ClassStmt)
+	cls := ast.(*Prog).stmts[0].(*ClassDec)
 	elem0 := cls.body.elems[0].(*Method)
 	assert.Equal(t, "a", elem0.key.(*Ident).val.Text(), "should be a")
 	assert.Equal(t, "b", elem0.value.(*FnDec).params[0].(*Ident).val.Text(), "should be b")
@@ -737,4 +742,45 @@ func TestClassMethod(t *testing.T) {
 	elem2 := cls.body.elems[2].(*Method)
 	assert.Equal(t, true, elem2.key.(*Ident).pvt, "should be pvt")
 	assert.Equal(t, "f", elem2.key.(*Ident).val.Text(), "should be f")
+}
+
+func TestSeqExpr(t *testing.T) {
+	ast, err := compile(`
+  a = (b, c)
+  `)
+	assert.Equal(t, nil, err, "should be prog ok")
+	elem0 := ast.(*Prog).stmts[0].(*ExprStmt).expr.(*AssignExpr)
+	seq := elem0.rhs.(*SeqExpr)
+	assert.Equal(t, "b", seq.elems[0].(*Ident).val.Text(), "should be b")
+	assert.Equal(t, "c", seq.elems[1].(*Ident).val.Text(), "should be c")
+}
+
+func TestClassExpr(t *testing.T) {
+	ast, err := compile(`
+  a = class {};
+  `)
+	assert.Equal(t, nil, err, "should be prog ok")
+	stmt0 := ast.(*Prog).stmts[0].(*ExprStmt).expr.(*AssignExpr)
+	_ = stmt0.rhs.(*ClassDec)
+}
+
+func TestRegexpExpr(t *testing.T) {
+	ast, err := compile(`
+  a = /a/
+  `)
+	assert.Equal(t, nil, err, "should be prog ok")
+	stmt0 := ast.(*Prog).stmts[0].(*ExprStmt).expr.(*AssignExpr)
+	_ = stmt0.rhs.(*RegexpLit)
+}
+
+func TestWorks(t *testing.T) {
+	_, err := compile(`
+  const {unlink} = require('fs');
+
+  unlink('/tmp/hello', (err, data) => {
+    if (err) throw err;
+    console.log('successfully deleted /tmp/hello');
+  });
+  `)
+	assert.Equal(t, nil, err, "should be prog ok")
 }
