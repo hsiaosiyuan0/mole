@@ -454,6 +454,16 @@ func TestAsyncFnDec(t *testing.T) {
 	assert.Equal(t, true, fn.async, "should be true")
 }
 
+func TestArrowFn(t *testing.T) {
+	ast, err := compile(`
+  a = () => {}
+  `)
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	expr := ast.(*Prog).stmts[0].(*ExprStmt).expr.(*AssignExpr)
+	_ = expr.rhs.(*ArrowFn)
+}
+
 func TestDoWhileStmt(t *testing.T) {
 	ast, err := compile(`
   do {} while(1)
