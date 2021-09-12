@@ -75,6 +75,7 @@ const (
 	N_EXPR_ARROW
 	N_EXPR_SEQ
 	N_EXPR_CLASS
+	N_EXPR_TPL
 	N_NAME
 
 	N_VAR_DEC
@@ -924,5 +925,20 @@ func (n *SeqExpr) Type() NodeType {
 }
 
 func (n *SeqExpr) Loc() *Loc {
+	return n.loc
+}
+
+type TplExpr struct {
+	typ   NodeType
+	loc   *Loc
+	tag   Node
+	elems []Node
+}
+
+func (n *TplExpr) Type() NodeType {
+	return n.typ
+}
+
+func (n *TplExpr) Loc() *Loc {
 	return n.loc
 }

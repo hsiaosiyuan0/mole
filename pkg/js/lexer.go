@@ -12,7 +12,7 @@ type LexerModeValue int
 const (
 	LM_NONE       LexerModeValue = 0
 	LM_STRICT                    = 1 << 0
-	LM_TEMPLATE                  = 1 << 1
+	LM_TEMPLATE                  = 1 << 1 // // for inline spans can tell they are in template string
 	LM_ASYNC                     = 1 << 2
 	LM_GENERATOR                 = 1 << 3
 	LM_CLASS_BODY                = 1 << 4
@@ -150,20 +150,27 @@ func (l *Lexer) Next() *Token {
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-lexical-grammar.html#prod-Template
 func (l *Lexer) ReadTplSpan() *Token {
-	l.src.Read() // consume `\`` or `}`
-
-	// for inline spans can tell they are in template string
-	l.pushMode(LM_TEMPLATE)
-	defer l.popMode()
+	c := l.src.Read() // consume `\`` or `}`
+	head := c == '`'
+	if head {
+		l.pushMode(LM_TEMPLATE)
+	} else {
+		l.popMode()
+	}
 
 	tok := l.newToken()
 	text, fin := l.readTplChs()
 	if text == nil {
+		l.popMode()
 		return l.errToken(tok)
 	}
+
 	tok.text = string(text)
 	if fin {
 		l.popMode()
+		if head {
+			return l.finToken(tok, T_STRING)
+		}
 		return l.finToken(tok, T_TPL_TAIL)
 	}
 	return l.finToken(tok, T_TPL_SPAN)

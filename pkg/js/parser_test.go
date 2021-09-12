@@ -192,6 +192,20 @@ func TestCallExpr(t *testing.T) {
 	assert.Equal(t, "b", params[2].(*Ident).val.Text(), "should be b")
 }
 
+func TestCallExprMem(t *testing.T) {
+	ast, err := compile("a(b).c")
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	expr := ast.(*Prog).stmts[0].(*ExprStmt).expr.(*MemberExpr)
+	obj := expr.obj.(*CallExpr)
+	callee := obj.callee.(*Ident)
+	assert.Equal(t, "a", callee.val.Text(), "should be a")
+	assert.Equal(t, "c", expr.prop.(*Ident).val.Text(), "should be c")
+
+	params := obj.args
+	assert.Equal(t, "b", params[0].(*Ident).val.Text(), "should be b")
+}
+
 func TestCallExprLit(t *testing.T) {
 	_, err := compile("a('b')")
 	assert.Equal(t, nil, err, "should be prog ok")
@@ -806,6 +820,68 @@ func TestRegexpExpr(t *testing.T) {
 	assert.Equal(t, nil, err, "should be prog ok")
 	stmt0 := ast.(*Prog).stmts[0].(*ExprStmt).expr.(*AssignExpr)
 	_ = stmt0.rhs.(*RegexpLit)
+}
+
+func TestParenExpr(t *testing.T) {
+	ast, err := compile(`
+  a = (b)
+  `)
+	assert.Equal(t, nil, err, "should be prog ok")
+	stmt0 := ast.(*Prog).stmts[0].(*ExprStmt).expr.(*AssignExpr)
+	_ = stmt0.rhs.(*ParenExpr)
+}
+
+func TestTplExpr(t *testing.T) {
+	ast, err := compile("tag`\na${b}c`")
+	assert.Equal(t, nil, err, "should be prog ok")
+	tpl := ast.(*Prog).stmts[0].(*ExprStmt).expr.(*TplExpr)
+	tag := tpl.tag.(*Ident)
+	assert.Equal(t, "tag", tag.val.Text(), "should be tag")
+
+	span0 := tpl.elems[0].(*StrLit)
+	assert.Equal(t, "\na", span0.val.Text(), "should be a")
+
+	span1 := tpl.elems[1].(*Ident)
+	assert.Equal(t, "b", span1.val.Text(), "should be b")
+
+	span2 := tpl.elems[2].(*StrLit)
+	assert.Equal(t, "c", span2.val.Text(), "should be c")
+}
+
+func TestTplExprNest(t *testing.T) {
+	ast, err := compile("tag`\na${ f`g\n${d}e` }c`")
+	assert.Equal(t, nil, err, "should be prog ok")
+	tpl := ast.(*Prog).stmts[0].(*ExprStmt).expr.(*TplExpr)
+	tag := tpl.tag.(*Ident)
+	assert.Equal(t, "tag", tag.val.Text(), "should be tag")
+
+	span0 := tpl.elems[0].(*StrLit)
+	assert.Equal(t, "\na", span0.val.Text(), "should be a")
+
+	span2 := tpl.elems[2].(*StrLit)
+	assert.Equal(t, "c", span2.val.Text(), "should be c")
+
+	tpl = tpl.elems[1].(*TplExpr)
+	tag = tpl.tag.(*Ident)
+	assert.Equal(t, "f", tag.val.Text(), "should be f")
+
+	span0 = tpl.elems[0].(*StrLit)
+	assert.Equal(t, "g\n", span0.val.Text(), "should be g")
+
+	span2 = tpl.elems[2].(*StrLit)
+	assert.Equal(t, "e", span2.val.Text(), "should be e")
+
+	span1 := tpl.elems[1].(*Ident)
+	assert.Equal(t, "d", span1.val.Text(), "should be d")
+}
+
+func TestTplExprMember(t *testing.T) {
+	ast, err := compile("tag`\na${b}c`[d]")
+	assert.Equal(t, nil, err, "should be prog ok")
+	member := ast.(*Prog).stmts[0].(*ExprStmt).expr.(*MemberExpr)
+	tpl := member.obj.(*TplExpr)
+	tag := tpl.tag.(*Ident)
+	assert.Equal(t, "tag", tag.val.Text(), "should be tag")
 }
 
 func TestWorks(t *testing.T) {

@@ -1153,28 +1153,61 @@ func (p *Parser) callExpr(callee Node) (Node, error) {
 		}
 	}
 
-	tok := p.lexer.Peek()
-	if tok.value == T_BRACKET_L {
-		callee, err = p.memberExpr(callee)
-		if err != nil {
-			return nil, err
+	for {
+		tok := p.lexer.Peek()
+		if tok.value == T_PAREN_L {
+			args, err := p.argList()
+			if err != nil {
+				return nil, err
+			}
+			callee = &CallExpr{N_EXPR_CALL, p.finLoc(loc), callee, args}
+		} else if tok.value == T_BRACKET_L || tok.value == T_DOT {
+			callee, err = p.memberExpr(callee)
+			if err != nil {
+				return nil, err
+			}
+		} else if tok.value == T_TPL_SPAN {
+			callee, err = p.tplExpr(callee)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			break
 		}
 	}
 
-	if tok.value != T_PAREN_L {
-		return callee, nil
+	return callee, nil
+}
+
+func (p *Parser) tplExpr(tag Node) (Node, error) {
+	loc := p.locFromNode(tag)
+
+	elems := make([]Node, 0)
+	for {
+		tok := p.lexer.Peek()
+		if tok.value == T_TPL_TAIL {
+			loc := p.loc()
+			p.lexer.Next()
+			str := &StrLit{N_LIT_STR, p.finLoc(loc), tok}
+			elems = append(elems, str)
+			break
+		} else if tok.value == T_TPL_SPAN {
+			loc := p.loc()
+			p.lexer.Next()
+			str := &StrLit{N_LIT_STR, p.finLoc(loc), tok}
+			elems = append(elems, str)
+
+			expr, err := p.expr()
+			if err != nil {
+				return nil, err
+			}
+			elems = append(elems, expr)
+		} else {
+			return nil, p.error(&tok.loc)
+		}
 	}
 
-	args, err := p.argList()
-	if err != nil {
-		return nil, err
-	}
-	node := &CallExpr{N_EXPR_CALL, p.finLoc(loc), callee, args}
-
-	if p.lexer.Peek().value == T_PAREN_L {
-		return p.callExpr(node)
-	}
-	return node, nil
+	return &TplExpr{N_EXPR_TPL, p.finLoc(loc), tag, elems}, nil
 }
 
 func (p *Parser) argList() ([]Node, error) {
@@ -1603,6 +1636,13 @@ func (p *Parser) loc() *Loc {
 	loc.begin.line = p.lexer.src.line
 	loc.begin.col = p.lexer.src.col
 	return loc
+}
+
+func (p *Parser) locFromNode(node Node) *Loc {
+	if node != nil {
+		return node.Loc().Clone()
+	}
+	return p.loc()
 }
 
 func (p *Parser) finLoc(loc *Loc) *Loc {
