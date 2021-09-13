@@ -1,4 +1,4 @@
-package js
+package parser
 
 type LoopKind int
 
@@ -10,7 +10,7 @@ const (
 
 type Binding struct {
 	at   *Token
-	refs []Position
+	refs []Pos
 }
 
 type Scope struct {

@@ -1,4 +1,4 @@
-package js
+package parser
 
 import (
 	"fmt"
@@ -889,7 +889,7 @@ func (l *Lexer) newToken() *Token {
 	return &Token{
 		value: T_ILLEGAL,
 		raw:   l.src.NewOpenRange(),
-		loc:   Position{l.src.line, l.src.col},
+		loc:   &Pos{l.src.line, l.src.col},
 	}
 }
 

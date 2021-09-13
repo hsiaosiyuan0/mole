@@ -1,12 +1,20 @@
-package js
+package parser
 
-type Position struct {
+type Pos struct {
 	line int
 	col  int
 }
 
-func (p Position) Clone() Position {
-	return Position{
+func (p *Pos) Line() int {
+	return p.line
+}
+
+func (p *Pos) Column() int {
+	return p.col
+}
+
+func (p *Pos) Clone() *Pos {
+	return &Pos{
 		line: p.line,
 		col:  p.col,
 	}
@@ -16,7 +24,7 @@ type Token struct {
 	value TokenValue
 	text  string
 	raw   *SourceRange
-	loc   Position
+	loc   *Pos
 
 	afterLineTerminator bool
 

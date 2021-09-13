@@ -1,4 +1,4 @@
-package js
+package parser
 
 type Parser struct {
 	lexer  *Lexer
@@ -13,6 +13,7 @@ func NewParser(src *Source, externals []string) *Parser {
 }
 
 func (p *Parser) Prog() (Node, error) {
+	loc := p.loc()
 	pg := NewProg()
 	for {
 		if p.lexer.Peek().value == T_EOF {
@@ -24,6 +25,7 @@ func (p *Parser) Prog() (Node, error) {
 		}
 		pg.stmts = append(pg.stmts, stmt)
 	}
+	pg.loc = p.finLoc(loc)
 	return pg, nil
 }
 
@@ -255,7 +257,7 @@ func (p *Parser) tryStmt() (Node, error) {
 
 	tok := p.lexer.Peek()
 	if tok.value != T_CATCH && tok.value != T_FINALLY {
-		return nil, p.error(&tok.loc)
+		return nil, p.error(tok.loc)
 	}
 
 	var catch *Catch
@@ -414,10 +416,10 @@ func (p *Parser) switchStmt() (Node, error) {
 		if tok.value == T_BRACE_R {
 			break
 		} else if tok.value != T_CASE && tok.value != T_DEFAULT {
-			return nil, p.error(&tok.loc)
+			return nil, p.error(tok.loc)
 		}
 		if tok.value == T_DEFAULT && metDefault {
-			return nil, p.error(&tok.loc)
+			return nil, p.error(tok.loc)
 		}
 
 		caseClause, err := p.switchCase(tok)
@@ -576,7 +578,7 @@ func (p *Parser) forStmt() (Node, error) {
 	tok = p.lexer.Peek()
 	if IsName(tok, "of") {
 		if init == nil {
-			return nil, p.error(&tok.loc)
+			return nil, p.error(tok.loc)
 		}
 
 		p.lexer.Next()
@@ -656,7 +658,7 @@ func (p *Parser) fnDec(expr bool, async bool) (Node, error) {
 		}
 	}
 	if !expr && id == nil {
-		return nil, p.error(&tok.loc)
+		return nil, p.error(tok.loc)
 	}
 
 	params, err := p.formalParams()
@@ -827,7 +829,7 @@ func (p *Parser) patternObj() (Node, error) {
 
 		tok := p.lexer.Peek()
 		if node.Type() == N_PATTERN_REST && tok.value != T_BRACE_R {
-			return nil, p.error(&node.Loc().begin)
+			return nil, p.error(node.Loc().begin)
 		}
 		props = append(props, node)
 
@@ -837,7 +839,7 @@ func (p *Parser) patternObj() (Node, error) {
 			p.lexer.Next()
 			break
 		} else {
-			return nil, p.error(&tok.loc)
+			return nil, p.error(tok.loc)
 		}
 	}
 	return &ObjPattern{N_PATTERN_OBJ, p.finLoc(loc), props}, nil
@@ -855,7 +857,7 @@ func (p *Parser) patternProp() (Node, error) {
 		if key.Type() == N_NAME {
 			return p.patternAssign(key)
 		}
-		return nil, p.error(&key.Loc().begin)
+		return nil, p.error(key.Loc().begin)
 	}
 
 	p.lexer.Next()
@@ -890,7 +892,7 @@ func (p *Parser) propName() (Node, error) {
 		}
 		return name, nil
 	}
-	return nil, p.error(&loc.begin)
+	return nil, p.error(loc.begin)
 }
 
 func (p *Parser) patternArr() (Node, error) {
@@ -912,7 +914,7 @@ func (p *Parser) patternArr() (Node, error) {
 
 		tok := p.lexer.Peek()
 		if node.Type() == N_PATTERN_REST && tok.value != T_BRACKET_R {
-			return nil, p.error(&node.Loc().begin)
+			return nil, p.error(node.Loc().begin)
 		}
 		elems = append(elems, node)
 
@@ -922,7 +924,7 @@ func (p *Parser) patternArr() (Node, error) {
 			p.lexer.Next()
 			break
 		} else {
-			return nil, p.error(&tok.loc)
+			return nil, p.error(tok.loc)
 		}
 	}
 	return &ArrayPattern{N_PATTERN_ARRAY, p.finLoc(loc), elems}, nil
@@ -1203,7 +1205,7 @@ func (p *Parser) tplExpr(tag Node) (Node, error) {
 			}
 			elems = append(elems, expr)
 		} else {
-			return nil, p.error(&tok.loc)
+			return nil, p.error(tok.loc)
 		}
 	}
 
@@ -1329,7 +1331,7 @@ func (p *Parser) namePvt() (Node, error) {
 	loc := p.loc()
 	id := p.lexer.Next()
 	if id.value != T_NAME && id.value != T_NAME_PVT {
-		return nil, p.error(&id.loc)
+		return nil, p.error(id.loc)
 	}
 	return &Ident{N_NAME, p.finLoc(loc), id, id.value == T_NAME_PVT}, nil
 }
@@ -1389,7 +1391,7 @@ func (p *Parser) primaryExpr() (Node, error) {
 	if p.aheadIsAsync(tok) {
 		return p.fnDec(true, true)
 	}
-	return nil, p.error(&tok.loc)
+	return nil, p.error(tok.loc)
 }
 
 func (p *Parser) parenExpr() (Node, error) {
@@ -1417,7 +1419,7 @@ func (p *Parser) parenExpr() (Node, error) {
 		return &ArrowFn{N_EXPR_ARROW, p.finLoc(loc), false, false, params, body}, nil
 	}
 	if len(params) == 0 {
-		return nil, p.error(&p.loc().begin)
+		return nil, p.error(p.loc().begin)
 	}
 	if len(params) == 1 {
 		return &ParenExpr{N_EXPR_PAREN, p.finLoc(loc), params[0]}, nil
@@ -1446,7 +1448,7 @@ func (p *Parser) arrLit() (Node, error) {
 
 		tok := p.lexer.Peek()
 		if node.Type() == N_PATTERN_REST && tok.value != T_BRACKET_R {
-			return nil, p.error(&node.Loc().begin)
+			return nil, p.error(node.Loc().begin)
 		}
 		elems = append(elems, node)
 
@@ -1456,7 +1458,7 @@ func (p *Parser) arrLit() (Node, error) {
 			p.lexer.Next()
 			break
 		} else {
-			return nil, p.error(&tok.loc)
+			return nil, p.error(tok.loc)
 		}
 	}
 	return &ArrLit{N_LIT_ARR, p.finLoc(loc), elems}, nil
@@ -1507,7 +1509,7 @@ func (p *Parser) objLit() (Node, error) {
 			p.lexer.Next()
 			break
 		} else {
-			return nil, p.error(&tok.loc)
+			return nil, p.error(tok.loc)
 		}
 	}
 	return &ObjLit{N_LIT_OBJ, p.finLoc(loc), props}, nil
@@ -1609,7 +1611,7 @@ func (p *Parser) advanceIfSemi() {
 func (p *Parser) nextMustTok(val TokenValue) (*Token, error) {
 	tok := p.lexer.Next()
 	if tok.value != val {
-		return nil, p.error(&tok.loc)
+		return nil, p.error(tok.loc)
 	}
 	return tok, nil
 }
@@ -1631,7 +1633,7 @@ func (p *Parser) advanceIfTokIn(begin, end TokenValue) *Token {
 }
 
 func (p *Parser) loc() *Loc {
-	loc := &Loc{}
+	loc := NewLoc()
 	loc.src = p.lexer.src
 	loc.begin.line = p.lexer.src.line
 	loc.begin.col = p.lexer.src.col
@@ -1651,7 +1653,7 @@ func (p *Parser) finLoc(loc *Loc) *Loc {
 	return loc
 }
 
-func (p *Parser) error(loc *Position) *ParserError {
+func (p *Parser) error(loc *Pos) *ParserError {
 	return NewParserError("unexpected token at",
 		p.lexer.src.path, loc.line, loc.col)
 }

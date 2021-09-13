@@ -1,4 +1,4 @@
-package js
+package parser
 
 // AST nodes is described as: https://github.com/estree/estree/blob/master/es5.md
 // flatterned struct is used instead of inheritance
@@ -10,8 +10,28 @@ type Node interface {
 
 type Loc struct {
 	src   *Source
-	begin Position
-	end   Position
+	begin *Pos
+	end   *Pos
+}
+
+func NewLoc() *Loc {
+	return &Loc{
+		src:   nil,
+		begin: &Pos{},
+		end:   &Pos{},
+	}
+}
+
+func (l *Loc) Source() string {
+	return l.src.path
+}
+
+func (l *Loc) Begin() *Pos {
+	return l.begin
+}
+
+func (l *Loc) End() *Pos {
+	return l.end
 }
 
 func (l *Loc) Clone() *Loc {
@@ -101,6 +121,10 @@ type Prog struct {
 	stmts []Node
 }
 
+func (n *Prog) Body() []Node {
+	return n.stmts
+}
+
 func NewProg() *Prog {
 	return &Prog{N_PROG, &Loc{}, make([]Node, 0)}
 }
@@ -112,6 +136,16 @@ func (n *Prog) Type() NodeType {
 func (n *Prog) Loc() *Loc {
 	return n.loc
 }
+
+// func (n *Prog) MarshalJSON() ([]byte, error) {
+// 	return json.Marshal(struct {
+// 		Type
+// 		FieldA string `json:"fieldA"`
+// 	}{
+// 		t,
+// 		t.fieldA,
+// 	})
+// }
 
 type ExprStmt struct {
 	typ  NodeType

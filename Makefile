@@ -1,11 +1,11 @@
-mlint: cmd/mlint/*.go internal/*/*.go go.mod
-	go build ./cmd/mlint
+lint: cmd/lint/*.go internal/*/*.go pkg/*/*.go go.mod
+	go build ./cmd/lint
 
-install: ./mlint
-	cp ./mlint /usr/local/bin/mlint
+install: ./lint
+	cp ./lint /usr/local/bin/lint
 
 clean:
 	go run scripts/clean/mod.go
 
-test: cmd/mlint/*.go internal/*/*.go go.mod
+test: cmd/lint/*.go internal/*/*.go go.mod pkg/*/*.go
 	go test ./...

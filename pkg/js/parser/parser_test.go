@@ -1,4 +1,4 @@
-package js
+package parser
 
 import (
 	"testing"
@@ -892,16 +892,4 @@ func TestTplExprMember(t *testing.T) {
 	tpl := member.obj.(*TplExpr)
 	tag := tpl.tag.(*Ident)
 	assert.Equal(t, "tag", tag.val.Text(), "should be tag")
-}
-
-func TestWorks(t *testing.T) {
-	_, err := compile(`
-  const {unlink} = require('fs');
-
-  unlink('/tmp/hello', (err, data) => {
-    if (err) throw err;
-    console.log('successfully deleted /tmp/hello');
-  });
-  `)
-	assert.Equal(t, nil, err, "should be prog ok")
 }

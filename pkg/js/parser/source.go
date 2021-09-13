@@ -1,4 +1,4 @@
-package js
+package parser
 
 import (
 	"fmt"
