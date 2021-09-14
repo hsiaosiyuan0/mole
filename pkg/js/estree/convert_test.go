@@ -17,14 +17,7 @@ func compile(code string) (parser.Node, error) {
 }
 
 func TestWorks(t *testing.T) {
-	ast, err := compile(`
-const {unlink} = require('fs');
-
-unlink('/tmp/hello', (err, data) => {
-  if (err) throw err;
-  console.log('successfully deleted /tmp/hello');
-});
-`)
+	ast, err := compile(`new Object`)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	b, err := json.Marshal(NewProgram(ast.(*parser.Prog)))

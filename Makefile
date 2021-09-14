@@ -7,5 +7,5 @@ install: ./lint
 clean:
 	go run scripts/clean/mod.go
 
-test: cmd/lint/*.go internal/*/*.go go.mod pkg/*/*.go
+test: cmd/lint/*.go internal/*/*.go pkg/*/*.go go.mod 
 	go test ./...

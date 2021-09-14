@@ -137,24 +137,10 @@ func (n *Prog) Loc() *Loc {
 	return n.loc
 }
 
-// func (n *Prog) MarshalJSON() ([]byte, error) {
-// 	return json.Marshal(struct {
-// 		Type
-// 		FieldA string `json:"fieldA"`
-// 	}{
-// 		t,
-// 		t.fieldA,
-// 	})
-// }
-
 type ExprStmt struct {
 	typ  NodeType
 	loc  *Loc
 	expr Node
-}
-
-func NewExprStmt() *ExprStmt {
-	return &ExprStmt{N_STMT_EXPR, &Loc{}, nil}
 }
 
 func (n *ExprStmt) Type() NodeType {
@@ -165,13 +151,13 @@ func (n *ExprStmt) Loc() *Loc {
 	return n.loc
 }
 
+func (n *ExprStmt) Expr() Node {
+	return n.expr
+}
+
 type EmptyStmt struct {
 	typ NodeType
 	loc *Loc
-}
-
-func NewEmptyStmt() *EmptyStmt {
-	return &EmptyStmt{N_STMT_EMPTY, &Loc{}}
 }
 
 func (n *EmptyStmt) Type() NodeType {
@@ -187,17 +173,9 @@ type NullLit struct {
 	loc *Loc
 }
 
-func NewNullLit() *NullLit {
-	return &NullLit{N_LIT_NULL, &Loc{}}
-}
-
 type BoolLit struct {
 	typ NodeType
 	loc *Loc
-}
-
-func NewBoolLiteral() *BoolLit {
-	return &BoolLit{N_LIT_BOOL, &Loc{}}
 }
 
 type NumLit struct {
@@ -299,10 +277,6 @@ type Ident struct {
 	pvt bool
 }
 
-func NewIdent() *Ident {
-	return &Ident{N_NAME, &Loc{}, nil, false}
-}
-
 func (n *Ident) Type() NodeType {
 	return n.typ
 }
@@ -311,14 +285,14 @@ func (n *Ident) Loc() *Loc {
 	return n.loc
 }
 
+func (n *Ident) Text() string {
+	return n.val.Text()
+}
+
 type NewExpr struct {
 	typ  NodeType
 	loc  *Loc
 	expr Node
-}
-
-func NewNewExpr() *NewExpr {
-	return &NewExpr{N_EXPR_NEW, &Loc{}, nil}
 }
 
 func (n *NewExpr) Type() NodeType {
@@ -327,6 +301,10 @@ func (n *NewExpr) Type() NodeType {
 
 func (n *NewExpr) Loc() *Loc {
 	return n.loc
+}
+
+func (n *NewExpr) Expr() Node {
+	return n.expr
 }
 
 type MemberExpr struct {
@@ -369,9 +347,9 @@ type BinExpr struct {
 	rhs Node
 }
 
-func NewBinExpr() *BinExpr {
-	return &BinExpr{N_EXPR_BIN, nil, nil, nil, nil}
-}
+// func NewBinExpr() *BinExpr {
+// 	return &BinExpr{N_EXPR_BIN, nil, nil, nil, nil}
+// }
 
 func (n *BinExpr) Type() NodeType {
 	return n.typ
@@ -388,9 +366,9 @@ type UnaryExpr struct {
 	arg Node
 }
 
-func NewUnaryExpr() *UnaryExpr {
-	return &UnaryExpr{N_EXPR_UNARY, nil, nil, nil}
-}
+// func NewUnaryExpr() *UnaryExpr {
+// 	return &UnaryExpr{N_EXPR_UNARY, nil, nil, nil}
+// }
 
 func (n *UnaryExpr) Type() NodeType {
 	return n.typ
@@ -406,10 +384,6 @@ type UpdateExpr struct {
 	op     *Token
 	prefix bool
 	arg    Node
-}
-
-func NewUpdateExpr() *UpdateExpr {
-	return &UpdateExpr{N_EXPR_UPDATE, nil, nil, false, nil}
 }
 
 func (n *UpdateExpr) Type() NodeType {
@@ -448,10 +422,6 @@ type AssignExpr struct {
 	rhs Node
 }
 
-func NewAssignExpr() *AssignExpr {
-	return &AssignExpr{N_EXPR_ASSIGN, nil, nil, nil, nil}
-}
-
 func (n *AssignExpr) Type() NodeType {
 	return n.typ
 }
@@ -465,10 +435,6 @@ type VarDecStmt struct {
 	loc     *Loc
 	kind    TokenValue
 	decList []*VarDec
-}
-
-func NewVarDecStmt() *VarDecStmt {
-	return &VarDecStmt{N_STMT_VAR_DEC, nil, T_ILLEGAL, make([]*VarDec, 0, 1)}
 }
 
 func (n *VarDecStmt) Type() NodeType {

@@ -121,6 +121,23 @@ func (l *Lexer) PeekGrow() *Token {
 	return tok
 }
 
+// the line and column in Source maybe moved forward then their actually position
+// that's because Lexer will reads tokens in buffer, so here firstly return Loc from
+// the foremost peeked token otherwise return from Source if peeked buffer is empty
+func (l *Lexer) Loc() *Loc {
+	loc := NewLoc()
+	loc.src = l.src
+	if l.peekedLen > 0 {
+		p := l.peeked[l.peekedR].loc
+		loc.begin.line = p.line
+		loc.begin.col = p.col
+	} else {
+		loc.begin.line = l.src.line
+		loc.begin.col = l.src.col
+	}
+	return loc
+}
+
 func (l *Lexer) Peek() *Token {
 	if l.peekedLen > 0 {
 		return l.peeked[l.peekedR]

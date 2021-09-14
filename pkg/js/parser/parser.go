@@ -741,7 +741,7 @@ func (p *Parser) varDecStmt() (Node, error) {
 	loc := p.loc()
 	kind := p.lexer.Next()
 
-	node := NewVarDecStmt()
+	node := &VarDecStmt{N_STMT_VAR_DEC, nil, T_ILLEGAL, make([]*VarDec, 0, 1)}
 	for {
 		dec, err := p.varDec()
 		if err != nil {
@@ -792,7 +792,7 @@ func (p *Parser) ident() (*Ident, error) {
 	if err != nil {
 		return nil, err
 	}
-	ident := NewIdent()
+	ident := &Ident{N_NAME, &Loc{}, nil, false}
 	ident.loc = p.finLoc(loc)
 	ident.val = tok
 	return ident, nil
@@ -1001,12 +1001,14 @@ func (p *Parser) patternRest() (Node, error) {
 }
 
 func (p *Parser) exprStmt() (Node, error) {
-	stmt := NewExprStmt()
+	loc := p.loc()
+	stmt := &ExprStmt{N_STMT_EXPR, &Loc{}, nil}
 	expr, err := p.expr()
 	if err != nil {
 		return nil, err
 	}
 	stmt.expr = expr
+	stmt.loc = p.finLoc(loc)
 	return stmt, nil
 }
 
@@ -1136,7 +1138,7 @@ func (p *Parser) newExpr() (Node, error) {
 		}
 	}
 
-	node := NewNewExpr()
+	node := &NewExpr{N_EXPR_NEW, &Loc{}, nil}
 	node.expr = expr
 	node.loc = p.finLoc(loc)
 	return node, nil
@@ -1272,7 +1274,7 @@ func (p *Parser) binExpr(lhs Node, minPcd int) (Node, error) {
 		}
 		pcd = kind.Pcd
 
-		bin := NewBinExpr()
+		bin := &BinExpr{N_EXPR_BIN, nil, nil, nil, nil}
 		bin.loc = p.finLoc(lhs.Loc())
 		bin.op = op
 		bin.lhs = lhs
@@ -1365,7 +1367,7 @@ func (p *Parser) primaryExpr() (Node, error) {
 		return node, nil
 	case T_NAME:
 		p.lexer.Next()
-		node := NewIdent()
+		node := &Ident{N_NAME, &Loc{}, nil, false}
 		node.loc = p.finLoc(loc)
 		node.val = tok
 		return node, nil
@@ -1633,11 +1635,7 @@ func (p *Parser) advanceIfTokIn(begin, end TokenValue) *Token {
 }
 
 func (p *Parser) loc() *Loc {
-	loc := NewLoc()
-	loc.src = p.lexer.src
-	loc.begin.line = p.lexer.src.line
-	loc.begin.col = p.lexer.src.col
-	return loc
+	return p.lexer.Loc()
 }
 
 func (p *Parser) locFromNode(node Node) *Loc {
