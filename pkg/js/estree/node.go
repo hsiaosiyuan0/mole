@@ -13,6 +13,12 @@ type SrcLoc struct {
 	Source string    `json:"source"`
 	Start  *Position `json:"start"`
 	End    *Position `json:"end"`
+	Range  *SrcRange `json:"range"`
+}
+
+type SrcRange struct {
+	Start int `json:"start"`
+	End   int `json:"end"`
 }
 
 // https://github.com/estree/estree/blob/master/es5.md#programs

@@ -128,12 +128,30 @@ func (l *Lexer) Loc() *Loc {
 	loc := NewLoc()
 	loc.src = l.src
 	if l.peekedLen > 0 {
-		p := l.peeked[l.peekedR].loc
+		tok := l.peeked[l.peekedR]
+		p := tok.loc
 		loc.begin.line = p.line
 		loc.begin.col = p.col
+		loc.rng.start = tok.raw.lo
 	} else {
 		loc.begin.line = l.src.line
 		loc.begin.col = l.src.col
+		loc.rng.start = l.src.pos
+	}
+	return loc
+}
+
+func (l *Lexer) FinLoc(loc *Loc) *Loc {
+	if l.prev != nil {
+		tok := l.prev
+		p := tok.loc
+		loc.end.line = p.line
+		loc.end.col = p.col + (tok.raw.hi - tok.raw.lo)
+		loc.rng.end = tok.raw.hi
+	} else {
+		loc.end.line = l.src.line
+		loc.end.col = l.src.col
+		loc.rng.end = l.src.pos
 	}
 	return loc
 }

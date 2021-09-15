@@ -1355,26 +1355,22 @@ func (p *Parser) primaryExpr() (Node, error) {
 	switch tok.value {
 	case T_NUM:
 		p.lexer.Next()
-		node := NewNumLit()
-		node.loc = p.finLoc(loc)
-		node.val = tok
-		return node, nil
+		return &NumLit{N_LIT_NUM, p.finLoc(loc), tok}, nil
 	case T_STRING:
 		p.lexer.Next()
-		node := NewStrLit()
-		node.loc = p.finLoc(loc)
-		node.val = tok
-		return node, nil
+		return &StrLit{N_LIT_STR, p.finLoc(loc), tok}, nil
+	case T_NULL:
+		p.lexer.Next()
+		return &NullLit{N_LIT_NULL, p.finLoc(loc)}, nil
+	case T_TRUE | T_FALSE:
+		p.lexer.Next()
+		return &BoolLit{N_LIT_BOOL, p.finLoc(loc), tok}, nil
 	case T_NAME:
 		p.lexer.Next()
-		node := &Ident{N_NAME, &Loc{}, nil, false}
-		node.loc = p.finLoc(loc)
-		node.val = tok
-		return node, nil
+		return &Ident{N_NAME, p.finLoc(loc), tok, false}, nil
 	case T_THIS:
 		p.lexer.Next()
-		node := &ThisExpr{N_EXPR_THIS, p.finLoc(loc)}
-		return node, nil
+		return &ThisExpr{N_EXPR_THIS, p.finLoc(loc)}, nil
 	case T_PAREN_L:
 		return p.parenExpr()
 	case T_BRACKET_L:
@@ -1385,8 +1381,7 @@ func (p *Parser) primaryExpr() (Node, error) {
 		return p.fnDec(true, false)
 	case T_REGEXP:
 		p.lexer.Next()
-		node := &RegexpLit{N_LIT_REGEXP, p.finLoc(loc), tok}
-		return node, nil
+		return &RegexpLit{N_LIT_REGEXP, p.finLoc(loc), tok}, nil
 	case T_CLASS:
 		return p.classDec(true)
 	}
@@ -1646,9 +1641,7 @@ func (p *Parser) locFromNode(node Node) *Loc {
 }
 
 func (p *Parser) finLoc(loc *Loc) *Loc {
-	loc.end.line = p.lexer.src.line
-	loc.end.col = p.lexer.src.col
-	return loc
+	return p.lexer.FinLoc(loc)
 }
 
 func (p *Parser) error(loc *Pos) *ParserError {

@@ -8,10 +8,31 @@ type Node interface {
 	Loc() *Loc
 }
 
+type Range struct {
+	start int
+	end   int
+}
+
+func (r *Range) Start() int {
+	return r.start
+}
+
+func (r *Range) End() int {
+	return r.end
+}
+
+func (r *Range) Clone() *Range {
+	return &Range{
+		start: r.start,
+		end:   r.end,
+	}
+}
+
 type Loc struct {
 	src   *Source
 	begin *Pos
 	end   *Pos
+	rng   *Range
 }
 
 func NewLoc() *Loc {
@@ -19,6 +40,7 @@ func NewLoc() *Loc {
 		src:   nil,
 		begin: &Pos{},
 		end:   &Pos{},
+		rng:   &Range{},
 	}
 }
 
@@ -34,11 +56,16 @@ func (l *Loc) End() *Pos {
 	return l.end
 }
 
+func (l *Loc) Range() *Range {
+	return l.rng
+}
+
 func (l *Loc) Clone() *Loc {
 	return &Loc{
 		src:   l.src,
 		begin: l.begin.Clone(),
 		end:   l.end.Clone(),
+		rng:   l.rng.Clone(),
 	}
 }
 
@@ -173,19 +200,32 @@ type NullLit struct {
 	loc *Loc
 }
 
+func (n *NullLit) Type() NodeType {
+	return n.typ
+}
+
+func (n *NullLit) Loc() *Loc {
+	return n.loc
+}
+
 type BoolLit struct {
 	typ NodeType
 	loc *Loc
+	val *Token
+}
+
+func (n *BoolLit) Type() NodeType {
+	return n.typ
+}
+
+func (n *BoolLit) Loc() *Loc {
+	return n.loc
 }
 
 type NumLit struct {
 	typ NodeType
 	loc *Loc
 	val *Token
-}
-
-func NewNumLit() *NumLit {
-	return &NumLit{N_LIT_NUM, &Loc{}, nil}
 }
 
 func (n *NumLit) Type() NodeType {
@@ -200,10 +240,6 @@ type StrLit struct {
 	typ NodeType
 	loc *Loc
 	val *Token
-}
-
-func NewStrLit() *StrLit {
-	return &StrLit{N_LIT_STR, &Loc{}, nil}
 }
 
 func (n *StrLit) Type() NodeType {

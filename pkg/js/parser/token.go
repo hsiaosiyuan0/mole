@@ -419,8 +419,11 @@ func init() {
 	}
 
 	// although below tokens are not keyword in strictly, put them
-	// the keywords map for convenience
+	// in the keywords map just for convenience
 	Keywords[TokenKinds[T_VOID].Name] = T_VOID
+	Keywords[TokenKinds[T_NULL].Name] = T_NULL
+	Keywords[TokenKinds[T_TRUE].Name] = T_TRUE
+	Keywords[TokenKinds[T_FALSE].Name] = T_FALSE
 	Keywords[TokenKinds[T_TYPE_OF].Name] = T_TYPE_OF
 	Keywords[TokenKinds[T_DELETE].Name] = T_DELETE
 	Keywords[TokenKinds[T_IN].Name] = T_IN
