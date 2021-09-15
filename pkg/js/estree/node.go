@@ -53,7 +53,7 @@ type RegExpLiteral struct {
 	Type   string      `json:"type"`
 	Loc    *SrcLoc     `json:"loc"`
 	Value  interface{} `json:"value"`
-	Regexp Regexp      `json:"regexp"`
+	Regexp *Regexp     `json:"regexp"`
 }
 
 // https://github.com/estree/estree/blob/master/es2020.md#bigintliteral

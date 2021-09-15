@@ -838,7 +838,7 @@ func TestParenExpr(t *testing.T) {
   `)
 	assert.Equal(t, nil, err, "should be prog ok")
 	stmt0 := ast.(*Prog).stmts[0].(*ExprStmt).expr.(*AssignExpr)
-	_ = stmt0.rhs.(*ParenExpr)
+	_ = stmt0.rhs.(*Ident)
 }
 
 func TestTplExpr(t *testing.T) {

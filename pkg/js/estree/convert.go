@@ -74,6 +74,43 @@ func convert(node parser.Node) Node {
 			Type: "Literal",
 			Loc:  loc(node.Loc()),
 		}
+	case parser.N_LIT_NUM:
+		return &Literal{
+			Type:  "Literal",
+			Loc:   loc(node.Loc()),
+			Value: node.(*parser.NumLit).ToFloat(),
+		}
+	case parser.N_LIT_REGEXP:
+		regexp := node.(*parser.RegexpLit)
+		return &RegExpLiteral{
+			Type:   "Literal",
+			Loc:    loc(node.Loc()),
+			Regexp: &Regexp{regexp.Pattern(), regexp.Flags()},
+		}
+	case parser.N_EXPR_BIN:
+		bin := node.(*parser.BinExpr)
+		lhs := convert(bin.Lhs())
+		rhs := convert(bin.Rhs())
+		op := bin.Op().Text()
+		return &BinaryExpression{
+			Type:     "BinaryExpression",
+			Loc:      loc(node.Loc()),
+			Operator: op,
+			Left:     lhs,
+			Right:    rhs,
+		}
+	case parser.N_EXPR_ASSIGN:
+		bin := node.(*parser.AssignExpr)
+		lhs := convert(bin.Lhs())
+		rhs := convert(bin.Rhs())
+		op := bin.Op().Text()
+		return &AssignmentExpression{
+			Type:     "AssignmentExpression",
+			Loc:      loc(node.Loc()),
+			Operator: op,
+			Left:     lhs,
+			Right:    rhs,
+		}
 	}
 	return nil
 }

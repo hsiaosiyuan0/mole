@@ -1381,7 +1381,8 @@ func (p *Parser) primaryExpr() (Node, error) {
 		return p.fnDec(true, false)
 	case T_REGEXP:
 		p.lexer.Next()
-		return &RegexpLit{N_LIT_REGEXP, p.finLoc(loc), tok}, nil
+		ext := tok.ext.(*TokExtRegexp)
+		return &RegexpLit{N_LIT_REGEXP, p.finLoc(loc), tok, ext.Pattern(), ext.Flags()}, nil
 	case T_CLASS:
 		return p.classDec(true)
 	}
@@ -1419,7 +1420,7 @@ func (p *Parser) parenExpr() (Node, error) {
 		return nil, p.error(p.loc().begin)
 	}
 	if len(params) == 1 {
-		return &ParenExpr{N_EXPR_PAREN, p.finLoc(loc), params[0]}, nil
+		return params[0], nil
 	}
 	// TODO: check spread
 	return &SeqExpr{N_EXPR_SEQ, p.finLoc(loc), params}, nil

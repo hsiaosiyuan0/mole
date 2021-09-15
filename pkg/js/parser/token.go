@@ -71,6 +71,20 @@ type TokExtRegexp struct {
 	flags   *SourceRange
 }
 
+func (t *TokExtRegexp) Pattern() string {
+	if t.pattern == nil {
+		return ""
+	}
+	return t.pattern.Text()
+}
+
+func (t *TokExtRegexp) Flags() string {
+	if t.flags == nil {
+		return ""
+	}
+	return t.flags.Text()
+}
+
 type TokenValue int
 
 const (

@@ -494,8 +494,7 @@ func (l *Lexer) ReadSymbol() *Token {
 		}
 
 	}
-	tok.value = val
-	return tok
+	return l.finToken(tok, val)
 }
 
 func (l *Lexer) readMultilineComment(tok *Token) *Token {

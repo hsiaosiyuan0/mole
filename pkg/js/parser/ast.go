@@ -1,5 +1,7 @@
 package parser
 
+import "strconv"
+
 // AST nodes is described as: https://github.com/estree/estree/blob/master/es5.md
 // flatterned struct is used instead of inheritance
 
@@ -236,6 +238,11 @@ func (n *NumLit) Loc() *Loc {
 	return n.loc
 }
 
+func (n *NumLit) ToFloat() float64 {
+	s, _ := strconv.ParseFloat(n.val.Text(), 64)
+	return s
+}
+
 type StrLit struct {
 	typ NodeType
 	loc *Loc
@@ -250,10 +257,16 @@ func (n *StrLit) Loc() *Loc {
 	return n.loc
 }
 
+func (n *StrLit) Text() string {
+	return n.val.Text()
+}
+
 type RegexpLit struct {
-	typ NodeType
-	loc *Loc
-	val *Token
+	typ     NodeType
+	loc     *Loc
+	val     *Token
+	pattern string
+	flags   string
 }
 
 func (n *RegexpLit) Type() NodeType {
@@ -262,6 +275,14 @@ func (n *RegexpLit) Type() NodeType {
 
 func (n *RegexpLit) Loc() *Loc {
 	return n.loc
+}
+
+func (n *RegexpLit) Pattern() string {
+	return n.pattern
+}
+
+func (n *RegexpLit) Flags() string {
+	return n.flags
 }
 
 type ArrLit struct {
@@ -383,9 +404,17 @@ type BinExpr struct {
 	rhs Node
 }
 
-// func NewBinExpr() *BinExpr {
-// 	return &BinExpr{N_EXPR_BIN, nil, nil, nil, nil}
-// }
+func (n *BinExpr) Op() *Token {
+	return n.op
+}
+
+func (n *BinExpr) Lhs() Node {
+	return n.lhs
+}
+
+func (n *BinExpr) Rhs() Node {
+	return n.rhs
+}
 
 func (n *BinExpr) Type() NodeType {
 	return n.typ
@@ -401,10 +430,6 @@ type UnaryExpr struct {
 	op  *Token
 	arg Node
 }
-
-// func NewUnaryExpr() *UnaryExpr {
-// 	return &UnaryExpr{N_EXPR_UNARY, nil, nil, nil}
-// }
 
 func (n *UnaryExpr) Type() NodeType {
 	return n.typ
@@ -456,6 +481,18 @@ type AssignExpr struct {
 	op  *Token
 	lhs Node
 	rhs Node
+}
+
+func (n *AssignExpr) Op() *Token {
+	return n.op
+}
+
+func (n *AssignExpr) Lhs() Node {
+	return n.lhs
+}
+
+func (n *AssignExpr) Rhs() Node {
+	return n.rhs
 }
 
 func (n *AssignExpr) Type() NodeType {
@@ -933,20 +970,6 @@ func (n *ThisExpr) Type() NodeType {
 }
 
 func (n *ThisExpr) Loc() *Loc {
-	return n.loc
-}
-
-type ParenExpr struct {
-	typ  NodeType
-	loc  *Loc
-	expr Node
-}
-
-func (n *ParenExpr) Type() NodeType {
-	return n.typ
-}
-
-func (n *ParenExpr) Loc() *Loc {
 	return n.loc
 }
 
