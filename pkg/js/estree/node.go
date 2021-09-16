@@ -271,9 +271,9 @@ type ArrayExpression struct {
 
 // https://github.com/estree/estree/blob/master/es5.md#objectexpression
 type ObjectExpression struct {
-	Type       string     `json:"type"`
-	Loc        *SrcLoc    `json:"loc"`
-	Properties []Property `json:"properties"`
+	Type       string      `json:"type"`
+	Loc        *SrcLoc     `json:"loc"`
+	Properties []*Property `json:"properties"`
 }
 
 // https://github.com/estree/estree/blob/master/es5.md#functionexpression
@@ -462,7 +462,16 @@ type ImportExpression struct {
 type Pattern interface{}
 
 // https://github.com/estree/estree/blob/master/es2015.md#expressions
-type Property interface{}
+type Property struct {
+	Type      string     `json:"type"`
+	Loc       *SrcLoc    `json:"loc"`
+	Key       Expression `json:"key"`
+	Value     Expression `json:"value"`
+	Kind      string     `json:"kind"`
+	Method    bool       `json:"method"`
+	Shorthand bool       `json:"shorthand"`
+	Computed  bool       `json:"computed"`
+}
 
 // https://github.com/estree/estree/blob/master/es2015.md#objectpattern
 type AssignmentProperty struct {

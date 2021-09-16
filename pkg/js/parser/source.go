@@ -19,14 +19,19 @@ type Source struct {
 	// should be absolute path
 	path string
 	code string
-	pos  int
+
+	ofst int // ofst base on byte
+	pos  int // pos base on codepint
+
 	line int
 	col  int
 
 	peeked    [sizeOfPeekedRune]rune
-	peekedLen int
-	peekedR   int
-	peekedW   int
+	peekedRL  [sizeOfPeekedRune]int // len of each rune in `peeked`
+	peekedLen int                   // len of `peeked`
+	peekedBL  int                   // peeked bytes length
+	peekedR   int                   // offset for reading
+	peekedW   int                   // offset for writing
 
 	metLineTerminator bool
 }
@@ -46,15 +51,15 @@ const (
 	EOL = rune(0x0a)
 )
 
-func (s *Source) RuneAtPos(pos int) (rune, int) {
-	r, size := utf8.DecodeRuneInString(s.code[pos:])
+func (s *Source) RuneAtOfst(ofst int) (rune, int) {
+	r, size := utf8.DecodeRuneInString(s.code[ofst:])
 	if r == utf8.RuneError && size == 0 {
 		r = EOF
 	}
 	return r, size
 }
 
-// read and push back a rune into `s.peaked` also advance `s.pos`
+// read and push back a rune into `s.peaked` as well as advance `s.ofst`,
 // returns `utf8.RuneError` if the rune is deformed
 //
 // be careful with the calling times of this method since it will panic
@@ -64,18 +69,21 @@ func (s *Source) peekGrow() rune {
 		panic(s.error(fmt.Sprintf("peek buffer of source is full, max len is %d\n", s.peekedLen)))
 	}
 
-	r, size := s.RuneAtPos(s.pos)
+	r, size := s.RuneAtOfst(s.ofst)
 	if r == EOF {
 		return EOF
 	}
 
 	s.peeked[s.peekedW] = r
+	s.peekedRL[s.peekedW] = size
 	s.peekedW += 1
 	s.peekedLen += 1
+	s.peekedBL += size
 	if s.peekedW == sizeOfPeekedRune {
 		s.peekedW = 0
 	}
-	s.pos += size
+	s.ofst += size
+	s.pos += 1
 	return r
 }
 
@@ -95,17 +103,20 @@ func (s *Source) peekedRInc() int {
 }
 
 // firstly try to pop the front of the `s.peaked` otherwise read
-// a rune and advance `s.pos`
+// a rune and advance `s.ofst`
 func (s *Source) NextRune() rune {
 	if s.peekedLen > 0 {
-		r := s.peeked[s.peekedR]
+		pr := s.peekedR
+		r := s.peeked[pr]
 		s.peekedR = s.peekedRInc()
 		s.peekedLen -= 1
+		s.peekedBL -= s.peekedRL[pr]
 		return r
 	}
 
-	r, size := s.RuneAtPos(s.pos)
-	s.pos += size
+	r, size := s.RuneAtOfst(s.ofst)
+	s.ofst += size
+	s.pos += 1
 	return r
 }
 
@@ -114,11 +125,11 @@ func (s *Source) AheadIsCh(c rune) bool {
 }
 
 func (s *Source) AheadIsEof() bool {
-	return s.pos == len(s.code)
+	return s.ofst == len(s.code)
 }
 
 func (s *Source) AheadIsEofAndNoPeeked() bool {
-	return s.pos == len(s.code) && s.peekedLen == 0
+	return s.ofst == len(s.code) && s.peekedLen == 0
 }
 
 func (s *Source) AheadIsChs2(c1 rune, c2 rune) bool {
@@ -163,16 +174,19 @@ func (s *Source) Line() int {
 	return s.line
 }
 
+func (s *Source) Ofst() int {
+	return s.ofst - s.peekedBL
+}
+
 func (s *Source) Pos() int {
 	return s.pos - s.peekedLen
 }
 
 func (s *Source) NewOpenRange() *SourceRange {
-	pos := s.Pos()
 	return &SourceRange{
 		src: s,
-		lo:  pos,
-		hi:  pos,
+		lo:  s.Ofst(),
+		hi:  s.Ofst(),
 	}
 }
 
@@ -206,7 +220,7 @@ func (s *Source) SkipSpace() *Source {
 }
 
 func (s *Source) error(msg string) *SourceError {
-	return NewSourceError(msg, s.path, s.line, s.Pos()-1)
+	return NewSourceError(msg, s.path, s.line, s.Ofst()-1)
 }
 
 // TODO: description

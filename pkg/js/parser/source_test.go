@@ -42,12 +42,12 @@ func TestAhead(t *testing.T) {
 func TestPos(t *testing.T) {
 	s := NewSource("", "hello world")
 	assert.Equal(t, 'h', s.Read(), "next should be h")
-	assert.Equal(t, 1, s.Pos(), "pos should be 1")
+	assert.Equal(t, 1, s.Ofst(), "pos should be 1")
 
 	assert.Equal(t, true, s.AheadIsChs2('e', 'l'), "ahead should be el")
-	assert.Equal(t, 1, s.Pos(), "pos should be 1 after lookahead")
+	assert.Equal(t, 1, s.Ofst(), "pos should be 1 after lookahead")
 
 	assert.Equal(t, 'e', s.Read(), "next should be e")
 	assert.Equal(t, 'l', s.Read(), "next should be l")
-	assert.Equal(t, 3, s.Pos(), "pos should be 3")
+	assert.Equal(t, 3, s.Ofst(), "pos should be 3")
 }

@@ -25,6 +25,7 @@ type Token struct {
 	text  string
 	raw   *SourceRange
 	loc   *Pos
+	len   int // len of codepoints in token
 
 	afterLineTerminator bool
 

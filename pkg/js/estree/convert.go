@@ -26,14 +26,41 @@ func rng(s *parser.Loc) *SrcRange {
 }
 
 func program(n *parser.Prog) *Program {
-	body := make([]Node, len(n.Body()))
-	for i, s := range n.Body() {
+	stmts := n.Body()
+	body := make([]Node, len(stmts))
+	for i, s := range stmts {
 		body[i] = convert(s)
 	}
 	return &Program{
 		Type: "Program",
 		Loc:  loc(n.Loc()),
 		Body: body,
+	}
+}
+
+func arrExpr(n *parser.ArrLit) *ArrayExpression {
+	exprs := n.Elems()
+	elems := make([]Expression, len(exprs))
+	for i, e := range exprs {
+		elems[i] = convert(e)
+	}
+	return &ArrayExpression{
+		Type:     "ArrayExpression",
+		Loc:      loc(n.Loc()),
+		Elements: elems,
+	}
+}
+
+func obj(n *parser.ObjLit) *ObjectExpression {
+	ps := n.Props()
+	props := make([]*Property, len(ps))
+	for i, p := range ps {
+		props[i] = convert(p).(*Property)
+	}
+	return &ObjectExpression{
+		Type:       "ObjectExpression",
+		Loc:        loc(n.Loc()),
+		Properties: props,
 	}
 }
 
@@ -110,6 +137,31 @@ func convert(node parser.Node) Node {
 			Operator: op,
 			Left:     lhs,
 			Right:    rhs,
+		}
+	case parser.N_LIT_ARR:
+		return arrExpr(node.(*parser.ArrLit))
+	case parser.N_LIT_OBJ:
+		return obj(node.(*parser.ObjLit))
+	case parser.N_PROP:
+		prop := node.(*parser.Prop)
+		return &Property{
+			Type:     "Property",
+			Loc:      loc(prop.Loc()),
+			Key:      convert(prop.Key()),
+			Value:    convert(prop.Value()),
+			Kind:     "init",
+			Computed: prop.Computed(),
+		}
+	case parser.N_METHOD:
+		method := node.(*parser.Method)
+		return &Property{
+			Type:     "Property",
+			Loc:      loc(method.Loc()),
+			Key:      convert(method.Key()),
+			Value:    convert(method.Value()),
+			Kind:     method.Kind(),
+			Computed: method.Computed(),
+			Method:   true,
 		}
 	}
 	return nil

@@ -299,6 +299,10 @@ func (n *ArrLit) Loc() *Loc {
 	return n.loc
 }
 
+func (n *ArrLit) Elems() []Node {
+	return n.elems
+}
+
 type Spread struct {
 	typ NodeType
 	loc *Loc
@@ -317,6 +321,10 @@ type ObjLit struct {
 	typ   NodeType
 	loc   *Loc
 	props []Node
+}
+
+func (n *ObjLit) Props() []Node {
+	return n.props
 }
 
 func (n *ObjLit) Type() NodeType {
@@ -596,6 +604,18 @@ type Prop struct {
 	key      Node
 	value    Node
 	computed bool
+}
+
+func (n *Prop) Key() Node {
+	return n.key
+}
+
+func (n *Prop) Value() Node {
+	return n.value
+}
+
+func (n *Prop) Computed() bool {
+	return n.computed
 }
 
 func (n *Prop) Type() NodeType {
@@ -919,6 +939,25 @@ type Method struct {
 	computed bool
 	kind     *Token
 	value    Node
+}
+
+func (n *Method) Kind() string {
+	if n.kind != nil {
+		return n.kind.Text()
+	}
+	return "init"
+}
+
+func (n *Method) Key() Node {
+	return n.key
+}
+
+func (n *Method) Value() Node {
+	return n.value
+}
+
+func (n *Method) Computed() bool {
+	return n.computed
 }
 
 func (n *Method) Type() NodeType {

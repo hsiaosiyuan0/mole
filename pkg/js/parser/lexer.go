@@ -121,7 +121,7 @@ func (l *Lexer) PeekGrow() *Token {
 	return tok
 }
 
-// the line and column in Source maybe moved forward then their actually position
+// the line and column in Source maybe moved forward then their actual position
 // that's because Lexer will reads tokens in buffer, so here firstly return Loc from
 // the foremost peeked token otherwise return from Source if peeked buffer is empty
 func (l *Lexer) Loc() *Loc {
@@ -146,7 +146,7 @@ func (l *Lexer) FinLoc(loc *Loc) *Loc {
 		tok := l.prev
 		p := tok.loc
 		loc.end.line = p.line
-		loc.end.col = p.col + (tok.raw.hi - tok.raw.lo)
+		loc.end.col = tok.loc.col + tok.len
 		loc.rng.end = tok.raw.hi
 	} else {
 		loc.end.line = l.src.line
@@ -541,7 +541,7 @@ func (l *Lexer) readRegexp(tok *Token) *Token {
 		}
 		l.src.Read()
 	}
-	pattern.hi = l.src.Pos()
+	pattern.hi = l.src.Ofst()
 	l.src.Read() // consume the end `/`
 
 	flags := l.src.NewOpenRange()
@@ -557,7 +557,7 @@ func (l *Lexer) readRegexp(tok *Token) *Token {
 	if i == 0 {
 		flags = nil
 	} else {
-		flags.hi = l.src.Pos()
+		flags.hi = l.src.Ofst()
 	}
 
 	tok.ext = &TokExtRegexp{pattern, flags}
@@ -883,7 +883,7 @@ func (l *Lexer) readHex4Digits() rune {
 }
 
 func (l *Lexer) error(msg string) *LexerError {
-	return NewLexerError(msg, l.src.path, l.src.line, l.src.Pos()-1)
+	return NewLexerError(msg, l.src.path, l.src.line, l.src.Ofst())
 }
 
 func (l *Lexer) errCharError() *LexerError {
@@ -924,18 +924,20 @@ func (l *Lexer) newToken() *Token {
 		value: T_ILLEGAL,
 		raw:   l.src.NewOpenRange(),
 		loc:   &Pos{l.src.line, l.src.col},
+		len:   l.src.Pos(),
 	}
 }
 
 func (l *Lexer) finToken(tok *Token, value TokenValue) *Token {
 	tok.value = value
-	tok.raw.hi = l.src.Pos()
+	tok.raw.hi = l.src.Ofst()
+	tok.len = l.src.Pos() - tok.len
 	tok.afterLineTerminator = l.src.metLineTerminator
 	return tok
 }
 
 func (l *Lexer) errToken(tok *Token) *Token {
-	tok.raw.hi = l.src.Pos()
+	tok.raw.hi = l.src.Ofst()
 	tok.ext = l.errCharError()
 	return tok
 }
@@ -946,6 +948,8 @@ func IsIdStart(c rune) bool {
 		c == '$' || c == '_' ||
 		unicode.In(c, unicode.Upper, unicode.Lower,
 			unicode.Title, unicode.Modi,
+			unicode.Lo,
+			unicode.Pc,
 			unicode.Other_Lowercase,
 			unicode.Other_Uppercase,
 			unicode.Other_ID_Start) ||
