@@ -219,7 +219,7 @@ func (p *Parser) field(static bool) (Node, error) {
 }
 
 func (p *Parser) classElemName() (Node, error) {
-	return p.propName()
+	return p.propName(true)
 }
 
 func (p *Parser) staticBlock() (Node, error) {
@@ -848,7 +848,7 @@ func (p *Parser) patternObj() (Node, error) {
 func (p *Parser) patternProp() (Node, error) {
 	loc := p.loc()
 
-	key, err := p.propName()
+	key, err := p.propName(false)
 	if err != nil {
 		return nil, err
 	}
@@ -869,10 +869,11 @@ func (p *Parser) patternProp() (Node, error) {
 	return &Prop{N_PROP, p.finLoc(loc), key, value, !IsLitPropName(key)}, nil
 }
 
-func (p *Parser) propName() (Node, error) {
+func (p *Parser) propName(allowNamePVT bool) (Node, error) {
 	loc := p.loc()
 	tok := p.lexer.Next()
-	if tok.value == T_NAME || tok.value == T_NAME_PVT {
+	_, ok := tok.CanBePropKey()
+	if ok || (allowNamePVT && tok.value == T_NAME_PVT) {
 		return &Ident{N_NAME, p.finLoc(loc), tok, tok.value == T_NAME_PVT}, nil
 	}
 	if tok.value == T_STRING {
@@ -1519,8 +1520,7 @@ func (p *Parser) objProp() (Node, error) {
 		return p.spread()
 	}
 
-	if tok.value == T_NAME {
-		name := tok.Text()
+	if name, ok := tok.CanBePropKey(); ok {
 		if name == "get" || name == "set" {
 			ahead := p.lexer.PeekGrow()
 			isField := ahead.value == T_ASSIGN || ahead.value == T_SEMI || ahead.afterLineTerminator
@@ -1530,9 +1530,9 @@ func (p *Parser) objProp() (Node, error) {
 			}
 		}
 	} else if tok.value == T_MUL {
-		return p.propMethod(nil, tok, true, false)
+		return p.propMethod(nil, tok, true, false, false)
 	} else if p.aheadIsAsync(tok) {
-		return p.propMethod(nil, tok, false, true)
+		return p.propMethod(nil, tok, false, true, false)
 	}
 
 	return p.propField()
@@ -1540,7 +1540,7 @@ func (p *Parser) objProp() (Node, error) {
 
 func (p *Parser) propField() (Node, error) {
 	loc := p.loc()
-	key, err := p.propName()
+	key, err := p.propName(false)
 	if err != nil {
 		return nil, err
 	}
@@ -1554,13 +1554,13 @@ func (p *Parser) propField() (Node, error) {
 			return nil, err
 		}
 	} else if tok.value == T_PAREN_L {
-		return p.propMethod(key, nil, false, false)
+		return p.propMethod(key, nil, false, false, false)
 	}
 
 	return &Prop{N_PROP, p.finLoc(loc), key, value, !IsLitPropName(key)}, nil
 }
 
-func (p *Parser) propMethod(key Node, kind *Token, gen bool, async bool) (Node, error) {
+func (p *Parser) propMethod(key Node, kind *Token, gen bool, async bool, allowNamePVT bool) (Node, error) {
 	loc := p.loc()
 
 	if async {
@@ -1573,7 +1573,7 @@ func (p *Parser) propMethod(key Node, kind *Token, gen bool, async bool) (Node, 
 
 	var err error
 	if key == nil {
-		key, err = p.propName()
+		key, err = p.propName(allowNamePVT)
 		if err != nil {
 			return nil, err
 		}

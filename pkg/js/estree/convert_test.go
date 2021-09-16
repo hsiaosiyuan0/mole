@@ -36,7 +36,7 @@ func Test1(t *testing.T) {
 	ast, err := compile(`new Object`)
 	assert.Equal(t, nil, err, "should be prog ok")
 
-	assert.EqualString(t, trim(`
+	assert.EqualJson(t, `
 {
   "type": "Program",
   "loc": {
@@ -48,10 +48,6 @@ func Test1(t *testing.T) {
     "end": {
       "line": 1,
       "column": 10
-    },
-    "range": {
-      "start": 0,
-      "end": 10
     }
   },
   "sourceType": "",
@@ -67,10 +63,6 @@ func Test1(t *testing.T) {
         "end": {
           "line": 1,
           "column": 10
-        },
-        "range": {
-          "start": 0,
-          "end": 10
         }
       },
       "expression": {
@@ -84,10 +76,6 @@ func Test1(t *testing.T) {
           "end": {
             "line": 1,
             "column": 10
-          },
-          "range": {
-            "start": 0,
-            "end": 10
           }
         },
         "callee": {
@@ -101,10 +89,6 @@ func Test1(t *testing.T) {
             "end": {
               "line": 1,
               "column": 10
-            },
-            "range": {
-              "start": 4,
-              "end": 10
             }
           },
           "name": "Object"
@@ -114,14 +98,14 @@ func Test1(t *testing.T) {
     }
   ]
 }
-  `), ast, "should pass")
+  `, ast)
 }
 
 func Test2(t *testing.T) {
 	ast, err := compile("this\n")
 	assert.Equal(t, nil, err, "should be prog ok")
 
-	assert.EqualString(t, trim(`
+	assert.EqualJson(t, trim(`
 {
   "type": "Program",
   "loc": {
@@ -133,10 +117,6 @@ func Test2(t *testing.T) {
     "end": {
       "line": 1,
       "column": 4
-    },
-    "range": {
-      "start": 0,
-      "end": 4
     }
   },
   "sourceType": "",
@@ -152,10 +132,6 @@ func Test2(t *testing.T) {
         "end": {
           "line": 1,
           "column": 4
-        },
-        "range": {
-          "start": 0,
-          "end": 4
         }
       },
       "expression": {
@@ -169,24 +145,20 @@ func Test2(t *testing.T) {
           "end": {
             "line": 1,
             "column": 4
-          },
-          "range": {
-            "start": 0,
-            "end": 4
           }
         }
       }
     }
   ]
 }
-  `), ast, "should pass")
+  `), ast)
 }
 
 func Test3(t *testing.T) {
 	ast, err := compile("null\n")
 	assert.Equal(t, nil, err, "should be prog ok")
 
-	assert.EqualString(t, trim(`
+	assert.EqualJson(t, `
 {
   "type": "Program",
   "loc": {
@@ -198,10 +170,6 @@ func Test3(t *testing.T) {
     "end": {
       "line": 1,
       "column": 4
-    },
-    "range": {
-      "start": 0,
-      "end": 4
     }
   },
   "sourceType": "",
@@ -217,10 +185,6 @@ func Test3(t *testing.T) {
         "end": {
           "line": 1,
           "column": 4
-        },
-        "range": {
-          "start": 0,
-          "end": 4
         }
       },
       "expression": {
@@ -234,10 +198,6 @@ func Test3(t *testing.T) {
           "end": {
             "line": 1,
             "column": 4
-          },
-          "range": {
-            "start": 0,
-            "end": 4
           }
         },
         "value": null
@@ -245,14 +205,14 @@ func Test3(t *testing.T) {
     }
   ]
 }
-  `), ast, "should pass")
+  `, ast)
 }
 
 func Test4(t *testing.T) {
 	ast, err := compile("\n    42\n\n")
 	assert.Equal(t, nil, err, "should be prog ok")
 
-	assert.EqualString(t, trim(`
+	assert.EqualJson(t, `
 {
   "type": "Program",
   "loc": {
@@ -264,10 +224,6 @@ func Test4(t *testing.T) {
     "end": {
       "line": 2,
       "column": 6
-    },
-    "range": {
-      "start": 0,
-      "end": 7
     }
   },
   "sourceType": "",
@@ -283,10 +239,6 @@ func Test4(t *testing.T) {
         "end": {
           "line": 2,
           "column": 6
-        },
-        "range": {
-          "start": 5,
-          "end": 7
         }
       },
       "expression": {
@@ -300,10 +252,6 @@ func Test4(t *testing.T) {
           "end": {
             "line": 2,
             "column": 6
-          },
-          "range": {
-            "start": 5,
-            "end": 7
           }
         },
         "value": 42
@@ -311,14 +259,14 @@ func Test4(t *testing.T) {
     }
   ]
 }
-  `), ast, "should pass")
+  `, ast)
 }
 
 func Test5(t *testing.T) {
 	ast, err := compile("/foobar/")
 	assert.Equal(t, nil, err, "should be prog ok")
 
-	assert.EqualString(t, trim(`
+	assert.EqualJson(t, `
 {
   "type": "Program",
   "loc": {
@@ -330,10 +278,6 @@ func Test5(t *testing.T) {
     "end": {
       "line": 1,
       "column": 8
-    },
-    "range": {
-      "start": 0,
-      "end": 8
     }
   },
   "sourceType": "",
@@ -349,10 +293,6 @@ func Test5(t *testing.T) {
         "end": {
           "line": 1,
           "column": 8
-        },
-        "range": {
-          "start": 0,
-          "end": 8
         }
       },
       "expression": {
@@ -366,10 +306,6 @@ func Test5(t *testing.T) {
           "end": {
             "line": 1,
             "column": 8
-          },
-          "range": {
-            "start": 0,
-            "end": 8
           }
         },
         "value": null,
@@ -381,14 +317,14 @@ func Test5(t *testing.T) {
     }
   ]
 }
-  `), ast, "should pass")
+  `, ast)
 }
 
 func Test6(t *testing.T) {
 	ast, err := compile("/[a-z]/g")
 	assert.Equal(t, nil, err, "should be prog ok")
 
-	assert.EqualString(t, trim(`
+	assert.EqualJson(t, `
 {
   "type": "Program",
   "loc": {
@@ -400,10 +336,6 @@ func Test6(t *testing.T) {
     "end": {
       "line": 1,
       "column": 8
-    },
-    "range": {
-      "start": 0,
-      "end": 8
     }
   },
   "sourceType": "",
@@ -419,10 +351,6 @@ func Test6(t *testing.T) {
         "end": {
           "line": 1,
           "column": 8
-        },
-        "range": {
-          "start": 0,
-          "end": 8
         }
       },
       "expression": {
@@ -436,10 +364,6 @@ func Test6(t *testing.T) {
           "end": {
             "line": 1,
             "column": 8
-          },
-          "range": {
-            "start": 0,
-            "end": 8
           }
         },
         "value": null,
@@ -451,14 +375,14 @@ func Test6(t *testing.T) {
     }
   ]
 }
-  `), ast, "should pass")
+  `, ast)
 }
 
 func Test7(t *testing.T) {
 	ast, err := compile("(1 + 2 ) * 3")
 	assert.Equal(t, nil, err, "should be prog ok")
 
-	assert.EqualString(t, trim(`
+	assert.EqualJson(t, `
 {
   "type": "Program",
   "loc": {
@@ -470,10 +394,6 @@ func Test7(t *testing.T) {
     "end": {
       "line": 1,
       "column": 12
-    },
-    "range": {
-      "start": 0,
-      "end": 12
     }
   },
   "sourceType": "",
@@ -489,10 +409,6 @@ func Test7(t *testing.T) {
         "end": {
           "line": 1,
           "column": 12
-        },
-        "range": {
-          "start": 0,
-          "end": 12
         }
       },
       "expression": {
@@ -506,10 +422,6 @@ func Test7(t *testing.T) {
           "end": {
             "line": 1,
             "column": 12
-          },
-          "range": {
-            "start": 1,
-            "end": 12
           }
         },
         "operator": "*",
@@ -524,10 +436,6 @@ func Test7(t *testing.T) {
             "end": {
               "line": 1,
               "column": 12
-            },
-            "range": {
-              "start": 1,
-              "end": 12
             }
           },
           "operator": "+",
@@ -542,10 +450,6 @@ func Test7(t *testing.T) {
               "end": {
                 "line": 1,
                 "column": 12
-              },
-              "range": {
-                "start": 1,
-                "end": 12
               }
             },
             "value": 1
@@ -561,10 +465,6 @@ func Test7(t *testing.T) {
               "end": {
                 "line": 1,
                 "column": 6
-              },
-              "range": {
-                "start": 5,
-                "end": 6
               }
             },
             "value": 2
@@ -581,10 +481,6 @@ func Test7(t *testing.T) {
             "end": {
               "line": 1,
               "column": 12
-            },
-            "range": {
-              "start": 11,
-              "end": 12
             }
           },
           "value": 3
@@ -593,14 +489,14 @@ func Test7(t *testing.T) {
     }
   ]
 }
-  `), ast, "should pass")
+  `, ast)
 }
 
 func Test8(t *testing.T) {
 	ast, err := compile("(x = 23)")
 	assert.Equal(t, nil, err, "should be prog ok")
 
-	assert.EqualString(t, trim(`
+	assert.EqualJson(t, `
 {
   "type": "Program",
   "loc": {
@@ -612,10 +508,6 @@ func Test8(t *testing.T) {
     "end": {
       "line": 1,
       "column": 8
-    },
-    "range": {
-      "start": 0,
-      "end": 8
     }
   },
   "sourceType": "",
@@ -631,10 +523,6 @@ func Test8(t *testing.T) {
         "end": {
           "line": 1,
           "column": 8
-        },
-        "range": {
-          "start": 0,
-          "end": 8
         }
       },
       "expression": {
@@ -648,10 +536,6 @@ func Test8(t *testing.T) {
           "end": {
             "line": 1,
             "column": 7
-          },
-          "range": {
-            "start": 1,
-            "end": 7
           }
         },
         "operator": "=",
@@ -666,10 +550,6 @@ func Test8(t *testing.T) {
             "end": {
               "line": 1,
               "column": 2
-            },
-            "range": {
-              "start": 1,
-              "end": 2
             }
           },
           "name": "x"
@@ -685,10 +565,6 @@ func Test8(t *testing.T) {
             "end": {
               "line": 1,
               "column": 7
-            },
-            "range": {
-              "start": 5,
-              "end": 7
             }
           },
           "value": 23
@@ -697,14 +573,14 @@ func Test8(t *testing.T) {
     }
   ]
 }
-  `), ast, "should pass")
+  `, ast)
 }
 
 func Test9(t *testing.T) {
 	ast, err := compile("x = []")
 	assert.Equal(t, nil, err, "should be prog ok")
 
-	assert.EqualString(t, trim(`
+	assert.EqualJson(t, `
 {
   "type": "Program",
   "loc": {
@@ -716,10 +592,6 @@ func Test9(t *testing.T) {
     "end": {
       "line": 1,
       "column": 6
-    },
-    "range": {
-      "start": 0,
-      "end": 6
     }
   },
   "sourceType": "",
@@ -735,10 +607,6 @@ func Test9(t *testing.T) {
         "end": {
           "line": 1,
           "column": 6
-        },
-        "range": {
-          "start": 0,
-          "end": 6
         }
       },
       "expression": {
@@ -752,10 +620,6 @@ func Test9(t *testing.T) {
           "end": {
             "line": 1,
             "column": 6
-          },
-          "range": {
-            "start": 0,
-            "end": 6
           }
         },
         "operator": "=",
@@ -770,10 +634,6 @@ func Test9(t *testing.T) {
             "end": {
               "line": 1,
               "column": 1
-            },
-            "range": {
-              "start": 0,
-              "end": 1
             }
           },
           "name": "x"
@@ -789,10 +649,6 @@ func Test9(t *testing.T) {
             "end": {
               "line": 1,
               "column": 6
-            },
-            "range": {
-              "start": 4,
-              "end": 6
             }
           },
           "elements": []
@@ -801,14 +657,14 @@ func Test9(t *testing.T) {
     }
   ]
 }
-  `), ast, "should pass")
+  `, ast)
 }
 
 func Test10(t *testing.T) {
 	ast, err := compile("x = [ 42 ]")
 	assert.Equal(t, nil, err, "should be prog ok")
 
-	assert.EqualString(t, trim(`
+	assert.EqualJson(t, `
 {
   "type": "Program",
   "loc": {
@@ -820,10 +676,6 @@ func Test10(t *testing.T) {
     "end": {
       "line": 1,
       "column": 10
-    },
-    "range": {
-      "start": 0,
-      "end": 10
     }
   },
   "sourceType": "",
@@ -839,10 +691,6 @@ func Test10(t *testing.T) {
         "end": {
           "line": 1,
           "column": 10
-        },
-        "range": {
-          "start": 0,
-          "end": 10
         }
       },
       "expression": {
@@ -856,10 +704,6 @@ func Test10(t *testing.T) {
           "end": {
             "line": 1,
             "column": 10
-          },
-          "range": {
-            "start": 0,
-            "end": 10
           }
         },
         "operator": "=",
@@ -874,10 +718,6 @@ func Test10(t *testing.T) {
             "end": {
               "line": 1,
               "column": 1
-            },
-            "range": {
-              "start": 0,
-              "end": 1
             }
           },
           "name": "x"
@@ -893,10 +733,6 @@ func Test10(t *testing.T) {
             "end": {
               "line": 1,
               "column": 10
-            },
-            "range": {
-              "start": 4,
-              "end": 10
             }
           },
           "elements": [
@@ -911,10 +747,6 @@ func Test10(t *testing.T) {
                 "end": {
                   "line": 1,
                   "column": 8
-                },
-                "range": {
-                  "start": 6,
-                  "end": 8
                 }
               },
               "value": 42
@@ -925,14 +757,14 @@ func Test10(t *testing.T) {
     }
   ]
 }
-  `), ast, "should pass")
+  `, ast)
 }
 
 func Test11(t *testing.T) {
 	ast, err := compile("x = [ 42, ]")
 	assert.Equal(t, nil, err, "should be prog ok")
 
-	assert.EqualString(t, trim(`
+	assert.EqualJson(t, `
 {
   "type": "Program",
   "loc": {
@@ -944,10 +776,6 @@ func Test11(t *testing.T) {
     "end": {
       "line": 1,
       "column": 11
-    },
-    "range": {
-      "start": 0,
-      "end": 11
     }
   },
   "sourceType": "",
@@ -963,10 +791,6 @@ func Test11(t *testing.T) {
         "end": {
           "line": 1,
           "column": 11
-        },
-        "range": {
-          "start": 0,
-          "end": 11
         }
       },
       "expression": {
@@ -980,10 +804,6 @@ func Test11(t *testing.T) {
           "end": {
             "line": 1,
             "column": 11
-          },
-          "range": {
-            "start": 0,
-            "end": 11
           }
         },
         "operator": "=",
@@ -998,10 +818,6 @@ func Test11(t *testing.T) {
             "end": {
               "line": 1,
               "column": 1
-            },
-            "range": {
-              "start": 0,
-              "end": 1
             }
           },
           "name": "x"
@@ -1017,10 +833,6 @@ func Test11(t *testing.T) {
             "end": {
               "line": 1,
               "column": 11
-            },
-            "range": {
-              "start": 4,
-              "end": 11
             }
           },
           "elements": [
@@ -1035,10 +847,6 @@ func Test11(t *testing.T) {
                 "end": {
                   "line": 1,
                   "column": 8
-                },
-                "range": {
-                  "start": 6,
-                  "end": 8
                 }
               },
               "value": 42
@@ -1049,14 +857,14 @@ func Test11(t *testing.T) {
     }
   ]
 }
-  `), ast, "should pass")
+  `, ast)
 }
 
 func Test12(t *testing.T) {
 	ast, err := compile("x = [ ,, 42 ]")
 	assert.Equal(t, nil, err, "should be prog ok")
 
-	assert.EqualString(t, trim(`
+	assert.EqualJson(t, `
 {
   "type": "Program",
   "loc": {
@@ -1068,10 +876,6 @@ func Test12(t *testing.T) {
     "end": {
       "line": 1,
       "column": 13
-    },
-    "range": {
-      "start": 0,
-      "end": 13
     }
   },
   "sourceType": "",
@@ -1087,10 +891,6 @@ func Test12(t *testing.T) {
         "end": {
           "line": 1,
           "column": 13
-        },
-        "range": {
-          "start": 0,
-          "end": 13
         }
       },
       "expression": {
@@ -1104,10 +904,6 @@ func Test12(t *testing.T) {
           "end": {
             "line": 1,
             "column": 13
-          },
-          "range": {
-            "start": 0,
-            "end": 13
           }
         },
         "operator": "=",
@@ -1122,10 +918,6 @@ func Test12(t *testing.T) {
             "end": {
               "line": 1,
               "column": 1
-            },
-            "range": {
-              "start": 0,
-              "end": 1
             }
           },
           "name": "x"
@@ -1141,10 +933,6 @@ func Test12(t *testing.T) {
             "end": {
               "line": 1,
               "column": 13
-            },
-            "range": {
-              "start": 4,
-              "end": 13
             }
           },
           "elements": [
@@ -1161,10 +949,6 @@ func Test12(t *testing.T) {
                 "end": {
                   "line": 1,
                   "column": 11
-                },
-                "range": {
-                  "start": 9,
-                  "end": 11
                 }
               },
               "value": 42
@@ -1175,14 +959,14 @@ func Test12(t *testing.T) {
     }
   ]
 }
-  `), ast, "should pass")
+  `, ast)
 }
 
 func Test13(t *testing.T) {
 	ast, err := compile("x = [ 1, 2, 3, ]")
 	assert.Equal(t, nil, err, "should be prog ok")
 
-	assert.EqualString(t, trim(`
+	assert.EqualJson(t, `
 {
   "type": "Program",
   "loc": {
@@ -1194,10 +978,6 @@ func Test13(t *testing.T) {
     "end": {
       "line": 1,
       "column": 16
-    },
-    "range": {
-      "start": 0,
-      "end": 16
     }
   },
   "sourceType": "",
@@ -1213,10 +993,6 @@ func Test13(t *testing.T) {
         "end": {
           "line": 1,
           "column": 16
-        },
-        "range": {
-          "start": 0,
-          "end": 16
         }
       },
       "expression": {
@@ -1230,10 +1006,6 @@ func Test13(t *testing.T) {
           "end": {
             "line": 1,
             "column": 16
-          },
-          "range": {
-            "start": 0,
-            "end": 16
           }
         },
         "operator": "=",
@@ -1248,10 +1020,6 @@ func Test13(t *testing.T) {
             "end": {
               "line": 1,
               "column": 1
-            },
-            "range": {
-              "start": 0,
-              "end": 1
             }
           },
           "name": "x"
@@ -1267,10 +1035,6 @@ func Test13(t *testing.T) {
             "end": {
               "line": 1,
               "column": 16
-            },
-            "range": {
-              "start": 4,
-              "end": 16
             }
           },
           "elements": [
@@ -1285,10 +1049,6 @@ func Test13(t *testing.T) {
                 "end": {
                   "line": 1,
                   "column": 7
-                },
-                "range": {
-                  "start": 6,
-                  "end": 7
                 }
               },
               "value": 1
@@ -1304,10 +1064,6 @@ func Test13(t *testing.T) {
                 "end": {
                   "line": 1,
                   "column": 10
-                },
-                "range": {
-                  "start": 9,
-                  "end": 10
                 }
               },
               "value": 2
@@ -1323,10 +1079,6 @@ func Test13(t *testing.T) {
                 "end": {
                   "line": 1,
                   "column": 13
-                },
-                "range": {
-                  "start": 12,
-                  "end": 13
                 }
               },
               "value": 3
@@ -1337,14 +1089,14 @@ func Test13(t *testing.T) {
     }
   ]
 }
-  `), ast, "should pass")
+  `, ast)
 }
 
 func Test14(t *testing.T) {
 	ast, err := compile("x = [ 1, 2,, 3, ]")
 	assert.Equal(t, nil, err, "should be prog ok")
 
-	assert.EqualString(t, trim(`
+	assert.EqualJson(t, `
 {
   "type": "Program",
   "loc": {
@@ -1356,10 +1108,6 @@ func Test14(t *testing.T) {
     "end": {
       "line": 1,
       "column": 17
-    },
-    "range": {
-      "start": 0,
-      "end": 17
     }
   },
   "sourceType": "",
@@ -1375,10 +1123,6 @@ func Test14(t *testing.T) {
         "end": {
           "line": 1,
           "column": 17
-        },
-        "range": {
-          "start": 0,
-          "end": 17
         }
       },
       "expression": {
@@ -1392,10 +1136,6 @@ func Test14(t *testing.T) {
           "end": {
             "line": 1,
             "column": 17
-          },
-          "range": {
-            "start": 0,
-            "end": 17
           }
         },
         "operator": "=",
@@ -1410,10 +1150,6 @@ func Test14(t *testing.T) {
             "end": {
               "line": 1,
               "column": 1
-            },
-            "range": {
-              "start": 0,
-              "end": 1
             }
           },
           "name": "x"
@@ -1429,10 +1165,6 @@ func Test14(t *testing.T) {
             "end": {
               "line": 1,
               "column": 17
-            },
-            "range": {
-              "start": 4,
-              "end": 17
             }
           },
           "elements": [
@@ -1447,10 +1179,6 @@ func Test14(t *testing.T) {
                 "end": {
                   "line": 1,
                   "column": 7
-                },
-                "range": {
-                  "start": 6,
-                  "end": 7
                 }
               },
               "value": 1
@@ -1466,10 +1194,6 @@ func Test14(t *testing.T) {
                 "end": {
                   "line": 1,
                   "column": 10
-                },
-                "range": {
-                  "start": 9,
-                  "end": 10
                 }
               },
               "value": 2
@@ -1486,10 +1210,6 @@ func Test14(t *testing.T) {
                 "end": {
                   "line": 1,
                   "column": 14
-                },
-                "range": {
-                  "start": 13,
-                  "end": 14
                 }
               },
               "value": 3
@@ -1500,14 +1220,14 @@ func Test14(t *testing.T) {
     }
   ]
 }
-  `), ast, "should pass")
+  `, ast)
 }
 
 func Test15(t *testing.T) {
 	ast, err := compile("日本語 = []")
 	assert.Equal(t, nil, err, "should be prog ok")
 
-	assert.EqualString(t, trim(`
+	assert.EqualJson(t, `
 {
   "type": "Program",
   "loc": {
@@ -1519,10 +1239,6 @@ func Test15(t *testing.T) {
     "end": {
       "line": 1,
       "column": 8
-    },
-    "range": {
-      "start": 0,
-      "end": 14
     }
   },
   "sourceType": "",
@@ -1538,10 +1254,6 @@ func Test15(t *testing.T) {
         "end": {
           "line": 1,
           "column": 8
-        },
-        "range": {
-          "start": 0,
-          "end": 14
         }
       },
       "expression": {
@@ -1555,10 +1267,6 @@ func Test15(t *testing.T) {
           "end": {
             "line": 1,
             "column": 8
-          },
-          "range": {
-            "start": 0,
-            "end": 14
           }
         },
         "operator": "=",
@@ -1573,10 +1281,6 @@ func Test15(t *testing.T) {
             "end": {
               "line": 1,
               "column": 3
-            },
-            "range": {
-              "start": 0,
-              "end": 9
             }
           },
           "name": "日本語"
@@ -1592,10 +1296,6 @@ func Test15(t *testing.T) {
             "end": {
               "line": 1,
               "column": 8
-            },
-            "range": {
-              "start": 12,
-              "end": 14
             }
           },
           "elements": []
@@ -1604,14 +1304,14 @@ func Test15(t *testing.T) {
     }
   ]
 }
-  `), ast, "should pass")
+  `, ast)
 }
 
 func Test16(t *testing.T) {
 	ast, err := compile("T‿ = []")
 	assert.Equal(t, nil, err, "should be prog ok")
 
-	assert.EqualString(t, trim(`
+	assert.EqualJson(t, `
 {
   "type": "Program",
   "loc": {
@@ -1623,10 +1323,6 @@ func Test16(t *testing.T) {
     "end": {
       "line": 1,
       "column": 7
-    },
-    "range": {
-      "start": 0,
-      "end": 9
     }
   },
   "sourceType": "",
@@ -1642,10 +1338,6 @@ func Test16(t *testing.T) {
         "end": {
           "line": 1,
           "column": 7
-        },
-        "range": {
-          "start": 0,
-          "end": 9
         }
       },
       "expression": {
@@ -1659,10 +1351,6 @@ func Test16(t *testing.T) {
           "end": {
             "line": 1,
             "column": 7
-          },
-          "range": {
-            "start": 0,
-            "end": 9
           }
         },
         "operator": "=",
@@ -1677,10 +1365,6 @@ func Test16(t *testing.T) {
             "end": {
               "line": 1,
               "column": 2
-            },
-            "range": {
-              "start": 0,
-              "end": 4
             }
           },
           "name": "T‿"
@@ -1696,10 +1380,6 @@ func Test16(t *testing.T) {
             "end": {
               "line": 1,
               "column": 7
-            },
-            "range": {
-              "start": 7,
-              "end": 9
             }
           },
           "elements": []
@@ -1708,7 +1388,7 @@ func Test16(t *testing.T) {
     }
   ]
 }
-  `), ast, "should pass")
+  `, ast)
 }
 
 func Test17(t *testing.T) {
@@ -1716,7 +1396,7 @@ func Test17(t *testing.T) {
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	//lint:ignore ST1018 below `T` contains two codepoints `T\u200c`
-	assert.EqualString(t, trim(`
+	assert.EqualJson(t, `
 {
   "type": "Program",
   "loc": {
@@ -1728,10 +1408,6 @@ func Test17(t *testing.T) {
     "end": {
       "line": 1,
       "column": 7
-    },
-    "range": {
-      "start": 0,
-      "end": 9
     }
   },
   "sourceType": "",
@@ -1747,10 +1423,6 @@ func Test17(t *testing.T) {
         "end": {
           "line": 1,
           "column": 7
-        },
-        "range": {
-          "start": 0,
-          "end": 9
         }
       },
       "expression": {
@@ -1764,10 +1436,6 @@ func Test17(t *testing.T) {
           "end": {
             "line": 1,
             "column": 7
-          },
-          "range": {
-            "start": 0,
-            "end": 9
           }
         },
         "operator": "=",
@@ -1782,10 +1450,6 @@ func Test17(t *testing.T) {
             "end": {
               "line": 1,
               "column": 2
-            },
-            "range": {
-              "start": 0,
-              "end": 4
             }
           },
           "name": "T‌"
@@ -1801,10 +1465,6 @@ func Test17(t *testing.T) {
             "end": {
               "line": 1,
               "column": 7
-            },
-            "range": {
-              "start": 7,
-              "end": 9
             }
           },
           "elements": []
@@ -1813,14 +1473,14 @@ func Test17(t *testing.T) {
     }
   ]
 }
-  `), ast, "should pass")
+  `, ast)
 }
 
 func Test18(t *testing.T) {
 	ast, err := compile("ⅣⅡ = []")
 	assert.Equal(t, nil, err, "should be prog ok")
 
-	assert.EqualString(t, trim(`
+	assert.EqualJson(t, `
 {
   "type": "Program",
   "loc": {
@@ -1832,10 +1492,6 @@ func Test18(t *testing.T) {
     "end": {
       "line": 1,
       "column": 7
-    },
-    "range": {
-      "start": 0,
-      "end": 11
     }
   },
   "sourceType": "",
@@ -1851,10 +1507,6 @@ func Test18(t *testing.T) {
         "end": {
           "line": 1,
           "column": 7
-        },
-        "range": {
-          "start": 0,
-          "end": 11
         }
       },
       "expression": {
@@ -1868,10 +1520,6 @@ func Test18(t *testing.T) {
           "end": {
             "line": 1,
             "column": 7
-          },
-          "range": {
-            "start": 0,
-            "end": 11
           }
         },
         "operator": "=",
@@ -1886,10 +1534,6 @@ func Test18(t *testing.T) {
             "end": {
               "line": 1,
               "column": 2
-            },
-            "range": {
-              "start": 0,
-              "end": 6
             }
           },
           "name": "ⅣⅡ"
@@ -1905,10 +1549,6 @@ func Test18(t *testing.T) {
             "end": {
               "line": 1,
               "column": 7
-            },
-            "range": {
-              "start": 9,
-              "end": 11
             }
           },
           "elements": []
@@ -1917,7 +1557,7 @@ func Test18(t *testing.T) {
     }
   ]
 }
-  `), ast, "should pass")
+  `, ast)
 }
 
 func Test19(t *testing.T) {
@@ -1925,7 +1565,7 @@ func Test19(t *testing.T) {
 	ast, err := compile("ⅣⅡ = []")
 	assert.Equal(t, nil, err, "should be prog ok")
 
-	assert.EqualString(t, trim(`
+	assert.EqualJson(t, `
 {
   "type": "Program",
   "loc": {
@@ -1937,10 +1577,6 @@ func Test19(t *testing.T) {
     "end": {
       "line": 1,
       "column": 7
-    },
-    "range": {
-      "start": 0,
-      "end": 15
     }
   },
   "sourceType": "",
@@ -1956,10 +1592,6 @@ func Test19(t *testing.T) {
         "end": {
           "line": 1,
           "column": 7
-        },
-        "range": {
-          "start": 0,
-          "end": 15
         }
       },
       "expression": {
@@ -1973,10 +1605,6 @@ func Test19(t *testing.T) {
           "end": {
             "line": 1,
             "column": 7
-          },
-          "range": {
-            "start": 0,
-            "end": 15
           }
         },
         "operator": "=",
@@ -1991,10 +1619,6 @@ func Test19(t *testing.T) {
             "end": {
               "line": 1,
               "column": 2
-            },
-            "range": {
-              "start": 0,
-              "end": 6
             }
           },
           "name": "ⅣⅡ"
@@ -2010,10 +1634,6 @@ func Test19(t *testing.T) {
             "end": {
               "line": 1,
               "column": 7
-            },
-            "range": {
-              "start": 13,
-              "end": 15
             }
           },
           "elements": []
@@ -2022,14 +1642,14 @@ func Test19(t *testing.T) {
     }
   ]
 }
-  `), ast, "should pass")
+  `, ast)
 }
 
 func Test20(t *testing.T) {
 	ast, err := compile("x = {}")
 	assert.Equal(t, nil, err, "should be prog ok")
 
-	assert.EqualString(t, trim(`
+	assert.EqualJson(t, `
 {
   "type": "Program",
   "loc": {
@@ -2041,10 +1661,6 @@ func Test20(t *testing.T) {
     "end": {
       "line": 1,
       "column": 6
-    },
-    "range": {
-      "start": 0,
-      "end": 6
     }
   },
   "sourceType": "",
@@ -2060,10 +1676,6 @@ func Test20(t *testing.T) {
         "end": {
           "line": 1,
           "column": 6
-        },
-        "range": {
-          "start": 0,
-          "end": 6
         }
       },
       "expression": {
@@ -2077,10 +1689,6 @@ func Test20(t *testing.T) {
           "end": {
             "line": 1,
             "column": 6
-          },
-          "range": {
-            "start": 0,
-            "end": 6
           }
         },
         "operator": "=",
@@ -2095,10 +1703,6 @@ func Test20(t *testing.T) {
             "end": {
               "line": 1,
               "column": 1
-            },
-            "range": {
-              "start": 0,
-              "end": 1
             }
           },
           "name": "x"
@@ -2114,10 +1718,6 @@ func Test20(t *testing.T) {
             "end": {
               "line": 1,
               "column": 6
-            },
-            "range": {
-              "start": 4,
-              "end": 6
             }
           },
           "properties": []
@@ -2126,5 +1726,211 @@ func Test20(t *testing.T) {
     }
   ]
 }
-  `), ast, "should pass")
+  `, ast)
+}
+
+func Test21(t *testing.T) {
+	ast, err := compile("x = { }")
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	assert.EqualJson(t, `
+{
+  "type": "Program",
+  "loc": {
+    "source": "",
+    "start": {
+      "line": 1,
+      "column": 0
+    },
+    "end": {
+      "line": 1,
+      "column": 7
+    }
+  },
+  "sourceType": "",
+  "body": [
+    {
+      "type": "ExpressionStatement",
+      "loc": {
+        "source": "",
+        "start": {
+          "line": 1,
+          "column": 0
+        },
+        "end": {
+          "line": 1,
+          "column": 7
+        }
+      },
+      "expression": {
+        "type": "AssignmentExpression",
+        "loc": {
+          "source": "",
+          "start": {
+            "line": 1,
+            "column": 0
+          },
+          "end": {
+            "line": 1,
+            "column": 7
+          }
+        },
+        "operator": "=",
+        "left": {
+          "type": "Identifier",
+          "loc": {
+            "source": "",
+            "start": {
+              "line": 1,
+              "column": 0
+            },
+            "end": {
+              "line": 1,
+              "column": 1
+            }
+          },
+          "name": "x"
+        },
+        "right": {
+          "type": "ObjectExpression",
+          "loc": {
+            "source": "",
+            "start": {
+              "line": 1,
+              "column": 4
+            },
+            "end": {
+              "line": 1,
+              "column": 7
+            }
+          },
+          "properties": []
+        }
+      }
+    }
+  ]
+}
+  `, ast)
+}
+
+func Test22(t *testing.T) {
+	ast, err := compile("x = { if: 42 }")
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	assert.EqualJson(t, `
+{
+  "type": "Program",
+  "sourceType": "",
+  "body": [
+    {
+      "type": "ExpressionStatement",
+      "loc": {
+        "source": "",
+        "start": {
+          "line": 1,
+          "column": 0
+        },
+        "end": {
+          "line": 1,
+          "column": 14
+        }
+      },
+      "expression": {
+        "type": "AssignmentExpression",
+        "loc": {
+          "source": "",
+          "start": {
+            "line": 1,
+            "column": 0
+          },
+          "end": {
+            "line": 1,
+            "column": 14
+          }
+        },
+        "operator": "=",
+        "left": {
+          "type": "Identifier",
+          "loc": {
+            "source": "",
+            "start": {
+              "line": 1,
+              "column": 0
+            },
+            "end": {
+              "line": 1,
+              "column": 1
+            }
+          },
+          "name": "x"
+        },
+        "right": {
+          "type": "ObjectExpression",
+          "loc": {
+            "source": "",
+            "start": {
+              "line": 1,
+              "column": 4
+            },
+            "end": {
+              "line": 1,
+              "column": 14
+            }
+          },
+          "properties": [
+            {
+              "type": "Property",
+              "loc": {
+                "source": "",
+                "start": {
+                  "line": 1,
+                  "column": 6
+                },
+                "end": {
+                  "line": 1,
+                  "column": 12
+                }
+              },
+              "key": {
+                "type": "Identifier",
+                "loc": {
+                  "source": "",
+                  "start": {
+                    "line": 1,
+                    "column": 6
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": 8
+                  }
+                },
+                "name": "if"
+              },
+              "value": {
+                "type": "Literal",
+                "loc": {
+                  "source": "",
+                  "start": {
+                    "line": 1,
+                    "column": 10
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": 12
+                  }
+                },
+                "value": 42
+              },
+              "kind": "init",
+              "method": false,
+              "shorthand": false,
+              "computed": false
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
+  `, ast)
 }

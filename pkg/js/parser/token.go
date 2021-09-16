@@ -32,6 +32,21 @@ type Token struct {
 	ext interface{}
 }
 
+func (t *Token) CanBePropKey() (string, bool) {
+	v := t.value
+	if v == T_NAME || v == T_NUM {
+		return t.raw.Text(), true
+	}
+	if (v > T_KEYWORD_BEGIN && v < T_KEYWORD_END) ||
+		(v > T_CTX_KEYWORD_BEGIN && v < T_CTX_KEYWORD_END) ||
+		(v > T_CTX_KEYWORD_STRICT_BEGIN && v < T_CTX_KEYWORD_STRICT_END) ||
+		v == T_VOID || v == T_NULL || v == T_TRUE || v == T_FALSE || v == T_TYPE_OF ||
+		v == T_DELETE || v == T_IN || v == T_INSTANCE_OF {
+		return TokenKinds[v].Name, true
+	}
+	return "", false
+}
+
 func (t *Token) IsLegal() bool {
 	return t.value != T_ILLEGAL
 }
@@ -47,6 +62,9 @@ func (t *Token) RawText() string {
 func (t *Token) Text() string {
 	if t.text != "" {
 		return t.text
+	}
+	if name, ok := t.CanBePropKey(); ok {
+		return name
 	}
 	return t.RawText()
 }
@@ -457,12 +475,12 @@ func IsKeyword(str string) bool {
 	return ok
 }
 
-func IsCtxKeywords(str string) bool {
+func IsCtxKeyword(str string) bool {
 	_, ok := CtxKeywords[str]
 	return ok
 }
 
-func IsStrictKeywords(str string) bool {
+func IsStrictKeyword(str string) bool {
 	_, ok := StrictKeywords[str]
 	return ok
 }

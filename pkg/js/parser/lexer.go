@@ -270,7 +270,7 @@ func (l *Lexer) ReadName() *Token {
 
 	if IsKeyword(text) {
 		return l.finToken(tok, Keywords[text])
-	} else if l.isMode(LM_STRICT) && IsStrictKeywords(text) {
+	} else if l.isMode(LM_STRICT) && IsStrictKeyword(text) {
 		return l.finToken(tok, StrictKeywords[text])
 	} else if l.isMode(LM_ASYNC) && text == "await" {
 		return l.finToken(tok, T_AWAIT)

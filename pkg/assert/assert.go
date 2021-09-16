@@ -6,6 +6,8 @@ import (
 	"os/exec"
 	"reflect"
 	"testing"
+
+	"github.com/hsiaosiyuan0/mole/pkg/utils"
 )
 
 func Equal(t *testing.T, except, actual interface{}, msg string) {
@@ -37,5 +39,23 @@ diff --color=always -u <(echo "$except") <(echo "$actual")`, except, actual))
 		cmd.Stderr = os.Stderr
 		cmd.Run()
 		t.Fatalf("Failed due to strings not equal")
+	}
+}
+
+func EqualJson(t *testing.T, except, actual string) {
+	exceptKV, err := utils.JsonToKeyPathAndVal(except)
+	if err != nil {
+		t.Fatalf("deformed except %v\n", err)
+	}
+	actualKV, err := utils.JsonToKeyPathAndVal(actual)
+	if err != nil {
+		t.Fatalf("deformed actual %v\n", err)
+	}
+	for k, v := range exceptKV {
+		exceptV := v
+		actualV := actualKV[k]
+		if !reflect.DeepEqual(exceptV, actualV) {
+			t.Fatalf("\nUnexpected at:\n  %s\nExcept:\n  %v\nActual:\n  %v", k, exceptV, actualV)
+		}
 	}
 }
