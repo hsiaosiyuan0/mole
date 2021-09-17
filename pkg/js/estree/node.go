@@ -82,12 +82,6 @@ type Directive struct {
 	Directive string  `json:"directive"`
 }
 
-type FunctionBody struct {
-	Type string  `json:"type"`
-	Loc  *SrcLoc `json:"loc"`
-	Body []Node  `json:"body"` // [ Directive | Statement ]
-}
-
 type EmptyStatement struct {
 	Type string  `json:"type"`
 	Loc  *SrcLoc `json:"loc"`
@@ -233,13 +227,13 @@ type Declaration interface{}
 
 // https://github.com/estree/estree/blob/master/es5.md#functiondeclaration
 type FunctionDeclaration struct {
-	Type      string       `json:"type"`
-	Loc       *SrcLoc      `json:"loc"`
-	Id        *Identifier  `json:"id"`
-	Params    []Pattern    `json:"params"`
-	Body      FunctionBody `json:"body"`
-	Generator bool         `json:"generator"`
-	Async     bool         `json:"async"`
+	Type      string      `json:"type"`
+	Loc       *SrcLoc     `json:"loc"`
+	Id        *Identifier `json:"id"`
+	Params    []Pattern   `json:"params"`
+	Body      Node        `json:"body"`
+	Generator bool        `json:"generator"`
+	Async     bool        `json:"async"`
 }
 
 // https://github.com/estree/estree/blob/master/es5.md#variabledeclaration
@@ -278,13 +272,13 @@ type ObjectExpression struct {
 
 // https://github.com/estree/estree/blob/master/es5.md#functionexpression
 type FunctionExpression struct {
-	Type      string       `json:"type"`
-	Loc       *SrcLoc      `json:"loc"`
-	Id        *Identifier  `json:"id"`
-	Params    []Pattern    `json:"params"`
-	Body      FunctionBody `json:"body"`
-	Generator bool         `json:"generator"`
-	Async     bool         `json:"async"`
+	Type      string  `json:"type"`
+	Loc       *SrcLoc `json:"loc"`
+	Id        Node    `json:"id"`
+	Params    []Node  `json:"params"`
+	Body      Node    `json:"body"`
+	Generator bool    `json:"generator"`
+	Async     bool    `json:"async"`
 }
 
 // https://github.com/estree/estree/blob/master/es5.md#unaryexpression
@@ -390,14 +384,14 @@ type SpreadElement struct {
 
 // https://github.com/estree/estree/blob/master/es2015.md#arrowfunctionexpression
 type ArrowFunctionExpression struct {
-	Type       string       `json:"type"`
-	Loc        *SrcLoc      `json:"loc"`
-	Id         *Identifier  `json:"id"`
-	Params     []Pattern    `json:"params"`
-	Body       FunctionBody `json:"body"`
-	Generator  bool         `json:"generator"`
-	Async      bool         `json:"async"`
-	Expression bool         `json:"expression"`
+	Type       string      `json:"type"`
+	Loc        *SrcLoc     `json:"loc"`
+	Id         *Identifier `json:"id"`
+	Params     []Pattern   `json:"params"`
+	Body       Node        `json:"body"`
+	Generator  bool        `json:"generator"`
+	Async      bool        `json:"async"`
+	Expression bool        `json:"expression"`
 }
 
 // https://github.com/estree/estree/blob/master/es2015.md#yieldexpression

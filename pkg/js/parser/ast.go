@@ -636,6 +636,26 @@ type FnDec struct {
 	body      Node
 }
 
+func (n *FnDec) Id() Node {
+	return n.id
+}
+
+func (n *FnDec) Generator() bool {
+	return n.generator
+}
+
+func (n *FnDec) Async() bool {
+	return n.async
+}
+
+func (n *FnDec) Params() []Node {
+	return n.params
+}
+
+func (n *FnDec) Body() Node {
+	return n.body
+}
+
 func (n *FnDec) Type() NodeType {
 	return n.typ
 }
@@ -665,6 +685,10 @@ type BlockStmt struct {
 	typ  NodeType
 	loc  *Loc
 	body []Node
+}
+
+func (n *BlockStmt) Body() []Node {
+	return n.body
 }
 
 func (n *BlockStmt) Type() NodeType {
@@ -833,6 +857,10 @@ type RetStmt struct {
 	typ NodeType
 	loc *Loc
 	arg Node
+}
+
+func (n *RetStmt) Arg() Node {
+	return n.arg
 }
 
 func (n *RetStmt) Type() NodeType {

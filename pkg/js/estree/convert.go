@@ -64,6 +64,30 @@ func obj(n *parser.ObjLit) *ObjectExpression {
 	}
 }
 
+func fnParams(params []parser.Node) []Node {
+	ps := make([]Node, len(params))
+	for i, p := range params {
+		ps[i] = convert(p)
+	}
+	return ps
+}
+
+func statements(stmts []parser.Node) []Statement {
+	s := make([]Statement, len(stmts))
+	for i, stmt := range stmts {
+		s[i] = convert(stmt)
+	}
+	return s
+}
+
+func blockStmt(block *parser.BlockStmt) *BlockStatement {
+	return &BlockStatement{
+		Type: "BlockStatement",
+		Loc:  loc(block.Loc()),
+		Body: statements(block.Body()),
+	}
+}
+
 func convert(node parser.Node) Node {
 	if node == nil {
 		return nil
@@ -106,6 +130,12 @@ func convert(node parser.Node) Node {
 			Type:  "Literal",
 			Loc:   loc(node.Loc()),
 			Value: node.(*parser.NumLit).ToFloat(),
+		}
+	case parser.N_LIT_STR:
+		return &Literal{
+			Type:  "Literal",
+			Loc:   loc(node.Loc()),
+			Value: node.(*parser.StrLit).Text(),
 		}
 	case parser.N_LIT_REGEXP:
 		regexp := node.(*parser.RegexpLit)
@@ -162,6 +192,26 @@ func convert(node parser.Node) Node {
 			Kind:     method.Kind(),
 			Computed: method.Computed(),
 			Method:   true,
+		}
+	case parser.N_STMT_BLOCK:
+		return blockStmt(node.(*parser.BlockStmt))
+	case parser.N_EXPR_FN:
+		fn := node.(*parser.FnDec)
+		return &FunctionExpression{
+			Type:      "FunctionExpression",
+			Loc:       loc(fn.Loc()),
+			Id:        convert(fn.Id()),
+			Params:    fnParams(fn.Params()),
+			Body:      convert(fn.Body()),
+			Generator: fn.Generator(),
+			Async:     fn.Async(),
+		}
+	case parser.N_STMT_RET:
+		ret := node.(*parser.RetStmt)
+		return &ReturnStatement{
+			Type:     "ReturnStatement",
+			Loc:      loc(ret.Loc()),
+			Argument: convert(ret.Arg()),
 		}
 	}
 	return nil

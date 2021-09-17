@@ -23,7 +23,9 @@ func (p *Parser) Prog() (Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		pg.stmts = append(pg.stmts, stmt)
+		if stmt != nil {
+			pg.stmts = append(pg.stmts, stmt)
+		}
 	}
 	pg.loc = p.finLoc(loc)
 	return pg, nil
@@ -63,6 +65,9 @@ func (p *Parser) stmt() (Node, error) {
 		return p.debugStmt()
 	case T_SEMI:
 		return p.emptyStmt()
+	case T_COMMENT:
+		p.lexer.Next()
+		return nil, nil
 	}
 	if p.aheadIsVarDec(tok) {
 		return p.varDecStmt()
@@ -711,8 +716,11 @@ func (p *Parser) fnBody() (Node, error) {
 }
 
 func (p *Parser) blockStmt() (*BlockStmt, error) {
-	loc := p.loc()
-	p.lexer.Next()
+	tok, err := p.nextMustTok(T_BRACE_L)
+	if err != nil {
+		return nil, err
+	}
+	loc := p.locFromTok(tok)
 
 	stmts := make([]Node, 0)
 	for {
@@ -874,6 +882,9 @@ func (p *Parser) propName(allowNamePVT bool) (Node, error) {
 	tok := p.lexer.Next()
 	_, ok := tok.CanBePropKey()
 	if ok || (allowNamePVT && tok.value == T_NAME_PVT) {
+		if tok.value == T_NUM {
+			return &NumLit{N_LIT_NUM, p.finLoc(loc), tok}, nil
+		}
 		return &Ident{N_NAME, p.finLoc(loc), tok, tok.value == T_NAME_PVT}, nil
 	}
 	if tok.value == T_STRING {
@@ -1523,7 +1534,10 @@ func (p *Parser) objProp() (Node, error) {
 	if name, ok := tok.CanBePropKey(); ok {
 		if name == "get" || name == "set" {
 			ahead := p.lexer.PeekGrow()
-			isField := ahead.value == T_ASSIGN || ahead.value == T_SEMI || ahead.afterLineTerminator
+			isField := ahead.value == T_COLON ||
+				ahead.value == T_ASSIGN ||
+				ahead.value == T_SEMI ||
+				ahead.afterLineTerminator
 			if !isField {
 				p.lexer.Next()
 				return p.method(false, nil, tok, false, false)
@@ -1639,6 +1653,15 @@ func (p *Parser) locFromNode(node Node) *Loc {
 		return node.Loc().Clone()
 	}
 	return p.loc()
+}
+
+func (p *Parser) locFromTok(tok *Token) *Loc {
+	return &Loc{
+		src:   tok.raw.src,
+		begin: tok.loc.Clone(),
+		end:   &Pos{},
+		rng:   &Range{},
+	}
 }
 
 func (p *Parser) finLoc(loc *Loc) *Loc {
