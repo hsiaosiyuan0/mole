@@ -28,6 +28,8 @@ func (p *Parser) Prog() (Node, error) {
 		}
 	}
 	pg.loc = p.finLoc(loc)
+	pg.loc.end.line = p.lexer.src.line
+	pg.loc.end.col = p.lexer.src.col
 	return pg, nil
 }
 
