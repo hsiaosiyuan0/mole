@@ -24,12 +24,25 @@ type Token struct {
 	value TokenValue
 	text  string
 	raw   *SourceRange
-	loc   *Pos
+	begin *Pos
+	end   *Pos
 	len   int // len of codepoints in token
 
 	afterLineTerminator bool
 
 	ext interface{}
+}
+
+func (t *Token) Begin() *Pos {
+	return t.begin
+}
+
+func (t *Token) End() *Pos {
+	return t.end
+}
+
+func (t *Token) Len() int {
+	return t.len
 }
 
 func (t *Token) CanBePropKey() (string, bool) {

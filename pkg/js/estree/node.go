@@ -240,6 +240,7 @@ type FunctionDeclaration struct {
 type VariableDeclaration struct {
 	Type         string                `json:"type"`
 	Loc          *SrcLoc               `json:"loc"`
+	Kind         string                `json:"kind"`
 	Declarations []*VariableDeclarator `json:"declarations"`
 }
 

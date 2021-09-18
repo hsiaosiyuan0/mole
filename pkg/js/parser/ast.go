@@ -1,6 +1,9 @@
 package parser
 
-import "strconv"
+import (
+	"strconv"
+	"strings"
+)
 
 // AST nodes is described as: https://github.com/estree/estree/blob/master/es5.md
 // flatterned struct is used instead of inheritance
@@ -239,6 +242,20 @@ func (n *NumLit) Loc() *Loc {
 }
 
 func (n *NumLit) ToFloat() float64 {
+	t := n.val.Text()
+	if strings.HasPrefix(t, "0x") || strings.HasPrefix(t, "0X") {
+		s, _ := strconv.ParseUint(t[2:], 16, 32)
+		return float64(s)
+	}
+	if strings.HasPrefix(t, "0x") || strings.HasPrefix(t, "0X") {
+		s, _ := strconv.ParseUint(t[2:], 8, 32)
+		return float64(s)
+	}
+	if strings.HasPrefix(t, "0") && len(t) > 1 {
+		t = strings.TrimLeft(t, "0")
+		s, _ := strconv.ParseUint(t, 8, 32)
+		return float64(s)
+	}
 	s, _ := strconv.ParseFloat(n.val.Text(), 64)
 	return s
 }
@@ -355,9 +372,10 @@ func (n *Ident) Text() string {
 }
 
 type NewExpr struct {
-	typ  NodeType
-	loc  *Loc
-	expr Node
+	typ    NodeType
+	loc    *Loc
+	callee Node
+	args   []Node
 }
 
 func (n *NewExpr) Type() NodeType {
@@ -368,8 +386,12 @@ func (n *NewExpr) Loc() *Loc {
 	return n.loc
 }
 
-func (n *NewExpr) Expr() Node {
-	return n.expr
+func (n *NewExpr) Callee() Node {
+	return n.callee
+}
+
+func (n *NewExpr) Args() []Node {
+	return n.args
 }
 
 type MemberExpr struct {
@@ -379,6 +401,22 @@ type MemberExpr struct {
 	prop     Node
 	compute  bool
 	optional bool
+}
+
+func (n *MemberExpr) Obj() Node {
+	return n.obj
+}
+
+func (n *MemberExpr) Prop() Node {
+	return n.prop
+}
+
+func (n *MemberExpr) Compute() bool {
+	return n.compute
+}
+
+func (n *MemberExpr) Optional() bool {
+	return n.optional
 }
 
 func (n *MemberExpr) Type() NodeType {
@@ -394,6 +432,14 @@ type CallExpr struct {
 	loc    *Loc
 	callee Node
 	args   []Node
+}
+
+func (n *CallExpr) Callee() Node {
+	return n.callee
+}
+
+func (n *CallExpr) Args() []Node {
+	return n.args
 }
 
 func (n *CallExpr) Type() NodeType {
@@ -518,6 +564,14 @@ type VarDecStmt struct {
 	decList []*VarDec
 }
 
+func (n *VarDecStmt) Kind() string {
+	return TokenKinds[n.kind].Name
+}
+
+func (n *VarDecStmt) DecList() []*VarDec {
+	return n.decList
+}
+
 func (n *VarDecStmt) Type() NodeType {
 	return n.typ
 }
@@ -531,6 +585,14 @@ type VarDec struct {
 	loc  *Loc
 	id   Node
 	init Node
+}
+
+func (n *VarDec) Id() Node {
+	return n.id
+}
+
+func (n *VarDec) Init() Node {
+	return n.init
 }
 
 func (n *VarDec) Type() NodeType {
@@ -772,6 +834,18 @@ type IfStmt struct {
 	alt  Node
 }
 
+func (n *IfStmt) Test() Node {
+	return n.test
+}
+
+func (n *IfStmt) Cons() Node {
+	return n.cons
+}
+
+func (n *IfStmt) Alt() Node {
+	return n.alt
+}
+
 func (n *IfStmt) Type() NodeType {
 	return n.typ
 }
@@ -787,6 +861,14 @@ type SwitchStmt struct {
 	cases []*SwitchCase
 }
 
+func (n *SwitchStmt) Cases() []*SwitchCase {
+	return n.cases
+}
+
+func (n *SwitchStmt) Test() Node {
+	return n.test
+}
+
 func (n *SwitchStmt) Type() NodeType {
 	return n.typ
 }
@@ -800,6 +882,14 @@ type SwitchCase struct {
 	loc  *Loc
 	test Node // nil in default clause
 	cons []Node
+}
+
+func (n *SwitchCase) Test() Node {
+	return n.test
+}
+
+func (n *SwitchCase) Cons() []Node {
+	return n.cons
 }
 
 func (n *SwitchCase) Type() NodeType {
@@ -1046,11 +1136,41 @@ type SeqExpr struct {
 	elems []Node
 }
 
+func (n *SeqExpr) Elems() []Node {
+	return n.elems
+}
+
 func (n *SeqExpr) Type() NodeType {
 	return n.typ
 }
 
 func (n *SeqExpr) Loc() *Loc {
+	return n.loc
+}
+
+type ParenExpr struct {
+	typ  NodeType
+	loc  *Loc
+	expr Node
+}
+
+func (n *ParenExpr) Expr() Node {
+	expr := n.expr
+	for {
+		if expr.Type() == N_EXPR_PAREN {
+			expr = expr.(*ParenExpr).expr
+		} else {
+			break
+		}
+	}
+	return expr
+}
+
+func (n *ParenExpr) Type() NodeType {
+	return n.typ
+}
+
+func (n *ParenExpr) Loc() *Loc {
 	return n.loc
 }
 

@@ -129,7 +129,7 @@ func (l *Lexer) Loc() *Loc {
 	loc.src = l.src
 	if l.peekedLen > 0 {
 		tok := l.peeked[l.peekedR]
-		p := tok.loc
+		p := tok.begin
 		loc.begin.line = p.line
 		loc.begin.col = p.col
 		loc.rng.start = tok.raw.lo
@@ -144,9 +144,9 @@ func (l *Lexer) Loc() *Loc {
 func (l *Lexer) FinLoc(loc *Loc) *Loc {
 	if l.prev != nil {
 		tok := l.prev
-		p := tok.loc
+		p := tok.end
 		loc.end.line = p.line
-		loc.end.col = tok.loc.col + tok.len
+		loc.end.col = p.col
 		loc.rng.end = tok.raw.hi
 	} else {
 		loc.end.line = l.src.line
@@ -480,15 +480,15 @@ func (l *Lexer) ReadSymbol() *Token {
 			val = T_BIT_XOR
 		}
 	case '/':
-		if l.src.AheadIsCh('=') {
-			l.src.Read()
-			val = T_ASSIGN_DIV
-		} else if l.src.AheadIsCh('/') {
+		if l.src.AheadIsCh('/') {
 			return l.readSinglelineComment(tok)
 		} else if l.src.AheadIsCh('*') {
 			return l.readMultilineComment(tok)
 		} else if l.prev == nil || TokenKinds[l.prev.value].BeforeExpr {
 			return l.readRegexp(tok)
+		} else if l.src.AheadIsCh('=') {
+			l.src.Read()
+			val = T_ASSIGN_DIV
 		} else {
 			val = T_DIV
 		}
@@ -529,14 +529,17 @@ func (l *Lexer) readSinglelineComment(tok *Token) *Token {
 // close backslash is matched as well as no validation is applied on that content
 func (l *Lexer) readRegexp(tok *Token) *Token {
 	pattern := l.src.NewOpenRange()
-	escaped := false
 	for {
 		c := l.src.Peek()
 		if IsLineTerminator(c) || c == utf8.RuneError {
 			return l.errToken(tok)
-		} else if c == '\\' {
-			escaped = true
-		} else if !escaped && c == '/' {
+		}
+		if c == '\\' {
+			l.src.Read()
+			l.src.Read()
+			continue
+		}
+		if c == '/' || c == EOF {
 			break
 		}
 		l.src.Read()
@@ -651,13 +654,10 @@ func (l *Lexer) readOctalEscapeSeq(first rune) rune {
 
 func (l *Lexer) readHexEscapeSeq() rune {
 	hex := [2]rune{}
-	c := l.src.Read()
-	for i := 0; i < 2; i++ {
-		if IsHexDigit(c) {
-			hex[i] = c
-		} else {
-			return utf8.RuneError
-		}
+	hex[0] = l.src.Read()
+	hex[1] = l.src.Read()
+	if !IsHexDigit(hex[0]) || !IsHexDigit(hex[1]) {
+		return utf8.RuneError
 	}
 	r, err := strconv.ParseInt(string(hex[:]), 16, 32)
 	if err != nil {
@@ -692,9 +692,12 @@ func (l *Lexer) ReadNum() *Token {
 		case 'b', 'B':
 			return l.readBinaryNum(tok)
 		case 'o', 'O':
-			return l.readOctalNum(tok)
+			return l.readOctalNum(tok, 0)
 		case 'x', 'X':
 			return l.readHexNum(tok)
+		}
+		if IsOctalDigit(l.src.Peek()) && !l.isMode(LM_STRICT) {
+			return l.readOctalNum(tok, 1)
 		}
 	}
 	return l.readDecimalNum(tok, c)
@@ -707,6 +710,9 @@ func (l *Lexer) readDecimalNum(tok *Token, first rune) *Token {
 	}
 
 	if first != '.' && l.src.AheadIsCh('.') || first == '.' {
+		if l.src.AheadIsCh('.') {
+			l.src.Read()
+		}
 		// read the fraction part
 		if err := l.readDecimalDigits(isFractionOpt); err != nil {
 			return l.errToken(tok)
@@ -768,9 +774,8 @@ func (l *Lexer) readBinaryNum(tok *Token) *Token {
 	return l.finToken(tok, T_NUM)
 }
 
-func (l *Lexer) readOctalNum(tok *Token) *Token {
+func (l *Lexer) readOctalNum(tok *Token, i int) *Token {
 	l.src.Read()
-	i := 0
 	for {
 		c := l.src.Peek()
 		if c >= '0' && c <= '7' || c == '_' {
@@ -923,7 +928,8 @@ func (l *Lexer) newToken() *Token {
 	return &Token{
 		value: T_ILLEGAL,
 		raw:   l.src.NewOpenRange(),
-		loc:   &Pos{l.src.line, l.src.col},
+		begin: &Pos{l.src.line, l.src.col},
+		end:   &Pos{l.src.line, l.src.col},
 		len:   l.src.Pos(),
 	}
 }
@@ -932,6 +938,8 @@ func (l *Lexer) finToken(tok *Token, value TokenValue) *Token {
 	tok.value = value
 	tok.raw.hi = l.src.Ofst()
 	tok.len = l.src.Pos() - tok.len
+	tok.end.line = l.src.line
+	tok.end.col = l.src.col
 	tok.afterLineTerminator = l.src.metLineTerminator
 	return tok
 }
@@ -965,7 +973,7 @@ func IsOctalDigit(c rune) bool {
 }
 
 func IsHexDigit(c rune) bool {
-	return c >= '0' && c <= '9' || c >= 'A' && c <= 'F' || c >= 'a' && c <= 'F'
+	return (c >= '0' && c <= '9') || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f')
 }
 
 func IsDecimalDigit(c rune) bool {

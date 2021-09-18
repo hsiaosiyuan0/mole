@@ -174,8 +174,8 @@ func TestNewExpr(t *testing.T) {
 	ast, err := compile("new new a")
 	assert.Equal(t, nil, err, "should be prog ok")
 
-	expr := ast.(*Prog).stmts[0].(*ExprStmt).expr.(*NewExpr).expr.(*NewExpr)
-	assert.Equal(t, "a", expr.expr.(*Ident).val.Text(), "should be a")
+	expr := ast.(*Prog).stmts[0].(*ExprStmt).expr.(*NewExpr).callee.(*NewExpr)
+	assert.Equal(t, "a", expr.callee.(*Ident).val.Text(), "should be a")
 }
 
 func TestCallExpr(t *testing.T) {

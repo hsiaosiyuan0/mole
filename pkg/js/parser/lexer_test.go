@@ -144,7 +144,7 @@ func TestReadSymbol(t *testing.T) {
   + - *
   } / % ** ! ~
   = += -= ??= ||= &&= |= ^= &= <<= >>= >>>=
-  *= /= %= **=
+  *= a /= %= **=
   `)
 	l := NewLexer(s)
 	assert.Equal(t, T_BRACE_L, l.Next().value, "should be tok {")
@@ -202,6 +202,7 @@ func TestReadSymbol(t *testing.T) {
 	assert.Equal(t, T_ASSIGN_BIT_RSH, l.Next().value, "should be tok >==")
 	assert.Equal(t, T_ASSIGN_BIT_RSH_U, l.Next().value, "should be tok >>>=")
 	assert.Equal(t, T_ASSIGN_MUL, l.Next().value, "should be tok *=")
+	assert.Equal(t, T_NAME, l.Next().value, "should be tok name")
 	assert.Equal(t, T_ASSIGN_DIV, l.Next().value, "should be tok /=")
 	assert.Equal(t, T_ASSIGN_MOD, l.Next().value, "should be tok %=")
 	assert.Equal(t, T_ASSIGN_POW, l.Next().value, "should be tok **=")

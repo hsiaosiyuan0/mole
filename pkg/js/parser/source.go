@@ -159,15 +159,24 @@ func (s *Source) ReadIfNextIs(c rune) bool {
 	return false
 }
 
-func (s *Source) readJoinCRLF() rune {
+// returns `utf8.RuneError` if the rune is deformed
+// join CR，LF
+func (s *Source) Read() rune {
 	c := s.NextRune()
+	r := c
 	if IsLineTerminator(c) {
 		if c == '\r' {
 			s.ReadIfNextIs('\n')
 		}
-		return EOL
+		r = EOL
 	}
-	return c
+	if c == '\r' || c == '\n' {
+		s.line += 1
+		s.col = 0
+	} else {
+		s.col += 1
+	}
+	return r
 }
 
 func (s *Source) Line() int {
@@ -188,18 +197,6 @@ func (s *Source) NewOpenRange() *SourceRange {
 		lo:  s.Ofst(),
 		hi:  s.Ofst(),
 	}
-}
-
-// returns `utf8.RuneError` if the rune is deformed
-func (s *Source) Read() rune {
-	c := s.readJoinCRLF()
-	if c == EOL {
-		s.line += 1
-		s.col = 0
-	} else {
-		s.col += 1
-	}
-	return c
 }
 
 // skip spaces except line terminator

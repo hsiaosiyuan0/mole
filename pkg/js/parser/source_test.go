@@ -11,13 +11,13 @@ func TestEOL(t *testing.T) {
 	assert.Equal(t, 1, s.line, "line should begin from 1")
 
 	assert.Equal(t, EOL, s.Read(), "\\u2028 should be EOL")
-	assert.Equal(t, 2, s.line, "\\u2028 should step line")
+	assert.Equal(t, 1, s.line, "\\u2028 should step line")
 
 	assert.Equal(t, EOL, s.Read(), "\\u000a should be EOL")
-	assert.Equal(t, 3, s.line, "\\u000a should step line")
+	assert.Equal(t, 2, s.line, "\\u000a should step line")
 
 	assert.Equal(t, EOL, s.Read(), "\\u000d\\u000a should be EOL")
-	assert.Equal(t, 4, s.line, "\\u000d should step line")
+	assert.Equal(t, 3, s.line, "\\u000d should step line")
 }
 
 func TestAhead(t *testing.T) {

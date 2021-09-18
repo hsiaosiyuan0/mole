@@ -264,7 +264,7 @@ func (p *Parser) tryStmt() (Node, error) {
 
 	tok := p.lexer.Peek()
 	if tok.value != T_CATCH && tok.value != T_FINALLY {
-		return nil, p.error(tok.loc)
+		return nil, p.error(tok.begin)
 	}
 
 	var catch *Catch
@@ -423,10 +423,10 @@ func (p *Parser) switchStmt() (Node, error) {
 		if tok.value == T_BRACE_R {
 			break
 		} else if tok.value != T_CASE && tok.value != T_DEFAULT {
-			return nil, p.error(tok.loc)
+			return nil, p.error(tok.begin)
 		}
 		if tok.value == T_DEFAULT && metDefault {
-			return nil, p.error(tok.loc)
+			return nil, p.error(tok.begin)
 		}
 
 		caseClause, err := p.switchCase(tok)
@@ -469,7 +469,9 @@ func (p *Parser) switchCase(tok *Token) (*SwitchCase, error) {
 		if err != nil {
 			return nil, err
 		}
-		cons = append(cons, stmt)
+		if stmt != nil {
+			cons = append(cons, stmt)
+		}
 	}
 	return &SwitchCase{N_SWITCH_CASE, p.finLoc(loc), test, cons}, nil
 }
@@ -585,7 +587,7 @@ func (p *Parser) forStmt() (Node, error) {
 	tok = p.lexer.Peek()
 	if IsName(tok, "of") {
 		if init == nil {
-			return nil, p.error(tok.loc)
+			return nil, p.error(tok.begin)
 		}
 
 		p.lexer.Next()
@@ -665,7 +667,7 @@ func (p *Parser) fnDec(expr bool, async bool) (Node, error) {
 		}
 	}
 	if !expr && id == nil {
-		return nil, p.error(tok.loc)
+		return nil, p.error(tok.begin)
 	}
 
 	params, err := p.formalParams()
@@ -734,7 +736,9 @@ func (p *Parser) blockStmt() (*BlockStmt, error) {
 		if err != nil {
 			return nil, err
 		}
-		stmts = append(stmts, stmt)
+		if stmt != nil {
+			stmts = append(stmts, stmt)
+		}
 	}
 	return &BlockStmt{N_STMT_BLOCK, p.finLoc(loc), stmts}, nil
 }
@@ -776,12 +780,11 @@ func (p *Parser) varDecStmt() (Node, error) {
 }
 
 func (p *Parser) varDec() (*VarDec, error) {
-	loc := p.loc()
-
 	binding, err := p.bindingPattern()
 	if err != nil {
 		return nil, err
 	}
+	loc := binding.Loc().Clone()
 
 	var init Node
 	if p.lexer.Peek().value == T_ASSIGN {
@@ -849,7 +852,7 @@ func (p *Parser) patternObj() (Node, error) {
 			p.lexer.Next()
 			break
 		} else {
-			return nil, p.error(tok.loc)
+			return nil, p.error(tok.begin)
 		}
 	}
 	return &ObjPattern{N_PATTERN_OBJ, p.finLoc(loc), props}, nil
@@ -938,7 +941,7 @@ func (p *Parser) patternArr() (Node, error) {
 			p.lexer.Next()
 			break
 		} else {
-			return nil, p.error(tok.loc)
+			return nil, p.error(tok.begin)
 		}
 	}
 	return &ArrayPattern{N_PATTERN_ARRAY, p.finLoc(loc), elems}, nil
@@ -1021,14 +1024,45 @@ func (p *Parser) exprStmt() (Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	stmt.expr = expr
+	stmt.expr = p.unParen(expr)
 	stmt.loc = p.finLoc(loc)
 	return stmt, nil
 }
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-expressions.html#prod-Expression
 func (p *Parser) expr() (Node, error) {
-	return p.assignExpr()
+	return p.seqExpr()
+}
+
+func (p *Parser) seqExpr() (Node, error) {
+	loc := p.loc()
+	expr, err := p.assignExpr()
+	if err != nil {
+		return nil, err
+	}
+	if p.lexer.Peek().value != T_COMMA {
+		return expr, nil
+	}
+
+	exprs := make([]Node, 0)
+	exprs = append(exprs, expr)
+	for {
+		tok := p.lexer.Peek()
+		if tok.value == T_COMMA {
+			p.lexer.Next()
+			expr, err = p.assignExpr()
+			if err != nil {
+				return nil, err
+			}
+			if expr == nil {
+				return nil, p.error(p.lexer.Loc().begin)
+			}
+			exprs = append(exprs, expr)
+		} else {
+			break
+		}
+	}
+	return &SeqExpr{N_EXPR_SEQ, p.finLoc(loc), exprs}, nil
 }
 
 func (p *Parser) assignExpr() (Node, error) {
@@ -1050,7 +1084,7 @@ func (p *Parser) assignExpr() (Node, error) {
 	}
 
 	p.advanceIfSemi()
-	node := &AssignExpr{N_EXPR_ASSIGN, p.finLoc(loc), assign, lhs, rhs}
+	node := &AssignExpr{N_EXPR_ASSIGN, p.finLoc(loc), assign, lhs, p.unParen(rhs)}
 	return node, nil
 }
 
@@ -1134,41 +1168,58 @@ func (p *Parser) lhs() (Node, error) {
 	return p.callExpr(nil)
 }
 
+// https://tc39.es/ecma262/multipage/ecmascript-language-expressions.html#prod-NewExpression
 func (p *Parser) newExpr() (Node, error) {
 	loc := p.loc()
 	p.lexer.Next()
 
 	var expr Node
 	var err error
-	if p.lexer.Peek().value == T_NEW {
-		expr, err = p.newExpr()
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		expr, err = p.memberExpr(nil)
+	expr, err = p.memberExpr(nil, false)
+	if err != nil {
+		return nil, err
+	}
+
+	var args []Node
+	if p.lexer.Peek().value == T_PAREN_L {
+		args, err = p.argList()
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	node := &NewExpr{N_EXPR_NEW, &Loc{}, nil}
-	node.expr = expr
-	node.loc = p.finLoc(loc)
-	return node, nil
+	var ret Node
+	ret = &NewExpr{N_EXPR_NEW, p.finLoc(loc), expr, args}
+	for {
+		tok := p.lexer.Peek()
+		if tok.value == T_PAREN_L {
+			if ret, err = p.callExpr(ret); err != nil {
+				return nil, err
+			}
+		} else if tok.value == T_BRACKET_L || tok.value == T_DOT {
+			if ret, err = p.memberExpr(ret, true); err != nil {
+				return nil, err
+			}
+		} else {
+			break
+		}
+	}
+	return ret, nil
 }
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-expressions.html#prod-CallExpression
 func (p *Parser) callExpr(callee Node) (Node, error) {
 	// TODO: SuperCall ImportCall
-	loc := p.loc()
-
+	var loc *Loc
 	var err error
 	if callee == nil {
-		callee, err = p.memberExpr(nil)
+		loc = p.loc()
+		callee, err = p.primaryExpr()
 		if err != nil {
 			return nil, err
 		}
+	} else {
+		loc = callee.Loc().Clone()
 	}
 
 	for {
@@ -1178,12 +1229,13 @@ func (p *Parser) callExpr(callee Node) (Node, error) {
 			if err != nil {
 				return nil, err
 			}
-			callee = &CallExpr{N_EXPR_CALL, p.finLoc(loc), callee, args}
+			callee = &CallExpr{N_EXPR_CALL, p.finLoc(loc), p.unParen(callee), args}
 		} else if tok.value == T_BRACKET_L || tok.value == T_DOT {
-			callee, err = p.memberExpr(callee)
+			callee, err = p.memberExpr(callee, true)
 			if err != nil {
 				return nil, err
 			}
+			return callee, nil
 		} else if tok.value == T_TPL_SPAN {
 			callee, err = p.tplExpr(callee)
 			if err != nil {
@@ -1221,7 +1273,7 @@ func (p *Parser) tplExpr(tag Node) (Node, error) {
 			}
 			elems = append(elems, expr)
 		} else {
-			return nil, p.error(tok.loc)
+			return nil, p.error(tok.begin)
 		}
 	}
 
@@ -1289,20 +1341,25 @@ func (p *Parser) binExpr(lhs Node, minPcd int) (Node, error) {
 		pcd = kind.Pcd
 
 		bin := &BinExpr{N_EXPR_BIN, nil, nil, nil, nil}
+		lhs = p.unParen(lhs)
 		bin.loc = p.finLoc(lhs.Loc())
 		bin.op = op
 		bin.lhs = lhs
-		bin.rhs = rhs
+		bin.rhs = p.unParen(rhs)
 		lhs = bin
 	}
 	return lhs, nil
 }
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-expressions.html#prod-MemberExpression
-func (p *Parser) memberExpr(obj Node) (Node, error) {
+func (p *Parser) memberExpr(obj Node, call bool) (Node, error) {
 	var err error
 	if obj == nil {
-		if obj, err = p.memberExprObj(); err != nil {
+		if p.lexer.Peek().value == T_NEW {
+			if obj, err = p.newExpr(); err != nil {
+				return nil, err
+			}
+		} else if obj, err = p.memberExprObj(); err != nil {
 			return nil, err
 		}
 	}
@@ -1320,7 +1377,7 @@ func (p *Parser) memberExpr(obj Node) (Node, error) {
 			break
 		}
 	}
-	if p.lexer.Peek().value == T_PAREN_L {
+	if call && p.lexer.Peek().value == T_PAREN_L {
 		return p.callExpr(obj)
 	}
 	return obj, nil
@@ -1339,7 +1396,7 @@ func (p *Parser) memberExprPropSubscript(obj Node) (Node, error) {
 	if _, err := p.nextMustTok(T_BRACKET_R); err != nil {
 		return nil, err
 	}
-	node := &MemberExpr{N_EXPR_MEMBER, p.finLoc(obj.Loc().Clone()), obj, prop, false, false}
+	node := &MemberExpr{N_EXPR_MEMBER, p.finLoc(obj.Loc().Clone()), p.unParen(obj), prop, true, false}
 	return node, nil
 }
 
@@ -1347,24 +1404,32 @@ func (p *Parser) namePvt() (Node, error) {
 	loc := p.loc()
 	id := p.lexer.Next()
 	if id.value != T_NAME && id.value != T_NAME_PVT {
-		return nil, p.error(id.loc)
+		return nil, p.error(id.begin)
 	}
 	return &Ident{N_NAME, p.finLoc(loc), id, id.value == T_NAME_PVT}, nil
 }
 
 func (p *Parser) memberExprPropDot(obj Node) (Node, error) {
 	p.lexer.Next()
-	prop, err := p.namePvt()
-	if err != nil {
-		return nil, err
+
+	loc := p.loc()
+	tok := p.lexer.Next()
+	_, ok := tok.CanBePropKey()
+
+	var prop Node
+	if (ok && tok.value != T_NUM) || tok.value == T_NAME_PVT {
+		prop = &Ident{N_NAME, p.finLoc(loc), tok, tok.value == T_NAME_PVT}
+	} else {
+		return nil, p.error(tok.begin)
 	}
-	node := &MemberExpr{N_EXPR_MEMBER, p.finLoc(obj.Loc().Clone()), obj, prop, false, false}
+
+	node := &MemberExpr{N_EXPR_MEMBER, p.finLoc(obj.Loc().Clone()), p.unParen(obj), prop, false, false}
 	return node, nil
 }
 
 func (p *Parser) primaryExpr() (Node, error) {
-	loc := p.loc()
 	tok := p.lexer.Peek()
+	loc := p.locFromTok(tok)
 
 	switch tok.value {
 	case T_NUM:
@@ -1403,7 +1468,7 @@ func (p *Parser) primaryExpr() (Node, error) {
 	if p.aheadIsAsync(tok) {
 		return p.fnDec(true, true)
 	}
-	return nil, p.error(tok.loc)
+	return nil, p.error(tok.begin)
 }
 
 func (p *Parser) parenExpr() (Node, error) {
@@ -1434,10 +1499,17 @@ func (p *Parser) parenExpr() (Node, error) {
 		return nil, p.error(p.loc().begin)
 	}
 	if len(params) == 1 {
-		return params[0], nil
+		return &ParenExpr{N_EXPR_PAREN, p.finLoc(loc), params[0]}, nil
 	}
 	// TODO: check spread
 	return &SeqExpr{N_EXPR_SEQ, p.finLoc(loc), params}, nil
+}
+
+func (p *Parser) unParen(expr Node) Node {
+	if expr.Type() == N_EXPR_PAREN {
+		return expr.(*ParenExpr).Expr()
+	}
+	return expr
 }
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-expressions.html#prod-ArrayLiteral
@@ -1470,7 +1542,7 @@ func (p *Parser) arrLit() (Node, error) {
 			p.lexer.Next()
 			break
 		} else {
-			return nil, p.error(tok.loc)
+			return nil, p.error(tok.begin)
 		}
 	}
 	return &ArrLit{N_LIT_ARR, p.finLoc(loc), elems}, nil
@@ -1521,7 +1593,7 @@ func (p *Parser) objLit() (Node, error) {
 			p.lexer.Next()
 			break
 		} else {
-			return nil, p.error(tok.loc)
+			return nil, p.error(tok.begin)
 		}
 	}
 	return &ObjLit{N_LIT_OBJ, p.finLoc(loc), props}, nil
@@ -1625,7 +1697,7 @@ func (p *Parser) advanceIfSemi() {
 func (p *Parser) nextMustTok(val TokenValue) (*Token, error) {
 	tok := p.lexer.Next()
 	if tok.value != val {
-		return nil, p.error(tok.loc)
+		return nil, p.error(tok.begin)
 	}
 	return tok, nil
 }
@@ -1660,7 +1732,7 @@ func (p *Parser) locFromNode(node Node) *Loc {
 func (p *Parser) locFromTok(tok *Token) *Loc {
 	return &Loc{
 		src:   tok.raw.src,
-		begin: tok.loc.Clone(),
+		begin: tok.begin.Clone(),
 		end:   &Pos{},
 		rng:   &Range{},
 	}

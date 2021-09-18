@@ -80,12 +80,46 @@ func statements(stmts []parser.Node) []Statement {
 	return s
 }
 
+func expressions(exprs []parser.Node) []Expression {
+	s := make([]Expression, len(exprs))
+	for i, expr := range exprs {
+		s[i] = convert(expr)
+	}
+	return s
+}
+
 func blockStmt(block *parser.BlockStmt) *BlockStatement {
 	return &BlockStatement{
 		Type: "BlockStatement",
 		Loc:  loc(block.Loc()),
 		Body: statements(block.Body()),
 	}
+}
+
+func cases(cs []*parser.SwitchCase) []*SwitchCase {
+	s := make([]*SwitchCase, len(cs))
+	for i, c := range cs {
+		s[i] = &SwitchCase{
+			Type:       "SwitchCase",
+			Loc:        loc(c.Loc()),
+			Test:       convert(c.Test()),
+			Consequent: statements(c.Cons()),
+		}
+	}
+	return s
+}
+
+func declarations(decList []*parser.VarDec) []*VariableDeclarator {
+	s := make([]*VariableDeclarator, len(decList))
+	for i, d := range decList {
+		s[i] = &VariableDeclarator{
+			Type: "VariableDeclarator",
+			Loc:  loc(d.Loc()),
+			Id:   convert(d.Id()),
+			Init: convert(d.Init()),
+		}
+	}
+	return s
 }
 
 func convert(node parser.Node) Node {
@@ -101,11 +135,12 @@ func convert(node parser.Node) Node {
 			Expression: expr,
 		}
 	case parser.N_EXPR_NEW:
-		expr := convert(node.(*parser.NewExpr).Expr())
+		new := node.(*parser.NewExpr)
 		return &NewExpression{
-			Type:   "NewExpression",
-			Loc:    loc(node.Loc()),
-			Callee: expr,
+			Type:      "NewExpression",
+			Loc:       loc(node.Loc()),
+			Callee:    convert(new.Callee()),
+			Arguments: expressions(new.Args()),
 		}
 	case parser.N_NAME:
 		id := node.(*parser.Ident)
@@ -212,6 +247,56 @@ func convert(node parser.Node) Node {
 			Type:     "ReturnStatement",
 			Loc:      loc(ret.Loc()),
 			Argument: convert(ret.Arg()),
+		}
+	case parser.N_STMT_IF:
+		ifStmt := node.(*parser.IfStmt)
+		return &IfStatement{
+			Type:       "IfStatement",
+			Loc:        loc(ifStmt.Loc()),
+			Test:       convert(ifStmt.Test()),
+			Consequent: convert(ifStmt.Cons()),
+			Alternate:  convert(ifStmt.Alt()),
+		}
+	case parser.N_EXPR_CALL:
+		call := node.(*parser.CallExpr)
+		return &CallExpression{
+			Type:      "CallExpression",
+			Loc:       loc(call.Loc()),
+			Callee:    convert(call.Callee()),
+			Arguments: expressions(call.Args()),
+		}
+	case parser.N_STMT_SWITCH:
+		swc := node.(*parser.SwitchStmt)
+		return &SwitchStatement{
+			Type:         "SwitchStatement",
+			Loc:          loc(swc.Loc()),
+			Discriminant: convert(swc.Test()),
+			Cases:        cases(swc.Cases()),
+		}
+	case parser.N_STMT_VAR_DEC:
+		varDec := node.(*parser.VarDecStmt)
+		return &VariableDeclaration{
+			Type:         "VariableDeclaration",
+			Loc:          loc(varDec.Loc()),
+			Kind:         varDec.Kind(),
+			Declarations: declarations(varDec.DecList()),
+		}
+	case parser.N_EXPR_MEMBER:
+		mem := node.(*parser.MemberExpr)
+		return &MemberExpression{
+			Type:     "MemberExpression",
+			Loc:      loc(mem.Loc()),
+			Object:   convert(mem.Obj()),
+			Property: convert(mem.Prop()),
+			Computed: mem.Compute(),
+			Optional: mem.Optional(),
+		}
+	case parser.N_EXPR_SEQ:
+		seq := node.(*parser.SeqExpr)
+		return &SequenceExpression{
+			Type:        "SequenceExpression",
+			Loc:         loc(seq.Loc()),
+			Expressions: expressions(seq.Elems()),
 		}
 	}
 	return nil
