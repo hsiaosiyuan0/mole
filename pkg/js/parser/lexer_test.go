@@ -142,7 +142,7 @@ func TestReadSymbol(t *testing.T) {
   ?? < > <= >= == != === !==
   << >> >>> | ^ & || &&
   + - *
-  } / % ** ! ~
+  } a / % ** ! ~
   = += -= ??= ||= &&= |= ^= &= <<= >>= >>>=
   *= a /= %= **=
   `)
@@ -184,6 +184,7 @@ func TestReadSymbol(t *testing.T) {
 	assert.Equal(t, T_SUB, l.Next().value, "should be tok -")
 	assert.Equal(t, T_MUL, l.Next().value, "should be tok *")
 	assert.Equal(t, T_BRACE_R, l.Next().value, "should be tok }")
+	assert.Equal(t, T_NAME, l.Next().value, "should be tok name")
 	assert.Equal(t, T_DIV, l.Next().value, "should be tok /")
 	assert.Equal(t, T_MOD, l.Next().value, "should be tok %")
 	assert.Equal(t, T_POW, l.Next().value, "should be tok **")

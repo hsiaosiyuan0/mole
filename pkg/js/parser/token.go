@@ -82,12 +82,20 @@ func (t *Token) Text() string {
 	return t.RawText()
 }
 
-func (t *Token) IsBin() bool {
-	return t.value > T_BIN_OP_BEGIN && t.value < T_BIN_OP_END
+func (t *Token) IsBin(notIn bool) bool {
+	bin := t.value > T_BIN_OP_BEGIN && t.value < T_BIN_OP_END
+	if bin {
+		return true
+	}
+	return !notIn && IsName(t, "in")
 }
 
 func (t *Token) IsUnary() bool {
 	return t.value > T_UNARY_OP_BEGIN && t.value < T_UNARY_OP_END
+}
+
+func (t *Token) Value() TokenValue {
+	return t.value
 }
 
 func (t *Token) Kind() *TokenKind {
@@ -472,7 +480,6 @@ func init() {
 	Keywords[TokenKinds[T_FALSE].Name] = T_FALSE
 	Keywords[TokenKinds[T_TYPE_OF].Name] = T_TYPE_OF
 	Keywords[TokenKinds[T_DELETE].Name] = T_DELETE
-	Keywords[TokenKinds[T_IN].Name] = T_IN
 	Keywords[TokenKinds[T_INSTANCE_OF].Name] = T_INSTANCE_OF
 
 	for i := T_CTX_KEYWORD_BEGIN + 1; i < T_CTX_KEYWORD_END; i++ {

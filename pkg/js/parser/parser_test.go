@@ -610,7 +610,7 @@ func TestBrkStmt(t *testing.T) {
   `)
 	assert.Equal(t, nil, err, "should be prog ok")
 	stmt := ast.(*Prog).stmts[0].(*BrkStmt)
-	assert.Equal(t, "a", stmt.label.val.Text(), "should be a")
+	assert.Equal(t, "a", stmt.label.(*Ident).val.Text(), "should be a")
 }
 
 func TestContStmt(t *testing.T) {
@@ -625,7 +625,7 @@ func TestContStmt(t *testing.T) {
   `)
 	assert.Equal(t, nil, err, "should be prog ok")
 	stmt := ast.(*Prog).stmts[0].(*ContStmt)
-	assert.Equal(t, "a", stmt.label.val.Text(), "should be a")
+	assert.Equal(t, "a", stmt.label.(*Ident).val.Text(), "should be a")
 }
 
 func TestLabelStmt(t *testing.T) {
@@ -637,7 +637,7 @@ func TestLabelStmt(t *testing.T) {
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	lbStmt := ast.(*Prog).stmts[0].(*LabelStmt)
-	assert.Equal(t, "a", lbStmt.label.val.Text(), "should be a")
+	assert.Equal(t, "a", lbStmt.label.(*Ident).val.Text(), "should be a")
 
 	lbBody := lbStmt.body.(*ExprStmt)
 	assert.Equal(t, "b", lbBody.expr.(*Ident).val.Text(), "should be b")
@@ -651,7 +651,7 @@ func TestLabelStmt(t *testing.T) {
   `)
 	assert.Equal(t, nil, err, "should be prog ok")
 	lbStmt = ast.(*Prog).stmts[0].(*LabelStmt)
-	assert.Equal(t, "a", lbStmt.label.val.Text(), "should be a")
+	assert.Equal(t, "a", lbStmt.label.(*Ident).val.Text(), "should be a")
 
 	lbBody = lbStmt.body.(*ExprStmt)
 	assert.Equal(t, "b", lbBody.expr.(*Ident).val.Text(), "should be b")
@@ -712,7 +712,7 @@ func TestTryStmt(t *testing.T) {
 
 	stmt0 := ast.(*Prog).stmts[0].(*TryStmt)
 	catch := stmt0.catch
-	assert.Equal(t, "e", catch.param.(*Ident).val.Text(), "should be e")
+	assert.Equal(t, "e", catch.(*Catch).param.(*Ident).val.Text(), "should be e")
 
 	assert.Equal(t, true, stmt0.fin != nil, "should have fin")
 

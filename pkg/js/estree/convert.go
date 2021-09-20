@@ -184,6 +184,17 @@ func convert(node parser.Node) Node {
 		lhs := convert(bin.Lhs())
 		rhs := convert(bin.Rhs())
 		op := bin.Op().Text()
+		opv := bin.Op().Value()
+
+		if opv == parser.T_AND || opv == parser.T_OR {
+			return &LogicalExpression{
+				Type:     "LogicalExpression",
+				Loc:      loc(node.Loc()),
+				Operator: op,
+				Left:     lhs,
+				Right:    rhs,
+			}
+		}
 		return &BinaryExpression{
 			Type:     "BinaryExpression",
 			Loc:      loc(node.Loc()),
@@ -241,12 +252,37 @@ func convert(node parser.Node) Node {
 			Generator: fn.Generator(),
 			Async:     fn.Async(),
 		}
+	case parser.N_STMT_FN:
+		fn := node.(*parser.FnDec)
+		return &FunctionDeclaration{
+			Type:      "FunctionDeclaration",
+			Loc:       loc(fn.Loc()),
+			Id:        convert(fn.Id()),
+			Params:    fnParams(fn.Params()),
+			Body:      convert(fn.Body()),
+			Generator: fn.Generator(),
+			Async:     fn.Async(),
+		}
 	case parser.N_STMT_RET:
 		ret := node.(*parser.RetStmt)
 		return &ReturnStatement{
 			Type:     "ReturnStatement",
 			Loc:      loc(ret.Loc()),
 			Argument: convert(ret.Arg()),
+		}
+	case parser.N_SPREAD:
+		n := node.(*parser.Spread)
+		return &SpreadElement{
+			Type:     "SpreadElement",
+			Loc:      loc(n.Loc()),
+			Argument: convert(n.Arg()),
+		}
+	case parser.N_PATTERN_REST:
+		n := node.(*parser.RestPattern)
+		return &RestElement{
+			Type:     "RestElement",
+			Loc:      loc(n.Loc()),
+			Argument: convert(n.Arg()),
 		}
 	case parser.N_STMT_IF:
 		ifStmt := node.(*parser.IfStmt)
@@ -297,6 +333,149 @@ func convert(node parser.Node) Node {
 			Type:        "SequenceExpression",
 			Loc:         loc(seq.Loc()),
 			Expressions: expressions(seq.Elems()),
+		}
+	case parser.N_EXPR_UPDATE:
+		up := node.(*parser.UpdateExpr)
+		return &UpdateExpression{
+			Type:     "UpdateExpression",
+			Loc:      loc(up.Loc()),
+			Operator: up.Op().Text(),
+			Argument: convert(up.Arg()),
+			Prefix:   up.Prefix(),
+		}
+	case parser.N_EXPR_UNARY:
+		un := node.(*parser.UnaryExpr)
+		return &UnaryExpression{
+			Type:     "UnaryExpression",
+			Loc:      loc(un.Loc()),
+			Operator: un.Op().Text(),
+			Prefix:   true,
+			Argument: convert(un.Arg()),
+		}
+	case parser.N_EXPR_COND:
+		cond := node.(*parser.CondExpr)
+		return &ConditionalExpression{
+			Type:       "ConditionalExpression",
+			Loc:        loc(cond.Loc()),
+			Test:       convert(cond.Test()),
+			Consequent: convert(cond.Cons()),
+			Alternate:  convert(cond.Alt()),
+		}
+	case parser.N_STMT_EMPTY:
+		return &EmptyStatement{
+			Type: "EmptyStatement",
+			Loc:  loc(node.Loc()),
+		}
+	case parser.N_STMT_DO_WHILE:
+		stmt := node.(*parser.DoWhileStmt)
+		return &DoWhileStatement{
+			Type: "DoWhileStatement",
+			Loc:  loc(node.Loc()),
+			Test: convert(stmt.Test()),
+			Body: convert(stmt.Body()),
+		}
+	case parser.N_LIT_BOOL:
+		b := node.(*parser.BoolLit)
+		return &Literal{
+			Type:  "Literal",
+			Loc:   loc(node.Loc()),
+			Value: b.Value(),
+		}
+	case parser.N_STMT_WHILE:
+		stmt := node.(*parser.WhileStmt)
+		return &WhileStatement{
+			Type: "WhileStatement",
+			Loc:  loc(node.Loc()),
+			Test: convert(stmt.Test()),
+			Body: convert(stmt.Body()),
+		}
+	case parser.N_STMT_FOR:
+		stmt := node.(*parser.ForStmt)
+		return &ForStatement{
+			Type:   "ForStatement",
+			Loc:    loc(node.Loc()),
+			Init:   convert(stmt.Init()),
+			Test:   convert(stmt.Test()),
+			Update: convert(stmt.Update()),
+			Body:   convert(stmt.Body()),
+		}
+	case parser.N_STMT_FOR_IN_OF:
+		stmt := node.(*parser.ForInOfStmt)
+		if stmt.In() {
+			return &ForInStatement{
+				Type:  "ForInStatement",
+				Loc:   loc(node.Loc()),
+				Left:  convert(stmt.Left()),
+				Right: convert(stmt.Right()),
+				Body:  convert(stmt.Body()),
+			}
+		}
+		return &ForOfStatement{
+			Type:  "ForOfStatement",
+			Loc:   loc(node.Loc()),
+			Left:  convert(stmt.Left()),
+			Right: convert(stmt.Right()),
+			Body:  convert(stmt.Body()),
+			Await: stmt.Await(),
+		}
+	case parser.N_STMT_CONT:
+		stmt := node.(*parser.ContStmt)
+		return &ContinueStatement{
+			Type:  "ContinueStatement",
+			Loc:   loc(stmt.Loc()),
+			Label: convert(stmt.Label()),
+		}
+	case parser.N_STMT_BRK:
+		stmt := node.(*parser.BrkStmt)
+		return &BreakStatement{
+			Type:  "BreakStatement",
+			Loc:   loc(stmt.Loc()),
+			Label: convert(stmt.Label()),
+		}
+	case parser.N_STMT_LABEL:
+		stmt := node.(*parser.LabelStmt)
+		return &LabeledStatement{
+			Type:  "LabeledStatement",
+			Loc:   loc(stmt.Loc()),
+			Label: convert(stmt.Label()),
+			Body:  convert(stmt.Body()),
+		}
+	case parser.N_STMT_THROW:
+		stmt := node.(*parser.ThrowStmt)
+		return &ThrowStatement{
+			Type:     "ThrowStatement",
+			Loc:      loc(stmt.Loc()),
+			Argument: convert(stmt.Arg()),
+		}
+	case parser.N_STMT_TRY:
+		stmt := node.(*parser.TryStmt)
+		return &TryStatement{
+			Type:      "TryStatement",
+			Loc:       loc(stmt.Loc()),
+			Block:     convert(stmt.Try()),
+			Handler:   convert(stmt.Catch()),
+			Finalizer: convert(stmt.Fin()),
+		}
+	case parser.N_CATCH:
+		expr := node.(*parser.Catch)
+		return &CatchClause{
+			Type:  "CatchClause",
+			Loc:   loc(expr.Loc()),
+			Param: convert(expr.Param()),
+			Body:  convert(expr.Body()),
+		}
+	case parser.N_STMT_DEBUG:
+		return &DebuggerStatement{
+			Type: "DebuggerStatement",
+			Loc:  loc(node.Loc()),
+		}
+	case parser.N_STMT_WITH:
+		stmt := node.(*parser.WithStmt)
+		return &WithStatement{
+			Type:   "WithStatement",
+			Loc:    loc(node.Loc()),
+			Object: convert(stmt.Expr()),
+			Body:   convert(stmt.Body()),
 		}
 	}
 	return nil

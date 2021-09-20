@@ -99,6 +99,7 @@ const (
 	N_STMT_THROW
 	N_STMT_TRY
 	N_STMT_DEBUG
+	N_STMT_WITH
 	N_STMT_CLASS
 	N_STMT_END
 
@@ -219,6 +220,10 @@ type BoolLit struct {
 	val *Token
 }
 
+func (n *BoolLit) Value() bool {
+	return n.val.Text() == "true"
+}
+
 func (n *BoolLit) Type() NodeType {
 	return n.typ
 }
@@ -324,6 +329,10 @@ type Spread struct {
 	typ NodeType
 	loc *Loc
 	arg Node
+}
+
+func (n *Spread) Arg() Node {
+	return n.arg
 }
 
 func (n *Spread) Type() NodeType {
@@ -485,6 +494,14 @@ type UnaryExpr struct {
 	arg Node
 }
 
+func (n *UnaryExpr) Arg() Node {
+	return n.arg
+}
+
+func (n *UnaryExpr) Op() *Token {
+	return n.op
+}
+
 func (n *UnaryExpr) Type() NodeType {
 	return n.typ
 }
@@ -499,6 +516,18 @@ type UpdateExpr struct {
 	op     *Token
 	prefix bool
 	arg    Node
+}
+
+func (n *UpdateExpr) Arg() Node {
+	return n.arg
+}
+
+func (n *UpdateExpr) Prefix() bool {
+	return n.prefix
+}
+
+func (n *UpdateExpr) Op() *Token {
+	return n.op
 }
 
 func (n *UpdateExpr) Type() NodeType {
@@ -517,8 +546,16 @@ type CondExpr struct {
 	alt  Node
 }
 
-func NewCondExpr() *CondExpr {
-	return &CondExpr{N_EXPR_COND, nil, nil, nil, nil}
+func (n *CondExpr) Test() Node {
+	return n.test
+}
+
+func (n *CondExpr) Cons() Node {
+	return n.cons
+}
+
+func (n *CondExpr) Alt() Node {
+	return n.alt
 }
 
 func (n *CondExpr) Type() NodeType {
@@ -636,6 +673,10 @@ type RestPattern struct {
 	typ NodeType
 	loc *Loc
 	arg Node
+}
+
+func (n *RestPattern) Arg() Node {
+	return n.arg
 }
 
 func (n *RestPattern) Type() NodeType {
@@ -768,6 +809,14 @@ type DoWhileStmt struct {
 	body Node
 }
 
+func (n *DoWhileStmt) Test() Node {
+	return n.test
+}
+
+func (n *DoWhileStmt) Body() Node {
+	return n.body
+}
+
 func (n *DoWhileStmt) Type() NodeType {
 	return n.typ
 }
@@ -781,6 +830,14 @@ type WhileStmt struct {
 	loc  *Loc
 	test Node
 	body Node
+}
+
+func (n *WhileStmt) Test() Node {
+	return n.test
+}
+
+func (n *WhileStmt) Body() Node {
+	return n.body
 }
 
 func (n *WhileStmt) Type() NodeType {
@@ -800,6 +857,22 @@ type ForStmt struct {
 	body   Node
 }
 
+func (n *ForStmt) Init() Node {
+	return n.init
+}
+
+func (n *ForStmt) Test() Node {
+	return n.test
+}
+
+func (n *ForStmt) Update() Node {
+	return n.update
+}
+
+func (n *ForStmt) Body() Node {
+	return n.body
+}
+
 func (n *ForStmt) Type() NodeType {
 	return n.typ
 }
@@ -816,6 +889,26 @@ type ForInOfStmt struct {
 	left  Node
 	right Node
 	body  Node
+}
+
+func (n *ForInOfStmt) In() bool {
+	return n.in
+}
+
+func (n *ForInOfStmt) Await() bool {
+	return n.await
+}
+
+func (n *ForInOfStmt) Left() Node {
+	return n.left
+}
+
+func (n *ForInOfStmt) Right() Node {
+	return n.right
+}
+
+func (n *ForInOfStmt) Body() Node {
+	return n.body
 }
 
 func (n *ForInOfStmt) Type() NodeType {
@@ -903,7 +996,11 @@ func (n *SwitchCase) Loc() *Loc {
 type BrkStmt struct {
 	typ   NodeType
 	loc   *Loc
-	label *Ident
+	label Node
+}
+
+func (n *BrkStmt) Label() Node {
+	return n.label
 }
 
 func (n *BrkStmt) Type() NodeType {
@@ -917,7 +1014,11 @@ func (n *BrkStmt) Loc() *Loc {
 type ContStmt struct {
 	typ   NodeType
 	loc   *Loc
-	label *Ident
+	label Node
+}
+
+func (n *ContStmt) Label() Node {
+	return n.label
 }
 
 func (n *ContStmt) Type() NodeType {
@@ -931,8 +1032,16 @@ func (n *ContStmt) Loc() *Loc {
 type LabelStmt struct {
 	typ   NodeType
 	loc   *Loc
-	label *Ident
+	label Node
 	body  Node
+}
+
+func (n *LabelStmt) Label() Node {
+	return n.label
+}
+
+func (n *LabelStmt) Body() Node {
+	return n.body
 }
 
 func (n *LabelStmt) Type() NodeType {
@@ -967,6 +1076,10 @@ type ThrowStmt struct {
 	arg Node
 }
 
+func (n *ThrowStmt) Arg() Node {
+	return n.arg
+}
+
 func (n *ThrowStmt) Type() NodeType {
 	return n.typ
 }
@@ -982,6 +1095,14 @@ type Catch struct {
 	body  Node
 }
 
+func (n *Catch) Param() Node {
+	return n.param
+}
+
+func (n *Catch) Body() Node {
+	return n.body
+}
+
 func (n *Catch) Type() NodeType {
 	return n.typ
 }
@@ -993,9 +1114,21 @@ func (n *Catch) Loc() *Loc {
 type TryStmt struct {
 	typ   NodeType
 	loc   *Loc
-	try   *BlockStmt
-	catch *Catch
-	fin   *BlockStmt
+	try   Node
+	catch Node
+	fin   Node
+}
+
+func (n *TryStmt) Try() Node {
+	return n.try
+}
+
+func (n *TryStmt) Catch() Node {
+	return n.catch
+}
+
+func (n *TryStmt) Fin() Node {
+	return n.fin
 }
 
 func (n *TryStmt) Type() NodeType {
@@ -1016,6 +1149,29 @@ func (n *DebugStmt) Type() NodeType {
 }
 
 func (n *DebugStmt) Loc() *Loc {
+	return n.loc
+}
+
+type WithStmt struct {
+	typ  NodeType
+	loc  *Loc
+	expr Node
+	body Node
+}
+
+func (n *WithStmt) Expr() Node {
+	return n.expr
+}
+
+func (n *WithStmt) Body() Node {
+	return n.body
+}
+
+func (n *WithStmt) Type() NodeType {
+	return n.typ
+}
+
+func (n *WithStmt) Loc() *Loc {
 	return n.loc
 }
 

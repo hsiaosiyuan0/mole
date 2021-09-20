@@ -103,7 +103,7 @@ type BlockStatement struct {
 type WithStatement struct {
 	Type   string     `json:"type"`
 	Loc    *SrcLoc    `json:"loc"`
-	Object Expression `json:"expression"`
+	Object Expression `json:"object"`
 	Body   Statement  `json:"body"`
 }
 
@@ -116,24 +116,24 @@ type ReturnStatement struct {
 
 // https://github.com/estree/estree/blob/master/es5.md#labeledstatement
 type LabeledStatement struct {
-	Type  string      `json:"type"`
-	Loc   *SrcLoc     `json:"loc"`
-	Label *Identifier `json:"label"`
-	Body  Statement   `json:"body"`
+	Type  string     `json:"type"`
+	Loc   *SrcLoc    `json:"loc"`
+	Label Expression `json:"label"`
+	Body  Statement  `json:"body"`
 }
 
 // https://github.com/estree/estree/blob/master/es5.md#breakstatement
 type BreakStatement struct {
-	Type  string      `json:"type"`
-	Loc   *SrcLoc     `json:"loc"`
-	Label *Identifier `json:"label"`
+	Type  string     `json:"type"`
+	Loc   *SrcLoc    `json:"loc"`
+	Label Expression `json:"label"`
 }
 
 // https://github.com/estree/estree/blob/master/es5.md#continuestatement
 type ContinueStatement struct {
-	Type  string      `json:"type"`
-	Loc   *SrcLoc     `json:"loc"`
-	Label *Identifier `json:"label"`
+	Type  string     `json:"type"`
+	Loc   *SrcLoc    `json:"loc"`
+	Label Expression `json:"label"`
 }
 
 // https://github.com/estree/estree/blob/master/es5.md#ifstatement
@@ -163,19 +163,26 @@ type SwitchCase struct {
 
 // https://github.com/estree/estree/blob/master/es5.md#throwstatement
 type ThrowStatement struct {
-	Type      string          `json:"type"`
-	Loc       *SrcLoc         `json:"loc"`
-	Block     *BlockStatement `json:"block"`
-	Handler   *CatchClause    `json:"handler"`
-	Finalizer *BlockStatement `json:"finalizer"`
+	Type     string     `json:"type"`
+	Loc      *SrcLoc    `json:"loc"`
+	Argument Expression `json:"argument"`
+}
+
+// https://github.com/estree/estree/blob/master/es5.md#trystatement
+type TryStatement struct {
+	Type      string     `json:"type"`
+	Loc       *SrcLoc    `json:"loc"`
+	Block     Statement  `json:"block"`
+	Handler   Expression `json:"handler"`
+	Finalizer Statement  `json:"finalizer"`
 }
 
 // https://github.com/estree/estree/blob/master/es5.md#catchclause
 type CatchClause struct {
-	Type  string          `json:"type"`
-	Loc   *SrcLoc         `json:"loc"`
-	Param Pattern         `json:"param"` // `Pattern | null` from es2019
-	Body  *BlockStatement `json:"body"`
+	Type  string    `json:"type"`
+	Loc   *SrcLoc   `json:"loc"`
+	Param Pattern   `json:"param"` // `Pattern | null` from es2019
+	Body  Statement `json:"body"`
 }
 
 // https://github.com/estree/estree/blob/master/es5.md#whilestatement
@@ -190,8 +197,8 @@ type WhileStatement struct {
 type DoWhileStatement struct {
 	Type string     `json:"type"`
 	Loc  *SrcLoc    `json:"loc"`
+	Test Expression `json:"test"`
 	Body Statement  `json:"body"`
-	Test Expression `json:"expression"`
 }
 
 // https://github.com/estree/estree/blob/master/es5.md#forstatement
@@ -227,13 +234,13 @@ type Declaration interface{}
 
 // https://github.com/estree/estree/blob/master/es5.md#functiondeclaration
 type FunctionDeclaration struct {
-	Type      string      `json:"type"`
-	Loc       *SrcLoc     `json:"loc"`
-	Id        *Identifier `json:"id"`
-	Params    []Pattern   `json:"params"`
-	Body      Node        `json:"body"`
-	Generator bool        `json:"generator"`
-	Async     bool        `json:"async"`
+	Type      string  `json:"type"`
+	Loc       *SrcLoc `json:"loc"`
+	Id        Node    `json:"id"`
+	Params    []Node  `json:"params"`
+	Body      Node    `json:"body"`
+	Generator bool    `json:"generator"`
+	Async     bool    `json:"async"`
 }
 
 // https://github.com/estree/estree/blob/master/es5.md#variabledeclaration
@@ -342,8 +349,8 @@ type ConditionalExpression struct {
 	Type       string     `json:"type"`
 	Loc        *SrcLoc    `json:"loc"`
 	Test       Expression `json:"test"`
+	Consequent Expression `json:"consequent"`
 	Alternate  Expression `json:"alternate"`
-	Consequent Expression `json:"Consequent"`
 }
 
 // https://github.com/estree/estree/blob/master/es5.md#callexpression

@@ -39,7 +39,11 @@ type Lexer struct {
 	peekedR   int
 	peekedW   int
 
-	prev *Token
+	beginStmt bool
+	notIn     bool
+
+	pr *Token // prev read
+	pp *Token // prev peek
 }
 
 func NewLexer(src *Source) *Lexer {
@@ -108,6 +112,8 @@ func (l *Lexer) PeekGrow() *Token {
 	}
 
 	tok := l.readTok()
+	l.pp = tok
+	l.beginStmt = false
 	if tok.isEof() {
 		return tok
 	}
@@ -142,8 +148,8 @@ func (l *Lexer) Loc() *Loc {
 }
 
 func (l *Lexer) FinLoc(loc *Loc) *Loc {
-	if l.prev != nil {
-		tok := l.prev
+	if l.pr != nil {
+		tok := l.pr
 		p := tok.end
 		loc.end.line = p.line
 		loc.end.col = p.col
@@ -179,7 +185,8 @@ func (l *Lexer) nextTok() *Token {
 
 func (l *Lexer) Next() *Token {
 	tok := l.nextTok()
-	l.prev = tok
+	l.pr = tok
+	l.beginStmt = false
 	return tok
 }
 
@@ -277,6 +284,24 @@ func (l *Lexer) ReadName() *Token {
 	}
 	tok.text = text
 	return l.finToken(tok, T_NAME)
+}
+
+func (l *Lexer) aheadIsRegexp() bool {
+	if l.beginStmt {
+		return true
+	}
+	prev := l.pr
+	if l.pr == nil {
+		prev = l.pp
+	}
+	if prev == nil {
+		return true
+	}
+	v := prev.value
+	if l.notIn && v == T_IN {
+		v = T_NAME
+	}
+	return TokenKinds[v].BeforeExpr
 }
 
 func (l *Lexer) ReadSymbol() *Token {
@@ -484,7 +509,7 @@ func (l *Lexer) ReadSymbol() *Token {
 			return l.readSinglelineComment(tok)
 		} else if l.src.AheadIsCh('*') {
 			return l.readMultilineComment(tok)
-		} else if l.prev == nil || TokenKinds[l.prev.value].BeforeExpr {
+		} else if l.aheadIsRegexp() {
 			return l.readRegexp(tok)
 		} else if l.src.AheadIsCh('=') {
 			l.src.Read()
@@ -704,7 +729,6 @@ func (l *Lexer) ReadNum() *Token {
 }
 
 func (l *Lexer) readDecimalNum(tok *Token, first rune) *Token {
-	isFractionOpt := first == '.'
 	if first != '.' && first != '0' {
 		l.readDecimalDigits(true)
 	}
@@ -714,7 +738,7 @@ func (l *Lexer) readDecimalNum(tok *Token, first rune) *Token {
 			l.src.Read()
 		}
 		// read the fraction part
-		if err := l.readDecimalDigits(isFractionOpt); err != nil {
+		if err := l.readDecimalDigits(true); err != nil {
 			return l.errToken(tok)
 		}
 	}
@@ -958,6 +982,7 @@ func IsIdStart(c rune) bool {
 			unicode.Title, unicode.Modi,
 			unicode.Lo,
 			unicode.Pc,
+			unicode.Mark,
 			unicode.Other_Lowercase,
 			unicode.Other_Uppercase,
 			unicode.Other_ID_Start) ||
