@@ -3,8 +3,6 @@ package estree
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
-	"strings"
 	"testing"
 
 	"github.com/hsiaosiyuan0/mole/pkg/assert"
@@ -13,7 +11,7 @@ import (
 
 func compile(code string) (string, error) {
 	s := parser.NewSource("", code)
-	p := parser.NewParser(s, make([]string, 0))
+	p := parser.NewParser(s, parser.NewParserOpts())
 	ast, err := p.Prog()
 	if err != nil {
 		return "", err
@@ -27,10 +25,6 @@ func compile(code string) (string, error) {
 	json.Indent(&out, b, "", "  ")
 
 	return out.String(), nil
-}
-
-func trim(str string) string {
-	return strings.Trim(str, "\n ")
 }
 
 func Test1(t *testing.T) {
@@ -106,7 +100,7 @@ func Test2(t *testing.T) {
 	ast, err := compile("this\n")
 	assert.Equal(t, nil, err, "should be prog ok")
 
-	assert.EqualJson(t, trim(`
+	assert.EqualJson(t, `
 {
   "type": "Program",
   "loc": {
@@ -152,7 +146,7 @@ func Test2(t *testing.T) {
     }
   ]
 }
-  `), ast)
+  `, ast)
 }
 
 func Test3(t *testing.T) {
@@ -28989,7 +28983,6 @@ func Test328(t *testing.T) {
 	ast, err := compile("foo <!--bar\n+baz")
 	assert.Equal(t, nil, err, "should be prog ok")
 
-	fmt.Println(ast)
 	assert.EqualJson(t, `
 {
   "type": "Program",
