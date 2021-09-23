@@ -5,13 +5,38 @@ import "errors"
 type Parser struct {
 	lexer  *Lexer
 	symtab *SymTab
+	ver    ESVersion
+	srcTyp SourceType
 }
 
-func NewParser(src *Source, externals []string) *Parser {
+type ParserOpts struct {
+	Externals  []string
+	Version    ESVersion
+	SourceType SourceType
+}
+
+func NewParserOpts() *ParserOpts {
+	return &ParserOpts{
+		Externals:  make([]string, 0),
+		Version:    ES12,
+		SourceType: ST_MODULE,
+	}
+}
+
+func NewParser(src *Source, opts *ParserOpts) *Parser {
 	parser := &Parser{}
 	parser.lexer = NewLexer(src)
-	parser.symtab = NewSymTab(externals)
+	parser.symtab = NewSymTab(opts.Externals)
+	parser.ver = opts.Version
+	parser.srcTyp = opts.SourceType
 	return parser
+}
+
+func (p *Parser) isStrict() bool {
+	if p.srcTyp == ST_MODULE {
+		return true
+	}
+	return p.symtab.Cur.Strict
 }
 
 func (p *Parser) Prog() (Node, error) {
@@ -63,7 +88,7 @@ func (p *Parser) stmt() (Node, error) {
 	case T_TRY:
 		return p.tryStmt()
 	case T_BRACE_L:
-		return p.blockStmt()
+		return p.blockStmt(false)
 	case T_DO:
 		return p.doWhileStmt()
 	case T_SWITCH:
@@ -95,6 +120,10 @@ func (p *Parser) classDec(expr bool) (Node, error) {
 	loc := p.loc()
 	p.lexer.Next()
 
+	scope := p.symtab.EnterScope()
+	scope.Strict = true
+	p.lexer.pushMode(LM_STRICT)
+
 	var id Node
 	var err error
 	if p.lexer.Peek().value != T_BRACE_L {
@@ -106,6 +135,7 @@ func (p *Parser) classDec(expr bool) (Node, error) {
 
 	var super Node
 	if p.lexer.Peek().value == T_EXTENDS {
+		p.lexer.Next()
 		super, err = p.lhs()
 		if err != nil {
 			return nil, err
@@ -117,6 +147,9 @@ func (p *Parser) classDec(expr bool) (Node, error) {
 		return nil, err
 	}
 
+	p.symtab.LeaveScope()
+	p.lexer.popMode()
+
 	typ := N_STMT_CLASS
 	if expr {
 		typ = N_EXPR_CLASS
@@ -124,7 +157,7 @@ func (p *Parser) classDec(expr bool) (Node, error) {
 	return &ClassDec{typ, p.finLoc(loc), id, super, body}, nil
 }
 
-func (p *Parser) classBody() (*ClassBody, error) {
+func (p *Parser) classBody() (Node, error) {
 	loc := p.loc()
 	p.nextMustTok(T_BRACE_L)
 	elems := make([]Node, 0)
@@ -239,7 +272,7 @@ func (p *Parser) classElemName() (Node, error) {
 }
 
 func (p *Parser) staticBlock() (Node, error) {
-	block, err := p.blockStmt()
+	block, err := p.blockStmt(false)
 	if err != nil {
 		return nil, err
 	}
@@ -286,7 +319,7 @@ func (p *Parser) tryStmt() (Node, error) {
 	loc := p.loc()
 	p.lexer.Next()
 
-	try, err := p.blockStmt()
+	try, err := p.blockStmt(false)
 	if err != nil {
 		return nil, err
 	}
@@ -307,7 +340,7 @@ func (p *Parser) tryStmt() (Node, error) {
 		}
 		p.nextMustTok(T_PAREN_R)
 
-		body, err := p.blockStmt()
+		body, err := p.blockStmt(false)
 		if err != nil {
 			return nil, err
 		}
@@ -317,7 +350,7 @@ func (p *Parser) tryStmt() (Node, error) {
 	var fin Node
 	if p.lexer.Peek().value == T_FINALLY {
 		p.lexer.Next()
-		fin, err = p.blockStmt()
+		fin, err = p.blockStmt(false)
 		if err != nil {
 			return nil, err
 		}
@@ -675,6 +708,8 @@ func (p *Parser) fnDec(expr bool, async bool) (Node, error) {
 	}
 	p.lexer.Next()
 
+	p.symtab.EnterScope()
+
 	generator := p.lexer.Peek().value == T_MUL
 	if generator {
 		p.lexer.Next()
@@ -710,6 +745,9 @@ func (p *Parser) fnDec(expr bool, async bool) (Node, error) {
 		return nil, err
 	}
 
+	p.symtab.LeaveScope()
+	// TODO: check formal params if in strict mode
+
 	typ := N_STMT_FN
 	if expr {
 		typ = N_EXPR_FN
@@ -739,13 +777,16 @@ func (p *Parser) formalParams() ([]Node, error) {
 }
 
 func (p *Parser) fnBody() (Node, error) {
-	return p.blockStmt()
+	return p.blockStmt(true)
 }
 
-func (p *Parser) blockStmt() (*BlockStmt, error) {
+func (p *Parser) blockStmt(fnBody bool) (*BlockStmt, error) {
 	tok, err := p.nextMustTok(T_BRACE_L)
 	if err != nil {
 		return nil, err
+	}
+	if !fnBody {
+		p.symtab.EnterScope()
 	}
 	loc := p.locFromTok(tok)
 
@@ -760,8 +801,18 @@ func (p *Parser) blockStmt() (*BlockStmt, error) {
 			return nil, err
 		}
 		if stmt != nil {
+			if fnBody && stmt.Type() == N_STMT_EXPR {
+				expr := stmt.(*ExprStmt).expr
+				if expr.Type() == N_LIT_STR && expr.(*StrLit).Text() == "use strict" {
+					p.symtab.Cur.Strict = true
+					p.lexer.addMode(LM_STRICT)
+				}
+			}
 			stmts = append(stmts, stmt)
 		}
+	}
+	if !fnBody {
+		p.symtab.LeaveScope()
 	}
 	return &BlockStmt{N_STMT_BLOCK, p.finLoc(loc), stmts}, nil
 }
@@ -905,7 +956,7 @@ func (p *Parser) patternProp() (Node, error) {
 		return nil, err
 	}
 
-	return &Prop{N_PROP, p.finLoc(loc), key, value, !IsLitPropName(key)}, nil
+	return &Prop{N_PROP, p.finLoc(loc), key, value, !IsLitPropName(key), nil}, nil
 }
 
 func (p *Parser) propName(allowNamePVT bool) (Node, error) {
@@ -1234,7 +1285,6 @@ func (p *Parser) newExpr() (Node, error) {
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-expressions.html#prod-CallExpression
 func (p *Parser) callExpr(callee Node) (Node, error) {
-	// TODO: SuperCall ImportCall
 	var loc *Loc
 	var err error
 	if callee == nil {
@@ -1272,6 +1322,39 @@ func (p *Parser) callExpr(callee Node) (Node, error) {
 	}
 
 	return callee, nil
+}
+
+// https://262.ecma-international.org/12.0/#prod-ImportCall
+func (p *Parser) importCall() (Node, error) {
+	loc := p.loc()
+	tok := p.lexer.Next()
+	meta := &Ident{N_NAME, p.finLoc(p.locFromTok(tok)), tok, false}
+
+	if p.lexer.Peek().value == T_DOT {
+		p.lexer.Next()
+		prop, err := p.ident()
+		if err != nil {
+			return nil, err
+		}
+		if prop.Text() != "meta" {
+			return nil, p.error(prop.loc.begin)
+		}
+		return &MetaProp{N_META_PROP, p.finLoc(loc), meta, prop}, nil
+	}
+
+	_, err := p.nextMustTok(T_PAREN_L)
+	if err != nil {
+		return nil, err
+	}
+	src, err := p.assignExpr(false)
+	if err != nil {
+		return nil, err
+	}
+	_, err = p.nextMustTok(T_PAREN_R)
+	if err != nil {
+		return nil, err
+	}
+	return &ImportCall{N_IMPORT_CALL, p.finLoc(loc), src}, nil
 }
 
 func (p *Parser) tplExpr(tag Node) (Node, error) {
@@ -1424,15 +1507,6 @@ func (p *Parser) memberExprPropSubscript(obj Node) (Node, error) {
 	return node, nil
 }
 
-func (p *Parser) namePvt() (Node, error) {
-	loc := p.loc()
-	id := p.lexer.Next()
-	if id.value != T_NAME && id.value != T_NAME_PVT {
-		return nil, p.error(id.begin)
-	}
-	return &Ident{N_NAME, p.finLoc(loc), id, id.value == T_NAME_PVT}, nil
-}
-
 func (p *Parser) memberExprPropDot(obj Node) (Node, error) {
 	p.lexer.Next()
 
@@ -1469,6 +1543,9 @@ func (p *Parser) primaryExpr() (Node, error) {
 		p.lexer.Next()
 		return &BoolLit{N_LIT_BOOL, p.finLoc(loc), tok}, nil
 	case T_NAME:
+		if p.aheadIsAsync(tok) {
+			return p.fnDec(true, true)
+		}
 		p.lexer.Next()
 		return &Ident{N_NAME, p.finLoc(loc), tok, false}, nil
 	case T_THIS:
@@ -1488,9 +1565,11 @@ func (p *Parser) primaryExpr() (Node, error) {
 		return &RegexpLit{N_LIT_REGEXP, p.finLoc(loc), tok, ext.Pattern(), ext.Flags()}, nil
 	case T_CLASS:
 		return p.classDec(true)
-	}
-	if p.aheadIsAsync(tok) {
-		return p.fnDec(true, true)
+	case T_SUPER:
+		p.lexer.Next()
+		return &Super{N_SUPER, p.finLoc(loc)}, nil
+	case T_IMPORT:
+		return p.importCall()
 	}
 	return nil, p.error(tok.begin)
 }
@@ -1503,8 +1582,7 @@ func (p *Parser) parenExpr() (Node, error) {
 	}
 	if p.lexer.Peek().value == T_ARROW {
 		p.lexer.Next()
-
-		// TODO: check params
+		p.symtab.EnterScope()
 
 		var body Node
 		var err error
@@ -1516,6 +1594,9 @@ func (p *Parser) parenExpr() (Node, error) {
 		if err != nil {
 			return nil, err
 		}
+
+		p.symtab.LeaveScope()
+		// TODO: check params
 
 		return &ArrowFn{N_EXPR_ARROW, p.finLoc(loc), false, false, params, body}, nil
 	}
@@ -1638,13 +1719,13 @@ func (p *Parser) objProp() (Node, error) {
 				ahead.afterLineTerminator
 			if !isField {
 				p.lexer.Next()
-				return p.method(false, nil, tok, false, false)
+				return p.propMethod(nil, tok, false, false, false)
 			}
 		}
 	} else if tok.value == T_MUL {
-		return p.propMethod(nil, tok, true, false, false)
+		return p.propMethod(nil, nil, true, false, false)
 	} else if p.aheadIsAsync(tok) {
-		return p.propMethod(nil, tok, false, true, false)
+		return p.propMethod(nil, nil, false, true, false)
 	}
 
 	return p.propField()
@@ -1669,7 +1750,7 @@ func (p *Parser) propField() (Node, error) {
 		return p.propMethod(key, nil, false, false, false)
 	}
 
-	return &Prop{N_PROP, p.finLoc(loc), key, value, !IsLitPropName(key)}, nil
+	return &Prop{N_PROP, p.finLoc(loc), key, value, !IsLitPropName(key), nil}, nil
 }
 
 func (p *Parser) propMethod(key Node, kind *Token, gen bool, async bool, allowNamePVT bool) (Node, error) {
@@ -1709,7 +1790,7 @@ func (p *Parser) propMethod(key Node, kind *Token, gen bool, async bool, allowNa
 	}
 
 	value := &FnDec{N_EXPR_FN, p.finLoc(fnLoc), nil, gen, async, params, body}
-	return &Prop{N_PROP, p.finLoc(loc), key, value, !IsLitPropName(key)}, nil
+	return &Prop{N_PROP, p.finLoc(loc), key, value, !IsLitPropName(key), kind}, nil
 }
 
 func (p *Parser) advanceIfSemi(cmt bool) {

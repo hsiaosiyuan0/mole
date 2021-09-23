@@ -144,6 +144,9 @@ const (
 	N_STATIC_BLOCK
 	N_METHOD
 	N_FIELD
+	N_SUPER
+	N_IMPORT_CALL
+	N_META_PROP
 
 	N_EXPR_END
 )
@@ -707,6 +710,18 @@ type Prop struct {
 	key      Node
 	value    Node
 	computed bool
+	kind     *Token
+}
+
+func (n *Prop) Kind() string {
+	if n.kind != nil {
+		return n.kind.Text()
+	}
+	return "init"
+}
+
+func (n *Prop) Method() bool {
+	return n.value.Type() == N_EXPR_FN
 }
 
 func (n *Prop) Key() Node {
@@ -1180,7 +1195,19 @@ type ClassDec struct {
 	loc   *Loc
 	id    Node
 	super Node
-	body  *ClassBody
+	body  Node
+}
+
+func (n *ClassDec) Id() Node {
+	return n.id
+}
+
+func (n *ClassDec) Super() Node {
+	return n.super
+}
+
+func (n *ClassDec) Body() Node {
+	return n.body
 }
 
 func (n *ClassDec) Type() NodeType {
@@ -1195,6 +1222,10 @@ type ClassBody struct {
 	typ   NodeType
 	loc   *Loc
 	elems []Node
+}
+
+func (n *ClassBody) Elems() []Node {
+	return n.elems
 }
 
 func (n *ClassBody) Type() NodeType {
@@ -1234,6 +1265,10 @@ func (n *Method) Computed() bool {
 	return n.computed
 }
 
+func (n *Method) Static() bool {
+	return n.static
+}
+
 func (n *Method) Type() NodeType {
 	return n.typ
 }
@@ -1249,6 +1284,22 @@ type Field struct {
 	static   bool
 	computed bool
 	value    Node
+}
+
+func (n *Field) Key() Node {
+	return n.key
+}
+
+func (n *Field) Value() Node {
+	return n.key
+}
+
+func (n *Field) Static() bool {
+	return n.static
+}
+
+func (n *Field) Compute() bool {
+	return n.computed
 }
 
 func (n *Field) Type() NodeType {
@@ -1342,5 +1393,59 @@ func (n *TplExpr) Type() NodeType {
 }
 
 func (n *TplExpr) Loc() *Loc {
+	return n.loc
+}
+
+type Super struct {
+	typ NodeType
+	loc *Loc
+}
+
+func (n *Super) Type() NodeType {
+	return n.typ
+}
+
+func (n *Super) Loc() *Loc {
+	return n.loc
+}
+
+type ImportCall struct {
+	typ NodeType
+	loc *Loc
+	src Node
+}
+
+func (n *ImportCall) Src() Node {
+	return n.src
+}
+
+func (n *ImportCall) Type() NodeType {
+	return n.typ
+}
+
+func (n *ImportCall) Loc() *Loc {
+	return n.loc
+}
+
+type MetaProp struct {
+	typ  NodeType
+	loc  *Loc
+	meta Node
+	prop Node
+}
+
+func (n *MetaProp) Meta() Node {
+	return n.meta
+}
+
+func (n *MetaProp) Prop() Node {
+	return n.prop
+}
+
+func (n *MetaProp) Type() NodeType {
+	return n.typ
+}
+
+func (n *MetaProp) Loc() *Loc {
 	return n.loc
 }

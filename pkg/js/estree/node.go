@@ -280,13 +280,14 @@ type ObjectExpression struct {
 
 // https://github.com/estree/estree/blob/master/es5.md#functionexpression
 type FunctionExpression struct {
-	Type      string  `json:"type"`
-	Loc       *SrcLoc `json:"loc"`
-	Id        Node    `json:"id"`
-	Params    []Node  `json:"params"`
-	Body      Node    `json:"body"`
-	Generator bool    `json:"generator"`
-	Async     bool    `json:"async"`
+	Type       string  `json:"type"`
+	Loc        *SrcLoc `json:"loc"`
+	Id         Node    `json:"id"`
+	Params     []Node  `json:"params"`
+	Body       Node    `json:"body"`
+	Generator  bool    `json:"generator"`
+	Async      bool    `json:"async"`
+	Expression bool    `json:"expression"`
 }
 
 // https://github.com/estree/estree/blob/master/es5.md#unaryexpression
@@ -518,20 +519,20 @@ type AssignmentPattern struct {
 
 // https://github.com/estree/estree/blob/master/es2015.md#classbody
 type ClassBody struct {
-	Type string  `json:"type"`
-	Loc  *SrcLoc `json:"loc"`
-	Body []Node  `json:"body"` // MethodDefinition | PropertyDefinition | StaticBlock
+	Type string       `json:"type"`
+	Loc  *SrcLoc      `json:"loc"`
+	Body []Expression `json:"body"` // MethodDefinition | PropertyDefinition | StaticBlock
 }
 
 // https://github.com/estree/estree/blob/master/es2015.md#methoddefinition
 type MethodDefinition struct {
-	Type     string              `json:"type"`
-	Loc      *SrcLoc             `json:"loc"`
-	Key      Expression          `json:"key"`
-	Value    *FunctionExpression `json:"value"`
-	Kind     string              `json:"kind"` // "constructor" | "method" | "get" | "set"
-	Computed bool                `json:"computed"`
-	Static   bool                `json:"static"`
+	Type     string     `json:"type"`
+	Loc      *SrcLoc    `json:"loc"`
+	Key      Expression `json:"key"`
+	Value    Expression `json:"value"`
+	Kind     string     `json:"kind"` // "constructor" | "method" | "get" | "set"
+	Computed bool       `json:"computed"`
+	Static   bool       `json:"static"`
 }
 
 // https://github.com/estree/estree/blob/master/es2022.md#propertydefinition
@@ -546,20 +547,20 @@ type PropertyDefinition struct {
 
 // https://github.com/estree/estree/blob/master/es2015.md#classdeclaration
 type ClassDeclaration struct {
-	Type       string      `json:"type"`
-	Loc        *SrcLoc     `json:"loc"`
-	Id         *Identifier `json:"id"`
-	SuperClass Expression  `json:"superClass"`
-	Body       *ClassBody  `json:"body"`
+	Type       string     `json:"type"`
+	Loc        *SrcLoc    `json:"loc"`
+	Id         Expression `json:"id"`
+	SuperClass Expression `json:"superClass"`
+	Body       Expression `json:"body"`
 }
 
 // https://github.com/estree/estree/blob/master/es2015.md#classexpression
 type ClassExpression struct {
-	Type       string      `json:"type"`
-	Loc        *SrcLoc     `json:"loc"`
-	Id         *Identifier `json:"id"`
-	SuperClass Expression  `json:"superClass"`
-	Body       *ClassBody  `json:"body"`
+	Type       string     `json:"type"`
+	Loc        *SrcLoc    `json:"loc"`
+	Id         Expression `json:"id"`
+	SuperClass Expression `json:"superClass"`
+	Body       Expression `json:"body"`
 }
 
 // https://github.com/estree/estree/blob/master/es2022.md#privateidentifier
@@ -578,10 +579,10 @@ type StaticBlock struct {
 
 // https://github.com/estree/estree/blob/master/es2015.md#metaproperty
 type MetaProperty struct {
-	Type     string      `json:"type"`
-	Loc      *SrcLoc     `json:"loc"`
-	Meta     *Identifier `json:"meta"`
-	Property *Identifier `json:"property"`
+	Type     string     `json:"type"`
+	Loc      *SrcLoc    `json:"loc"`
+	Meta     Expression `json:"meta"`
+	Property Expression `json:"property"`
 }
 
 type ModuleDeclaration interface{}

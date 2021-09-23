@@ -9,8 +9,10 @@ const (
 )
 
 type Binding struct {
-	at   *Token
-	refs []Pos
+	name     *Token
+	local    bool
+	legal    bool
+	refByCnt int
 }
 
 type Scope struct {
@@ -18,19 +20,18 @@ type Scope struct {
 	// the depth-first walk over the entire AST
 	Id       uint
 	LoopKind LoopKind
+	Strict   bool
 
-	Parent *Scope
-	Subs   []*Scope
+	Up   *Scope
+	Down []*Scope
 
-	Params   map[string]int
 	Bindings map[string]int
 }
 
 func NewScope() *Scope {
 	scope := &Scope{
 		Id:       0,
-		Subs:     make([]*Scope, 0),
-		Params:   make(map[string]int),
+		Down:     make([]*Scope, 0),
 		Bindings: make(map[string]int),
 	}
 	return scope
@@ -54,18 +55,9 @@ func (s *Scope) HasBinding(name string) bool {
 		if scope.HasLocal(name) {
 			return true
 		}
-		scope = scope.Parent
+		scope = scope.Up
 	}
 	return false
-}
-
-func (s *Scope) AddParam(name string) {
-	s.Params[name] = len(s.Params)
-}
-
-func (s *Scope) HasParam(name string) bool {
-	_, ok := s.Params[name]
-	return ok
 }
 
 func (s *Scope) LocalIdx(name string) int {
@@ -95,19 +87,21 @@ func NewSymTab(externals []string) *SymTab {
 	return symtab
 }
 
-func (s *SymTab) EnterScope() {
+func (s *SymTab) EnterScope() *Scope {
 	scope := NewScope()
 	scope.Id = s.Cur.Id + 1
+	scope.Strict = s.Cur.Strict
 	s.Scopes[scope.Id] = scope
 
-	scope.Parent = s.Cur
-	s.Cur.Subs = append(s.Cur.Subs, scope)
+	scope.Up = s.Cur
+	s.Cur.Down = append(s.Cur.Down, scope)
 
 	s.Cur = scope
+	return scope
 }
 
 func (s *SymTab) LeaveScope() {
-	s.Cur = s.Cur.Parent
+	s.Cur = s.Cur.Up
 }
 
 func (s *SymTab) HasExternal(name string) bool {

@@ -81,6 +81,11 @@ func (l *Lexer) curMode() *LexerMode {
 	return l.mode[len(l.mode)-1]
 }
 
+func (l *Lexer) addMode(mode LexerModeValue) {
+	cur := l.mode[len(l.mode)-1]
+	cur.value |= mode
+}
+
 func (l *Lexer) isMode(mode LexerModeValue) bool {
 	return l.curMode().value&mode > 0
 }

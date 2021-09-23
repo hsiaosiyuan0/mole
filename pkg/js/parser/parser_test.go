@@ -8,7 +8,7 @@ import (
 
 func compile(code string) (Node, error) {
 	s := NewSource("", code)
-	p := NewParser(s, make([]string, 0))
+	p := NewParser(s, NewParserOpts())
 	return p.Prog()
 }
 
@@ -772,7 +772,7 @@ func TestClassField(t *testing.T) {
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	cls := ast.(*Prog).stmts[0].(*ClassDec)
-	elem0 := cls.body.elems[0].(*Field)
+	elem0 := cls.body.(*ClassBody).elems[0].(*Field)
 	assert.Equal(t, true, elem0.key.(*Ident).pvt, "should be pvt")
 	assert.Equal(t, "f1", elem0.key.(*Ident).val.Text(), "should be f1")
 }
@@ -791,14 +791,14 @@ func TestClassMethod(t *testing.T) {
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	cls := ast.(*Prog).stmts[0].(*ClassDec)
-	elem0 := cls.body.elems[0].(*Method)
+	elem0 := cls.body.(*ClassBody).elems[0].(*Method)
 	assert.Equal(t, "a", elem0.key.(*Ident).val.Text(), "should be a")
 	assert.Equal(t, "b", elem0.value.(*FnDec).params[0].(*Ident).val.Text(), "should be b")
 
-	elem1 := cls.body.elems[1].(*Field)
+	elem1 := cls.body.(*ClassBody).elems[1].(*Field)
 	assert.Equal(t, "e", elem1.key.(*Ident).val.Text(), "should be e")
 
-	elem2 := cls.body.elems[2].(*Method)
+	elem2 := cls.body.(*ClassBody).elems[2].(*Method)
 	assert.Equal(t, true, elem2.key.(*Ident).pvt, "should be pvt")
 	assert.Equal(t, "f", elem2.key.(*Ident).val.Text(), "should be f")
 }
@@ -892,4 +892,29 @@ func TestTplExprMember(t *testing.T) {
 	tpl := member.obj.(*TplExpr)
 	tag := tpl.tag.(*Ident)
 	assert.Equal(t, "tag", tag.val.Text(), "should be tag")
+}
+
+func TestSuper(t *testing.T) {
+	ast, err := compile("class a { constructor() { super() } }")
+	assert.Equal(t, nil, err, "should be prog ok")
+	ctor := ast.(*Prog).stmts[0].(*ClassDec).body.(*ClassBody).elems[0].(*Method).value.(*FnDec)
+	expr := ctor.body.(*BlockStmt).body[0].(*ExprStmt).expr
+	call := expr.(*CallExpr)
+	assert.Equal(t, N_SUPER, call.callee.Type(), "should be tag")
+}
+
+func TestImportCall(t *testing.T) {
+	ast, err := compile("a = import(b)")
+	assert.Equal(t, nil, err, "should be prog ok")
+	assign := ast.(*Prog).stmts[0].(*ExprStmt).expr.(*AssignExpr)
+	importCall := assign.rhs.(*ImportCall)
+	assert.Equal(t, "b", importCall.src.(*Ident).Text(), "should be b")
+}
+
+func TestMetaProp(t *testing.T) {
+	ast, err := compile("a = import.meta")
+	assert.Equal(t, nil, err, "should be prog ok")
+	assign := ast.(*Prog).stmts[0].(*ExprStmt).expr.(*AssignExpr)
+	metaProp := assign.rhs.(*MetaProp)
+	assert.Equal(t, "meta", metaProp.prop.(*Ident).Text(), "should be meta")
 }

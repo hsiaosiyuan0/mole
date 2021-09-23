@@ -225,32 +225,23 @@ func convert(node parser.Node) Node {
 			Loc:      loc(prop.Loc()),
 			Key:      convert(prop.Key()),
 			Value:    convert(prop.Value()),
-			Kind:     "init",
+			Kind:     prop.Kind(),
 			Computed: prop.Computed(),
-		}
-	case parser.N_METHOD:
-		method := node.(*parser.Method)
-		return &Property{
-			Type:     "Property",
-			Loc:      loc(method.Loc()),
-			Key:      convert(method.Key()),
-			Value:    convert(method.Value()),
-			Kind:     method.Kind(),
-			Computed: method.Computed(),
-			Method:   true,
+			Method:   prop.Method(),
 		}
 	case parser.N_STMT_BLOCK:
 		return blockStmt(node.(*parser.BlockStmt))
 	case parser.N_EXPR_FN:
 		fn := node.(*parser.FnDec)
 		return &FunctionExpression{
-			Type:      "FunctionExpression",
-			Loc:       loc(fn.Loc()),
-			Id:        convert(fn.Id()),
-			Params:    fnParams(fn.Params()),
-			Body:      convert(fn.Body()),
-			Generator: fn.Generator(),
-			Async:     fn.Async(),
+			Type:       "FunctionExpression",
+			Loc:        loc(fn.Loc()),
+			Id:         convert(fn.Id()),
+			Params:     fnParams(fn.Params()),
+			Body:       convert(fn.Body()),
+			Generator:  fn.Generator(),
+			Async:      fn.Async(),
+			Expression: false,
 		}
 	case parser.N_STMT_FN:
 		fn := node.(*parser.FnDec)
@@ -476,6 +467,54 @@ func convert(node parser.Node) Node {
 			Loc:    loc(node.Loc()),
 			Object: convert(stmt.Expr()),
 			Body:   convert(stmt.Body()),
+		}
+	case parser.N_IMPORT_CALL:
+		stmt := node.(*parser.ImportCall)
+		return &ImportExpression{
+			Type:   "ImportExpression",
+			Loc:    loc(node.Loc()),
+			Source: convert(stmt.Src()),
+		}
+	case parser.N_META_PROP:
+		stmt := node.(*parser.MetaProp)
+		return &MetaProperty{
+			Type:     "MetaProperty",
+			Loc:      loc(node.Loc()),
+			Meta:     convert(stmt.Meta()),
+			Property: convert(stmt.Prop()),
+		}
+	case parser.N_STMT_CLASS:
+		stmt := node.(*parser.ClassDec)
+		return &ClassDeclaration{
+			Type:       "ClassDeclaration",
+			Loc:        loc(stmt.Loc()),
+			Id:         convert(stmt.Id()),
+			SuperClass: convert(stmt.Super()),
+			Body:       convert(stmt.Body()),
+		}
+	case parser.N_ClASS_BODY:
+		stmt := node.(*parser.ClassBody)
+		return &ClassBody{
+			Type: "ClassBody",
+			Loc:  loc(stmt.Loc()),
+			Body: expressions(stmt.Elems()),
+		}
+	case parser.N_METHOD:
+		n := node.(*parser.Method)
+		return &MethodDefinition{
+			Type:     "MethodDefinition",
+			Loc:      loc(n.Loc()),
+			Key:      convert(n.Key()),
+			Value:    convert(n.Value()),
+			Kind:     n.Kind(),
+			Computed: n.Computed(),
+			Static:   n.Static(),
+		}
+	case parser.N_SUPER:
+		n := node.(*parser.Super)
+		return &Super{
+			Type: "Super",
+			Loc:  loc(n.Loc()),
 		}
 	}
 	return nil
