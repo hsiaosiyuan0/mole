@@ -234,11 +234,12 @@ func TestReadTpl(t *testing.T) {
 	l := NewLexer(s)
 
 	tok := l.Next()
-	assert.Equal(t, T_STRING, tok.value, "should be tok str")
+	assert.Equal(t, T_TPL_HEAD, tok.value, "should be tok str")
+	assert.Equal(t, true, tok.ext, "should be tok str")
 	assert.Equal(t, "abc", tok.Text(), "should be tok str abc")
 
 	tok = l.Next()
-	assert.Equal(t, T_TPL_SPAN, tok.value, "should be tok tpl span")
+	assert.Equal(t, T_TPL_HEAD, tok.value, "should be tok tpl head")
 	assert.Equal(t, "a", tok.Text(), "should be tok tpl a")
 
 	tok = l.Next()
@@ -264,7 +265,7 @@ func TestReadNestTpl(t *testing.T) {
 	l := NewLexer(s)
 
 	tok := l.Next()
-	assert.Equal(t, T_TPL_SPAN, tok.value, "should be tok tpl span")
+	assert.Equal(t, T_TPL_HEAD, tok.value, "should be tok tpl head")
 	assert.Equal(t, "a", tok.Text(), "should be tok tpl a")
 
 	assert.Equal(t, T_NUM, l.Next().value, "should be tok 1")
@@ -274,7 +275,7 @@ func TestReadNestTpl(t *testing.T) {
 	assert.Equal(t, T_BRACE_L, l.Next().value, "should be tok {")
 
 	tok = l.Next()
-	assert.Equal(t, T_TPL_SPAN, tok.value, "should be tok tpl span c")
+	assert.Equal(t, T_TPL_HEAD, tok.value, "should be tok tpl head c")
 	assert.Equal(t, "c", tok.Text(), "should be tok tpl c")
 
 	assert.Equal(t, T_NAME, l.Next().value, "should be tok d")

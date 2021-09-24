@@ -12,7 +12,7 @@ type LexerModeValue int
 const (
 	LM_NONE       LexerModeValue = 0
 	LM_STRICT                    = 1 << 0
-	LM_TEMPLATE                  = 1 << 1 // // for inline spans can tell they are in template string
+	LM_TEMPLATE                  = 1 << 1 // for inline spans can tell they are in template string
 	LM_ASYNC                     = 1 << 2
 	LM_GENERATOR                 = 1 << 3
 	LM_CLASS_BODY                = 1 << 4
@@ -206,26 +206,47 @@ func (l *Lexer) ReadTplSpan() *Token {
 	}
 
 	tok := l.newToken()
-	text, fin := l.readTplChs()
+	text, fin, line, col, ofst, pos := l.readTplChs()
 	if text == nil {
 		l.popMode()
 		return l.errToken(tok)
 	}
 
 	tok.text = string(text)
+	tok.value = T_ILLEGAL
+	tok.raw.hi = ofst
+	tok.len = pos - tok.len // tok.len stores the begin pos
+	tok.end.line = line
+	tok.end.col = col
+	tok.afterLineTerminator = l.src.metLineTerminator
+	tok.ext = false
+
+	if head {
+		tok.value = T_TPL_HEAD
+	} else {
+		tok.value = T_TPL_SPAN
+	}
+
 	if fin {
 		l.popMode()
 		if head {
-			return l.finToken(tok, T_STRING)
+			tok.ext = true
+			return tok
 		}
-		return l.finToken(tok, T_TPL_TAIL)
+		tok.value = T_TPL_TAIL
+		return tok
 	}
-	return l.finToken(tok, T_TPL_SPAN)
+	return tok
 }
 
-func (l *Lexer) readTplChs() (text []rune, fin bool) {
+func (l *Lexer) readTplChs() (text []rune, fin bool, line, col, ofst, pos int) {
 	text = make([]rune, 0, 10)
 	for {
+		line = l.src.line
+		col = l.src.col
+		ofst = l.src.Ofst()
+		pos = l.src.Pos()
+
 		c := l.src.Peek()
 		if c == '$' {
 			l.src.Read()
@@ -248,6 +269,8 @@ func (l *Lexer) readTplChs() (text []rune, fin bool) {
 				}
 				text = append(text, r)
 			}
+			line = l.src.line
+			col = l.src.col
 		} else if c == utf8.RuneError {
 			text = nil
 			return
@@ -966,7 +989,7 @@ func (l *Lexer) newToken() *Token {
 func (l *Lexer) finToken(tok *Token, value TokenValue) *Token {
 	tok.value = value
 	tok.raw.hi = l.src.Ofst()
-	tok.len = l.src.Pos() - tok.len
+	tok.len = l.src.Pos() - tok.len // tok.len stores the begin pos
 	tok.end.line = l.src.line
 	tok.end.col = l.src.col
 	tok.afterLineTerminator = l.src.metLineTerminator

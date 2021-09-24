@@ -122,6 +122,53 @@ func declarations(decList []*parser.VarDec) []*VariableDeclarator {
 	return s
 }
 
+func tplLiteral(tplLoc *parser.Loc, elems []parser.Node) *TemplateLiteral {
+	quasis := make([]Expression, 0)
+	exprs := make([]Expression, 0)
+	cnt := len(elems)
+	for i, elem := range elems {
+		first := i == 0
+		last := i == cnt-1
+		if elem.Type() != parser.N_LIT_STR {
+			if first || last {
+				lc := loc(tplLoc)
+				if first {
+					lc.End.Column = lc.Start.Column
+				} else {
+					lc.Start.Column = lc.End.Column
+				}
+				quasis = append(quasis, &TemplateElement{
+					Type: "TemplateElement",
+					Loc:  lc,
+					Tail: last,
+					Value: &TemplateElementValue{
+						Cooked: "",
+						Raw:    "",
+					},
+				})
+			}
+			exprs = append(exprs, convert(elem))
+		} else {
+			str := elem.(*parser.StrLit)
+			quasis = append(quasis, &TemplateElement{
+				Type: "TemplateElement",
+				Loc:  loc(elem.Loc()),
+				Tail: last,
+				Value: &TemplateElementValue{
+					Cooked: str.Text(),
+					Raw:    str.Raw(),
+				},
+			})
+		}
+	}
+	return &TemplateLiteral{
+		Type:        "TemplateLiteral",
+		Loc:         loc(tplLoc),
+		Quasis:      quasis,
+		Expressions: exprs,
+	}
+}
+
 func convert(node parser.Node) Node {
 	if node == nil {
 		return nil
@@ -515,6 +562,17 @@ func convert(node parser.Node) Node {
 		return &Super{
 			Type: "Super",
 			Loc:  loc(n.Loc()),
+		}
+	case parser.N_EXPR_TPL:
+		tpl := node.(*parser.TplExpr)
+		if tpl.Tag() == nil {
+			return tplLiteral(tpl.Loc(), tpl.Elems())
+		}
+		return &TaggedTemplateExpression{
+			Type:  "TaggedTemplateExpression",
+			Loc:   loc(tpl.LocWithTag()),
+			Tag:   convert(tpl.Tag()),
+			Quasi: tplLiteral(tpl.Loc(), tpl.Elems()),
 		}
 	}
 	return nil

@@ -183,10 +183,12 @@ func (s *Source) Line() int {
 	return s.line
 }
 
+// ofst base on byte
 func (s *Source) Ofst() int {
 	return s.ofst - s.peekedBL
 }
 
+// pos base on codepint
 func (s *Source) Pos() int {
 	return s.pos - s.peekedLen
 }

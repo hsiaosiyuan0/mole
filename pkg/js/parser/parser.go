@@ -1104,6 +1104,13 @@ func (p *Parser) exprStmt() (Node, error) {
 	stmt.expr = p.unParen(expr)
 	p.advanceIfSemi(false)
 	stmt.loc = p.finLoc(loc)
+	if expr.Type() == N_EXPR_TPL {
+		// adjust col to include the open-close backquotes
+		if stmt.loc.begin.col > 0 {
+			stmt.loc.begin.col -= 1
+		}
+		stmt.loc.end.col += 1
+	}
 	return stmt, nil
 }
 
@@ -1310,8 +1317,7 @@ func (p *Parser) callExpr(callee Node) (Node, error) {
 			if err != nil {
 				return nil, err
 			}
-			return callee, nil
-		} else if tok.value == T_TPL_SPAN {
+		} else if tok.value == T_TPL_HEAD {
 			callee, err = p.tplExpr(callee)
 			if err != nil {
 				return nil, err
@@ -1358,7 +1364,15 @@ func (p *Parser) importCall() (Node, error) {
 }
 
 func (p *Parser) tplExpr(tag Node) (Node, error) {
-	loc := p.locFromNode(tag)
+	loc := p.loc()
+	if tag != nil {
+		loc.begin = tag.Loc().end.Clone()
+	} else {
+		if loc.begin.col > 0 {
+			// move back one position to take the place of the beginning backquote
+			loc.begin.col -= 1
+		}
+	}
 
 	elems := make([]Node, 0)
 	for {
@@ -1369,23 +1383,34 @@ func (p *Parser) tplExpr(tag Node) (Node, error) {
 			str := &StrLit{N_LIT_STR, p.finLoc(loc), tok}
 			elems = append(elems, str)
 			break
-		} else if tok.value == T_TPL_SPAN {
+		} else if tok.value == T_TPL_SPAN || tok.value == T_TPL_HEAD {
 			loc := p.loc()
 			p.lexer.Next()
 			str := &StrLit{N_LIT_STR, p.finLoc(loc), tok}
 			elems = append(elems, str)
+
+			if tok.IsPlainTpl() {
+				if tag == nil {
+					return str, nil
+				}
+				break
+			}
 
 			expr, err := p.expr(false)
 			if err != nil {
 				return nil, err
 			}
 			elems = append(elems, expr)
+		} else if tok.value == T_EOF {
+			break
 		} else {
 			return nil, p.error(tok.begin)
 		}
 	}
 
-	return &TplExpr{N_EXPR_TPL, p.finLoc(loc), tag, elems}, nil
+	loc = p.finLoc(loc)
+	loc.end.col += 1
+	return &TplExpr{N_EXPR_TPL, loc, tag, elems}, nil
 }
 
 func (p *Parser) argList() ([]Node, error) {
@@ -1570,6 +1595,8 @@ func (p *Parser) primaryExpr() (Node, error) {
 		return &Super{N_SUPER, p.finLoc(loc)}, nil
 	case T_IMPORT:
 		return p.importCall()
+	case T_TPL_HEAD:
+		return p.tplExpr(nil)
 	}
 	return nil, p.error(tok.begin)
 }
@@ -1828,13 +1855,6 @@ func (p *Parser) advanceIfTokIn(begin, end TokenValue) *Token {
 
 func (p *Parser) loc() *Loc {
 	return p.lexer.Loc()
-}
-
-func (p *Parser) locFromNode(node Node) *Loc {
-	if node != nil {
-		return node.Loc().Clone()
-	}
-	return p.loc()
 }
 
 func (p *Parser) locFromTok(tok *Token) *Loc {

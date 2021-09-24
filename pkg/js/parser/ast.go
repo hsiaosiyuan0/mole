@@ -286,6 +286,10 @@ func (n *StrLit) Text() string {
 	return n.val.Text()
 }
 
+func (n *StrLit) Raw() string {
+	return n.val.RawText()
+}
+
 type RegexpLit struct {
 	typ     NodeType
 	loc     *Loc
@@ -1381,11 +1385,24 @@ func (n *ParenExpr) Loc() *Loc {
 	return n.loc
 }
 
+// there is no information kept to describe the program order of the quasis and expresions
+// according to below link descries how the quasis and expresion are being walk over:
+// https://opensource.apple.com/source/WebInspectorUI/WebInspectorUI-7602.2.14.0.5/UserInterface/Workers/Formatter/ESTreeWalker.js.auto.html
+// some meaningless output should be taken into its estree result, such as put first quasis as
+// a emptry string if the first element in `elems` is a expression
 type TplExpr struct {
 	typ   NodeType
 	loc   *Loc
 	tag   Node
 	elems []Node
+}
+
+func (n *TplExpr) Tag() Node {
+	return n.tag
+}
+
+func (n *TplExpr) Elems() []Node {
+	return n.elems
 }
 
 func (n *TplExpr) Type() NodeType {
@@ -1394,6 +1411,14 @@ func (n *TplExpr) Type() NodeType {
 
 func (n *TplExpr) Loc() *Loc {
 	return n.loc
+}
+
+func (n *TplExpr) LocWithTag() *Loc {
+	loc := n.loc.Clone()
+	if n.tag != nil {
+		loc.begin = n.tag.Loc().begin.Clone()
+	}
+	return loc
 }
 
 type Super struct {

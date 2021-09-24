@@ -102,6 +102,13 @@ func (t *Token) Kind() *TokenKind {
 	return TokenKinds[t.value]
 }
 
+func (t *Token) IsPlainTpl() bool {
+	if t.value != T_TPL_HEAD {
+		return false
+	}
+	return t.ext == true
+}
+
 type TokExtStr struct {
 	open rune
 }
@@ -139,6 +146,7 @@ const (
 	T_NUM
 	T_STRING
 
+	T_TPL_HEAD
 	T_TPL_SPAN
 	T_TPL_TAIL
 
@@ -316,7 +324,8 @@ var TokenKinds = [T_TOKEN_DEF_END - 1]*TokenKind{
 	{T_NUM, "number", 0, false, false},
 	{T_STRING, "string", 0, false, false},
 
-	{T_TPL_SPAN, "template span", 0, false, true},
+	{T_TPL_HEAD, "template head", 0, false, true},
+	{T_TPL_SPAN, "template span", 0, false, false},
 	{T_TPL_TAIL, "template tail", 0, false, true},
 
 	{T_NAME, "identifier", 0, false, false},

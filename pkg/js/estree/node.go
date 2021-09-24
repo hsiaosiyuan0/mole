@@ -420,26 +420,26 @@ type AwaitExpression struct {
 
 // https://github.com/estree/estree/blob/master/es2015.md#templateliteral
 type TemplateLiteral struct {
-	Type        string             `json:"type"`
-	Loc         *SrcLoc            `json:"loc"`
-	Quasis      []*TemplateElement `json:"quasis"`
-	Expressions []Expression       `json:"expressions"`
+	Type        string       `json:"type"`
+	Loc         *SrcLoc      `json:"loc"`
+	Quasis      []Expression `json:"quasis"`
+	Expressions []Expression `json:"expressions"`
 }
 
 // https://github.com/estree/estree/blob/master/es2015.md#taggedtemplateexpression
 type TaggedTemplateExpression struct {
-	Type  string          `json:"type"`
-	Loc   *SrcLoc         `json:"loc"`
-	Tag   Expression      `json:"tag"`
-	Quasi TemplateLiteral `json:"quasi"`
+	Type  string     `json:"type"`
+	Loc   *SrcLoc    `json:"loc"`
+	Tag   Expression `json:"tag"`
+	Quasi Expression `json:"quasi"`
 }
 
 // https://github.com/estree/estree/blob/master/es2015.md#templateelement
 type TemplateElement struct {
-	Type  string               `json:"type"`
-	Loc   *SrcLoc              `json:"loc"`
-	Tail  bool                 `json:"tail"`
-	Value TemplateElementValue `json:"value"`
+	Type  string                `json:"type"`
+	Loc   *SrcLoc               `json:"loc"`
+	Tail  bool                  `json:"tail"`
+	Value *TemplateElementValue `json:"value"`
 }
 
 type TemplateElementValue struct {
