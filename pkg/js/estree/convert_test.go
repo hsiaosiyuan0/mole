@@ -29921,12 +29921,71 @@ func Test336(t *testing.T) {
 }
 
 func Test337(t *testing.T) {
-	// ast, err := compile("x = { false: 42 }")
-	// assert.Equal(t, nil, err, "should be prog ok")
+	ast, err := compile("class A { #a; get false() {} b; }")
+	assert.Equal(t, nil, err, "should be prog ok")
 
-	// assert.EqualJson(t, `
-
-	// `, ast)
+	assert.EqualJson(t, `
+{
+  "type": "Program",
+  "body": [
+    {
+      "type": "ClassDeclaration",
+      "id": {
+        "type": "Identifier",
+        "name": "A"
+      },
+      "superClass": null,
+      "body": {
+        "type": "ClassBody",
+        "body": [
+          {
+            "type": "PropertyDefinition",
+            "static": false,
+            "computed": false,
+            "key": {
+              "type": "PrivateIdentifier",
+              "name": "a"
+            },
+            "value": null
+          },
+          {
+            "type": "MethodDefinition",
+            "static": false,
+            "computed": false,
+            "key": {
+              "type": "Identifier",
+              "name": "false"
+            },
+            "kind": "get",
+            "value": {
+              "type": "FunctionExpression",
+              "id": null,
+              "expression": false,
+              "generator": false,
+              "async": false,
+              "params": [],
+              "body": {
+                "type": "BlockStatement",
+                "body": []
+              }
+            }
+          },
+          {
+            "type": "PropertyDefinition",
+            "static": false,
+            "computed": false,
+            "key": {
+              "type": "Identifier",
+              "name": "b"
+            },
+            "value": null
+          }
+        ]
+      }
+    }
+  ]
+}
+	`, ast)
 }
 
 func Test338(t *testing.T) {

@@ -196,6 +196,7 @@ func (p *Parser) classElem() (Node, error) {
 			ahead := p.lexer.PeekGrow()
 			isField := ahead.value == T_ASSIGN || ahead.value == T_SEMI || ahead.afterLineTerminator
 			if !isField {
+				p.lexer.Next()
 				return p.method(static, nil, tok, false, false)
 			}
 		}
@@ -264,6 +265,7 @@ func (p *Parser) field(static bool) (Node, error) {
 	} else if tok.value == T_PAREN_L {
 		return p.method(static, key, nil, false, false)
 	}
+	p.advanceIfSemi(false)
 	return &Field{N_FIELD, p.finLoc(loc), key, static, key.Type() != N_NAME, value}, nil
 }
 

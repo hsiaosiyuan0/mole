@@ -192,6 +192,13 @@ func convert(node parser.Node) Node {
 	case parser.N_NAME:
 		id := node.(*parser.Ident)
 		name := id.Text()
+		if id.IsPrivate() {
+			return &PrivateIdentifier{
+				Type: "PrivateIdentifier",
+				Loc:  loc(id.Loc()),
+				Name: name,
+			}
+		}
 		return &Identifier{
 			Type: "Identifier",
 			Loc:  loc(id.Loc()),
@@ -554,6 +561,16 @@ func convert(node parser.Node) Node {
 			Key:      convert(n.Key()),
 			Value:    convert(n.Value()),
 			Kind:     n.Kind(),
+			Computed: n.Computed(),
+			Static:   n.Static(),
+		}
+	case parser.N_FIELD:
+		n := node.(*parser.Field)
+		return &PropertyDefinition{
+			Type:     "PropertyDefinition",
+			Loc:      loc(n.Loc()),
+			Key:      convert(n.Key()),
+			Value:    convert(n.Value()),
 			Computed: n.Computed(),
 			Static:   n.Static(),
 		}

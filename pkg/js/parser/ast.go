@@ -387,6 +387,10 @@ func (n *Ident) Text() string {
 	return n.val.Text()
 }
 
+func (n *Ident) IsPrivate() bool {
+	return n.pvt
+}
+
 type NewExpr struct {
 	typ    NodeType
 	loc    *Loc
@@ -1302,7 +1306,7 @@ func (n *Field) Static() bool {
 	return n.static
 }
 
-func (n *Field) Compute() bool {
+func (n *Field) Computed() bool {
 	return n.computed
 }
 
