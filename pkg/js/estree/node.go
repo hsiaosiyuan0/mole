@@ -589,32 +589,32 @@ type ModuleDeclaration interface{}
 
 // https://github.com/estree/estree/blob/master/es2015.md#importdeclaration
 type ImportDeclaration struct {
-	Type       string  `json:"type"`
-	Loc        *SrcLoc `json:"loc"`
-	Specifiers []Node  `json:"specifiers"` // [ ImportSpecifier | ImportDefaultSpecifier | ImportNamespaceSpecifier ]
-	Source     Literal `json:"source"`
+	Type       string     `json:"type"`
+	Loc        *SrcLoc    `json:"loc"`
+	Specifiers []Node     `json:"specifiers"` // [ ImportSpecifier | ImportDefaultSpecifier | ImportNamespaceSpecifier ]
+	Source     Expression `json:"source"`
 }
 
 // https://github.com/estree/estree/blob/master/es2015.md#importspecifier
 type ImportSpecifier struct {
-	Type     string      `json:"type"`
-	Loc      *SrcLoc     `json:"loc"`
-	Local    *Identifier `json:"local"`
-	Imported *Identifier `json:"imported"`
+	Type     string  `json:"type"`
+	Loc      *SrcLoc `json:"loc"`
+	Local    Node    `json:"local"`
+	Imported Node    `json:"imported"`
 }
 
 // https://github.com/estree/estree/blob/master/es2015.md#importdefaultspecifier
 type ImportDefaultSpecifier struct {
-	Type  string      `json:"type"`
-	Loc   *SrcLoc     `json:"loc"`
-	Local *Identifier `json:"local"`
+	Type  string  `json:"type"`
+	Loc   *SrcLoc `json:"loc"`
+	Local Node    `json:"local"`
 }
 
 // https://github.com/estree/estree/blob/master/es2015.md#importnamespacespecifier
 type ImportNamespaceSpecifier struct {
-	Type  string      `json:"type"`
-	Loc   *SrcLoc     `json:"loc"`
-	Local *Identifier `json:"local"`
+	Type  string  `json:"type"`
+	Loc   *SrcLoc `json:"loc"`
+	Local Node    `json:"local"`
 }
 
 // https://github.com/estree/estree/blob/master/es2015.md#exportnameddeclaration

@@ -169,6 +169,36 @@ func tplLiteral(tplLoc *parser.Loc, elems []parser.Node) *TemplateLiteral {
 	}
 }
 
+func importSpec(spec *parser.ImportSpec) Node {
+	if spec.Default() {
+		return &ImportDefaultSpecifier{
+			Type:  "ImportDefaultSpecifier",
+			Loc:   loc(spec.Loc()),
+			Local: convert(spec.Local()),
+		}
+	} else if spec.NameSpace() {
+		return &ImportNamespaceSpecifier{
+			Type:  "ImportNamespaceSpecifier",
+			Loc:   loc(spec.Loc()),
+			Local: convert(spec.Local()),
+		}
+	}
+	return &ImportSpecifier{
+		Type:     "ImportSpecifier",
+		Loc:      loc(spec.Loc()),
+		Local:    convert(spec.Local()),
+		Imported: convert(spec.Id()),
+	}
+}
+
+func importSpecs(specs []parser.Node) []Node {
+	ret := make([]Node, len(specs))
+	for i, spec := range specs {
+		ret[i] = importSpec(spec.(*parser.ImportSpec))
+	}
+	return ret
+}
+
 func convert(node parser.Node) Node {
 	if node == nil {
 		return nil
@@ -590,6 +620,14 @@ func convert(node parser.Node) Node {
 			Loc:   loc(tpl.LocWithTag()),
 			Tag:   convert(tpl.Tag()),
 			Quasi: tplLiteral(tpl.Loc(), tpl.Elems()),
+		}
+	case parser.N_STMT_IMPORT:
+		stmt := node.(*parser.ImportDec)
+		return &ImportDeclaration{
+			Type:       "ImportDeclaration",
+			Loc:        loc(stmt.Loc()),
+			Specifiers: importSpecs(stmt.Specs()),
+			Source:     convert(stmt.Src()),
 		}
 	}
 	return nil

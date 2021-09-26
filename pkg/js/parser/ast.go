@@ -101,6 +101,7 @@ const (
 	N_STMT_DEBUG
 	N_STMT_WITH
 	N_STMT_CLASS
+	N_STMT_IMPORT
 	N_STMT_END
 
 	N_EXPR_BEGIN
@@ -147,6 +148,7 @@ const (
 	N_SUPER
 	N_IMPORT_CALL
 	N_META_PROP
+	N_IMPORT_SPEC
 
 	N_EXPR_END
 )
@@ -1413,6 +1415,7 @@ func (n *TplExpr) Type() NodeType {
 	return n.typ
 }
 
+// loc without the `tag`
 func (n *TplExpr) Loc() *Loc {
 	return n.loc
 }
@@ -1476,5 +1479,61 @@ func (n *MetaProp) Type() NodeType {
 }
 
 func (n *MetaProp) Loc() *Loc {
+	return n.loc
+}
+
+type ImportDec struct {
+	typ   NodeType
+	loc   *Loc
+	specs []Node
+	src   Node
+}
+
+func (n *ImportDec) Specs() []Node {
+	return n.specs
+}
+
+func (n *ImportDec) Src() Node {
+	return n.src
+}
+
+func (n *ImportDec) Type() NodeType {
+	return n.typ
+}
+
+func (n *ImportDec) Loc() *Loc {
+	return n.loc
+}
+
+type ImportSpec struct {
+	typ   NodeType
+	loc   *Loc
+	def   bool
+	ns    bool
+	local Node
+	id    Node
+}
+
+func (n *ImportSpec) Default() bool {
+	return n.def
+}
+
+func (n *ImportSpec) NameSpace() bool {
+	return n.ns
+}
+
+func (n *ImportSpec) Local() Node {
+	return n.local
+}
+
+func (n *ImportSpec) Id() Node {
+	return n.id
+}
+
+func (n *ImportSpec) Type() NodeType {
+	return n.typ
+}
+
+func (n *ImportSpec) Loc() *Loc {
 	return n.loc
 }

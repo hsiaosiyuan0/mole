@@ -100,6 +100,8 @@ func (p *Parser) stmt() (Node, error) {
 	case T_COMMENT:
 		p.lexer.Next()
 		return nil, nil
+	case T_IMPORT:
+		return p.importDec()
 	case T_WITH:
 		return p.withStmt()
 	case T_EOF:
@@ -113,6 +115,129 @@ func (p *Parser) stmt() (Node, error) {
 		return p.labelStmt()
 	}
 	return p.exprStmt()
+}
+
+// https://tc39.es/ecma262/multipage/ecmascript-language-scripts-and-modules.html#prod-ImportDeclaration
+func (p *Parser) importDec() (Node, error) {
+	loc := p.loc()
+	p.lexer.Next()
+
+	specs := make([]Node, 0)
+	tok := p.lexer.Peek()
+	if tok.value != T_STRING {
+		if tok.value == T_NAME {
+			id, err := p.ident()
+			if err != nil {
+				return nil, err
+			}
+			spec := &ImportSpec{N_IMPORT_SPEC, p.finLoc(p.locFromTok(tok)), true, false, id, id}
+			specs = append(specs, spec)
+		} else {
+			ss, err := p.importNamedOrNS()
+			if err != nil {
+				return nil, err
+			}
+			specs = append(specs, ss...)
+		}
+
+		if p.lexer.Peek().value == T_COMMA {
+			p.lexer.Next()
+			ss, err := p.importNamedOrNS()
+			if err != nil {
+				return nil, err
+			}
+			specs = append(specs, ss...)
+		}
+
+		_, err := p.nextMustName("from")
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	str, err := p.nextMustTok(T_STRING)
+	if err != nil {
+		return nil, err
+	}
+	src := &StrLit{N_LIT_STR, p.finLoc(p.locFromTok(str)), str}
+
+	p.advanceIfSemi(false)
+	return &ImportDec{N_STMT_IMPORT, p.finLoc(loc), specs, src}, nil
+}
+
+func (p *Parser) importNamedOrNS() ([]Node, error) {
+	tok := p.lexer.Peek()
+	if tok.value == T_BRACE_L {
+		return p.importNamed()
+	} else if tok.value == T_MUL {
+		return p.importNS()
+	} else {
+		return nil, p.error(tok.begin)
+	}
+}
+
+func (p *Parser) importSpec() (Node, error) {
+	loc := p.loc()
+	binding, err := p.ident()
+	if err != nil {
+		return nil, err
+	}
+
+	id := binding
+	if p.aheadIsName("as") {
+		p.lexer.Next()
+		binding, err = p.ident()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return &ImportSpec{N_IMPORT_SPEC, p.finLoc(loc), false, false, binding, id}, nil
+}
+
+func (p *Parser) importNamed() ([]Node, error) {
+	p.lexer.Next()
+
+	specs := make([]Node, 0)
+	for {
+		tok := p.lexer.Peek()
+		if tok.value == T_BRACE_R || tok.value == T_EOF {
+			break
+		}
+		spec, err := p.importSpec()
+		if err != nil {
+			return nil, err
+		}
+		specs = append(specs, spec)
+		if p.lexer.Peek().value == T_COMMA {
+			p.lexer.Next()
+		}
+	}
+
+	_, err := p.nextMustTok(T_BRACE_R)
+	if err != nil {
+		return nil, err
+	}
+
+	return specs, nil
+}
+
+func (p *Parser) importNS() ([]Node, error) {
+	loc := p.loc()
+	p.lexer.Next()
+	_, err := p.nextMustName("as")
+	if err != nil {
+		return nil, err
+	}
+
+	id, err := p.ident()
+	if err != nil {
+		return nil, err
+	}
+
+	specs := make([]Node, 1)
+	specs[0] = &ImportSpec{N_IMPORT_SPEC, p.finLoc(loc), false, true, id, nil}
+	return specs, nil
 }
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-functions-and-classes.html#prod-ClassDeclaration
@@ -162,10 +287,11 @@ func (p *Parser) classBody() (Node, error) {
 	p.nextMustTok(T_BRACE_L)
 	elems := make([]Node, 0)
 	for {
-		if p.lexer.Peek().value == T_BRACE_R {
+		tok := p.lexer.Peek()
+		if tok.value == T_BRACE_R || tok.value == T_EOF {
 			break
 		}
-		if p.lexer.Peek().value == T_SEMI {
+		if tok.value == T_SEMI {
 			p.lexer.Next()
 		}
 		elem, err := p.classElem()
@@ -487,7 +613,7 @@ func (p *Parser) switchStmt() (Node, error) {
 	metDefault := false
 	for {
 		tok := p.lexer.Peek()
-		if tok.value == T_BRACE_R {
+		if tok.value == T_BRACE_R || tok.value == T_EOF {
 			break
 		} else if tok.value != T_CASE && tok.value != T_DEFAULT {
 			return nil, p.error(tok.begin)
@@ -529,7 +655,7 @@ func (p *Parser) switchCase(tok *Token) (*SwitchCase, error) {
 	cons := make([]Node, 0)
 	for {
 		tok := p.lexer.Peek()
-		if tok.value == T_CASE || tok.value == T_DEFAULT || tok.value == T_BRACE_R {
+		if tok.value == T_CASE || tok.value == T_DEFAULT || tok.value == T_BRACE_R || tok.value == T_EOF {
 			break
 		}
 		stmt, err := p.stmt()
@@ -762,8 +888,11 @@ func (p *Parser) formalParams() ([]Node, error) {
 	p.lexer.Next()
 	params := make([]Node, 0)
 	for {
-		if p.lexer.Peek().value == T_PAREN_R {
+		tok := p.lexer.Peek()
+		if tok.value == T_PAREN_R {
 			p.lexer.Next()
+			break
+		} else if tok.value == T_EOF {
 			break
 		}
 		param, err := p.bindingElem()
@@ -794,8 +923,11 @@ func (p *Parser) blockStmt(fnBody bool) (*BlockStmt, error) {
 
 	stmts := make([]Node, 0)
 	for {
-		if p.lexer.Peek().value == T_BRACE_R {
+		tok := p.lexer.Peek()
+		if tok.value == T_BRACE_R {
 			p.lexer.Next()
+			break
+		} else if tok.value == T_EOF {
 			break
 		}
 		stmt, err := p.stmt()
@@ -879,13 +1011,12 @@ func (p *Parser) varDec(notIn bool) (*VarDec, error) {
 }
 
 func (p *Parser) ident() (*Ident, error) {
-	loc := p.loc()
 	tok, err := p.nextMustTok(T_NAME)
 	if err != nil {
 		return nil, err
 	}
-	ident := &Ident{N_NAME, &Loc{}, nil, false}
-	ident.loc = p.finLoc(loc)
+	ident := &Ident{N_NAME, nil, nil, false}
+	ident.loc = p.finLoc(p.locFromTok(tok))
 	ident.val = tok
 	return ident, nil
 }
@@ -1422,7 +1553,7 @@ func (p *Parser) argList() ([]Node, error) {
 		tok := p.lexer.Peek()
 		if tok.value == T_COMMA {
 			p.lexer.Next()
-		} else if tok.value == T_PAREN_R {
+		} else if tok.value == T_PAREN_R || tok.value == T_EOF {
 			break
 		}
 		arg, err := p.arg()
@@ -1837,6 +1968,19 @@ func (p *Parser) nextMustTok(val TokenValue) (*Token, error) {
 		return nil, p.error(tok.begin)
 	}
 	return tok, nil
+}
+
+func (p *Parser) nextMustName(name string) (*Token, error) {
+	tok := p.lexer.Next()
+	if tok.value != T_NAME || tok.Text() != name {
+		return nil, p.error(tok.begin)
+	}
+	return tok, nil
+}
+
+func (p *Parser) aheadIsName(name string) bool {
+	tok := p.lexer.Peek()
+	return tok.value == T_NAME && tok.Text() == name
 }
 
 func (p *Parser) advanceIfTok(val TokenValue) *Token {
