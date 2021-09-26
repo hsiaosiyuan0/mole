@@ -619,19 +619,19 @@ type ImportNamespaceSpecifier struct {
 
 // https://github.com/estree/estree/blob/master/es2015.md#exportnameddeclaration
 type ExportNamedDeclaration struct {
-	Type        string             `json:"type"`
-	Loc         *SrcLoc            `json:"loc"`
-	Declaration Declaration        `json:"declaration"` // Declaration | null
-	Specifiers  []*ExportSpecifier `json:"specifiers"`
-	Source      Literal            `json:"source"` // Literal | null
+	Type        string      `json:"type"`
+	Loc         *SrcLoc     `json:"loc"`
+	Declaration Declaration `json:"declaration"` // Declaration | null
+	Specifiers  []Node      `json:"specifiers"`
+	Source      Expression  `json:"source"` // Literal | null
 }
 
 // https://github.com/estree/estree/blob/master/es2015.md#exportspecifier
 type ExportSpecifier struct {
-	Type     string      `json:"type"`
-	Loc      *SrcLoc     `json:"loc"`
-	Local    *Identifier `json:"local"`
-	Exported *Identifier `json:"exported"`
+	Type     string     `json:"type"`
+	Loc      *SrcLoc    `json:"loc"`
+	Local    Expression `json:"local"`
+	Exported Expression `json:"exported"`
 }
 
 type ExportDefaultDeclaration struct {
@@ -644,7 +644,8 @@ type ExportDefaultDeclaration struct {
 
 // https://github.com/estree/estree/blob/master/es2015.md#exportalldeclaration
 type ExportAllDeclaration struct {
-	Type   string  `json:"type"`
-	Loc    *SrcLoc `json:"loc"`
-	Source Literal `json:"source"`
+	Type     string     `json:"type"`
+	Loc      *SrcLoc    `json:"loc"`
+	Exported Expression `json:"exported"`
+	Source   Expression `json:"source"`
 }

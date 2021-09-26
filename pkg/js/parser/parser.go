@@ -102,6 +102,8 @@ func (p *Parser) stmt() (Node, error) {
 		return nil, nil
 	case T_IMPORT:
 		return p.importDec()
+	case T_EXPORT:
+		return p.exportDec()
 	case T_WITH:
 		return p.withStmt()
 	case T_EOF:
@@ -115,6 +117,156 @@ func (p *Parser) stmt() (Node, error) {
 		return p.labelStmt()
 	}
 	return p.exprStmt()
+}
+
+// https://tc39.es/ecma262/multipage/ecmascript-language-scripts-and-modules.html#prod-ExportDeclaration
+func (p *Parser) exportDec() (Node, error) {
+	loc := p.loc()
+	p.lexer.Next()
+
+	var err error
+	node := &ExportDec{N_STMT_EXPORT, nil, false, false, nil, nil, nil}
+	specs := make([]Node, 0)
+	tok := p.lexer.Peek()
+	if tok.value == T_MUL || tok.value == T_BRACE_L {
+		ss, all, src, err := p.exportFrom()
+		node.src = src
+		node.all = all
+		specs = append(specs, ss...)
+		if err != nil {
+			return nil, err
+		}
+		p.advanceIfSemi(false)
+	} else if p.aheadIsVarDec(tok) {
+		node.dec, err = p.varDecStmt(false, false)
+		if err != nil {
+			return nil, err
+		}
+	} else if tok.value == T_FUNC {
+		node.dec, err = p.fnDec(false, false)
+		if err != nil {
+			return nil, err
+		}
+	} else if p.aheadIsAsync(tok) {
+		node.dec, err = p.fnDec(false, true)
+		if err != nil {
+			return nil, err
+		}
+	} else if tok.value == T_CLASS {
+		node.dec, err = p.classDec(false)
+		if err != nil {
+			return nil, err
+		}
+	} else if tok.value == T_DEFAULT {
+		p.lexer.Next()
+		tok := p.lexer.Peek()
+		node.def = true
+		if tok.value == T_FUNC {
+			node.dec, err = p.fnDec(false, false)
+		} else if p.aheadIsAsync(tok) {
+			node.dec, err = p.fnDec(false, true)
+		} else if tok.value == T_CLASS {
+			node.dec, err = p.classDec(false)
+		} else {
+			node.dec, err = p.assignExpr(false)
+		}
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		return nil, p.error(tok.begin)
+	}
+
+	node.loc = p.finLoc(loc)
+	node.specs = specs
+	return node, nil
+}
+
+func (p *Parser) exportFrom() ([]Node, bool, Node, error) {
+	tok := p.lexer.Next()
+	var specs []Node
+	var err error
+
+	ns := false
+	if tok.value == T_MUL {
+		ns = true
+		_, err = p.nextMustName("as")
+		if err != nil {
+			return nil, false, nil, err
+		}
+
+		id, err := p.ident()
+		if err != nil {
+			return nil, false, nil, err
+		}
+		specs = make([]Node, 1)
+		specs[0] = &ExportSpec{N_EXPORT_SPEC, p.finLoc(p.locFromTok(tok)), true, id, nil}
+	} else {
+		specs, err = p.exportNamed()
+		if err != nil {
+			return nil, false, nil, err
+		}
+	}
+
+	tok = p.lexer.Peek()
+	if ns && !IsName(tok, "from") {
+		return nil, false, nil, p.error(tok.begin)
+	}
+
+	var src Node
+	if IsName(tok, "from") {
+		p.lexer.Next()
+		str, err := p.nextMustTok(T_STRING)
+		if err != nil {
+			return nil, false, nil, err
+		}
+		src = &StrLit{N_LIT_STR, p.finLoc(p.locFromTok(str)), str}
+	}
+	return specs, ns, src, nil
+}
+
+func (p *Parser) exportNamed() ([]Node, error) {
+	specs := make([]Node, 0)
+	for {
+		tok := p.lexer.Peek()
+		if tok.value == T_BRACE_R || tok.value == T_EOF {
+			break
+		}
+		spec, err := p.exportSpec()
+		if err != nil {
+			return nil, err
+		}
+		specs = append(specs, spec)
+		if p.lexer.Peek().value == T_COMMA {
+			p.lexer.Next()
+		}
+	}
+
+	_, err := p.nextMustTok(T_BRACE_R)
+	if err != nil {
+		return nil, err
+	}
+
+	return specs, nil
+}
+
+func (p *Parser) exportSpec() (Node, error) {
+	loc := p.loc()
+	local, err := p.ident()
+	if err != nil {
+		return nil, err
+	}
+
+	id := local
+	if p.aheadIsName("as") {
+		p.lexer.Next()
+		id, err = p.ident()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return &ExportSpec{N_EXPORT_SPEC, p.finLoc(loc), false, local, id}, nil
 }
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-scripts-and-modules.html#prod-ImportDeclaration

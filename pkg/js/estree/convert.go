@@ -199,6 +199,48 @@ func importSpecs(specs []parser.Node) []Node {
 	return ret
 }
 
+func exportAll(node *parser.ExportDec) Node {
+	spec := node.Specs()[0].(*parser.ExportSpec).Local()
+	return &ExportAllDeclaration{
+		Type:     "ExportAllDeclaration",
+		Loc:      loc(node.Loc()),
+		Source:   convert(node.Src()),
+		Exported: convert(spec),
+	}
+}
+
+func exportDefault(node *parser.ExportDec) Node {
+	return &ExportDefaultDeclaration{
+		Type:        "ExportDefaultDeclaration",
+		Loc:         loc(node.Loc()),
+		Declaration: convert(node.Dec()),
+	}
+}
+
+func exportSpecs(specs []parser.Node) []Node {
+	ret := make([]Node, len(specs))
+	for i, spec := range specs {
+		s := spec.(*parser.ExportSpec)
+		ret[i] = &ExportSpecifier{
+			Type:     "ExportSpecifier",
+			Loc:      loc(s.Loc()),
+			Local:    convert(s.Local()),
+			Exported: convert(s.Id()),
+		}
+	}
+	return ret
+}
+
+func exportNamed(node *parser.ExportDec) Node {
+	return &ExportNamedDeclaration{
+		Type:        "ExportNamedDeclaration",
+		Loc:         loc(node.Loc()),
+		Declaration: convert(node.Dec()),
+		Specifiers:  exportSpecs(node.Specs()),
+		Source:      convert(node.Src()),
+	}
+}
+
 func convert(node parser.Node) Node {
 	if node == nil {
 		return nil
@@ -629,6 +671,14 @@ func convert(node parser.Node) Node {
 			Specifiers: importSpecs(stmt.Specs()),
 			Source:     convert(stmt.Src()),
 		}
+	case parser.N_STMT_EXPORT:
+		stmt := node.(*parser.ExportDec)
+		if stmt.All() {
+			return exportAll(stmt)
+		} else if stmt.Default() {
+			return exportDefault(stmt)
+		}
+		return exportNamed(stmt)
 	}
 	return nil
 }
