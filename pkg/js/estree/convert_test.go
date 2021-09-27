@@ -30629,30 +30629,392 @@ func Test344(t *testing.T) {
 }
 
 func Test345(t *testing.T) {
-	// ast, err := compile("x = { false: 42 }")
-	// assert.Equal(t, nil, err, "should be prog ok")
+	ast, err := compile("const a = async () => {}")
+	assert.Equal(t, nil, err, "should be prog ok")
 
-	// assert.EqualJson(t, `
-
-	// `, ast)
+	assert.EqualJson(t, `
+{
+  "type": "Program",
+  "loc": {
+    "start": {
+      "line": 1,
+      "column": 0
+    },
+    "end": {
+      "line": 1,
+      "column": 24
+    }
+  },
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "loc": {
+        "start": {
+          "line": 1,
+          "column": 0
+        },
+        "end": {
+          "line": 1,
+          "column": 24
+        }
+      },
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "loc": {
+            "start": {
+              "line": 1,
+              "column": 6
+            },
+            "end": {
+              "line": 1,
+              "column": 24
+            }
+          },
+          "id": {
+            "type": "Identifier",
+            "loc": {
+              "start": {
+                "line": 1,
+                "column": 6
+              },
+              "end": {
+                "line": 1,
+                "column": 7
+              }
+            },
+            "name": "a"
+          },
+          "init": {
+            "type": "ArrowFunctionExpression",
+            "loc": {
+              "start": {
+                "line": 1,
+                "column": 10
+              },
+              "end": {
+                "line": 1,
+                "column": 24
+              }
+            },
+            "id": null,
+            "generator": false,
+            "async": true,
+            "params": [],
+            "body": {
+              "type": "BlockStatement",
+              "loc": {
+                "start": {
+                  "line": 1,
+                  "column": 22
+                },
+                "end": {
+                  "line": 1,
+                  "column": 24
+                }
+              },
+              "body": []
+            }
+          }
+        }
+      ],
+      "kind": "const"
+    }
+  ]
+}
+	`, ast)
 }
 
 func Test346(t *testing.T) {
-	// ast, err := compile("x = { false: 42 }")
-	// assert.Equal(t, nil, err, "should be prog ok")
+	ast, err := compile(`async function* a() {
+  {
+    yield 1
+  }
+}`)
+	assert.Equal(t, nil, err, "should be prog ok")
 
-	// assert.EqualJson(t, `
-
-	// `, ast)
+	assert.EqualJson(t, `
+{
+  "type": "Program",
+  "loc": {
+    "start": {
+      "line": 1,
+      "column": 0
+    },
+    "end": {
+      "line": 5,
+      "column": 1
+    }
+  },
+  "body": [
+    {
+      "type": "FunctionDeclaration",
+      "loc": {
+        "start": {
+          "line": 1,
+          "column": 0
+        },
+        "end": {
+          "line": 5,
+          "column": 1
+        }
+      },
+      "id": {
+        "type": "Identifier",
+        "loc": {
+          "start": {
+            "line": 1,
+            "column": 16
+          },
+          "end": {
+            "line": 1,
+            "column": 17
+          }
+        },
+        "name": "a"
+      },
+      "generator": true,
+      "async": true,
+      "params": [],
+      "body": {
+        "type": "BlockStatement",
+        "loc": {
+          "start": {
+            "line": 1,
+            "column": 20
+          },
+          "end": {
+            "line": 5,
+            "column": 1
+          }
+        },
+        "body": [
+          {
+            "type": "BlockStatement",
+            "loc": {
+              "start": {
+                "line": 2,
+                "column": 2
+              },
+              "end": {
+                "line": 4,
+                "column": 3
+              }
+            },
+            "body": [
+              {
+                "type": "ExpressionStatement",
+                "loc": {
+                  "start": {
+                    "line": 3,
+                    "column": 4
+                  },
+                  "end": {
+                    "line": 3,
+                    "column": 11
+                  }
+                },
+                "expression": {
+                  "type": "YieldExpression",
+                  "loc": {
+                    "start": {
+                      "line": 3,
+                      "column": 4
+                    },
+                    "end": {
+                      "line": 3,
+                      "column": 11
+                    }
+                  },
+                  "delegate": false,
+                  "argument": {
+                    "type": "Literal",
+                    "loc": {
+                      "start": {
+                        "line": 3,
+                        "column": 10
+                      },
+                      "end": {
+                        "line": 3,
+                        "column": 11
+                      }
+                    },
+                    "value": 1
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}
+	`, ast)
 }
 
 func Test347(t *testing.T) {
-	// ast, err := compile("x = { false: 42 }")
-	// assert.Equal(t, nil, err, "should be prog ok")
+	ast, err := compile("async function* a() { yield yield* 1 ? a : b }")
+	assert.Equal(t, nil, err, "should be prog ok")
 
-	// assert.EqualJson(t, `
-
-	// `, ast)
+	assert.EqualJson(t, `
+{
+  "type": "Program",
+  "loc": {
+    "start": {
+      "line": 1,
+      "column": 0
+    },
+    "end": {
+      "line": 1,
+      "column": 46
+    }
+  },
+  "body": [
+    {
+      "type": "FunctionDeclaration",
+      "loc": {
+        "start": {
+          "line": 1,
+          "column": 0
+        },
+        "end": {
+          "line": 1,
+          "column": 46
+        }
+      },
+      "id": {
+        "type": "Identifier",
+        "loc": {
+          "start": {
+            "line": 1,
+            "column": 16
+          },
+          "end": {
+            "line": 1,
+            "column": 17
+          }
+        },
+        "name": "a"
+      },
+      "generator": true,
+      "async": true,
+      "params": [],
+      "body": {
+        "type": "BlockStatement",
+        "loc": {
+          "start": {
+            "line": 1,
+            "column": 20
+          },
+          "end": {
+            "line": 1,
+            "column": 46
+          }
+        },
+        "body": [
+          {
+            "type": "ExpressionStatement",
+            "loc": {
+              "start": {
+                "line": 1,
+                "column": 22
+              },
+              "end": {
+                "line": 1,
+                "column": 44
+              }
+            },
+            "expression": {
+              "type": "YieldExpression",
+              "loc": {
+                "start": {
+                  "line": 1,
+                  "column": 22
+                },
+                "end": {
+                  "line": 1,
+                  "column": 44
+                }
+              },
+              "delegate": false,
+              "argument": {
+                "type": "YieldExpression",
+                "loc": {
+                  "start": {
+                    "line": 1,
+                    "column": 28
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": 44
+                  }
+                },
+                "delegate": true,
+                "argument": {
+                  "type": "ConditionalExpression",
+                  "loc": {
+                    "start": {
+                      "line": 1,
+                      "column": 35
+                    },
+                    "end": {
+                      "line": 1,
+                      "column": 44
+                    }
+                  },
+                  "test": {
+                    "type": "Literal",
+                    "loc": {
+                      "start": {
+                        "line": 1,
+                        "column": 35
+                      },
+                      "end": {
+                        "line": 1,
+                        "column": 36
+                      }
+                    },
+                    "value": 1
+                  },
+                  "consequent": {
+                    "type": "Identifier",
+                    "loc": {
+                      "start": {
+                        "line": 1,
+                        "column": 39
+                      },
+                      "end": {
+                        "line": 1,
+                        "column": 40
+                      }
+                    },
+                    "name": "a"
+                  },
+                  "alternate": {
+                    "type": "Identifier",
+                    "loc": {
+                      "start": {
+                        "line": 1,
+                        "column": 43
+                      },
+                      "end": {
+                        "line": 1,
+                        "column": 44
+                      }
+                    },
+                    "name": "b"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
+	`, ast)
 }
 
 func Test348(t *testing.T) {

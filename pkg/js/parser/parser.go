@@ -32,13 +32,6 @@ func NewParser(src *Source, opts *ParserOpts) *Parser {
 	return parser
 }
 
-func (p *Parser) isStrict() bool {
-	if p.srcTyp == ST_MODULE {
-		return true
-	}
-	return p.symtab.Cur.Strict
-}
-
 func (p *Parser) Prog() (Node, error) {
 	loc := p.loc()
 	pg := NewProg()
@@ -397,8 +390,8 @@ func (p *Parser) classDec(expr bool) (Node, error) {
 	loc := p.loc()
 	p.lexer.Next()
 
-	scope := p.symtab.EnterScope()
-	scope.Strict = true
+	scope := p.symtab.EnterScope(false)
+	scope.AddKind(SPK_STRICT)
 	p.lexer.pushMode(LM_STRICT)
 
 	var id Node
@@ -971,7 +964,7 @@ func (p *Parser) forStmt() (Node, error) {
 func (p *Parser) aheadIsAsync(tok *Token) bool {
 	if IsName(tok, "async") {
 		ahead := p.lexer.PeekGrow()
-		return ahead.value == T_FUNC && !ahead.afterLineTerminator
+		return (ahead.value == T_FUNC || ahead.value == T_PAREN_L) && !ahead.afterLineTerminator
 	}
 	return false
 }
@@ -986,18 +979,21 @@ func (p *Parser) fnDec(expr bool, async bool) (Node, error) {
 	if async {
 		p.lexer.Next()
 	}
-	p.lexer.Next()
+	tok := p.lexer.Peek()
+	if tok.value == T_FUNC {
+		p.lexer.Next()
+	}
 
-	p.symtab.EnterScope()
-
+	p.symtab.EnterScope(true)
 	generator := p.lexer.Peek().value == T_MUL
 	if generator {
+		p.scope().AddKind(SPK_GENERATOR)
 		p.lexer.Next()
 	}
 
 	var id Node
 	var err error
-	tok := p.lexer.Peek()
+	tok = p.lexer.Peek()
 	if tok.value != T_PAREN_L {
 		id, err = p.ident()
 		if err != nil {
@@ -1016,17 +1012,32 @@ func (p *Parser) fnDec(expr bool, async bool) (Node, error) {
 	if generator {
 		p.lexer.extMode(LM_GENERATOR, true)
 	}
+
+	tok = p.lexer.Peek()
+	arrow := false
+	if tok.value == T_ARROW {
+		if expr {
+			p.lexer.Next()
+			arrow = true
+		} else {
+			return nil, p.error(tok.begin)
+		}
+	}
+
 	body, err := p.fnBody()
+	if err != nil {
+		return nil, err
+	}
 	if generator {
 		p.lexer.popMode()
 	}
 
-	if err != nil {
-		return nil, err
-	}
-
 	p.symtab.LeaveScope()
 	// TODO: check formal params if in strict mode
+
+	if arrow {
+		return &ArrowFn{N_EXPR_ARROW, p.finLoc(loc), async, params, body}, nil
+	}
 
 	typ := N_STMT_FN
 	if expr {
@@ -1063,13 +1074,17 @@ func (p *Parser) fnBody() (Node, error) {
 	return p.blockStmt(true)
 }
 
+func (p *Parser) scope() *Scope {
+	return p.symtab.Cur
+}
+
 func (p *Parser) blockStmt(fnBody bool) (*BlockStmt, error) {
 	tok, err := p.nextMustTok(T_BRACE_L)
 	if err != nil {
 		return nil, err
 	}
 	if !fnBody {
-		p.symtab.EnterScope()
+		p.symtab.EnterScope(false)
 	}
 	loc := p.locFromTok(tok)
 
@@ -1090,7 +1105,7 @@ func (p *Parser) blockStmt(fnBody bool) (*BlockStmt, error) {
 			if fnBody && stmt.Type() == N_STMT_EXPR {
 				expr := stmt.(*ExprStmt).expr
 				if expr.Type() == N_LIT_STR && expr.(*StrLit).Text() == "use strict" {
-					p.symtab.Cur.Strict = true
+					p.scope().AddKind(SPK_STRICT)
 					p.lexer.addMode(LM_STRICT)
 				}
 			}
@@ -1389,8 +1404,9 @@ func (p *Parser) exprStmt() (Node, error) {
 	stmt.expr = p.unParen(expr)
 	p.advanceIfSemi(false)
 	stmt.loc = p.finLoc(loc)
+
+	// adjust col to include the open-close backquotes
 	if expr.Type() == N_EXPR_TPL {
-		// adjust col to include the open-close backquotes
 		if stmt.loc.begin.col > 0 {
 			stmt.loc.begin.col -= 1
 		}
@@ -1435,8 +1451,43 @@ func (p *Parser) seqExpr(notIn bool) (Node, error) {
 	return &SeqExpr{N_EXPR_SEQ, p.finLoc(loc), exprs}, nil
 }
 
+func (p *Parser) aheadIsYield() bool {
+	if !p.scope().IsKind(SPK_GENERATOR) {
+		return false
+	}
+	return IsName(p.lexer.Peek(), "yield")
+}
+
+// https://tc39.es/ecma262/multipage/ecmascript-language-functions-and-classes.html#prod-YieldExpression
+func (p *Parser) yieldExpr(notIn bool) (Node, error) {
+	loc := p.loc()
+	p.lexer.Next()
+
+	tok := p.lexer.Peek()
+	if tok.afterLineTerminator {
+		return &YieldExpr{N_EXPR_YIELD, p.finLoc(loc), false, nil}, nil
+	}
+
+	delegate := false
+	if p.lexer.Peek().value == T_MUL {
+		p.lexer.Next()
+		delegate = true
+	}
+
+	arg, err := p.assignExpr(notIn)
+	if err != nil {
+		return nil, err
+	}
+	return &YieldExpr{N_EXPR_YIELD, p.finLoc(loc), delegate, arg}, nil
+}
+
+// https://tc39.es/ecma262/multipage/ecmascript-language-expressions.html#prod-AssignmentExpression
 func (p *Parser) assignExpr(notIn bool) (Node, error) {
 	loc := p.loc()
+	if p.aheadIsYield() {
+		return p.yieldExpr(notIn)
+	}
+
 	lhs, err := p.condExpr(notIn)
 	if err != nil {
 		return nil, err
@@ -1894,7 +1945,7 @@ func (p *Parser) parenExpr() (Node, error) {
 	}
 	if p.lexer.Peek().value == T_ARROW {
 		p.lexer.Next()
-		p.symtab.EnterScope()
+		p.symtab.EnterScope(true)
 
 		var body Node
 		var err error
@@ -1910,7 +1961,7 @@ func (p *Parser) parenExpr() (Node, error) {
 		p.symtab.LeaveScope()
 		// TODO: check params
 
-		return &ArrowFn{N_EXPR_ARROW, p.finLoc(loc), false, false, params, body}, nil
+		return &ArrowFn{N_EXPR_ARROW, p.finLoc(loc), false, params, body}, nil
 	}
 	if len(params) == 0 {
 		return nil, p.error(p.loc().begin)

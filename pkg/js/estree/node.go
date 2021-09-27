@@ -396,7 +396,7 @@ type ArrowFunctionExpression struct {
 	Type       string      `json:"type"`
 	Loc        *SrcLoc     `json:"loc"`
 	Id         *Identifier `json:"id"`
-	Params     []Pattern   `json:"params"`
+	Params     []Node      `json:"params"`
 	Body       Node        `json:"body"`
 	Generator  bool        `json:"generator"`
 	Async      bool        `json:"async"`

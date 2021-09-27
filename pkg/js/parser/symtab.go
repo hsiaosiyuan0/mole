@@ -1,11 +1,15 @@
 package parser
 
-type LoopKind int
+type ScopeKind int
 
 const (
-	LOOP_NONE LoopKind = iota
-	LOOP_DIRECT
-	LOOP_INDIRECT
+	SPK_NONE          ScopeKind = 0
+	SPK_LOOP_DIRECT             = 1 << 0
+	SPK_LOOP_INDIRECT           = 1 << 1
+	SPK_STRICT                  = 1 << 2
+	SPK_BLOCK                   = 1 << 3
+	SPK_ASYNC                   = 1 << 4
+	SPK_GENERATOR               = 1 << 5
 )
 
 type Binding struct {
@@ -18,9 +22,8 @@ type Binding struct {
 type Scope struct {
 	// an auto-increment number which is generated according
 	// the depth-first walk over the entire AST
-	Id       uint
-	LoopKind LoopKind
-	Strict   bool
+	Id   uint
+	Kind ScopeKind
 
 	Up   *Scope
 	Down []*Scope
@@ -35,6 +38,15 @@ func NewScope() *Scope {
 		Bindings: make(map[string]int),
 	}
 	return scope
+}
+
+func (s *Scope) IsKind(kind ScopeKind) bool {
+	return s.Kind&kind != 0
+}
+
+func (s *Scope) AddKind(kind ScopeKind) *Scope {
+	s.Kind |= kind
+	return s
 }
 
 func (s *Scope) HasLocal(name string) bool {
@@ -87,10 +99,27 @@ func NewSymTab(externals []string) *SymTab {
 	return symtab
 }
 
-func (s *SymTab) EnterScope() *Scope {
+func (s *SymTab) EnterScope(fn bool) *Scope {
 	scope := NewScope()
 	scope.Id = s.Cur.Id + 1
-	scope.Strict = s.Cur.Strict
+
+	if !fn {
+		scope.Kind = SPK_BLOCK
+	}
+	// inherit scope kind
+	if s.Cur.IsKind(SPK_LOOP_DIRECT) {
+		scope.Kind |= SPK_LOOP_INDIRECT
+	}
+	if s.Cur.IsKind(SPK_STRICT) {
+		scope.Kind |= SPK_STRICT
+	}
+	if s.Cur.IsKind(SPK_GENERATOR) && !fn {
+		scope.Kind |= SPK_GENERATOR
+	}
+	if s.Cur.IsKind(SPK_ASYNC) && !fn {
+		scope.Kind |= SPK_ASYNC
+	}
+
 	s.Scopes[scope.Id] = scope
 
 	scope.Up = s.Cur

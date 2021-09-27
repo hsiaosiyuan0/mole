@@ -131,6 +131,7 @@ const (
 	N_EXPR_SEQ
 	N_EXPR_CLASS
 	N_EXPR_TPL
+	N_EXPR_YIELD
 	N_NAME
 
 	N_VAR_DEC
@@ -795,12 +796,23 @@ func (n *FnDec) Loc() *Loc {
 }
 
 type ArrowFn struct {
-	typ       NodeType
-	loc       *Loc
-	generator bool
-	async     bool
-	params    []Node
-	body      Node
+	typ    NodeType
+	loc    *Loc
+	async  bool
+	params []Node
+	body   Node
+}
+
+func (n *ArrowFn) Async() bool {
+	return n.async
+}
+
+func (n *ArrowFn) Params() []Node {
+	return n.params
+}
+
+func (n *ArrowFn) Body() Node {
+	return n.body
 }
 
 func (n *ArrowFn) Type() NodeType {
@@ -1603,5 +1615,28 @@ func (n *ExportSpec) Type() NodeType {
 }
 
 func (n *ExportSpec) Loc() *Loc {
+	return n.loc
+}
+
+type YieldExpr struct {
+	typ      NodeType
+	loc      *Loc
+	delegate bool
+	arg      Node
+}
+
+func (n *YieldExpr) Delegate() bool {
+	return n.delegate
+}
+
+func (n *YieldExpr) Arg() Node {
+	return n.arg
+}
+
+func (n *YieldExpr) Type() NodeType {
+	return n.typ
+}
+
+func (n *YieldExpr) Loc() *Loc {
 	return n.loc
 }

@@ -369,6 +369,18 @@ func convert(node parser.Node) Node {
 			Async:      fn.Async(),
 			Expression: false,
 		}
+	case parser.N_EXPR_ARROW:
+		fn := node.(*parser.ArrowFn)
+		return &ArrowFunctionExpression{
+			Type:       "ArrowFunctionExpression",
+			Loc:        loc(fn.Loc()),
+			Id:         nil,
+			Params:     fnParams(fn.Params()),
+			Body:       convert(fn.Body()),
+			Generator:  false,
+			Async:      fn.Async(),
+			Expression: true,
+		}
 	case parser.N_STMT_FN:
 		fn := node.(*parser.FnDec)
 		return &FunctionDeclaration{
@@ -379,6 +391,14 @@ func convert(node parser.Node) Node {
 			Body:      convert(fn.Body()),
 			Generator: fn.Generator(),
 			Async:     fn.Async(),
+		}
+	case parser.N_EXPR_YIELD:
+		node := node.(*parser.YieldExpr)
+		return &YieldExpression{
+			Type:     "YieldExpression",
+			Loc:      loc(node.Loc()),
+			Delegate: node.Delegate(),
+			Argument: convert(node.Arg()),
 		}
 	case parser.N_STMT_RET:
 		ret := node.(*parser.RetStmt)
