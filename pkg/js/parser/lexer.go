@@ -305,8 +305,6 @@ func (l *Lexer) readTplChs() (text []rune, fin bool, line, col, ofst, pos int) {
 				}
 				text = append(text, r)
 			}
-			line = l.src.line
-			col = l.src.col
 		} else if c == utf8.RuneError {
 			text = nil
 			return
