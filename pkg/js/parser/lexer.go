@@ -44,11 +44,15 @@ type Lexer struct {
 
 	pr *Token // prev read
 	pp *Token // prev peek
+
+	lastCommentLine int
+	comments        map[int][]*Token
 }
 
 func NewLexer(src *Source) *Lexer {
 	lexer := &Lexer{src: src, mode: make([]*LexerMode, 0)}
 	lexer.mode = append(lexer.mode, &LexerMode{LM_NONE, 0, 0, 0})
+	lexer.comments = make(map[int][]*Token)
 	return lexer
 }
 
@@ -90,7 +94,7 @@ func (l *Lexer) isMode(mode LexerModeValue) bool {
 	return l.curMode().value&mode > 0
 }
 
-func (l *Lexer) readTok() *Token {
+func (l *Lexer) readTokWithComment() *Token {
 	if l.src.SkipSpace().AheadIsEofAndNoPeeked() {
 		tok := l.newToken()
 		tok.value = T_EOF
@@ -109,6 +113,38 @@ func (l *Lexer) readTok() *Token {
 		return l.ReadNumPvt()
 	}
 	return l.ReadSymbol()
+}
+
+func (l *Lexer) lastComment() *Token {
+	line := l.comments[l.lastCommentLine]
+	if line == nil {
+		return nil
+	}
+	if len(line) == 0 {
+		return nil
+	}
+	return line[len(line)-1]
+}
+
+func (l *Lexer) readTok() *Token {
+	var pr *Token
+	for {
+		tok := l.readTokWithComment()
+		if tok.value != T_COMMENT {
+			if !tok.afterLineTerminator && pr != nil && pr.value == T_COMMENT && pr.ext == true {
+				tok.afterLineTerminator = true
+			}
+			return tok
+		}
+		l.lastCommentLine = tok.begin.line
+		line := l.comments[tok.begin.line]
+		if line == nil {
+			line = make([]*Token, 0)
+		}
+		line = append(line, tok)
+		l.comments[tok.begin.line] = line
+		pr = tok
+	}
 }
 
 func (l *Lexer) PeekGrow() *Token {
@@ -552,6 +588,7 @@ func (l *Lexer) ReadSymbol() *Token {
 
 func (l *Lexer) readMultilineComment(tok *Token) *Token {
 	l.src.Read() // consume `*`
+	multiline := false
 	for {
 		c := l.src.Read()
 		if c == '*' {
@@ -559,9 +596,13 @@ func (l *Lexer) readMultilineComment(tok *Token) *Token {
 				l.src.Read()
 				break
 			}
+		} else if c == EOL {
+			multiline = true
 		}
 	}
-	return l.finToken(tok, T_COMMENT)
+	l.finToken(tok, T_COMMENT)
+	tok.ext = multiline
+	return tok
 }
 
 func (l *Lexer) readSinglelineComment(tok *Token) *Token {
@@ -635,7 +676,9 @@ func (l *Lexer) ReadStr() *Token {
 				l.readLineTerminator() // LineContinuation
 			} else {
 				r := l.readEscapeSeq()
-				if r == utf8.RuneError || r == EOF {
+				// allow `utf8.RuneError` to represent "Unicode replacement character"
+				// in string literal
+				if r == EOF {
 					return l.errToken(tok)
 				}
 				text = append(text, r)

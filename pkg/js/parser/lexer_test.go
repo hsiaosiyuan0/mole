@@ -304,38 +304,43 @@ func TestReadTplOctalEscape(t *testing.T) {
 func TestReadComment(t *testing.T) {
 	s := NewSource("", `
   //
+  `)
+	l := NewLexer(s)
+	l.Next()
+	assert.Equal(t, "//", l.lastComment().Text(), "should be tok comment //")
+
+	s = NewSource("", `
   // comment1
+  `)
+	l = NewLexer(s)
+	l.Next()
+	assert.Equal(t, "// comment1", l.lastComment().Text(), "should be tok // comment1")
+
+	s = NewSource("", `
   /**/
+  `)
+	l = NewLexer(s)
+	l.Next()
+	assert.Equal(t, "/**/", l.lastComment().Text(), "should be tok /**/")
+
+	s = NewSource("", `
   /* comment2 */
-  /**
+  `)
+	l = NewLexer(s)
+	l.Next()
+	assert.Equal(t, "/* comment2 */", l.lastComment().Text(), "should be tok /* comment2 */")
+
+	s = NewSource("", `/**
 
   comment 3
   **/
   `)
-	l := NewLexer(s)
-
-	tok := l.Next()
-	assert.Equal(t, T_COMMENT, tok.value, "should be tok comment //")
-	assert.Equal(t, "//", tok.Text(), "should be tok comment //")
-
-	tok = l.Next()
-	assert.Equal(t, T_COMMENT, tok.value, "should be tok // comment1")
-	assert.Equal(t, "// comment1", tok.Text(), "should be tok // comment1")
-
-	tok = l.Next()
-	assert.Equal(t, T_COMMENT, tok.value, "should be tok /**/")
-	assert.Equal(t, "/**/", tok.Text(), "should be tok /**/")
-
-	tok = l.Next()
-	assert.Equal(t, T_COMMENT, tok.value, "should be tok /* comment2 */")
-	assert.Equal(t, "/* comment2 */", tok.Text(), "should be tok /* comment2 */")
-
-	tok = l.Next()
-	assert.Equal(t, T_COMMENT, tok.value, "should be tok comment3")
+	l = NewLexer(s)
+	l.Next()
 	assert.Equal(t, `/**
 
   comment 3
-  **/`, tok.Text(), "should be tok comment3")
+  **/`, l.lastComment().Text(), "should be tok comment3")
 }
 
 func TestAfterLineTerminator(t *testing.T) {
