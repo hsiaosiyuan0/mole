@@ -1437,7 +1437,9 @@ func (n *TplExpr) Loc() *Loc {
 func (n *TplExpr) LocWithTag() *Loc {
 	loc := n.loc.Clone()
 	if n.tag != nil {
-		loc.begin = n.tag.Loc().begin.Clone()
+		tl := n.tag.Loc()
+		loc.begin = tl.begin.Clone()
+		loc.rng.start = tl.rng.start
 	}
 	return loc
 }

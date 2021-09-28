@@ -13,17 +13,13 @@ type SrcLoc struct {
 	Source string    `json:"source"`
 	Start  *Position `json:"start"`
 	End    *Position `json:"end"`
-	Range  *SrcRange `json:"range"`
-}
-
-type SrcRange struct {
-	Start int `json:"start"`
-	End   int `json:"end"`
 }
 
 // https://github.com/estree/estree/blob/master/es5.md#programs
 type Program struct {
 	Type       string  `json:"type"`
+	Start      int     `json:"start"`
+	End        int     `json:"end"`
 	Loc        *SrcLoc `json:"loc"`
 	SourceType string  `json:"sourceType"` // "script" | "module"
 	Body       []Node  `json:"body"`       // [ Directive | Statement ]
@@ -31,14 +27,18 @@ type Program struct {
 
 // https://github.com/estree/estree/blob/master/es5.md#identifier
 type Identifier struct {
-	Type string  `json:"type"`
-	Loc  *SrcLoc `json:"loc"`
-	Name string  `json:"name"`
+	Type  string  `json:"type"`
+	Start int     `json:"start"`
+	End   int     `json:"end"`
+	Loc   *SrcLoc `json:"loc"`
+	Name  string  `json:"name"`
 }
 
 // https://github.com/estree/estree/blob/master/es5.md#literal
 type Literal struct {
 	Type  string      `json:"type"`
+	Start int         `json:"start"`
+	End   int         `json:"end"`
 	Loc   *SrcLoc     `json:"loc"`
 	Value interface{} `json:"value"` // string | boolean | null | number | RegExp | bigint(es2020)
 }
@@ -51,6 +51,8 @@ type Regexp struct {
 // https://github.com/estree/estree/blob/master/es5.md#regexpliteral
 type RegExpLiteral struct {
 	Type   string      `json:"type"`
+	Start  int         `json:"start"`
+	End    int         `json:"end"`
 	Loc    *SrcLoc     `json:"loc"`
 	Value  interface{} `json:"value"`
 	Regexp *Regexp     `json:"regexp"`
@@ -59,6 +61,8 @@ type RegExpLiteral struct {
 // https://github.com/estree/estree/blob/master/es2020.md#bigintliteral
 type BigIntLiteral struct {
 	Type   string      `json:"type"`
+	Start  int         `json:"start"`
+	End    int         `json:"end"`
 	Loc    *SrcLoc     `json:"loc"`
 	Value  interface{} `json:"value"`
 	Bigint string      `json:"bigint"`
@@ -71,6 +75,8 @@ type Statement interface{}
 // https://github.com/estree/estree/blob/master/es5.md#expressionstatement
 type ExpressionStatement struct {
 	Type       string     `json:"type"`
+	Start      int        `json:"start"`
+	End        int        `json:"end"`
 	Loc        *SrcLoc    `json:"loc"`
 	Expression Expression `json:"expression"`
 }
@@ -78,30 +84,40 @@ type ExpressionStatement struct {
 // https://github.com/estree/estree/blob/master/es5.md#directive
 type Directive struct {
 	Type      string  `json:"type"`
+	Start     int     `json:"start"`
+	End       int     `json:"end"`
 	Loc       *SrcLoc `json:"loc"`
 	Directive string  `json:"directive"`
 }
 
 type EmptyStatement struct {
-	Type string  `json:"type"`
-	Loc  *SrcLoc `json:"loc"`
+	Type  string  `json:"type"`
+	Start int     `json:"start"`
+	End   int     `json:"end"`
+	Loc   *SrcLoc `json:"loc"`
 }
 
 type DebuggerStatement struct {
-	Type string  `json:"type"`
-	Loc  *SrcLoc `json:"loc"`
+	Type  string  `json:"type"`
+	Start int     `json:"start"`
+	End   int     `json:"end"`
+	Loc   *SrcLoc `json:"loc"`
 }
 
 // https://github.com/estree/estree/blob/master/es5.md#blockstatement
 type BlockStatement struct {
-	Type string      `json:"type"`
-	Loc  *SrcLoc     `json:"loc"`
-	Body []Statement `json:"body"`
+	Type  string      `json:"type"`
+	Start int         `json:"start"`
+	End   int         `json:"end"`
+	Loc   *SrcLoc     `json:"loc"`
+	Body  []Statement `json:"body"`
 }
 
 // https://github.com/estree/estree/blob/master/es5.md#withstatement
 type WithStatement struct {
 	Type   string     `json:"type"`
+	Start  int        `json:"start"`
+	End    int        `json:"end"`
 	Loc    *SrcLoc    `json:"loc"`
 	Object Expression `json:"object"`
 	Body   Statement  `json:"body"`
@@ -110,6 +126,8 @@ type WithStatement struct {
 // https://github.com/estree/estree/blob/master/es5.md#returnstatement
 type ReturnStatement struct {
 	Type     string     `json:"type"`
+	Start    int        `json:"start"`
+	End      int        `json:"end"`
 	Loc      *SrcLoc    `json:"loc"`
 	Argument Expression `json:"argument"`
 }
@@ -117,6 +135,8 @@ type ReturnStatement struct {
 // https://github.com/estree/estree/blob/master/es5.md#labeledstatement
 type LabeledStatement struct {
 	Type  string     `json:"type"`
+	Start int        `json:"start"`
+	End   int        `json:"end"`
 	Loc   *SrcLoc    `json:"loc"`
 	Label Expression `json:"label"`
 	Body  Statement  `json:"body"`
@@ -125,6 +145,8 @@ type LabeledStatement struct {
 // https://github.com/estree/estree/blob/master/es5.md#breakstatement
 type BreakStatement struct {
 	Type  string     `json:"type"`
+	Start int        `json:"start"`
+	End   int        `json:"end"`
 	Loc   *SrcLoc    `json:"loc"`
 	Label Expression `json:"label"`
 }
@@ -132,6 +154,8 @@ type BreakStatement struct {
 // https://github.com/estree/estree/blob/master/es5.md#continuestatement
 type ContinueStatement struct {
 	Type  string     `json:"type"`
+	Start int        `json:"start"`
+	End   int        `json:"end"`
 	Loc   *SrcLoc    `json:"loc"`
 	Label Expression `json:"label"`
 }
@@ -139,6 +163,8 @@ type ContinueStatement struct {
 // https://github.com/estree/estree/blob/master/es5.md#ifstatement
 type IfStatement struct {
 	Type       string     `json:"type"`
+	Start      int        `json:"start"`
+	End        int        `json:"end"`
 	Loc        *SrcLoc    `json:"loc"`
 	Test       Expression `json:"test"`
 	Consequent Statement  `json:"consequent"`
@@ -148,6 +174,8 @@ type IfStatement struct {
 // https://github.com/estree/estree/blob/master/es5.md#switchstatement
 type SwitchStatement struct {
 	Type         string        `json:"type"`
+	Start        int           `json:"start"`
+	End          int           `json:"end"`
 	Loc          *SrcLoc       `json:"loc"`
 	Discriminant Expression    `json:"discriminant"`
 	Cases        []*SwitchCase `json:"cases"`
@@ -156,6 +184,8 @@ type SwitchStatement struct {
 // https://github.com/estree/estree/blob/master/es5.md#switchcase
 type SwitchCase struct {
 	Type       string      `json:"type"`
+	Start      int         `json:"start"`
+	End        int         `json:"end"`
 	Loc        *SrcLoc     `json:"loc"`
 	Test       Expression  `json:"test"`
 	Consequent []Statement `json:"consequent"`
@@ -164,6 +194,8 @@ type SwitchCase struct {
 // https://github.com/estree/estree/blob/master/es5.md#throwstatement
 type ThrowStatement struct {
 	Type     string     `json:"type"`
+	Start    int        `json:"start"`
+	End      int        `json:"end"`
 	Loc      *SrcLoc    `json:"loc"`
 	Argument Expression `json:"argument"`
 }
@@ -171,6 +203,8 @@ type ThrowStatement struct {
 // https://github.com/estree/estree/blob/master/es5.md#trystatement
 type TryStatement struct {
 	Type      string     `json:"type"`
+	Start     int        `json:"start"`
+	End       int        `json:"end"`
 	Loc       *SrcLoc    `json:"loc"`
 	Block     Statement  `json:"block"`
 	Handler   Expression `json:"handler"`
@@ -180,6 +214,8 @@ type TryStatement struct {
 // https://github.com/estree/estree/blob/master/es5.md#catchclause
 type CatchClause struct {
 	Type  string    `json:"type"`
+	Start int       `json:"start"`
+	End   int       `json:"end"`
 	Loc   *SrcLoc   `json:"loc"`
 	Param Pattern   `json:"param"` // `Pattern | null` from es2019
 	Body  Statement `json:"body"`
@@ -187,23 +223,29 @@ type CatchClause struct {
 
 // https://github.com/estree/estree/blob/master/es5.md#whilestatement
 type WhileStatement struct {
-	Type string     `json:"type"`
-	Loc  *SrcLoc    `json:"loc"`
-	Test Expression `json:"test"`
-	Body Statement  `json:"body"`
+	Type  string     `json:"type"`
+	Start int        `json:"start"`
+	End   int        `json:"end"`
+	Loc   *SrcLoc    `json:"loc"`
+	Test  Expression `json:"test"`
+	Body  Statement  `json:"body"`
 }
 
 // https://github.com/estree/estree/blob/master/es5.md#dowhilestatement
 type DoWhileStatement struct {
-	Type string     `json:"type"`
-	Loc  *SrcLoc    `json:"loc"`
-	Test Expression `json:"test"`
-	Body Statement  `json:"body"`
+	Type  string     `json:"type"`
+	Start int        `json:"start"`
+	End   int        `json:"end"`
+	Loc   *SrcLoc    `json:"loc"`
+	Test  Expression `json:"test"`
+	Body  Statement  `json:"body"`
 }
 
 // https://github.com/estree/estree/blob/master/es5.md#forstatement
 type ForStatement struct {
 	Type   string     `json:"type"`
+	Start  int        `json:"start"`
+	End    int        `json:"end"`
 	Loc    *SrcLoc    `json:"loc"`
 	Init   Node       `json:"init"` // VariableDeclaration | Expression | null
 	Test   Expression `json:"test"`
@@ -214,6 +256,8 @@ type ForStatement struct {
 // https://github.com/estree/estree/blob/master/es5.md#forinstatement
 type ForInStatement struct {
 	Type  string     `json:"type"`
+	Start int        `json:"start"`
+	End   int        `json:"end"`
 	Loc   *SrcLoc    `json:"loc"`
 	Left  Node       `json:"left"`
 	Right Expression `json:"right"`
@@ -223,6 +267,8 @@ type ForInStatement struct {
 // https://github.com/estree/estree/blob/master/es2015.md#forofstatement
 type ForOfStatement struct {
 	Type  string     `json:"type"`
+	Start int        `json:"start"`
+	End   int        `json:"end"`
 	Loc   *SrcLoc    `json:"loc"`
 	Left  Node       `json:"left"`
 	Right Expression `json:"right"`
@@ -235,6 +281,8 @@ type Declaration interface{}
 // https://github.com/estree/estree/blob/master/es5.md#functiondeclaration
 type FunctionDeclaration struct {
 	Type      string  `json:"type"`
+	Start     int     `json:"start"`
+	End       int     `json:"end"`
 	Loc       *SrcLoc `json:"loc"`
 	Id        Node    `json:"id"`
 	Params    []Node  `json:"params"`
@@ -246,6 +294,8 @@ type FunctionDeclaration struct {
 // https://github.com/estree/estree/blob/master/es5.md#variabledeclaration
 type VariableDeclaration struct {
 	Type         string                `json:"type"`
+	Start        int                   `json:"start"`
+	End          int                   `json:"end"`
 	Loc          *SrcLoc               `json:"loc"`
 	Kind         string                `json:"kind"`
 	Declarations []*VariableDeclarator `json:"declarations"`
@@ -253,20 +303,26 @@ type VariableDeclaration struct {
 
 // https://github.com/estree/estree/blob/master/es5.md#variabledeclarator
 type VariableDeclarator struct {
-	Type string     `json:"type"`
-	Loc  *SrcLoc    `json:"loc"`
-	Id   Pattern    `json:"id"`
-	Init Expression `json:"init"`
+	Type  string     `json:"type"`
+	Start int        `json:"start"`
+	End   int        `json:"end"`
+	Loc   *SrcLoc    `json:"loc"`
+	Id    Pattern    `json:"id"`
+	Init  Expression `json:"init"`
 }
 
 type ThisExpression struct {
-	Type string  `json:"type"`
-	Loc  *SrcLoc `json:"loc"`
+	Type  string  `json:"type"`
+	Start int     `json:"start"`
+	End   int     `json:"end"`
+	Loc   *SrcLoc `json:"loc"`
 }
 
 // https://github.com/estree/estree/blob/master/es5.md#arrayexpression
 type ArrayExpression struct {
 	Type     string       `json:"type"`
+	Start    int          `json:"start"`
+	End      int          `json:"end"`
 	Loc      *SrcLoc      `json:"loc"`
 	Elements []Expression `json:"elements"`
 }
@@ -274,6 +330,8 @@ type ArrayExpression struct {
 // https://github.com/estree/estree/blob/master/es5.md#objectexpression
 type ObjectExpression struct {
 	Type       string      `json:"type"`
+	Start      int         `json:"start"`
+	End        int         `json:"end"`
 	Loc        *SrcLoc     `json:"loc"`
 	Properties []*Property `json:"properties"`
 }
@@ -281,6 +339,8 @@ type ObjectExpression struct {
 // https://github.com/estree/estree/blob/master/es5.md#functionexpression
 type FunctionExpression struct {
 	Type       string  `json:"type"`
+	Start      int     `json:"start"`
+	End        int     `json:"end"`
 	Loc        *SrcLoc `json:"loc"`
 	Id         Node    `json:"id"`
 	Params     []Node  `json:"params"`
@@ -293,6 +353,8 @@ type FunctionExpression struct {
 // https://github.com/estree/estree/blob/master/es5.md#unaryexpression
 type UnaryExpression struct {
 	Type     string     `json:"type"`
+	Start    int        `json:"start"`
+	End      int        `json:"end"`
 	Loc      *SrcLoc    `json:"loc"`
 	Operator string     `json:"operator"` //  "-" | "+" | "!" | "~" | "typeof" | "void" | "delete"
 	Prefix   bool       `json:"prefix"`
@@ -302,6 +364,8 @@ type UnaryExpression struct {
 // https://github.com/estree/estree/blob/master/es5.md#updateexpression
 type UpdateExpression struct {
 	Type     string     `json:"type"`
+	Start    int        `json:"start"`
+	End      int        `json:"end"`
 	Loc      *SrcLoc    `json:"loc"`
 	Operator string     `json:"operator"` // "++" | "--"
 	Argument Expression `json:"argument"`
@@ -311,6 +375,8 @@ type UpdateExpression struct {
 // https://github.com/estree/estree/blob/master/es5.md#binaryexpression
 type BinaryExpression struct {
 	Type     string     `json:"type"`
+	Start    int        `json:"start"`
+	End      int        `json:"end"`
 	Loc      *SrcLoc    `json:"loc"`
 	Operator string     `json:"operator"`
 	Left     Expression `json:"left"`
@@ -320,6 +386,8 @@ type BinaryExpression struct {
 // https://github.com/estree/estree/blob/master/es5.md#assignmentexpression
 type AssignmentExpression struct {
 	Type     string     `json:"type"`
+	Start    int        `json:"start"`
+	End      int        `json:"end"`
 	Loc      *SrcLoc    `json:"loc"`
 	Operator string     `json:"operator"`
 	Left     Node       `json:"left"`
@@ -329,6 +397,8 @@ type AssignmentExpression struct {
 // https://github.com/estree/estree/blob/master/es5.md#logicalexpression
 type LogicalExpression struct {
 	Type     string     `json:"type"`
+	Start    int        `json:"start"`
+	End      int        `json:"end"`
 	Loc      *SrcLoc    `json:"loc"`
 	Operator string     `json:"operator"`
 	Left     Expression `json:"left"`
@@ -338,6 +408,8 @@ type LogicalExpression struct {
 // https://github.com/estree/estree/blob/master/es5.md#memberexpression
 type MemberExpression struct {
 	Type     string     `json:"type"`
+	Start    int        `json:"start"`
+	End      int        `json:"end"`
 	Loc      *SrcLoc    `json:"loc"`
 	Object   Expression `json:"object"`
 	Property Expression `json:"property"`
@@ -348,6 +420,8 @@ type MemberExpression struct {
 // https://github.com/estree/estree/blob/master/es5.md#conditionalexpression
 type ConditionalExpression struct {
 	Type       string     `json:"type"`
+	Start      int        `json:"start"`
+	End        int        `json:"end"`
 	Loc        *SrcLoc    `json:"loc"`
 	Test       Expression `json:"test"`
 	Consequent Expression `json:"consequent"`
@@ -357,6 +431,8 @@ type ConditionalExpression struct {
 // https://github.com/estree/estree/blob/master/es5.md#callexpression
 type CallExpression struct {
 	Type      string       `json:"type"`
+	Start     int          `json:"start"`
+	End       int          `json:"end"`
 	Loc       *SrcLoc      `json:"loc"`
 	Callee    Expression   `json:"callee"`
 	Arguments []Expression `json:"arguments"`
@@ -366,6 +442,8 @@ type CallExpression struct {
 // https://github.com/estree/estree/blob/master/es5.md#newexpression
 type NewExpression struct {
 	Type      string       `json:"type"`
+	Start     int          `json:"start"`
+	End       int          `json:"end"`
 	Loc       *SrcLoc      `json:"loc"`
 	Callee    Expression   `json:"callee"`
 	Arguments []Expression `json:"arguments"`
@@ -374,19 +452,25 @@ type NewExpression struct {
 // https://github.com/estree/estree/blob/master/es5.md#sequenceexpression
 type SequenceExpression struct {
 	Type        string       `json:"type"`
+	Start       int          `json:"start"`
+	End         int          `json:"end"`
 	Loc         *SrcLoc      `json:"loc"`
 	Expressions []Expression `json:"expressions"`
 }
 
 // https://github.com/estree/estree/blob/master/es2015.md#expressions
 type Super struct {
-	Type string  `json:"type"`
-	Loc  *SrcLoc `json:"loc"`
+	Type  string  `json:"type"`
+	Start int     `json:"start"`
+	End   int     `json:"end"`
+	Loc   *SrcLoc `json:"loc"`
 }
 
 // https://github.com/estree/estree/blob/master/es2015.md#expressions
 type SpreadElement struct {
 	Type     string     `json:"type"`
+	Start    int        `json:"start"`
+	End      int        `json:"end"`
 	Loc      *SrcLoc    `json:"loc"`
 	Argument Expression `json:"argument"`
 }
@@ -394,6 +478,8 @@ type SpreadElement struct {
 // https://github.com/estree/estree/blob/master/es2015.md#arrowfunctionexpression
 type ArrowFunctionExpression struct {
 	Type       string      `json:"type"`
+	Start      int         `json:"start"`
+	End        int         `json:"end"`
 	Loc        *SrcLoc     `json:"loc"`
 	Id         *Identifier `json:"id"`
 	Params     []Node      `json:"params"`
@@ -406,6 +492,8 @@ type ArrowFunctionExpression struct {
 // https://github.com/estree/estree/blob/master/es2015.md#yieldexpression
 type YieldExpression struct {
 	Type     string     `json:"type"`
+	Start    int        `json:"start"`
+	End      int        `json:"end"`
 	Loc      *SrcLoc    `json:"loc"`
 	Argument Expression `json:"argument"`
 	Delegate bool       `json:"delegate"`
@@ -414,6 +502,8 @@ type YieldExpression struct {
 // https://github.com/estree/estree/blob/master/es2017.md#awaitexpression
 type AwaitExpression struct {
 	Type     string     `json:"type"`
+	Start    int        `json:"start"`
+	End      int        `json:"end"`
 	Loc      *SrcLoc    `json:"loc"`
 	Argument Expression `json:"argument"`
 }
@@ -421,6 +511,8 @@ type AwaitExpression struct {
 // https://github.com/estree/estree/blob/master/es2015.md#templateliteral
 type TemplateLiteral struct {
 	Type        string       `json:"type"`
+	Start       int          `json:"start"`
+	End         int          `json:"end"`
 	Loc         *SrcLoc      `json:"loc"`
 	Quasis      []Expression `json:"quasis"`
 	Expressions []Expression `json:"expressions"`
@@ -429,6 +521,8 @@ type TemplateLiteral struct {
 // https://github.com/estree/estree/blob/master/es2015.md#taggedtemplateexpression
 type TaggedTemplateExpression struct {
 	Type  string     `json:"type"`
+	Start int        `json:"start"`
+	End   int        `json:"end"`
 	Loc   *SrcLoc    `json:"loc"`
 	Tag   Expression `json:"tag"`
 	Quasi Expression `json:"quasi"`
@@ -437,6 +531,8 @@ type TaggedTemplateExpression struct {
 // https://github.com/estree/estree/blob/master/es2015.md#templateelement
 type TemplateElement struct {
 	Type  string                `json:"type"`
+	Start int                   `json:"start"`
+	End   int                   `json:"end"`
 	Loc   *SrcLoc               `json:"loc"`
 	Tail  bool                  `json:"tail"`
 	Value *TemplateElementValue `json:"value"`
@@ -450,6 +546,8 @@ type TemplateElementValue struct {
 // https://github.com/estree/estree/blob/master/es2020.md#chainexpression
 type ChainExpression struct {
 	Type       string     `json:"type"`
+	Start      int        `json:"start"`
+	End        int        `json:"end"`
 	Loc        *SrcLoc    `json:"loc"`
 	Expression Expression `json:"expression"` // CallExpression | MemberExpression
 }
@@ -457,6 +555,8 @@ type ChainExpression struct {
 // https://github.com/estree/estree/blob/master/es2020.md#importexpression
 type ImportExpression struct {
 	Type   string     `json:"type"`
+	Start  int        `json:"start"`
+	End    int        `json:"end"`
 	Loc    *SrcLoc    `json:"loc"`
 	Source Expression `json:"source"`
 }
@@ -467,6 +567,8 @@ type Pattern interface{}
 // https://github.com/estree/estree/blob/master/es2015.md#expressions
 type Property struct {
 	Type      string     `json:"type"`
+	Start     int        `json:"start"`
+	End       int        `json:"end"`
 	Loc       *SrcLoc    `json:"loc"`
 	Key       Expression `json:"key"`
 	Value     Expression `json:"value"`
@@ -479,6 +581,8 @@ type Property struct {
 // https://github.com/estree/estree/blob/master/es2015.md#objectpattern
 type AssignmentProperty struct {
 	Type      string     `json:"type"`
+	Start     int        `json:"start"`
+	End       int        `json:"end"`
 	Loc       *SrcLoc    `json:"loc"`
 	Key       Expression `json:"key"`
 	Method    bool       `json:"method"`
@@ -491,6 +595,8 @@ type AssignmentProperty struct {
 // https://github.com/estree/estree/blob/master/es2015.md#objectpattern
 type ObjectPattern struct {
 	Type       string               `json:"type"`
+	Start      int                  `json:"start"`
+	End        int                  `json:"end"`
 	Loc        *SrcLoc              `json:"loc"`
 	Properties []AssignmentProperty `json:"properties"`
 }
@@ -498,6 +604,8 @@ type ObjectPattern struct {
 // https://github.com/estree/estree/blob/master/es2015.md#arraypattern
 type ArrayPattern struct {
 	Type     string    `json:"type"`
+	Start    int       `json:"start"`
+	End      int       `json:"end"`
 	Loc      *SrcLoc   `json:"loc"`
 	Elements []Pattern `json:"elements"`
 }
@@ -505,6 +613,8 @@ type ArrayPattern struct {
 // https://github.com/estree/estree/blob/master/es2015.md#restelement
 type RestElement struct {
 	Type     string  `json:"type"`
+	Start    int     `json:"start"`
+	End      int     `json:"end"`
 	Loc      *SrcLoc `json:"loc"`
 	Argument Pattern `json:"argument"`
 }
@@ -512,6 +622,8 @@ type RestElement struct {
 // https://github.com/estree/estree/blob/master/es2015.md#assignmentpattern
 type AssignmentPattern struct {
 	Type  string     `json:"type"`
+	Start int        `json:"start"`
+	End   int        `json:"end"`
 	Loc   *SrcLoc    `json:"loc"`
 	Left  Pattern    `json:"left"`
 	Right Expression `json:"right"`
@@ -519,14 +631,18 @@ type AssignmentPattern struct {
 
 // https://github.com/estree/estree/blob/master/es2015.md#classbody
 type ClassBody struct {
-	Type string       `json:"type"`
-	Loc  *SrcLoc      `json:"loc"`
-	Body []Expression `json:"body"` // MethodDefinition | PropertyDefinition | StaticBlock
+	Type  string       `json:"type"`
+	Start int          `json:"start"`
+	End   int          `json:"end"`
+	Loc   *SrcLoc      `json:"loc"`
+	Body  []Expression `json:"body"` // MethodDefinition | PropertyDefinition | StaticBlock
 }
 
 // https://github.com/estree/estree/blob/master/es2015.md#methoddefinition
 type MethodDefinition struct {
 	Type     string     `json:"type"`
+	Start    int        `json:"start"`
+	End      int        `json:"end"`
 	Loc      *SrcLoc    `json:"loc"`
 	Key      Expression `json:"key"`
 	Value    Expression `json:"value"`
@@ -538,6 +654,8 @@ type MethodDefinition struct {
 // https://github.com/estree/estree/blob/master/es2022.md#propertydefinition
 type PropertyDefinition struct {
 	Type     string     `json:"type"`
+	Start    int        `json:"start"`
+	End      int        `json:"end"`
 	Loc      *SrcLoc    `json:"loc"`
 	Key      Expression `json:"key"`
 	Value    Expression `json:"value"`
@@ -548,6 +666,8 @@ type PropertyDefinition struct {
 // https://github.com/estree/estree/blob/master/es2015.md#classdeclaration
 type ClassDeclaration struct {
 	Type       string     `json:"type"`
+	Start      int        `json:"start"`
+	End        int        `json:"end"`
 	Loc        *SrcLoc    `json:"loc"`
 	Id         Expression `json:"id"`
 	SuperClass Expression `json:"superClass"`
@@ -557,6 +677,8 @@ type ClassDeclaration struct {
 // https://github.com/estree/estree/blob/master/es2015.md#classexpression
 type ClassExpression struct {
 	Type       string     `json:"type"`
+	Start      int        `json:"start"`
+	End        int        `json:"end"`
 	Loc        *SrcLoc    `json:"loc"`
 	Id         Expression `json:"id"`
 	SuperClass Expression `json:"superClass"`
@@ -565,21 +687,27 @@ type ClassExpression struct {
 
 // https://github.com/estree/estree/blob/master/es2022.md#privateidentifier
 type PrivateIdentifier struct {
-	Type string  `json:"type"`
-	Loc  *SrcLoc `json:"loc"`
-	Name string  `json:"name"`
+	Type  string  `json:"type"`
+	Start int     `json:"start"`
+	End   int     `json:"end"`
+	Loc   *SrcLoc `json:"loc"`
+	Name  string  `json:"name"`
 }
 
 // https://github.com/estree/estree/blob/master/es2022.md#staticblock
 type StaticBlock struct {
-	Type string      `json:"type"`
-	Loc  *SrcLoc     `json:"loc"`
-	Body []Statement `json:"body"`
+	Type  string      `json:"type"`
+	Start int         `json:"start"`
+	End   int         `json:"end"`
+	Loc   *SrcLoc     `json:"loc"`
+	Body  []Statement `json:"body"`
 }
 
 // https://github.com/estree/estree/blob/master/es2015.md#metaproperty
 type MetaProperty struct {
 	Type     string     `json:"type"`
+	Start    int        `json:"start"`
+	End      int        `json:"end"`
 	Loc      *SrcLoc    `json:"loc"`
 	Meta     Expression `json:"meta"`
 	Property Expression `json:"property"`
@@ -590,6 +718,8 @@ type ModuleDeclaration interface{}
 // https://github.com/estree/estree/blob/master/es2015.md#importdeclaration
 type ImportDeclaration struct {
 	Type       string     `json:"type"`
+	Start      int        `json:"start"`
+	End        int        `json:"end"`
 	Loc        *SrcLoc    `json:"loc"`
 	Specifiers []Node     `json:"specifiers"` // [ ImportSpecifier | ImportDefaultSpecifier | ImportNamespaceSpecifier ]
 	Source     Expression `json:"source"`
@@ -598,6 +728,8 @@ type ImportDeclaration struct {
 // https://github.com/estree/estree/blob/master/es2015.md#importspecifier
 type ImportSpecifier struct {
 	Type     string  `json:"type"`
+	Start    int     `json:"start"`
+	End      int     `json:"end"`
 	Loc      *SrcLoc `json:"loc"`
 	Local    Node    `json:"local"`
 	Imported Node    `json:"imported"`
@@ -606,6 +738,8 @@ type ImportSpecifier struct {
 // https://github.com/estree/estree/blob/master/es2015.md#importdefaultspecifier
 type ImportDefaultSpecifier struct {
 	Type  string  `json:"type"`
+	Start int     `json:"start"`
+	End   int     `json:"end"`
 	Loc   *SrcLoc `json:"loc"`
 	Local Node    `json:"local"`
 }
@@ -613,6 +747,8 @@ type ImportDefaultSpecifier struct {
 // https://github.com/estree/estree/blob/master/es2015.md#importnamespacespecifier
 type ImportNamespaceSpecifier struct {
 	Type  string  `json:"type"`
+	Start int     `json:"start"`
+	End   int     `json:"end"`
 	Loc   *SrcLoc `json:"loc"`
 	Local Node    `json:"local"`
 }
@@ -620,6 +756,8 @@ type ImportNamespaceSpecifier struct {
 // https://github.com/estree/estree/blob/master/es2015.md#exportnameddeclaration
 type ExportNamedDeclaration struct {
 	Type        string      `json:"type"`
+	Start       int         `json:"start"`
+	End         int         `json:"end"`
 	Loc         *SrcLoc     `json:"loc"`
 	Declaration Declaration `json:"declaration"` // Declaration | null
 	Specifiers  []Node      `json:"specifiers"`
@@ -629,14 +767,18 @@ type ExportNamedDeclaration struct {
 // https://github.com/estree/estree/blob/master/es2015.md#exportspecifier
 type ExportSpecifier struct {
 	Type     string     `json:"type"`
+	Start    int        `json:"start"`
+	End      int        `json:"end"`
 	Loc      *SrcLoc    `json:"loc"`
 	Local    Expression `json:"local"`
 	Exported Expression `json:"exported"`
 }
 
 type ExportDefaultDeclaration struct {
-	Type string  `json:"type"`
-	Loc  *SrcLoc `json:"loc"`
+	Type  string  `json:"type"`
+	Start int     `json:"start"`
+	End   int     `json:"end"`
+	Loc   *SrcLoc `json:"loc"`
 
 	// AnonymousDefaultExportedFunctionDeclaration | FunctionDeclaration | AnonymousDefaultExportedClassDeclaration | ClassDeclaration | Expression
 	Declaration Node `json:"declaration"`
@@ -645,6 +787,8 @@ type ExportDefaultDeclaration struct {
 // https://github.com/estree/estree/blob/master/es2015.md#exportalldeclaration
 type ExportAllDeclaration struct {
 	Type     string     `json:"type"`
+	Start    int        `json:"start"`
+	End      int        `json:"end"`
 	Loc      *SrcLoc    `json:"loc"`
 	Exported Expression `json:"exported"`
 	Source   Expression `json:"source"`

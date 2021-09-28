@@ -35,8 +35,9 @@ func Test1(t *testing.T) {
 	assert.EqualJson(t, `
 {
   "type": "Program",
+  "start": 0,
+  "end": 10,
   "loc": {
-    "source": "",
     "start": {
       "line": 1,
       "column": 0
@@ -46,12 +47,12 @@ func Test1(t *testing.T) {
       "column": 10
     }
   },
-  "sourceType": "",
   "body": [
     {
       "type": "ExpressionStatement",
+      "start": 0,
+      "end": 10,
       "loc": {
-        "source": "",
         "start": {
           "line": 1,
           "column": 0
@@ -63,8 +64,9 @@ func Test1(t *testing.T) {
       },
       "expression": {
         "type": "NewExpression",
+        "start": 0,
+        "end": 10,
         "loc": {
-          "source": "",
           "start": {
             "line": 1,
             "column": 0
@@ -76,8 +78,9 @@ func Test1(t *testing.T) {
         },
         "callee": {
           "type": "Identifier",
+          "start": 4,
+          "end": 10,
           "loc": {
-            "source": "",
             "start": {
               "line": 1,
               "column": 4
@@ -89,7 +92,7 @@ func Test1(t *testing.T) {
           },
           "name": "Object"
         },
-        "arguments": null
+        "arguments": []
       }
     }
   ]
@@ -27318,7 +27321,6 @@ func Test304(t *testing.T) {
 	ast, err := compile("while (true) { continue /* Multiline\nComment */there; }")
 	assert.Equal(t, nil, err, "should be prog ok")
 
-	fmt.Println(ast)
 	assert.EqualJson(t, `
 {
   "type": "Program",
@@ -29637,6 +29639,8 @@ func Test335(t *testing.T) {
 	assert.EqualJson(t, `
 {
   "type": "Program",
+  "start": 0,
+  "end": 6,
   "loc": {
     "start": {
       "line": 1,
@@ -29650,6 +29654,8 @@ func Test335(t *testing.T) {
   "body": [
     {
       "type": "ExpressionStatement",
+      "start": 0,
+      "end": 6,
       "loc": {
         "start": {
           "line": 1,
@@ -29662,6 +29668,8 @@ func Test335(t *testing.T) {
       },
       "expression": {
         "type": "TaggedTemplateExpression",
+        "start": 0,
+        "end": 6,
         "loc": {
           "start": {
             "line": 1,
@@ -29674,6 +29682,8 @@ func Test335(t *testing.T) {
         },
         "tag": {
           "type": "Identifier",
+          "start": 0,
+          "end": 3,
           "loc": {
             "start": {
               "line": 1,
@@ -29688,6 +29698,8 @@ func Test335(t *testing.T) {
         },
         "quasi": {
           "type": "TemplateLiteral",
+          "start": 3,
+          "end": 6,
           "loc": {
             "start": {
               "line": 1,
@@ -29702,6 +29714,8 @@ func Test335(t *testing.T) {
           "quasis": [
             {
               "type": "TemplateElement",
+              "start": 4,
+              "end": 5,
               "loc": {
                 "start": {
                   "line": 1,
@@ -29734,6 +29748,8 @@ func Test336(t *testing.T) {
 	assert.EqualJson(t, `
 {
   "type": "Program",
+  "start": 0,
+  "end": 15,
   "loc": {
     "start": {
       "line": 1,
@@ -29747,6 +29763,8 @@ func Test336(t *testing.T) {
   "body": [
     {
       "type": "ExpressionStatement",
+      "start": 0,
+      "end": 15,
       "loc": {
         "start": {
           "line": 1,
@@ -29759,6 +29777,8 @@ func Test336(t *testing.T) {
       },
       "expression": {
         "type": "TaggedTemplateExpression",
+        "start": 0,
+        "end": 15,
         "loc": {
           "start": {
             "line": 1,
@@ -29771,6 +29791,8 @@ func Test336(t *testing.T) {
         },
         "tag": {
           "type": "MemberExpression",
+          "start": 0,
+          "end": 12,
           "loc": {
             "start": {
               "line": 1,
@@ -29783,6 +29805,8 @@ func Test336(t *testing.T) {
           },
           "object": {
             "type": "MemberExpression",
+            "start": 0,
+            "end": 9,
             "loc": {
               "start": {
                 "line": 1,
@@ -29795,6 +29819,8 @@ func Test336(t *testing.T) {
             },
             "object": {
               "type": "CallExpression",
+              "start": 0,
+              "end": 7,
               "loc": {
                 "start": {
                   "line": 1,
@@ -29807,6 +29833,8 @@ func Test336(t *testing.T) {
               },
               "callee": {
                 "type": "MemberExpression",
+                "start": 0,
+                "end": 5,
                 "loc": {
                   "start": {
                     "line": 1,
@@ -29819,6 +29847,8 @@ func Test336(t *testing.T) {
                 },
                 "object": {
                   "type": "Identifier",
+                  "start": 0,
+                  "end": 3,
                   "loc": {
                     "start": {
                       "line": 1,
@@ -29834,6 +29864,8 @@ func Test336(t *testing.T) {
                 "computed": false,
                 "property": {
                   "type": "Identifier",
+                  "start": 4,
+                  "end": 5,
                   "loc": {
                     "start": {
                       "line": 1,
@@ -29852,6 +29884,8 @@ func Test336(t *testing.T) {
             "computed": false,
             "property": {
               "type": "Identifier",
+              "start": 8,
+              "end": 9,
               "loc": {
                 "start": {
                   "line": 1,
@@ -29868,6 +29902,8 @@ func Test336(t *testing.T) {
           "computed": true,
           "property": {
             "type": "Identifier",
+            "start": 10,
+            "end": 11,
             "loc": {
               "start": {
                 "line": 1,
@@ -29883,6 +29919,8 @@ func Test336(t *testing.T) {
         },
         "quasi": {
           "type": "TemplateLiteral",
+          "start": 12,
+          "end": 15,
           "loc": {
             "start": {
               "line": 1,
@@ -29897,6 +29935,8 @@ func Test336(t *testing.T) {
           "quasis": [
             {
               "type": "TemplateElement",
+              "start": 13,
+              "end": 14,
               "loc": {
                 "start": {
                   "line": 1,
@@ -29926,41 +29966,60 @@ func Test337(t *testing.T) {
 	ast, err := compile("class A { #a; get false() {} b; }")
 	assert.Equal(t, nil, err, "should be prog ok")
 
+	fmt.Println(ast)
 	assert.EqualJson(t, `
 {
   "type": "Program",
+  "start": 0,
+  "end": 33,
   "body": [
     {
       "type": "ClassDeclaration",
+      "start": 0,
+      "end": 33,
       "id": {
         "type": "Identifier",
+        "start": 6,
+        "end": 7,
         "name": "A"
       },
       "superClass": null,
       "body": {
         "type": "ClassBody",
+        "start": 8,
+        "end": 33,
         "body": [
           {
             "type": "PropertyDefinition",
+            "start": 10,
+            "end": 13,
             "static": false,
             "computed": false,
             "key": {
               "type": "PrivateIdentifier",
+              "start": 10,
+              "end": 12,
               "name": "a"
             },
             "value": null
           },
           {
             "type": "MethodDefinition",
+            "start": 14,
+            "end": 28,
             "static": false,
             "computed": false,
             "key": {
               "type": "Identifier",
+              "start": 18,
+              "end": 23,
               "name": "false"
             },
             "kind": "get",
             "value": {
               "type": "FunctionExpression",
+              "start": 23,
+              "end": 28,
               "id": null,
               "expression": false,
               "generator": false,
@@ -29968,16 +30027,22 @@ func Test337(t *testing.T) {
               "params": [],
               "body": {
                 "type": "BlockStatement",
+                "start": 26,
+                "end": 28,
                 "body": []
               }
             }
           },
           {
             "type": "PropertyDefinition",
+            "start": 29,
+            "end": 31,
             "static": false,
             "computed": false,
             "key": {
               "type": "Identifier",
+              "start": 29,
+              "end": 30,
               "name": "b"
             },
             "value": null

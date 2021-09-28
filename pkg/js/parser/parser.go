@@ -53,6 +53,7 @@ func (p *Parser) Prog() (Node, error) {
 	pg.loc = p.finLoc(loc)
 	pg.loc.end.line = p.lexer.src.line
 	pg.loc.end.col = p.lexer.src.col
+	pg.loc.rng.end = p.lexer.src.Pos()
 	return pg, nil
 }
 
@@ -93,9 +94,6 @@ func (p *Parser) stmt() (Node, error) {
 		return p.debugStmt()
 	case T_SEMI:
 		return p.emptyStmt()
-	// case T_COMMENT:
-	// 	p.lexer.Next()
-	// 	return nil, nil
 	case T_IMPORT:
 		return p.importDec()
 	case T_EXPORT:
@@ -485,6 +483,9 @@ func (p *Parser) classElem() (Node, error) {
 
 func (p *Parser) method(static bool, key Node, kind *Token, gen bool, async bool) (Node, error) {
 	loc := p.loc()
+	if kind != nil {
+		loc = p.locFromTok(kind)
+	}
 
 	if async {
 		p.lexer.Next()
@@ -1414,7 +1415,11 @@ func (p *Parser) exprStmt() (Node, error) {
 		if stmt.loc.begin.col > 0 {
 			stmt.loc.begin.col -= 1
 		}
+		if stmt.loc.rng.start > 0 {
+			stmt.loc.rng.start -= 1
+		}
 		stmt.loc.end.col += 1
+		stmt.loc.rng.end += 1
 	}
 	return stmt, nil
 }
@@ -1706,11 +1711,16 @@ func (p *Parser) importCall() (Node, error) {
 func (p *Parser) tplExpr(tag Node) (Node, error) {
 	loc := p.loc()
 	if tag != nil {
-		loc.begin = tag.Loc().end.Clone()
+		tl := tag.Loc()
+		loc.begin = tl.end.Clone()
+		loc.rng.start = tl.rng.end
 	} else {
+		// move back one position to take the place of the beginning backquote
 		if loc.begin.col > 0 {
-			// move back one position to take the place of the beginning backquote
 			loc.begin.col -= 1
+		}
+		if loc.rng.start > 0 {
+			loc.rng.start -= 1
 		}
 	}
 
@@ -1750,6 +1760,7 @@ func (p *Parser) tplExpr(tag Node) (Node, error) {
 
 	loc = p.finLoc(loc)
 	loc.end.col += 1
+	loc.rng.end += 1
 	return &TplExpr{N_EXPR_TPL, loc, tag, elems}, nil
 }
 
@@ -2212,7 +2223,7 @@ func (p *Parser) locFromTok(tok *Token) *Loc {
 		src:   tok.raw.src,
 		begin: tok.begin.Clone(),
 		end:   &Pos{},
-		rng:   &Range{},
+		rng:   &Range{tok.raw.lo, 0},
 	}
 }
 

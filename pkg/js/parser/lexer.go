@@ -183,7 +183,7 @@ func (l *Lexer) Loc() *Loc {
 	} else {
 		loc.begin.line = l.src.line
 		loc.begin.col = l.src.col
-		loc.rng.start = l.src.pos
+		loc.rng.start = l.src.Pos()
 	}
 	return loc
 }
@@ -770,6 +770,7 @@ func (l *Lexer) readLineTerminator() {
 func (l *Lexer) ReadNumPvt() *Token {
 	l.src.Read()
 	tok := l.ReadName()
+	tok.raw.lo -= 1
 	if tok.value != T_NAME {
 		return tok
 	}
