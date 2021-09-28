@@ -227,7 +227,6 @@ func (l *Lexer) nextTok() *Token {
 func (l *Lexer) Next() *Token {
 	tok := l.nextTok()
 	l.pr = tok
-	l.beginStmt = false
 	return tok
 }
 
@@ -348,7 +347,7 @@ func (l *Lexer) ReadName() *Token {
 	return l.finToken(tok, T_NAME)
 }
 
-func (l *Lexer) aheadIsRegexp() bool {
+func (l *Lexer) aheadIsRegexp(afterLineTerminator bool) bool {
 	if l.beginStmt {
 		return true
 	}
@@ -363,7 +362,8 @@ func (l *Lexer) aheadIsRegexp() bool {
 	if l.notIn && v == T_IN {
 		v = T_NAME
 	}
-	return TokenKinds[v].BeforeExpr
+	be := TokenKinds[v].BeforeExpr
+	return be || afterLineTerminator
 }
 
 func (l *Lexer) ReadSymbol() *Token {
@@ -571,7 +571,7 @@ func (l *Lexer) ReadSymbol() *Token {
 			return l.readSinglelineComment(tok)
 		} else if l.src.AheadIsCh('*') {
 			return l.readMultilineComment(tok)
-		} else if l.aheadIsRegexp() {
+		} else if l.aheadIsRegexp(l.src.metLineTerminator) {
 			return l.readRegexp(tok)
 		} else if l.src.AheadIsCh('=') {
 			l.src.Read()

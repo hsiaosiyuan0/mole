@@ -399,7 +399,7 @@ var TokenKinds = [T_TOKEN_DEF_END - 1]*TokenKind{
 	{T_DOT_TRI, "...", 0, false, false},
 	{T_SEMI, ";", 0, false, true},
 	{T_COMMA, ",", 0, false, true},
-	{T_HOOK, "?", 0, false, false},
+	{T_HOOK, "?", 0, false, true},
 	{T_COLON, ":", 0, false, true},
 	{T_INC, "++", 0, true, false},
 	{T_DEC, "--", 0, true, false},
@@ -407,32 +407,32 @@ var TokenKinds = [T_TOKEN_DEF_END - 1]*TokenKind{
 	{T_ARROW, "=>", 0, false, true},
 
 	{T_BIN_OP_BEGIN, "binary operator begin", 0, false, false},
-	{T_NULLISH, "??", 0, false, false},
+	{T_NULLISH, "??", 0, false, true},
 
 	// relational
-	{T_LT, "<", 12, false, false},
-	{T_GT, ">", 12, false, false},
-	{T_LTE, "<=", 12, false, false},
-	{T_GTE, ">=", 12, false, false},
+	{T_LT, "<", 12, false, true},
+	{T_GT, ">", 12, false, true},
+	{T_LTE, "<=", 12, false, true},
+	{T_GTE, ">=", 12, false, true},
 
 	// equality
-	{T_EQ, "==", 11, false, false},
-	{T_NE, "!=", 11, false, false},
-	{T_EQ_S, "===", 11, false, false},
-	{T_NE_S, "!==", 11, false, false},
+	{T_EQ, "==", 11, false, true},
+	{T_NE, "!=", 11, false, true},
+	{T_EQ_S, "===", 11, false, true},
+	{T_NE_S, "!==", 11, false, true},
 
 	// bitwise
-	{T_LSH, "<<", 13, false, false},
-	{T_RSH, ">>", 13, false, false},
-	{T_RSH_U, ">>>", 13, false, false},
-	{T_BIT_OR, "|", 8, false, false},
-	{T_BIT_XOR, "^", 9, false, false},
-	{T_BIT_AND, "&", 10, false, false},
+	{T_LSH, "<<", 13, false, true},
+	{T_RSH, ">>", 13, false, true},
+	{T_RSH_U, ">>>", 13, false, true},
+	{T_BIT_OR, "|", 8, false, true},
+	{T_BIT_XOR, "^", 9, false, true},
+	{T_BIT_AND, "&", 10, false, true},
 
-	{T_OR, "||", 6, false, false},
-	{T_AND, "&&", 7, false, false},
+	{T_OR, "||", 6, false, true},
+	{T_AND, "&&", 7, false, true},
 
-	{T_INSTANCE_OF, "instanceof", 12, false, false},
+	{T_INSTANCE_OF, "instanceof", 12, false, true},
 	{T_IN, "in", 12, false, true},
 
 	{T_ADD, "+", 14, false, true},

@@ -3,7 +3,6 @@ package estree
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"testing"
 
 	"github.com/hsiaosiyuan0/mole/pkg/assert"
@@ -29966,7 +29965,6 @@ func Test337(t *testing.T) {
 	ast, err := compile("class A { #a; get false() {} b; }")
 	assert.Equal(t, nil, err, "should be prog ok")
 
-	fmt.Println(ast)
 	assert.EqualJson(t, `
 {
   "type": "Program",
@@ -31085,24 +31083,845 @@ func Test347(t *testing.T) {
 }
 
 func Test348(t *testing.T) {
-	// ast, err := compile("x = { false: 42 }")
-	// assert.Equal(t, nil, err, "should be prog ok")
+	ast, err := compile("+{} / 2")
+	assert.Equal(t, nil, err, "should be prog ok")
 
-	// assert.EqualJson(t, `
-
-	// `, ast)
+	assert.EqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 7,
+  "loc": {
+    "start": {
+      "line": 1,
+      "column": 0
+    },
+    "end": {
+      "line": 1,
+      "column": 7
+    }
+  },
+  "body": [
+    {
+      "type": "ExpressionStatement",
+      "start": 0,
+      "end": 7,
+      "loc": {
+        "start": {
+          "line": 1,
+          "column": 0
+        },
+        "end": {
+          "line": 1,
+          "column": 7
+        }
+      },
+      "expression": {
+        "type": "BinaryExpression",
+        "start": 0,
+        "end": 7,
+        "loc": {
+          "start": {
+            "line": 1,
+            "column": 0
+          },
+          "end": {
+            "line": 1,
+            "column": 7
+          }
+        },
+        "left": {
+          "type": "UnaryExpression",
+          "start": 0,
+          "end": 3,
+          "loc": {
+            "start": {
+              "line": 1,
+              "column": 0
+            },
+            "end": {
+              "line": 1,
+              "column": 3
+            }
+          },
+          "operator": "+",
+          "prefix": true,
+          "argument": {
+            "type": "ObjectExpression",
+            "start": 1,
+            "end": 3,
+            "loc": {
+              "start": {
+                "line": 1,
+                "column": 1
+              },
+              "end": {
+                "line": 1,
+                "column": 3
+              }
+            },
+            "properties": []
+          }
+        },
+        "operator": "/",
+        "right": {
+          "type": "Literal",
+          "start": 6,
+          "end": 7,
+          "loc": {
+            "start": {
+              "line": 1,
+              "column": 6
+            },
+            "end": {
+              "line": 1,
+              "column": 7
+            }
+          },
+          "value": 2
+        }
+      }
+    }
+  ]
+}
+	`, ast)
 }
 
 func Test349(t *testing.T) {
-	// ast, err := compile("x = { false: 42 }")
-	// assert.Equal(t, nil, err, "should be prog ok")
+	ast, err := compile("{}\n/foo/")
+	assert.Equal(t, nil, err, "should be prog ok")
 
-	// assert.EqualJson(t, `
-
-	// `, ast)
+	assert.EqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 8,
+  "loc": {
+    "start": {
+      "line": 1,
+      "column": 0
+    },
+    "end": {
+      "line": 2,
+      "column": 5
+    }
+  },
+  "body": [
+    {
+      "type": "BlockStatement",
+      "start": 0,
+      "end": 2,
+      "loc": {
+        "start": {
+          "line": 1,
+          "column": 0
+        },
+        "end": {
+          "line": 1,
+          "column": 2
+        }
+      },
+      "body": [],
+      "directives": []
+    },
+    {
+      "type": "ExpressionStatement",
+      "start": 3,
+      "end": 8,
+      "loc": {
+        "start": {
+          "line": 2,
+          "column": 0
+        },
+        "end": {
+          "line": 2,
+          "column": 5
+        }
+      },
+      "expression": {
+        "type": "Literal",
+        "start": 3,
+        "end": 8,
+        "loc": {
+          "start": {
+            "line": 2,
+            "column": 0
+          },
+          "end": {
+            "line": 2,
+            "column": 5
+          }
+        },
+        "regexp": {
+          "pattern": "foo",
+          "flags": ""
+        }
+      }
+    }
+  ]
+}
+	`, ast)
 }
 
 func Test350(t *testing.T) {
+	ast, err := compile("({a: [1]}+[]) / 2")
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	assert.EqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 17,
+  "loc": {
+    "start": {
+      "line": 1,
+      "column": 0
+    },
+    "end": {
+      "line": 1,
+      "column": 17
+    }
+  },
+  "body": [
+    {
+      "type": "ExpressionStatement",
+      "start": 0,
+      "end": 17,
+      "loc": {
+        "start": {
+          "line": 1,
+          "column": 0
+        },
+        "end": {
+          "line": 1,
+          "column": 17
+        }
+      },
+      "expression": {
+        "type": "BinaryExpression",
+        "start": 0,
+        "end": 17,
+        "loc": {
+          "start": {
+            "line": 1,
+            "column": 0
+          },
+          "end": {
+            "line": 1,
+            "column": 17
+          }
+        },
+        "left": {
+          "type": "BinaryExpression",
+          "start": 1,
+          "end": 12,
+          "loc": {
+            "start": {
+              "line": 1,
+              "column": 1
+            },
+            "end": {
+              "line": 1,
+              "column": 12
+            }
+          },
+          "left": {
+            "type": "ObjectExpression",
+            "start": 1,
+            "end": 9,
+            "loc": {
+              "start": {
+                "line": 1,
+                "column": 1
+              },
+              "end": {
+                "line": 1,
+                "column": 9
+              }
+            },
+            "properties": [
+              {
+                "type": "Property",
+                "start": 2,
+                "end": 8,
+                "loc": {
+                  "start": {
+                    "line": 1,
+                    "column": 2
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": 8
+                  }
+                },
+                "method": false,
+                "key": {
+                  "type": "Identifier",
+                  "start": 2,
+                  "end": 3,
+                  "loc": {
+                    "start": {
+                      "line": 1,
+                      "column": 2
+                    },
+                    "end": {
+                      "line": 1,
+                      "column": 3
+                    }
+                  },
+                  "name": "a"
+                },
+                "computed": false,
+                "shorthand": false,
+                "value": {
+                  "type": "ArrayExpression",
+                  "start": 5,
+                  "end": 8,
+                  "loc": {
+                    "start": {
+                      "line": 1,
+                      "column": 5
+                    },
+                    "end": {
+                      "line": 1,
+                      "column": 8
+                    }
+                  },
+                  "elements": [
+                    {
+                      "type": "Literal",
+                      "start": 6,
+                      "end": 7,
+                      "loc": {
+                        "start": {
+                          "line": 1,
+                          "column": 6
+                        },
+                        "end": {
+                          "line": 1,
+                          "column": 7
+                        }
+                      },
+                      "value": 1
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          "operator": "+",
+          "right": {
+            "type": "ArrayExpression",
+            "start": 10,
+            "end": 12,
+            "loc": {
+              "start": {
+                "line": 1,
+                "column": 10
+              },
+              "end": {
+                "line": 1,
+                "column": 12
+              }
+            },
+            "elements": []
+          }
+        },
+        "operator": "/",
+        "right": {
+          "type": "Literal",
+          "start": 16,
+          "end": 17,
+          "loc": {
+            "start": {
+              "line": 1,
+              "column": 16
+            },
+            "end": {
+              "line": 1,
+              "column": 17
+            }
+          },
+          "value": 2
+        }
+      }
+    }
+  ]
+}
+	`, ast)
+}
+
+func Test351(t *testing.T) {
+	ast, err := compile("x = {foo: function x() {} / divide}")
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	assert.EqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 35,
+  "loc": {
+    "start": {
+      "line": 1,
+      "column": 0
+    },
+    "end": {
+      "line": 1,
+      "column": 35
+    }
+  },
+  "body": [
+    {
+      "type": "ExpressionStatement",
+      "start": 0,
+      "end": 35,
+      "loc": {
+        "start": {
+          "line": 1,
+          "column": 0
+        },
+        "end": {
+          "line": 1,
+          "column": 35
+        }
+      },
+      "expression": {
+        "type": "AssignmentExpression",
+        "start": 0,
+        "end": 35,
+        "loc": {
+          "start": {
+            "line": 1,
+            "column": 0
+          },
+          "end": {
+            "line": 1,
+            "column": 35
+          }
+        },
+        "operator": "=",
+        "left": {
+          "type": "Identifier",
+          "start": 0,
+          "end": 1,
+          "loc": {
+            "start": {
+              "line": 1,
+              "column": 0
+            },
+            "end": {
+              "line": 1,
+              "column": 1
+            }
+          },
+          "name": "x"
+        },
+        "right": {
+          "type": "ObjectExpression",
+          "start": 4,
+          "end": 35,
+          "loc": {
+            "start": {
+              "line": 1,
+              "column": 4
+            },
+            "end": {
+              "line": 1,
+              "column": 35
+            }
+          },
+          "properties": [
+            {
+              "type": "Property",
+              "start": 5,
+              "end": 34,
+              "loc": {
+                "start": {
+                  "line": 1,
+                  "column": 5
+                },
+                "end": {
+                  "line": 1,
+                  "column": 34
+                }
+              },
+              "method": false,
+              "key": {
+                "type": "Identifier",
+                "start": 5,
+                "end": 8,
+                "loc": {
+                  "start": {
+                    "line": 1,
+                    "column": 5
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": 8
+                  }
+                },
+                "name": "foo"
+              },
+              "computed": false,
+              "shorthand": false,
+              "value": {
+                "type": "BinaryExpression",
+                "start": 10,
+                "end": 34,
+                "loc": {
+                  "start": {
+                    "line": 1,
+                    "column": 10
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": 34
+                  }
+                },
+                "left": {
+                  "type": "FunctionExpression",
+                  "start": 10,
+                  "end": 25,
+                  "loc": {
+                    "start": {
+                      "line": 1,
+                      "column": 10
+                    },
+                    "end": {
+                      "line": 1,
+                      "column": 25
+                    }
+                  },
+                  "id": {
+                    "type": "Identifier",
+                    "start": 19,
+                    "end": 20,
+                    "loc": {
+                      "start": {
+                        "line": 1,
+                        "column": 19
+                      },
+                      "end": {
+                        "line": 1,
+                        "column": 20
+                      }
+                    },
+                    "name": "x"
+                  },
+                  "generator": false,
+                  "async": false,
+                  "params": [],
+                  "body": {
+                    "type": "BlockStatement",
+                    "start": 23,
+                    "end": 25,
+                    "loc": {
+                      "start": {
+                        "line": 1,
+                        "column": 23
+                      },
+                      "end": {
+                        "line": 1,
+                        "column": 25
+                      }
+                    },
+                    "body": [],
+                    "directives": []
+                  }
+                },
+                "operator": "/",
+                "right": {
+                  "type": "Identifier",
+                  "start": 28,
+                  "end": 34,
+                  "loc": {
+                    "start": {
+                      "line": 1,
+                      "column": 28
+                    },
+                    "end": {
+                      "line": 1,
+                      "column": 34
+                    }
+                  },
+                  "name": "divide"
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
+	`, ast)
+}
+
+func Test352(t *testing.T) {
+	ast, err := compile("switch(a) { case 1: {}\n/foo/ }")
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	assert.EqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 30,
+  "loc": {
+    "start": {
+      "line": 1,
+      "column": 0
+    },
+    "end": {
+      "line": 2,
+      "column": 7
+    }
+  },
+  "body": [
+    {
+      "type": "SwitchStatement",
+      "start": 0,
+      "end": 30,
+      "loc": {
+        "start": {
+          "line": 1,
+          "column": 0
+        },
+        "end": {
+          "line": 2,
+          "column": 7
+        }
+      },
+      "discriminant": {
+        "type": "Identifier",
+        "start": 7,
+        "end": 8,
+        "loc": {
+          "start": {
+            "line": 1,
+            "column": 7
+          },
+          "end": {
+            "line": 1,
+            "column": 8
+          }
+        },
+        "name": "a"
+      },
+      "cases": [
+        {
+          "type": "SwitchCase",
+          "start": 12,
+          "end": 28,
+          "loc": {
+            "start": {
+              "line": 1,
+              "column": 12
+            },
+            "end": {
+              "line": 2,
+              "column": 5
+            }
+          },
+          "consequent": [
+            {
+              "type": "BlockStatement",
+              "start": 20,
+              "end": 22,
+              "loc": {
+                "start": {
+                  "line": 1,
+                  "column": 20
+                },
+                "end": {
+                  "line": 1,
+                  "column": 22
+                }
+              },
+              "body": [],
+              "directives": []
+            },
+            {
+              "type": "ExpressionStatement",
+              "start": 23,
+              "end": 28,
+              "loc": {
+                "start": {
+                  "line": 2,
+                  "column": 0
+                },
+                "end": {
+                  "line": 2,
+                  "column": 5
+                }
+              },
+              "expression": {
+                "type": "Literal",
+                "start": 23,
+                "end": 28,
+                "loc": {
+                  "start": {
+                    "line": 2,
+                    "column": 0
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": 5
+                  }
+                },
+                "regexp": {
+                  "pattern": "foo",
+                  "flags": ""
+                }
+              }
+            }
+          ],
+          "test": {
+            "type": "Literal",
+            "start": 17,
+            "end": 18,
+            "loc": {
+              "start": {
+                "line": 1,
+                "column": 17
+              },
+              "end": {
+                "line": 1,
+                "column": 18
+              }
+            },
+            "value": 1
+          }
+        }
+      ]
+    }
+  ]
+}
+	`, ast)
+}
+
+func Test353(t *testing.T) {
+	ast, err := compile("+x++ / 2")
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	assert.EqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 8,
+  "loc": {
+    "start": {
+      "line": 1,
+      "column": 0
+    },
+    "end": {
+      "line": 1,
+      "column": 8
+    }
+  },
+  "body": [
+    {
+      "type": "ExpressionStatement",
+      "start": 0,
+      "end": 8,
+      "loc": {
+        "start": {
+          "line": 1,
+          "column": 0
+        },
+        "end": {
+          "line": 1,
+          "column": 8
+        }
+      },
+      "expression": {
+        "type": "BinaryExpression",
+        "start": 0,
+        "end": 8,
+        "loc": {
+          "start": {
+            "line": 1,
+            "column": 0
+          },
+          "end": {
+            "line": 1,
+            "column": 8
+          }
+        },
+        "left": {
+          "type": "UnaryExpression",
+          "start": 0,
+          "end": 4,
+          "loc": {
+            "start": {
+              "line": 1,
+              "column": 0
+            },
+            "end": {
+              "line": 1,
+              "column": 4
+            }
+          },
+          "operator": "+",
+          "prefix": true,
+          "argument": {
+            "type": "UpdateExpression",
+            "start": 1,
+            "end": 4,
+            "loc": {
+              "start": {
+                "line": 1,
+                "column": 1
+              },
+              "end": {
+                "line": 1,
+                "column": 4
+              }
+            },
+            "operator": "++",
+            "prefix": false,
+            "argument": {
+              "type": "Identifier",
+              "start": 1,
+              "end": 2,
+              "loc": {
+                "start": {
+                  "line": 1,
+                  "column": 1
+                },
+                "end": {
+                  "line": 1,
+                  "column": 2
+                }
+              },
+              "name": "x"
+            }
+          }
+        },
+        "operator": "/",
+        "right": {
+          "type": "Literal",
+          "start": 7,
+          "end": 8,
+          "loc": {
+            "start": {
+              "line": 1,
+              "column": 7
+            },
+            "end": {
+              "line": 1,
+              "column": 8
+            }
+          },
+          "value": 2
+        }
+      }
+    }
+  ]
+}
+	`, ast)
+}
+
+func Test354(t *testing.T) {
 	// ast, err := compile("x = { false: 42 }")
 	// assert.Equal(t, nil, err, "should be prog ok")
 
@@ -31111,7 +31930,7 @@ func Test350(t *testing.T) {
 	// `, ast)
 }
 
-func Test351(t *testing.T) {
+func Test355(t *testing.T) {
 	// ast, err := compile("x = { false: 42 }")
 	// assert.Equal(t, nil, err, "should be prog ok")
 
