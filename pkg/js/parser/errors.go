@@ -49,7 +49,7 @@ type ParserError struct {
 }
 
 func (e *ParserError) Error() string {
-	return fmt.Sprintf("%s at %sL%d:%d\n", e.msg, e.file, e.line, e.col)
+	return fmt.Sprintf("%s at %s(%d:%d)", e.msg, e.file, e.line, e.col)
 }
 
 func NewParserError(msg, file string, line, col int) *ParserError {

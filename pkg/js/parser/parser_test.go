@@ -12,6 +12,11 @@ func compile(code string) (Node, error) {
 	return p.Prog()
 }
 
+func testFail(t *testing.T, code, errMs string) {
+	_, err := compile(code)
+	assert.Equal(t, errMs, err.Error(), "")
+}
+
 func TestExpr(t *testing.T) {
 	ast, err := compile("a + b - c")
 	assert.Equal(t, nil, err, "should be prog ok")
@@ -917,4 +922,10 @@ func TestMetaProp(t *testing.T) {
 	assign := ast.(*Prog).stmts[0].(*ExprStmt).expr.(*AssignExpr)
 	metaProp := assign.rhs.(*MetaProp)
 	assert.Equal(t, "meta", metaProp.prop.(*Ident).Text(), "should be meta")
+}
+
+func TestFail(t *testing.T) {
+	testFail(t, "{", "Unexpected token `end of script` at (1:1)")
+	testFail(t, "}", "Unexpected token `}` at (1:0)")
+	testFail(t, "3ea", "Invalid number at (1:0)")
 }

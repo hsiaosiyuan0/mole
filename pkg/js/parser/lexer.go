@@ -244,7 +244,7 @@ func (l *Lexer) ReadTplSpan() *Token {
 	text, fin, line, col, ofst, pos := l.readTplChs()
 	if text == nil {
 		l.popMode()
-		return l.errToken(tok)
+		return l.errToken(tok, "")
 	}
 
 	tok.text = string(text)
@@ -325,13 +325,13 @@ func (l *Lexer) ReadName() *Token {
 	runes := make([]rune, 0, 10)
 	r := l.readIdStart()
 	if r == utf8.RuneError {
-		return l.errToken(tok)
+		return l.errToken(tok, "")
 	}
 	runes = append(runes, r)
 
 	idPart, ok := l.readIdPart()
 	if !ok {
-		return l.errToken(tok)
+		return l.errToken(tok, "")
 	}
 	runes = append(runes, idPart...)
 	text := string(runes)
@@ -624,7 +624,7 @@ func (l *Lexer) readRegexp(tok *Token) *Token {
 	for {
 		c := l.src.Peek()
 		if IsLineTerminator(c) || c == utf8.RuneError {
-			return l.errToken(tok)
+			return l.errToken(tok, "")
 		}
 		if c == '\\' {
 			l.src.Read()
@@ -667,7 +667,7 @@ func (l *Lexer) ReadStr() *Token {
 	for {
 		c := l.src.Read()
 		if c == utf8.RuneError || c == EOF {
-			return l.errToken(tok)
+			return l.errToken(tok, "")
 		} else if c == '\\' {
 			nc := l.src.Peek()
 			if IsLineTerminator(nc) {
@@ -677,7 +677,7 @@ func (l *Lexer) ReadStr() *Token {
 				// allow `utf8.RuneError` to represent "Unicode replacement character"
 				// in string literal
 				if r == EOF {
-					return l.errToken(tok)
+					return l.errToken(tok, "")
 				}
 				text = append(text, r)
 			}
@@ -809,13 +809,13 @@ func (l *Lexer) readDecimalNum(tok *Token, first rune) *Token {
 		}
 		// read the fraction part
 		if err := l.readDecimalDigits(true); err != nil {
-			return l.errToken(tok)
+			return l.errToken(tok, "Invalid number")
 		}
 	}
 
 	if l.src.AheadIsChOr('e', 'E') {
 		if err := l.readExpPart(); err != nil {
-			return l.errToken(tok)
+			return l.errToken(tok, "Invalid number")
 		}
 	}
 
@@ -862,7 +862,7 @@ func (l *Lexer) readBinaryNum(tok *Token) *Token {
 		}
 	}
 	if i == 0 {
-		return l.errToken(tok)
+		return l.errToken(tok, "Invalid number")
 	}
 	l.src.ReadIfNextIs('n')
 	return l.finToken(tok, T_NUM)
@@ -880,7 +880,7 @@ func (l *Lexer) readOctalNum(tok *Token, i int) *Token {
 		}
 	}
 	if i == 0 {
-		return l.errToken(tok)
+		return l.errToken(tok, "Invalid number")
 	}
 	l.src.ReadIfNextIs('n')
 	return l.finToken(tok, T_NUM)
@@ -899,7 +899,7 @@ func (l *Lexer) readHexNum(tok *Token) *Token {
 		}
 	}
 	if i == 0 {
-		return l.errToken(tok)
+		return l.errToken(tok, "Invalid number")
 	}
 	l.src.ReadIfNextIs('n')
 	return l.finToken(tok, T_NUM)
@@ -1038,9 +1038,13 @@ func (l *Lexer) finToken(tok *Token, value TokenValue) *Token {
 	return tok
 }
 
-func (l *Lexer) errToken(tok *Token) *Token {
+func (l *Lexer) errToken(tok *Token, msg string) *Token {
 	tok.raw.hi = l.src.Ofst()
-	tok.ext = l.errCharError()
+	if msg != "" {
+		tok.ext = msg
+	} else {
+		tok.ext = l.errCharError()
+	}
 	return tok
 }
 

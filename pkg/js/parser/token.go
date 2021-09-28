@@ -109,6 +109,16 @@ func (t *Token) IsPlainTpl() bool {
 	return t.ext == true
 }
 
+func (t *Token) ErrMsg() string {
+	if msg, ok := t.ext.(string); ok {
+		return msg
+	}
+	if msg, ok := t.ext.(*LexerError); ok {
+		return msg.Error()
+	}
+	return ""
+}
+
 type TokExtStr struct {
 	open rune
 }

@@ -32062,6 +32062,301 @@ func Test354(t *testing.T) {
 }
 
 func Test355(t *testing.T) {
+	ast, err := compile("foo; function f() {} /regexp/")
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	assert.EqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 29,
+  "loc": {
+    "start": {
+      "line": 1,
+      "column": 0
+    },
+    "end": {
+      "line": 1,
+      "column": 29
+    }
+  },
+  "body": [
+    {
+      "type": "ExpressionStatement",
+      "start": 0,
+      "end": 4,
+      "loc": {
+        "start": {
+          "line": 1,
+          "column": 0
+        },
+        "end": {
+          "line": 1,
+          "column": 4
+        }
+      },
+      "expression": {
+        "type": "Identifier",
+        "start": 0,
+        "end": 3,
+        "loc": {
+          "start": {
+            "line": 1,
+            "column": 0
+          },
+          "end": {
+            "line": 1,
+            "column": 3
+          }
+        },
+        "name": "foo"
+      }
+    },
+    {
+      "type": "FunctionDeclaration",
+      "start": 5,
+      "end": 20,
+      "loc": {
+        "start": {
+          "line": 1,
+          "column": 5
+        },
+        "end": {
+          "line": 1,
+          "column": 20
+        }
+      },
+      "id": {
+        "type": "Identifier",
+        "start": 14,
+        "end": 15,
+        "loc": {
+          "start": {
+            "line": 1,
+            "column": 14
+          },
+          "end": {
+            "line": 1,
+            "column": 15
+          }
+        },
+        "name": "f"
+      },
+      "generator": false,
+      "async": false,
+      "params": [],
+      "body": {
+        "type": "BlockStatement",
+        "start": 18,
+        "end": 20,
+        "loc": {
+          "start": {
+            "line": 1,
+            "column": 18
+          },
+          "end": {
+            "line": 1,
+            "column": 20
+          }
+        },
+        "body": [],
+        "directives": []
+      }
+    },
+    {
+      "type": "ExpressionStatement",
+      "start": 21,
+      "end": 29,
+      "loc": {
+        "start": {
+          "line": 1,
+          "column": 21
+        },
+        "end": {
+          "line": 1,
+          "column": 29
+        }
+      },
+      "expression": {
+        "type": "Literal",
+        "start": 21,
+        "end": 29,
+        "loc": {
+          "start": {
+            "line": 1,
+            "column": 21
+          },
+          "end": {
+            "line": 1,
+            "column": 29
+          }
+        },
+        "regexp": {
+          "pattern": "regexp",
+          "flags": ""
+        }
+      }
+    }
+  ]
+}
+	`, ast)
+}
+
+func Test356(t *testing.T) {
+	ast, err := compile("{function f() {} /regexp/}")
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	assert.EqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 26,
+  "loc": {
+    "start": {
+      "line": 1,
+      "column": 0
+    },
+    "end": {
+      "line": 1,
+      "column": 26
+    }
+  },
+  "body": [
+    {
+      "type": "BlockStatement",
+      "start": 0,
+      "end": 26,
+      "loc": {
+        "start": {
+          "line": 1,
+          "column": 0
+        },
+        "end": {
+          "line": 1,
+          "column": 26
+        }
+      },
+      "body": [
+        {
+          "type": "FunctionDeclaration",
+          "start": 1,
+          "end": 16,
+          "loc": {
+            "start": {
+              "line": 1,
+              "column": 1
+            },
+            "end": {
+              "line": 1,
+              "column": 16
+            }
+          },
+          "id": {
+            "type": "Identifier",
+            "start": 10,
+            "end": 11,
+            "loc": {
+              "start": {
+                "line": 1,
+                "column": 10
+              },
+              "end": {
+                "line": 1,
+                "column": 11
+              }
+            },
+            "name": "f"
+          },
+          "generator": false,
+          "async": false,
+          "params": [],
+          "body": {
+            "type": "BlockStatement",
+            "start": 14,
+            "end": 16,
+            "loc": {
+              "start": {
+                "line": 1,
+                "column": 14
+              },
+              "end": {
+                "line": 1,
+                "column": 16
+              }
+            },
+            "body": [],
+            "directives": []
+          }
+        },
+        {
+          "type": "ExpressionStatement",
+          "start": 17,
+          "end": 25,
+          "loc": {
+            "start": {
+              "line": 1,
+              "column": 17
+            },
+            "end": {
+              "line": 1,
+              "column": 25
+            }
+          },
+          "expression": {
+            "type": "Literal",
+            "start": 17,
+            "end": 25,
+            "loc": {
+              "start": {
+                "line": 1,
+                "column": 17
+              },
+              "end": {
+                "line": 1,
+                "column": 25
+              }
+            },
+            "regexp": {
+              "pattern": "regexp",
+              "flags": ""
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
+	`, ast)
+}
+
+func Test357(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test358(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test359(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test360(t *testing.T) {
 	// ast, err := compile("x = { false: 42 }")
 	// assert.Equal(t, nil, err, "should be prog ok")
 

@@ -60,57 +60,67 @@ func (p *Parser) Prog() (Node, error) {
 var errEof = errors.New("eof")
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-statements-and-declarations.html#prod-Statement
-func (p *Parser) stmt() (Node, error) {
+func (p *Parser) stmt() (node Node, err error) {
 	p.lexer.beginStmt = true
+
 	tok := p.lexer.Peek()
 	switch tok.value {
 	case T_FUNC:
-		return p.fnDec(false, false)
+		node, err = p.fnDec(false, false)
 	case T_IF:
-		return p.ifStmt()
+		node, err = p.ifStmt()
 	case T_BREAK:
-		return p.brkStmt()
+		node, err = p.brkStmt()
 	case T_CONTINUE:
-		return p.contStmt()
+		node, err = p.contStmt()
 	case T_FOR:
-		return p.forStmt()
+		node, err = p.forStmt()
 	case T_RETURN:
-		return p.retStmt()
+		node, err = p.retStmt()
 	case T_WHILE:
-		return p.whileStmt()
+		node, err = p.whileStmt()
 	case T_CLASS:
-		return p.classDec(false)
+		node, err = p.classDec(false)
 	case T_THROW:
-		return p.throwStmt()
+		node, err = p.throwStmt()
 	case T_TRY:
-		return p.tryStmt()
+		node, err = p.tryStmt()
 	case T_BRACE_L:
-		return p.blockStmt(false)
+		node, err = p.blockStmt(false)
 	case T_DO:
-		return p.doWhileStmt()
+		node, err = p.doWhileStmt()
 	case T_SWITCH:
-		return p.switchStmt()
+		node, err = p.switchStmt()
 	case T_DEBUGGER:
-		return p.debugStmt()
+		node, err = p.debugStmt()
 	case T_SEMI:
-		return p.emptyStmt()
+		node, err = p.emptyStmt()
 	case T_IMPORT:
-		return p.importDec()
+		node, err = p.importDec()
 	case T_EXPORT:
-		return p.exportDec()
+		node, err = p.exportDec()
 	case T_WITH:
-		return p.withStmt()
+		node, err = p.withStmt()
 	case T_EOF:
-		return nil, errEof
+		node, err = nil, errEof
+	default:
+		if p.aheadIsVarDec(tok) {
+			node, err = p.varDecStmt(false, false)
+		} else if p.aheadIsAsync(tok) {
+			node, err = p.asyncFnDecStmt()
+		} else if p.aheadIsLabel(tok) {
+			node, err = p.labelStmt()
+		} else {
+			node, err = p.exprStmt()
+		}
 	}
-	if p.aheadIsVarDec(tok) {
-		return p.varDecStmt(false, false)
-	} else if p.aheadIsAsync(tok) {
-		return p.asyncFnDecStmt()
-	} else if p.aheadIsLabel(tok) {
-		return p.labelStmt()
+
+	if err != nil {
+		return nil, err
 	}
-	return p.exprStmt()
+
+	p.lexer.beginStmt = true
+	return node, nil
 }
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-scripts-and-modules.html#prod-ExportDeclaration
@@ -223,8 +233,10 @@ func (p *Parser) exportNamed() ([]Node, error) {
 	specs := make([]Node, 0)
 	for {
 		tok := p.lexer.Peek()
-		if tok.value == T_BRACE_R || tok.value == T_EOF {
+		if tok.value == T_BRACE_R {
 			break
+		} else if tok.value == T_EOF {
+			return nil, p.errorTok(tok)
 		}
 		spec, err := p.exportSpec()
 		if err != nil {
@@ -347,8 +359,10 @@ func (p *Parser) importNamed() ([]Node, error) {
 	specs := make([]Node, 0)
 	for {
 		tok := p.lexer.Peek()
-		if tok.value == T_BRACE_R || tok.value == T_EOF {
+		if tok.value == T_BRACE_R {
 			break
+		} else if tok.value == T_EOF {
+			return nil, p.errorTok(tok)
 		}
 		spec, err := p.importSpec()
 		if err != nil {
@@ -434,8 +448,10 @@ func (p *Parser) classBody() (Node, error) {
 	elems := make([]Node, 0)
 	for {
 		tok := p.lexer.Peek()
-		if tok.value == T_BRACE_R || tok.value == T_EOF {
+		if tok.value == T_BRACE_R {
 			break
+		} else if tok.value == T_EOF {
+			return nil, p.errorTok(tok)
 		}
 		if tok.value == T_SEMI {
 			p.lexer.Next()
@@ -762,9 +778,11 @@ func (p *Parser) switchStmt() (Node, error) {
 	metDefault := false
 	for {
 		tok := p.lexer.Peek()
-		if tok.value == T_BRACE_R || tok.value == T_EOF {
+		if tok.value == T_BRACE_R {
 			break
 		} else if tok.value != T_CASE && tok.value != T_DEFAULT {
+			return nil, p.errorTok(tok)
+		} else if tok.value == T_EOF {
 			return nil, p.errorTok(tok)
 		}
 		if tok.value == T_DEFAULT && metDefault {
@@ -804,8 +822,10 @@ func (p *Parser) switchCase(tok *Token) (*SwitchCase, error) {
 	cons := make([]Node, 0)
 	for {
 		tok := p.lexer.Peek()
-		if tok.value == T_CASE || tok.value == T_DEFAULT || tok.value == T_BRACE_R || tok.value == T_EOF {
+		if tok.value == T_CASE || tok.value == T_DEFAULT || tok.value == T_BRACE_R {
 			break
+		} else if tok.value == T_EOF {
+			return nil, p.errorTok(tok)
 		}
 		stmt, err := p.stmt()
 		if err != nil {
@@ -1060,7 +1080,7 @@ func (p *Parser) formalParams() ([]Node, error) {
 			p.lexer.Next()
 			break
 		} else if tok.value == T_EOF {
-			break
+			return nil, p.errorTok(tok)
 		}
 		param, err := p.bindingElem()
 		if err != nil {
@@ -1099,7 +1119,7 @@ func (p *Parser) blockStmt(fnBody bool) (*BlockStmt, error) {
 			p.lexer.Next()
 			break
 		} else if tok.value == T_EOF {
-			break
+			return nil, p.errorTok(tok)
 		}
 		stmt, err := p.stmt()
 		if err != nil {
@@ -1752,7 +1772,7 @@ func (p *Parser) tplExpr(tag Node) (Node, error) {
 			}
 			elems = append(elems, expr)
 		} else if tok.value == T_EOF {
-			break
+			return nil, p.errorTok(tok)
 		} else {
 			return nil, p.errorTok(tok)
 		}
@@ -1771,8 +1791,10 @@ func (p *Parser) argList() ([]Node, error) {
 		tok := p.lexer.Peek()
 		if tok.value == T_COMMA {
 			p.lexer.Next()
-		} else if tok.value == T_PAREN_R || tok.value == T_EOF {
+		} else if tok.value == T_PAREN_R {
 			break
+		} else if tok.value == T_EOF {
+			return nil, p.errorTok(tok)
 		}
 		arg, err := p.arg()
 		if err != nil {
@@ -2232,8 +2254,11 @@ func (p *Parser) finLoc(loc *Loc) *Loc {
 }
 
 func (p *Parser) errorTok(tok *Token) *ParserError {
-	return NewParserError(fmt.Sprintf("unexpected token [%s] at", TokenKinds[tok.value].Name),
-		p.lexer.src.path, tok.begin.line, tok.begin.col)
+	if tok.value != T_ILLEGAL {
+		return NewParserError(fmt.Sprintf("Unexpected token `%s`", TokenKinds[tok.value].Name),
+			p.lexer.src.path, tok.begin.line, tok.begin.col)
+	}
+	return NewParserError(tok.ErrMsg(), p.lexer.src.path, tok.begin.line, tok.begin.col)
 }
 
 func IsLitPropName(node Node) bool {
