@@ -1,8 +1,6 @@
 package parser
 
 import (
-	"fmt"
-	"io/ioutil"
 	"testing"
 
 	"github.com/hsiaosiyuan0/mole/pkg/assert"
@@ -919,14 +917,4 @@ func TestMetaProp(t *testing.T) {
 	assign := ast.(*Prog).stmts[0].(*ExprStmt).expr.(*AssignExpr)
 	metaProp := assign.rhs.(*MetaProp)
 	assert.Equal(t, "meta", metaProp.prop.(*Ident).Text(), "should be meta")
-}
-
-func TestJQuery(t *testing.T) {
-	code, err := ioutil.ReadFile("/Users/hsiao/Downloads/jquery-3.6.0.js")
-	assert.Equal(t, nil, err, "read file ok")
-
-	ast, err := compile(string(code))
-	assert.Equal(t, nil, err, "should be prog ok")
-
-	fmt.Println(ast)
 }

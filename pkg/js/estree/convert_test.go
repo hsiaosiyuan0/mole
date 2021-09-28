@@ -31922,12 +31922,143 @@ func Test353(t *testing.T) {
 }
 
 func Test354(t *testing.T) {
-	// ast, err := compile("x = { false: 42 }")
-	// assert.Equal(t, nil, err, "should be prog ok")
+	ast, err := compile("+function f() {} / 3;")
+	assert.Equal(t, nil, err, "should be prog ok")
 
-	// assert.EqualJson(t, `
-
-	// `, ast)
+	assert.EqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 21,
+  "loc": {
+    "start": {
+      "line": 1,
+      "column": 0
+    },
+    "end": {
+      "line": 1,
+      "column": 21
+    }
+  },
+  "body": [
+    {
+      "type": "ExpressionStatement",
+      "start": 0,
+      "end": 21,
+      "loc": {
+        "start": {
+          "line": 1,
+          "column": 0
+        },
+        "end": {
+          "line": 1,
+          "column": 21
+        }
+      },
+      "expression": {
+        "type": "BinaryExpression",
+        "start": 0,
+        "end": 20,
+        "loc": {
+          "start": {
+            "line": 1,
+            "column": 0
+          },
+          "end": {
+            "line": 1,
+            "column": 20
+          }
+        },
+        "left": {
+          "type": "UnaryExpression",
+          "start": 0,
+          "end": 16,
+          "loc": {
+            "start": {
+              "line": 1,
+              "column": 0
+            },
+            "end": {
+              "line": 1,
+              "column": 16
+            }
+          },
+          "operator": "+",
+          "prefix": true,
+          "argument": {
+            "type": "FunctionExpression",
+            "start": 1,
+            "end": 16,
+            "loc": {
+              "start": {
+                "line": 1,
+                "column": 1
+              },
+              "end": {
+                "line": 1,
+                "column": 16
+              }
+            },
+            "id": {
+              "type": "Identifier",
+              "start": 10,
+              "end": 11,
+              "loc": {
+                "start": {
+                  "line": 1,
+                  "column": 10
+                },
+                "end": {
+                  "line": 1,
+                  "column": 11
+                }
+              },
+              "name": "f"
+            },
+            "generator": false,
+            "async": false,
+            "params": [],
+            "body": {
+              "type": "BlockStatement",
+              "start": 14,
+              "end": 16,
+              "loc": {
+                "start": {
+                  "line": 1,
+                  "column": 14
+                },
+                "end": {
+                  "line": 1,
+                  "column": 16
+                }
+              },
+              "body": [],
+              "directives": []
+            }
+          }
+        },
+        "operator": "/",
+        "right": {
+          "type": "Literal",
+          "start": 19,
+          "end": 20,
+          "loc": {
+            "start": {
+              "line": 1,
+              "column": 19
+            },
+            "end": {
+              "line": 1,
+              "column": 20
+            }
+          },
+          "value": 3
+        }
+      }
+    }
+  ]
+}
+	`, ast)
 }
 
 func Test355(t *testing.T) {
