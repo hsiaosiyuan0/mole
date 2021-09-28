@@ -800,6 +800,11 @@ func (l *Lexer) ReadNum() *Token {
 
 func (l *Lexer) readDecimalNum(tok *Token, first rune) *Token {
 	if first != '.' && first != '0' {
+		c := l.src.Peek()
+		if c != 'e' && c != 'E' && c != 'n' && IsIdStart(c) {
+			tok = l.newToken()
+			return l.errToken(tok, "Identifier directly after number")
+		}
 		l.readDecimalDigits(true)
 	}
 
@@ -809,6 +814,9 @@ func (l *Lexer) readDecimalNum(tok *Token, first rune) *Token {
 		}
 		// read the fraction part
 		if err := l.readDecimalDigits(true); err != nil {
+			if IsIdStart(l.src.Peek()) {
+				return l.errToken(tok, "Identifier directly after number")
+			}
 			return l.errToken(tok, "Invalid number")
 		}
 	}
@@ -857,6 +865,8 @@ func (l *Lexer) readBinaryNum(tok *Token) *Token {
 		if c == '0' || c == '1' || c == '_' {
 			l.src.Read()
 			i += 1
+		} else if IsIdStart(c) {
+			return l.errToken(tok, "Identifier directly after number")
 		} else {
 			break
 		}
@@ -875,6 +885,8 @@ func (l *Lexer) readOctalNum(tok *Token, i int) *Token {
 		if c >= '0' && c <= '7' || c == '_' {
 			l.src.Read()
 			i += 1
+		} else if IsIdStart(c) {
+			return l.errToken(tok, "Identifier directly after number")
 		} else {
 			break
 		}
@@ -894,6 +906,8 @@ func (l *Lexer) readHexNum(tok *Token) *Token {
 		if IsHexDigit(c) || c == '_' {
 			l.src.Read()
 			i += 1
+		} else if IsIdStart(c) {
+			return l.errToken(tok, "Identifier directly after number")
 		} else {
 			break
 		}

@@ -13,7 +13,10 @@ func compile(code string) (Node, error) {
 }
 
 func testFail(t *testing.T, code, errMs string) {
-	_, err := compile(code)
+	ast, err := compile(code)
+	if err == nil {
+		t.Fatalf("should not pass code:\n%s\nast:\n%v", code, ast)
+	}
 	assert.Equal(t, errMs, err.Error(), "")
 }
 
@@ -925,7 +928,8 @@ func TestMetaProp(t *testing.T) {
 }
 
 func TestFail(t *testing.T) {
-	testFail(t, "{", "Unexpected token `end of script` at (1:1)")
-	testFail(t, "}", "Unexpected token `}` at (1:0)")
-	testFail(t, "3ea", "Invalid number at (1:0)")
+	// testFail(t, "{", "Unexpected token `end of script` at (1:1)")
+	// testFail(t, "}", "Unexpected token `}` at (1:0)")
+	// testFail(t, "3ea", "Invalid number at (1:0)")
+	testFail(t, "3in []", "Identifier directly after number at (1:1)")
 }
