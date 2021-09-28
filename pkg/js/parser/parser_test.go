@@ -928,8 +928,8 @@ func TestMetaProp(t *testing.T) {
 }
 
 func TestFail(t *testing.T) {
-	// testFail(t, "{", "Unexpected token `end of script` at (1:1)")
-	// testFail(t, "}", "Unexpected token `}` at (1:0)")
-	// testFail(t, "3ea", "Invalid number at (1:0)")
+	testFail(t, "{", "Unexpected token `end of script` at (1:1)")
+	testFail(t, "}", "Unexpected token `}` at (1:0)")
+	testFail(t, "3ea", "Invalid number at (1:0)")
 	testFail(t, "3in []", "Identifier directly after number at (1:1)")
 }
