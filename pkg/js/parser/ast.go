@@ -74,6 +74,10 @@ func (l *Loc) Clone() *Loc {
 	}
 }
 
+func (l *Loc) Text() string {
+	return l.src.code[l.rng.start:l.rng.end]
+}
+
 type NodeType int
 
 const (
@@ -225,11 +229,11 @@ func (n *NullLit) Loc() *Loc {
 type BoolLit struct {
 	typ NodeType
 	loc *Loc
-	val *Token
+	val bool
 }
 
 func (n *BoolLit) Value() bool {
-	return n.val.Text() == "true"
+	return n.val
 }
 
 func (n *BoolLit) Type() NodeType {
@@ -243,7 +247,6 @@ func (n *BoolLit) Loc() *Loc {
 type NumLit struct {
 	typ NodeType
 	loc *Loc
-	val *Token
 }
 
 func (n *NumLit) Type() NodeType {
@@ -254,8 +257,12 @@ func (n *NumLit) Loc() *Loc {
 	return n.loc
 }
 
+func (n *NumLit) Text() string {
+	return n.loc.Text()
+}
+
 func (n *NumLit) ToFloat() float64 {
-	t := n.val.Text()
+	t := n.loc.Text()
 	if strings.HasPrefix(t, "0x") || strings.HasPrefix(t, "0X") {
 		s, _ := strconv.ParseUint(t[2:], 16, 32)
 		return float64(s)
@@ -269,14 +276,14 @@ func (n *NumLit) ToFloat() float64 {
 		s, _ := strconv.ParseUint(t, 8, 32)
 		return float64(s)
 	}
-	s, _ := strconv.ParseFloat(n.val.Text(), 64)
+	s, _ := strconv.ParseFloat(t, 64)
 	return s
 }
 
 type StrLit struct {
 	typ NodeType
 	loc *Loc
-	val *Token
+	val string
 }
 
 func (n *StrLit) Type() NodeType {
@@ -288,17 +295,17 @@ func (n *StrLit) Loc() *Loc {
 }
 
 func (n *StrLit) Text() string {
-	return n.val.Text()
+	return n.val
 }
 
 func (n *StrLit) Raw() string {
-	return n.val.RawText()
+	return n.loc.Text()
 }
 
 type RegexpLit struct {
 	typ     NodeType
 	loc     *Loc
-	val     *Token
+	val     string
 	pattern string
 	flags   string
 }
@@ -376,7 +383,7 @@ func (n *ObjLit) Loc() *Loc {
 type Ident struct {
 	typ NodeType
 	loc *Loc
-	val *Token
+	val string
 	pvt bool
 }
 
@@ -389,7 +396,7 @@ func (n *Ident) Loc() *Loc {
 }
 
 func (n *Ident) Text() string {
-	return n.val.Text()
+	return n.val
 }
 
 func (n *Ident) IsPrivate() bool {
@@ -478,13 +485,17 @@ func (n *CallExpr) Loc() *Loc {
 type BinExpr struct {
 	typ NodeType
 	loc *Loc
-	op  *Token
+	op  TokenValue
 	lhs Node
 	rhs Node
 }
 
-func (n *BinExpr) Op() *Token {
+func (n *BinExpr) Op() TokenValue {
 	return n.op
+}
+
+func (n *BinExpr) OpText() string {
+	return TokenKinds[n.op].Name
 }
 
 func (n *BinExpr) Lhs() Node {
@@ -506,7 +517,7 @@ func (n *BinExpr) Loc() *Loc {
 type UnaryExpr struct {
 	typ NodeType
 	loc *Loc
-	op  *Token
+	op  TokenValue
 	arg Node
 }
 
@@ -514,8 +525,12 @@ func (n *UnaryExpr) Arg() Node {
 	return n.arg
 }
 
-func (n *UnaryExpr) Op() *Token {
+func (n *UnaryExpr) Op() TokenValue {
 	return n.op
+}
+
+func (n *UnaryExpr) OpText() string {
+	return TokenKinds[n.op].Name
 }
 
 func (n *UnaryExpr) Type() NodeType {
@@ -529,7 +544,7 @@ func (n *UnaryExpr) Loc() *Loc {
 type UpdateExpr struct {
 	typ    NodeType
 	loc    *Loc
-	op     *Token
+	op     TokenValue
 	prefix bool
 	arg    Node
 }
@@ -542,8 +557,12 @@ func (n *UpdateExpr) Prefix() bool {
 	return n.prefix
 }
 
-func (n *UpdateExpr) Op() *Token {
+func (n *UpdateExpr) Op() TokenValue {
 	return n.op
+}
+
+func (n *UpdateExpr) OpText() string {
+	return TokenKinds[n.op].Name
 }
 
 func (n *UpdateExpr) Type() NodeType {
@@ -585,13 +604,17 @@ func (n *CondExpr) Loc() *Loc {
 type AssignExpr struct {
 	typ NodeType
 	loc *Loc
-	op  *Token
+	op  TokenValue
 	lhs Node
 	rhs Node
 }
 
-func (n *AssignExpr) Op() *Token {
+func (n *AssignExpr) Op() TokenValue {
 	return n.op
+}
+
+func (n *AssignExpr) OpText() string {
+	return TokenKinds[n.op].Name
 }
 
 func (n *AssignExpr) Lhs() Node {
@@ -723,12 +746,12 @@ type Prop struct {
 	key      Node
 	value    Node
 	computed bool
-	kind     *Token
+	kind     string
 }
 
 func (n *Prop) Kind() string {
-	if n.kind != nil {
-		return n.kind.Text()
+	if n.kind != "" {
+		return n.kind
 	}
 	return "init"
 }
@@ -1266,13 +1289,13 @@ type Method struct {
 	key      Node
 	static   bool
 	computed bool
-	kind     *Token
+	kind     string
 	value    Node
 }
 
 func (n *Method) Kind() string {
-	if n.kind != nil {
-		return n.kind.Text()
+	if n.kind != "" {
+		return n.kind
 	}
 	return "init"
 }

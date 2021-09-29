@@ -358,8 +358,8 @@ func convert(node parser.Node) Node {
 		bin := node.(*parser.BinExpr)
 		lhs := convert(bin.Lhs())
 		rhs := convert(bin.Rhs())
-		op := bin.Op().Text()
-		opv := bin.Op().Value()
+		op := bin.OpText()
+		opv := bin.Op()
 
 		if opv == parser.T_AND || opv == parser.T_OR {
 			return &LogicalExpression{
@@ -385,7 +385,7 @@ func convert(node parser.Node) Node {
 		bin := node.(*parser.AssignExpr)
 		lhs := convert(bin.Lhs())
 		rhs := convert(bin.Rhs())
-		op := bin.Op().Text()
+		op := bin.OpText()
 		return &AssignmentExpression{
 			Type:     "AssignmentExpression",
 			Start:    start(node.Loc()),
@@ -561,7 +561,7 @@ func convert(node parser.Node) Node {
 			Start:    start(up.Loc()),
 			End:      end(up.Loc()),
 			Loc:      loc(up.Loc()),
-			Operator: up.Op().Text(),
+			Operator: up.OpText(),
 			Argument: convert(up.Arg()),
 			Prefix:   up.Prefix(),
 		}
@@ -572,7 +572,7 @@ func convert(node parser.Node) Node {
 			Start:    start(un.Loc()),
 			End:      end(un.Loc()),
 			Loc:      loc(un.Loc()),
-			Operator: un.Op().Text(),
+			Operator: un.OpText(),
 			Prefix:   true,
 			Argument: convert(un.Arg()),
 		}

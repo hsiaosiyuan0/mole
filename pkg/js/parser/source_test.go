@@ -29,7 +29,7 @@ func TestAhead(t *testing.T) {
 	assert.Equal(t, 'e', s.Peek(), "next should be e")
 	assert.Equal(t, 'e', s.Read(), "next should be e")
 	assert.Equal(t, 'l', s.Read(), "next should be l")
-	assert.Equal(t, 0, s.peekedLen, "peek buf should be empty")
+	assert.Equal(t, 0, s.pl, "peek buf should be empty")
 
 	assert.Equal(t, 'l', s.Read(), "next should be l")
 	assert.Equal(t, 'o', s.Read(), "next should be o")

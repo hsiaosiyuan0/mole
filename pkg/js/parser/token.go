@@ -23,9 +23,9 @@ func (p *Pos) Clone() *Pos {
 type Token struct {
 	value TokenValue
 	text  string
-	raw   *SourceRange
-	begin *Pos
-	end   *Pos
+	raw   SourceRange
+	begin Pos
+	end   Pos
 	len   int // len of codepoints in token
 
 	afterLineTerminator bool
@@ -34,11 +34,11 @@ type Token struct {
 }
 
 func (t *Token) Begin() *Pos {
-	return t.begin
+	return &t.begin
 }
 
 func (t *Token) End() *Pos {
-	return t.end
+	return &t.end
 }
 
 func (t *Token) Len() int {
@@ -47,7 +47,10 @@ func (t *Token) Len() int {
 
 func (t *Token) CanBePropKey() (string, bool) {
 	v := t.value
-	if v == T_NAME || v == T_NUM {
+	if v == T_NAME {
+		return t.text, true
+	}
+	if v == T_NUM {
 		return t.raw.Text(), true
 	}
 	if (v > T_KEYWORD_BEGIN && v < T_KEYWORD_END) ||
@@ -82,12 +85,15 @@ func (t *Token) Text() string {
 	return t.RawText()
 }
 
-func (t *Token) IsBin(notIn bool) bool {
+func (t *Token) IsBin(notIn bool) TokenValue {
 	bin := t.value > T_BIN_OP_BEGIN && t.value < T_BIN_OP_END
 	if bin {
-		return true
+		return t.value
 	}
-	return !notIn && IsName(t, "in")
+	if !notIn && IsName(t, "in") {
+		return T_IN
+	}
+	return T_ILLEGAL
 }
 
 func (t *Token) IsUnary() bool {

@@ -2,41 +2,30 @@ package parser
 
 import (
 	"fmt"
-	"io/ioutil"
-	"path/filepath"
-	"sync"
 	"unicode"
 	"unicode/utf8"
 )
 
-// hold the basic functionalities to manipulate the source
-// does not read the source from filesystem so the `code`
-// should be prepared by the caller
 type Source struct {
-	id    int
-	store *SourceStore
-
-	// should be absolute path
 	path string
 	code string
 
 	ofst int // ofst base on byte
 	pos  int // pos base on codepint
-
 	line int
 	col  int
 
-	peeked    [sizeOfPeekedRune]rune
-	peekedRL  [sizeOfPeekedRune]int // len of each rune in `peeked`
-	peekedLen int                   // len of `peeked`
-	peekedBL  int                   // peeked bytes length
-	peekedR   int                   // offset for reading
-	peekedW   int                   // offset for writing
+	peeked [peekBufLen]rune
+	prl    [peekBufLen]int // byte len of each rune in `peeked`
+	pl     int             // len of `peeked`
+	pbl    int             // bytes length of peeked runes
+	pr     int             // offset in buffer for reading
+	pw     int             // offset in buffer for writing
 
 	metLineTerminator bool
 }
 
-const sizeOfPeekedRune = 4
+const peekBufLen = 4
 
 func NewSource(path string, code string) *Source {
 	return &Source{
@@ -60,13 +49,13 @@ func (s *Source) RuneAtOfst(ofst int) (rune, int) {
 }
 
 // read and push back a rune into `s.peaked` as well as advance `s.ofst`,
-// returns `utf8.RuneError` if the rune is deformed
+// return `utf8.RuneError` if the rune is deformed
 //
 // be careful with the calling times of this method since it will panic
 // if its internal buffer for caching peeked rune is full
 func (s *Source) peekGrow() rune {
-	if s.peekedLen == sizeOfPeekedRune {
-		panic(s.error(fmt.Sprintf("peek buffer of source is full, max len is %d\n", s.peekedLen)))
+	if s.pl == peekBufLen {
+		panic(s.error(fmt.Sprintf("peek buffer of source is full, max len is %d\n", s.pl)))
 	}
 
 	r, size := s.RuneAtOfst(s.ofst)
@@ -74,43 +63,50 @@ func (s *Source) peekGrow() rune {
 		return EOF
 	}
 
-	s.peeked[s.peekedW] = r
-	s.peekedRL[s.peekedW] = size
-	s.peekedW += 1
-	s.peekedLen += 1
-	s.peekedBL += size
-	if s.peekedW == sizeOfPeekedRune {
-		s.peekedW = 0
-	}
+	s.peeked[s.pw] = r
+	s.prl[s.pw] = size
+
+	s.pw = s.pwInc()
+	s.pl += 1
+	s.pbl += size
+
 	s.ofst += size
 	s.pos += 1
 	return r
 }
 
 func (s *Source) Peek() rune {
-	if s.peekedLen > 0 {
-		return s.peeked[s.peekedR]
+	if s.pl > 0 {
+		return s.peeked[s.pr]
 	}
 	return s.peekGrow()
 }
 
-func (s *Source) peekedRInc() int {
-	r := s.peekedR + 1
-	if r == sizeOfPeekedRune {
+func (s *Source) pwInc() int {
+	w := s.pw + 1
+	if w == peekBufLen {
+		return 0
+	}
+	return w
+}
+
+func (s *Source) prInc() int {
+	r := s.pr + 1
+	if r == peekBufLen {
 		return 0
 	}
 	return r
 }
 
-// firstly try to pop the front of the `s.peaked` otherwise read
+// try to pop the front of the `s.peaked` otherwise read
 // a rune and advance `s.ofst`
 func (s *Source) NextRune() rune {
-	if s.peekedLen > 0 {
-		pr := s.peekedR
+	if s.pl > 0 {
+		pr := s.pr
 		r := s.peeked[pr]
-		s.peekedR = s.peekedRInc()
-		s.peekedLen -= 1
-		s.peekedBL -= s.peekedRL[pr]
+		s.pr = s.prInc()
+		s.pl -= 1
+		s.pbl -= s.prl[pr]
 		return r
 	}
 
@@ -124,22 +120,21 @@ func (s *Source) AheadIsCh(c rune) bool {
 	return s.Peek() == c
 }
 
-func (s *Source) AheadIsEof() bool {
-	return s.ofst == len(s.code)
-}
-
-func (s *Source) AheadIsEofAndNoPeeked() bool {
-	return s.ofst == len(s.code) && s.peekedLen == 0
+func (s *Source) AheadIsEOF() bool {
+	return s.ofst == len(s.code) && s.pl == 0
 }
 
 func (s *Source) AheadIsChs2(c1 rune, c2 rune) bool {
-	if s.peekedLen < 2 {
+	if s.pl < 2 {
 		s.peekGrow()
 	}
-	if s.peekedLen < 2 {
+	if s.pl < 2 {
 		s.peekGrow()
 	}
-	return s.peeked[s.peekedR] == c1 && s.peeked[s.peekedRInc()] == c2
+	if s.pl < 2 {
+		return false
+	}
+	return s.peeked[s.pr] == c1 && s.peeked[s.prInc()] == c2
 }
 
 func (s *Source) AheadIsChOr(c1 rune, c2 rune) bool {
@@ -159,8 +154,7 @@ func (s *Source) ReadIfNextIs(c rune) bool {
 	return false
 }
 
-// returns `utf8.RuneError` if the rune is deformed
-// join CR，LF
+// join CR，LF, returns `utf8.RuneError` if the rune is deformed
 func (s *Source) Read() rune {
 	c := s.NextRune()
 	r := c
@@ -179,18 +173,14 @@ func (s *Source) Read() rune {
 	return r
 }
 
-func (s *Source) Line() int {
-	return s.line
-}
-
 // ofst base on byte
 func (s *Source) Ofst() int {
-	return s.ofst - s.peekedBL
+	return s.ofst - s.pbl
 }
 
 // pos base on codepint
 func (s *Source) Pos() int {
-	return s.pos - s.peekedLen
+	return s.pos - s.pl
 }
 
 func (s *Source) NewOpenRange() *SourceRange {
@@ -201,7 +191,13 @@ func (s *Source) NewOpenRange() *SourceRange {
 	}
 }
 
-// skip spaces except line terminator
+func (s *Source) openRange(rng *SourceRange) *SourceRange {
+	rng.src = s
+	rng.lo = s.Ofst()
+	rng.hi = s.Ofst()
+	return rng
+}
+
 func (s *Source) SkipSpace() *Source {
 	s.metLineTerminator = false
 	for {
@@ -222,57 +218,12 @@ func (s *Source) error(msg string) *SourceError {
 	return NewSourceError(msg, s.path, s.line, s.Ofst()-1)
 }
 
-// TODO: description
-type SourceStore struct {
-	basepath string
-	sources  map[int]*Source
-	counter  int
-	mu       sync.Mutex
-}
-
-func NewSourceStore(basepath string) *SourceStore {
-	return &SourceStore{
-		basepath: basepath,
-		sources:  make(map[int]*Source),
-	}
-}
-
-func (s *SourceStore) AddSource(file string) (int, error) {
-	path := file
-	if !filepath.IsAbs(path) {
-		var err error
-		path, err = filepath.Rel(s.basepath, path)
-		if err != nil {
-			return 0, err
-		}
-	}
-	code, err := ioutil.ReadFile(path)
-	if err != nil {
-		return 0, err
-	}
-	id := s.AddSourceFromString(path, code)
-	return id, nil
-}
-
-func (s *SourceStore) AddSourceFromString(file string, code []byte) int {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	src := NewSource(file, string(code))
-	src.store = s
-	src.id = s.counter
-	s.sources[s.counter] = src
-	s.counter += 1
-	return s.counter
-}
-
-// TODO: description
 type SourceRange struct {
 	src *Source
 	lo  int
 	hi  int
 }
 
-func (s *SourceRange) Text() string {
-	return s.src.code[s.lo:s.hi]
+func (r *SourceRange) Text() string {
+	return r.src.code[r.lo:r.hi]
 }
