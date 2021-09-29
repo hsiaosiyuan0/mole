@@ -34,25 +34,30 @@ type Lexer struct {
 
 	mode []*LexerMode
 
-	peeked    [sizeOfPeekedTok]*Token
-	peekedLen int
-	peekedR   int
-	peekedW   int
+	peeked [sizeOfPeekedTok]Token
+	pl     int
+	pr     int
+	pw     int
 
 	beginStmt bool
 	notIn     bool
 
-	pr *Token // prev read
-	pp *Token // prev peek
+	prtVal   TokenValue // prev read
+	prtRng   SourceRange
+	prtBegin Pos
+	prtEnd   Pos
+
+	pptVal      TokenValue // prev peek
+	pptAfterEOL bool
 
 	lastCommentLine int
-	comments        map[int][]*Token
+	comments        map[int][]Token
 }
 
 func NewLexer(src *Source) *Lexer {
 	lexer := &Lexer{src: src, mode: make([]*LexerMode, 0)}
 	lexer.mode = append(lexer.mode, &LexerMode{LM_NONE, 0, 0, 0})
-	lexer.comments = make(map[int][]*Token)
+	lexer.comments = make(map[int][]Token)
 	return lexer
 }
 
@@ -95,7 +100,7 @@ func (l *Lexer) isMode(mode LexerModeValue) bool {
 }
 
 func (l *Lexer) readTokWithComment() *Token {
-	if l.src.SkipSpace().AheadIsEofAndNoPeeked() {
+	if l.src.SkipSpace().AheadIsEOF() {
 		tok := l.newToken()
 		tok.value = T_EOF
 		return tok
@@ -123,15 +128,16 @@ func (l *Lexer) lastComment() *Token {
 	if len(line) == 0 {
 		return nil
 	}
-	return line[len(line)-1]
+	return &line[len(line)-1]
 }
 
 func (l *Lexer) readTok() *Token {
-	var pr *Token
+	prt := T_ILLEGAL
+	var prtExt interface{}
 	for {
 		tok := l.readTokWithComment()
 		if tok.value != T_COMMENT {
-			if !tok.afterLineTerminator && pr != nil && pr.value == T_COMMENT && pr.ext == true {
+			if !tok.afterLineTerminator && prt == T_COMMENT && prtExt == true {
 				tok.afterLineTerminator = true
 			}
 			return tok
@@ -139,32 +145,34 @@ func (l *Lexer) readTok() *Token {
 		l.lastCommentLine = tok.begin.line
 		line := l.comments[tok.begin.line]
 		if line == nil {
-			line = make([]*Token, 0)
+			line = make([]Token, 0)
 		}
-		line = append(line, tok)
+		line = append(line, *tok)
 		l.comments[tok.begin.line] = line
-		pr = tok
+		prt = tok.value
+		prtExt = tok.ext
 	}
 }
 
 func (l *Lexer) PeekGrow() *Token {
-	if l.peekedLen == sizeOfPeekedTok {
-		panic(l.error(fmt.Sprintf("peek buffer of lexer is full, max len is %d\n", l.peekedLen)))
+	if l.pl == sizeOfPeekedTok {
+		panic(l.error(fmt.Sprintf("peek buffer of lexer is full, max len is %d\n", l.pl)))
 	}
 
 	tok := l.readTok()
-	l.pp = tok
+	l.prtVal = tok.value
+	l.pptAfterEOL = tok.afterLineTerminator
+
 	l.beginStmt = false
 	if tok.isEof() {
 		return tok
 	}
 
-	l.peeked[l.peekedW] = tok
-	l.peekedW += 1
-	l.peekedLen += 1
-	if l.peekedW == sizeOfPeekedTok {
-		l.peekedW = 0
+	l.pw += 1
+	if l.pw == sizeOfPeekedTok {
+		l.pw = 0
 	}
+	l.pl += 1
 	return tok
 }
 
@@ -174,8 +182,8 @@ func (l *Lexer) PeekGrow() *Token {
 func (l *Lexer) Loc() *Loc {
 	loc := NewLoc()
 	loc.src = l.src
-	if l.peekedLen > 0 {
-		tok := l.peeked[l.peekedR]
+	if l.pl > 0 {
+		tok := l.peeked[l.pr]
 		p := tok.begin
 		loc.begin.line = p.line
 		loc.begin.col = p.col
@@ -189,12 +197,11 @@ func (l *Lexer) Loc() *Loc {
 }
 
 func (l *Lexer) FinLoc(loc *Loc) *Loc {
-	if l.pr != nil {
-		tok := l.pr
-		p := tok.end
+	if l.prtVal != T_ILLEGAL {
+		p := l.prtEnd
 		loc.end.line = p.line
 		loc.end.col = p.col
-		loc.rng.end = tok.raw.hi
+		loc.rng.end = l.prtRng.hi
 	} else {
 		loc.end.line = l.src.line
 		loc.end.col = l.src.col
@@ -204,21 +211,21 @@ func (l *Lexer) FinLoc(loc *Loc) *Loc {
 }
 
 func (l *Lexer) Peek() *Token {
-	if l.peekedLen > 0 {
-		return l.peeked[l.peekedR]
+	if l.pl > 0 {
+		return &l.peeked[l.pr]
 	}
 
 	return l.PeekGrow()
 }
 
 func (l *Lexer) nextTok() *Token {
-	if l.peekedLen > 0 {
-		tok := l.peeked[l.peekedR]
-		l.peekedR += 1
-		l.peekedLen -= 1
-		if l.peekedR == sizeOfPeekedTok {
-			l.peekedR = 0
+	if l.pl > 0 {
+		tok := &l.peeked[l.pr]
+		l.pr += 1
+		if l.pr == sizeOfPeekedTok {
+			l.pr = 0
 		}
+		l.pl -= 1
 		return tok
 	}
 	return l.readTok()
@@ -226,7 +233,10 @@ func (l *Lexer) nextTok() *Token {
 
 func (l *Lexer) Next() *Token {
 	tok := l.nextTok()
-	l.pr = tok
+	l.prtVal = tok.value
+	l.prtRng = tok.raw
+	l.prtBegin = tok.begin
+	l.prtEnd = tok.end
 	return tok
 }
 
@@ -351,18 +361,18 @@ func (l *Lexer) aheadIsRegexp(afterLineTerminator bool) bool {
 	if l.beginStmt {
 		return true
 	}
-	prev := l.pr
-	if l.pr == nil {
-		prev = l.pp
+	prev := l.prtVal
+	if prev == T_ILLEGAL {
+		prev = l.pptVal
 	}
-	if prev == nil {
+	if prev == T_ILLEGAL {
 		return true
 	}
-	v := prev.value
-	if l.notIn && v == T_IN {
-		v = T_NAME
+
+	if l.notIn && prev == T_IN {
+		prev = T_NAME
 	}
-	be := TokenKinds[v].BeforeExpr
+	be := TokenKinds[prev].BeforeExpr
 	return be || afterLineTerminator
 }
 
@@ -962,7 +972,7 @@ func (l *Lexer) readCodepoint() rune {
 	for {
 		if l.src.ReadIfNextIs('}') {
 			break
-		} else if l.src.AheadIsEof() {
+		} else if l.src.AheadIsEOF() {
 			return utf8.RuneError
 		} else {
 			c := l.src.Read()
@@ -1033,13 +1043,16 @@ func (l *Lexer) aheadIsTplStart() bool {
 }
 
 func (l *Lexer) newToken() *Token {
-	return &Token{
-		value: T_ILLEGAL,
-		raw:   l.src.NewOpenRange(),
-		begin: &Pos{l.src.line, l.src.col},
-		end:   &Pos{l.src.line, l.src.col},
-		len:   l.src.Pos(),
-	}
+	tok := &l.peeked[l.pw]
+	tok.value = T_ILLEGAL
+	tok.text = ""
+	l.src.openRange(&tok.raw)
+	tok.begin.line = l.src.line
+	tok.begin.col = l.src.col
+	tok.end.line = l.src.line
+	tok.end.col = l.src.col
+	tok.len = l.src.Pos()
+	return tok
 }
 
 func (l *Lexer) finToken(tok *Token, value TokenValue) *Token {
