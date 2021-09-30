@@ -928,8 +928,24 @@ func TestMetaProp(t *testing.T) {
 }
 
 func TestFail(t *testing.T) {
-	testFail(t, "{", "Unexpected token `end of script` at (1:1)")
-	testFail(t, "}", "Unexpected token `}` at (1:0)")
-	testFail(t, "3ea", "Invalid number at (1:0)")
-	testFail(t, "3in []", "Identifier directly after number at (1:1)")
+	// testFail(t, "{", "Unexpected token `end of script` at (1:1)")
+	// testFail(t, "}", "Unexpected token `}` at (1:0)")
+	// testFail(t, "3ea", "Invalid number at (1:0)")
+	// testFail(t, "3in []", "Identifier directly after number at (1:1)")
+	// testFail(t, "3e", "Invalid number at (1:0)")
+	// testFail(t, "3e+", "Invalid number at (1:0)")
+	// testFail(t, "3e-", "Invalid number at (1:0)")
+	// testFail(t, "3x", "Identifier directly after number at (1:1)")
+	// testFail(t, "3x0", "Identifier directly after number at (1:1)")
+	// testFail(t, "0x", "Expected number in radix 16 at (1:2)")
+	// testFail(t, "'use strict'; 09", "Invalid number at (1:14)")
+	// testFail(t, "01a", "Identifier directly after number at (1:2)")
+	// testFail(t, "3in[]", "Identifier directly after number at (1:1)")
+	// testFail(t, "0x3in[]", "Identifier directly after number at (1:3)")
+	// testFail(t, "\"Hello\nWorld\"", "Unterminated string constant at (1:0)")
+	// testFail(t, "x\\", "Expecting Unicode escape sequence \\uXXXX at (1:2)")
+	// testFail(t, "x\\u005c", "Invalid Unicode escape at (1:1)")
+	// testFail(t, "/", "Unterminated regular expression at (1:1)")
+	// testFail(t, "/test", "Unterminated regular expression at (1:1)")
+	testFail(t, "var x = /[a-z]/\\ux", "Bad character escape sequence at (1:17)")
 }
