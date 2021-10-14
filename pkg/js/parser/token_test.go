@@ -7,7 +7,7 @@ import (
 )
 
 func TestLabel(t *testing.T) {
-	assert.Equal(t, "end of script", TokenKinds[T_EOF].Name, "should be end of script")
+	assert.Equal(t, "EOF", TokenKinds[T_EOF].Name, "should be end of script")
 	assert.Equal(t, "comment", TokenKinds[T_COMMENT].Name, "should be comment")
 
 	// literals

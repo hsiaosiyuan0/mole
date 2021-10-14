@@ -226,6 +226,10 @@ func (n *NullLit) Loc() *Loc {
 	return n.loc
 }
 
+func (n *NullLit) Text() string {
+	return "null"
+}
+
 type BoolLit struct {
 	typ NodeType
 	loc *Loc
@@ -242,6 +246,13 @@ func (n *BoolLit) Type() NodeType {
 
 func (n *BoolLit) Loc() *Loc {
 	return n.loc
+}
+
+func (n *BoolLit) Text() string {
+	if n.val {
+		return "true"
+	}
+	return "false"
 }
 
 type NumLit struct {
