@@ -29,6 +29,7 @@ func NewParserOpts() *ParserOpts {
 func NewParser(src *Source, opts *ParserOpts) *Parser {
 	parser := &Parser{}
 	parser.lexer = NewLexer(src)
+	parser.lexer.ver = opts.Version
 	parser.symtab = NewSymTab(opts.Externals)
 	parser.ver = opts.Version
 	parser.srcTyp = opts.SourceType
@@ -145,7 +146,9 @@ func (p *Parser) exportDec() (Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		p.advanceIfSemi()
+		if err := p.advanceIfSemi(true); err != nil {
+			return nil, err
+		}
 	} else if p.aheadIsVarDec(tok) {
 		node.dec, err = p.varDecStmt(false, false)
 		if err != nil {
@@ -324,7 +327,10 @@ func (p *Parser) importDec() (Node, error) {
 	}
 	src := &StrLit{N_LIT_STR, p.finLoc(p.locFromTok(str)), str.Text()}
 
-	p.advanceIfSemi()
+	if err := p.advanceIfSemi(true); err != nil {
+		return nil, err
+	}
+
 	return &ImportDec{N_STMT_IMPORT, p.finLoc(loc), specs, src}, nil
 }
 
@@ -563,7 +569,7 @@ func (p *Parser) field(static bool) (Node, error) {
 	} else if tok.value == T_PAREN_L {
 		return p.method(static, key, nil, false, false)
 	}
-	p.advanceIfSemi()
+	p.advanceIfSemi(false)
 	return &Field{N_FIELD, p.finLoc(loc), key, static, key.Type() != N_NAME, value}, nil
 }
 
@@ -610,7 +616,11 @@ func (p *Parser) withStmt() (Node, error) {
 func (p *Parser) debugStmt() (Node, error) {
 	loc := p.loc()
 	p.lexer.Next()
-	p.advanceIfSemi()
+
+	if err := p.advanceIfSemi(true); err != nil {
+		return nil, err
+	}
+
 	return &DebugStmt{N_STMT_DEBUG, p.finLoc(loc)}, nil
 }
 
@@ -675,7 +685,11 @@ func (p *Parser) throwStmt() (Node, error) {
 			return nil, err
 		}
 	}
-	p.advanceIfSemi()
+
+	if err := p.advanceIfSemi(true); err != nil {
+		return nil, err
+	}
+
 	return &ThrowStmt{N_STMT_THROW, p.finLoc(loc), arg}, nil
 }
 
@@ -700,7 +714,11 @@ func (p *Parser) retStmt() (Node, error) {
 			return nil, err
 		}
 	}
-	p.advanceIfSemi()
+
+	if err := p.advanceIfSemi(true); err != nil {
+		return nil, err
+	}
+
 	return &RetStmt{N_STMT_RET, p.finLoc(loc), arg}, nil
 }
 
@@ -741,11 +759,16 @@ func (p *Parser) brkStmt() (Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		p.advanceIfSemi()
+
+		if err := p.advanceIfSemi(true); err != nil {
+			return nil, err
+		}
 		return &BrkStmt{N_STMT_BRK, p.finLoc(loc), label}, nil
 	}
 
-	p.advanceIfSemi()
+	if err := p.advanceIfSemi(true); err != nil {
+		return nil, err
+	}
 	return &BrkStmt{N_STMT_BRK, p.finLoc(loc), nil}, nil
 }
 
@@ -760,11 +783,16 @@ func (p *Parser) contStmt() (Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		p.advanceIfSemi()
+
+		if err := p.advanceIfSemi(true); err != nil {
+			return nil, err
+		}
 		return &ContStmt{N_STMT_CONT, p.finLoc(loc), label}, nil
 	}
 
-	p.advanceIfSemi()
+	if err := p.advanceIfSemi(true); err != nil {
+		return nil, err
+	}
 	return &ContStmt{N_STMT_CONT, p.finLoc(loc), nil}, nil
 }
 
@@ -891,7 +919,9 @@ func (p *Parser) doWhileStmt() (Node, error) {
 	}
 	p.nextMustTok(T_PAREN_R)
 
-	p.advanceIfSemi()
+	if err := p.advanceIfSemi(true); err != nil {
+		return nil, err
+	}
 	return &DoWhileStmt{N_STMT_DO_WHILE, p.finLoc(loc), test, body}, nil
 }
 
@@ -949,6 +979,10 @@ func (p *Parser) forStmt() (Node, error) {
 	if isIn || IsName(tok, "of") {
 		if init == nil {
 			return nil, p.errorTok(tok)
+		}
+
+		if init.Type() != N_STMT_VAR_DEC && !p.isSimpleLVal(init) {
+			return nil, p.errorAtLoc(init.Loc(), "Assigning to rvalue")
 		}
 
 		p.lexer.Next()
@@ -1090,15 +1124,25 @@ func (p *Parser) formalParams() ([]Node, error) {
 		} else if tok.value == T_EOF {
 			return nil, p.errorTok(tok)
 		}
+
 		param, err := p.bindingElem()
 		if err != nil {
 			return nil, err
 		}
+
 		if p.lexer.Peek().value == T_COMMA {
-			p.lexer.Next()
+			tok := p.lexer.Next()
+			if param.Type() == N_PATTERN_REST {
+				msg := "Unexpected trailing comma after rest element"
+				if p.lexer.Peek().value != T_PAREN_R {
+					msg = "Rest element must be last element"
+				}
+				return nil, p.errorAt(tok.value, &tok.begin, msg)
+			}
 		}
 		params = append(params, param)
 	}
+
 	return params, nil
 }
 
@@ -1185,7 +1229,9 @@ func (p *Parser) varDecStmt(notIn bool, asExpr bool) (Node, error) {
 		}
 	}
 	if !asExpr {
-		p.advanceIfSemi()
+		if err := p.advanceIfSemi(true); err != nil {
+			return nil, err
+		}
 	}
 	node.loc = p.finLoc(loc)
 	return node, nil
@@ -1452,7 +1498,11 @@ func (p *Parser) exprStmt() (Node, error) {
 		return nil, err
 	}
 	stmt.expr = p.unParen(expr)
-	p.advanceIfSemi()
+
+	if err := p.advanceIfSemi(true); err != nil {
+		return nil, err
+	}
+
 	stmt.loc = p.finLoc(loc)
 
 	// adjust col to include the open-close backquotes
@@ -1557,8 +1607,30 @@ func (p *Parser) assignExpr(notIn bool) (Node, error) {
 		return nil, err
 	}
 
+	if !p.isSimpleLVal(lhs) {
+		return nil, p.errorAtLoc(lhs.Loc(), "Assigning to rvalue")
+	}
+
 	node := &AssignExpr{N_EXPR_ASSIGN, p.finLoc(loc), assign, lhs, p.unParen(rhs)}
 	return node, nil
+}
+
+// https://tc39.es/ecma262/multipage/syntax-directed-operations.html#sec-static-semantics-assignmenttargettype
+func (p *Parser) isSimpleLVal(expr Node) bool {
+	switch expr.Type() {
+	case N_NAME:
+		node := expr.(*Ident)
+		if p.scope().IsKind(SPK_ASYNC) && node.Text() == "await" {
+			return false
+		}
+		return true
+	case N_PATTERN_OBJ, N_PATTERN_ARRAY, N_PATTERN_ASSIGN, N_PATTERN_REST, N_EXPR_MEMBER:
+		return true
+	case N_EXPR_PAREN:
+		node := expr.(*ParenExpr)
+		return p.isSimpleLVal(node.expr)
+	}
+	return false
 }
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-expressions.html#prod-ConditionalExpression
@@ -1616,6 +1688,9 @@ func (p *Parser) updateExpr() (Node, error) {
 		if err != nil {
 			return nil, err
 		}
+		if !p.isSimpleLVal(arg) {
+			return nil, p.errorAtLoc(arg.Loc(), "Assigning to rvalue")
+		}
 		return &UpdateExpr{N_EXPR_UPDATE, p.finLoc(loc), tok.value, true, arg}, nil
 	}
 
@@ -1628,6 +1703,10 @@ func (p *Parser) updateExpr() (Node, error) {
 	postfix := !tok.afterLineTerminator && (tok.value == T_INC || tok.value == T_DEC)
 	if !postfix {
 		return arg, nil
+	}
+
+	if !p.isSimpleLVal(arg) {
+		return nil, p.errorAtLoc(arg.Loc(), "Assigning to rvalue")
 	}
 
 	p.lexer.Next()
@@ -2106,6 +2185,7 @@ func (p *Parser) objLit() (Node, error) {
 	p.lexer.Next()
 
 	props := make([]Node, 0, 1)
+	hasProto := false
 	for {
 		tok := p.lexer.Peek()
 		if tok.value == T_BRACE_R {
@@ -2116,6 +2196,33 @@ func (p *Parser) objLit() (Node, error) {
 		node, err := p.objProp()
 		if err != nil {
 			return nil, err
+		}
+
+		if node.Type() == N_PROP {
+			prop := node.(*Prop)
+			if !prop.computed {
+				var propName string
+
+				switch prop.key.Type() {
+				case N_NAME:
+					propName = prop.key.(*Ident).Text()
+				case N_LIT_STR:
+					propName = prop.key.(*StrLit).Text()
+				case N_LIT_NUM:
+					propName = prop.key.(*NumLit).Text()
+				case N_LIT_BOOL:
+					propName = prop.key.(*BoolLit).Text()
+				case N_LIT_NULL:
+					propName = prop.key.(*NullLit).Text()
+				}
+
+				if propName == "__proto__" {
+					if hasProto {
+						return nil, p.errorAtLoc(node.Loc(), "Redefinition of property")
+					}
+					hasProto = true
+				}
+			}
 		}
 		props = append(props, node)
 
@@ -2211,10 +2318,15 @@ func (p *Parser) propMethod(key Node, kind string, gen bool, async bool, allowNa
 	return &Prop{N_PROP, p.finLoc(loc), key, value, !IsLitPropName(key), kind}, nil
 }
 
-func (p *Parser) advanceIfSemi() {
-	if p.lexer.Peek().value == T_SEMI {
+func (p *Parser) advanceIfSemi(raise bool) error {
+	tok := p.lexer.Peek()
+	if tok.value == T_SEMI {
 		p.lexer.Next()
 	}
+	if raise && tok.value != T_SEMI && tok.value != T_BRACE_R && !tok.afterLineTerminator && tok.value != T_EOF {
+		return p.errorAt(tok.value, &tok.begin, "Missing semicolon")
+	}
+	return nil
 }
 
 func (p *Parser) nextMustTok(val TokenValue) (*Token, error) {
@@ -2280,11 +2392,15 @@ func (p *Parser) errorTok(tok *Token) *ParserError {
 }
 
 func (p *Parser) errorAt(tok TokenValue, pos *Pos, errMsg string) *ParserError {
-	if tok != T_ILLEGAL {
+	if tok != T_ILLEGAL && errMsg == "" {
 		return NewParserError(fmt.Sprintf("Unexpected token `%s`", TokenKinds[tok].Name),
 			p.lexer.src.path, pos.line, pos.col)
 	}
 	return NewParserError(errMsg, p.lexer.src.path, pos.line, pos.col)
+}
+
+func (p *Parser) errorAtLoc(loc *Loc, errMsg string) *ParserError {
+	return NewParserError(errMsg, p.lexer.src.path, loc.begin.line, loc.begin.col)
 }
 
 func IsLitPropName(node Node) bool {

@@ -32,6 +32,7 @@ const sizeOfPeekedTok = 5
 type Lexer struct {
 	src *Source
 
+	ver  ESVersion
 	mode []*LexerMode
 
 	peeked [sizeOfPeekedTok]Token
@@ -42,10 +43,10 @@ type Lexer struct {
 	beginStmt bool
 	notIn     bool
 
-	prtVal   TokenValue // prev read
-	prtRng   SourceRange
-	prtBegin Pos
-	prtEnd   Pos
+	prtVal   TokenValue  // the value of prev read token
+	prtRng   SourceRange // the source range of prev read token
+	prtBegin Pos         // the begin position of perv read token
+	prtEnd   Pos         // the end position of prev read token
 
 	pptVal      TokenValue // prev peek
 	pptAfterEOL bool
@@ -598,6 +599,11 @@ func (l *Lexer) ReadSymbol() *Token {
 		}
 
 	}
+
+	if val == T_DOT_TRI && l.ver < ES6 {
+		return l.errToken(tok, "Unexpected token")
+	}
+
 	return l.finToken(tok, val)
 }
 
@@ -640,8 +646,10 @@ func (l *Lexer) readRegexp(tok *Token) *Token {
 	pattern := l.src.NewOpenRange()
 	for {
 		c := l.src.Peek()
-		if IsLineTerminator(c) || c == utf8.RuneError {
+		if c == utf8.RuneError {
 			return l.errToken(tok, "")
+		} else if IsLineTerminator(c) {
+			return l.errToken(tok, "Unterminated regular expression")
 		}
 		if c == '\\' {
 			l.src.Read()
@@ -692,7 +700,7 @@ func (l *Lexer) ReadStr() *Token {
 	for {
 		c := l.src.Read()
 		if c == utf8.RuneError || c == EOF {
-			return l.errToken(tok, "")
+			return l.errToken(tok, "Unterminated string constant")
 		} else if c == '\\' {
 			nc := l.src.Peek()
 			if IsLineTerminator(nc) {

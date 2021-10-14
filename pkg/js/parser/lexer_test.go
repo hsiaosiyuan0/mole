@@ -147,6 +147,7 @@ func TestReadSymbol(t *testing.T) {
   *= a /= %= **=
   `)
 	l := NewLexer(s)
+	l.ver = ES12
 	assert.Equal(t, T_BRACE_L, l.Next().value, "should be tok {")
 	assert.Equal(t, T_BRACE_R, l.Next().value, "should be tok }")
 	assert.Equal(t, T_PAREN_L, l.Next().value, "should be tok (")

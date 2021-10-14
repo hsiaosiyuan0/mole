@@ -6,14 +6,17 @@ import (
 	"github.com/hsiaosiyuan0/mole/pkg/assert"
 )
 
-func compile(code string) (Node, error) {
+func compile(code string, opts *ParserOpts) (Node, error) {
+	if opts == nil {
+		opts = NewParserOpts()
+	}
 	s := NewSource("", code)
-	p := NewParser(s, NewParserOpts())
+	p := NewParser(s, opts)
 	return p.Prog()
 }
 
-func testFail(t *testing.T, code, errMs string) {
-	ast, err := compile(code)
+func testFail(t *testing.T, code, errMs string, opts *ParserOpts) {
+	ast, err := compile(code, opts)
 	if err == nil {
 		t.Fatalf("should not pass code:\n%s\nast:\n%v", code, ast)
 	}
@@ -21,7 +24,7 @@ func testFail(t *testing.T, code, errMs string) {
 }
 
 func TestExpr(t *testing.T) {
-	ast, err := compile("a + b - c")
+	ast, err := compile("a + b - c", nil)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	expr := ast.(*Prog).stmts[0].(*ExprStmt).expr.(*BinExpr)
@@ -40,7 +43,7 @@ func TestExpr(t *testing.T) {
 }
 
 func TestExprPcdHigherRight(t *testing.T) {
-	ast, err := compile("a + b * c")
+	ast, err := compile("a + b * c", nil)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	expr := ast.(*Prog).stmts[0].(*ExprStmt).expr.(*BinExpr)
@@ -62,7 +65,7 @@ func TestExprPcdHigherRight(t *testing.T) {
 }
 
 func TestExprPcdHigherLeft(t *testing.T) {
-	ast, err := compile("a * b + c")
+	ast, err := compile("a * b + c", nil)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	expr := ast.(*Prog).stmts[0].(*ExprStmt).expr.(*BinExpr)
@@ -80,7 +83,7 @@ func TestExprPcdHigherLeft(t *testing.T) {
 }
 
 func TestExprAssoc(t *testing.T) {
-	ast, err := compile("a ** b ** c")
+	ast, err := compile("a ** b ** c", nil)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	expr := ast.(*Prog).stmts[0].(*ExprStmt).expr.(*BinExpr)
@@ -102,7 +105,7 @@ func TestExprAssoc(t *testing.T) {
 }
 
 func TestCond(t *testing.T) {
-	ast, err := compile("a > 0 ? a : b")
+	ast, err := compile("a > 0 ? a : b", nil)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	expr := ast.(*Prog).stmts[0].(*ExprStmt).expr.(*CondExpr)
@@ -111,7 +114,7 @@ func TestCond(t *testing.T) {
 }
 
 func TestAssign(t *testing.T) {
-	ast, err := compile("a = a > 0 ? a : b")
+	ast, err := compile("a = a > 0 ? a : b", nil)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	expr := ast.(*Prog).stmts[0].(*ExprStmt).expr.(*AssignExpr)
@@ -125,7 +128,7 @@ func TestAssign(t *testing.T) {
 }
 
 func TestMemberExprSubscript(t *testing.T) {
-	ast, err := compile("a[b][c]")
+	ast, err := compile("a[b][c]", nil)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	expr := ast.(*Prog).stmts[0].(*ExprStmt).expr.(*MemberExpr)
@@ -137,7 +140,7 @@ func TestMemberExprSubscript(t *testing.T) {
 }
 
 func TestMemberExprDot(t *testing.T) {
-	ast, err := compile("a.b.c")
+	ast, err := compile("a.b.c", nil)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	expr := ast.(*Prog).stmts[0].(*ExprStmt).expr.(*MemberExpr)
@@ -149,7 +152,7 @@ func TestMemberExprDot(t *testing.T) {
 }
 
 func TestUnaryExpr(t *testing.T) {
-	ast, err := compile("a + void 0")
+	ast, err := compile("a + void 0", nil)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	expr := ast.(*Prog).stmts[0].(*ExprStmt).expr.(*BinExpr)
@@ -162,7 +165,7 @@ func TestUnaryExpr(t *testing.T) {
 }
 
 func TestUpdateExpr(t *testing.T) {
-	ast, err := compile("a + ++b + c++")
+	ast, err := compile("a + ++b + c++", nil)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	expr := ast.(*Prog).stmts[0].(*ExprStmt).expr.(*BinExpr)
@@ -179,7 +182,7 @@ func TestUpdateExpr(t *testing.T) {
 }
 
 func TestNewExpr(t *testing.T) {
-	ast, err := compile("new new a")
+	ast, err := compile("new new a", nil)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	expr := ast.(*Prog).stmts[0].(*ExprStmt).expr.(*NewExpr).callee.(*NewExpr)
@@ -187,7 +190,7 @@ func TestNewExpr(t *testing.T) {
 }
 
 func TestCallExpr(t *testing.T) {
-	ast, err := compile("a()(c, ...a, b)")
+	ast, err := compile("a()(c, ...a, b)", nil)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	expr := ast.(*Prog).stmts[0].(*ExprStmt).expr.(*CallExpr)
@@ -201,7 +204,7 @@ func TestCallExpr(t *testing.T) {
 }
 
 func TestCallExprMem(t *testing.T) {
-	ast, err := compile("a(b).c")
+	ast, err := compile("a(b).c", nil)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	expr := ast.(*Prog).stmts[0].(*ExprStmt).expr.(*MemberExpr)
@@ -215,12 +218,12 @@ func TestCallExprMem(t *testing.T) {
 }
 
 func TestCallExprLit(t *testing.T) {
-	_, err := compile("a('b')")
+	_, err := compile("a('b')", nil)
 	assert.Equal(t, nil, err, "should be prog ok")
 }
 
 func TestCallCascadeExpr(t *testing.T) {
-	ast, err := compile("a[b][c]()[d][e]()")
+	ast, err := compile("a[b][c]()[d][e]()", nil)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	expr := ast.(*Prog).stmts[0].(*ExprStmt).expr.(*CallExpr)
@@ -251,7 +254,7 @@ func TestCallCascadeExpr(t *testing.T) {
 }
 
 func TestVarDec(t *testing.T) {
-	ast, err := compile("var a = 1")
+	ast, err := compile("var a = 1", nil)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	varDecStmt := ast.(*Prog).stmts[0].(*VarDecStmt)
@@ -263,7 +266,7 @@ func TestVarDec(t *testing.T) {
 }
 
 func TestVarDecArrPattern(t *testing.T) {
-	ast, err := compile("var [a, b = 1, [c] = 1, [d = 1]] = e")
+	ast, err := compile("var [a, b = 1, [c] = 1, [d = 1]] = e", nil)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	varDecStmt := ast.(*Prog).stmts[0].(*VarDecStmt)
@@ -295,7 +298,7 @@ func TestVarDecArrPattern(t *testing.T) {
 }
 
 func TestVarDecArrPatternElision(t *testing.T) {
-	ast, err := compile("var [a, , b, , , c, ,] = e")
+	ast, err := compile("var [a, , b, , , c, ,] = e", nil)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	varDecStmt := ast.(*Prog).stmts[0].(*VarDecStmt)
@@ -330,7 +333,7 @@ func TestVarDecArrPatternElision(t *testing.T) {
 }
 
 func TestArrLit(t *testing.T) {
-	ast, err := compile("[a, , b, , , c, ,]")
+	ast, err := compile("[a, , b, , , c, ,]", nil)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	arrLit := ast.(*Prog).stmts[0].(*ExprStmt).expr.(*ArrLit)
@@ -359,7 +362,7 @@ func TestArrLit(t *testing.T) {
 }
 
 func TestObjLit(t *testing.T) {
-	ast, err := compile(`var a = {...a, b, ...c, "d": 1, [e]: {f: 1}, ...g}`)
+	ast, err := compile(`var a = {...a, b, ...c, "d": 1, [e]: {f: 1}, ...g}`, nil)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	varDecStmt := ast.(*Prog).stmts[0].(*VarDecStmt)
@@ -401,7 +404,7 @@ func TestObjLitMethod(t *testing.T) {
     c,
     e: () => {},
   }
-  `)
+  `, nil)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	varDecStmt := ast.(*Prog).stmts[0].(*VarDecStmt)
@@ -431,7 +434,7 @@ func TestObjLitMethod(t *testing.T) {
 func TestFnDec(t *testing.T) {
 	ast, err := compile(`
   function a({ b }) {}
-  `)
+  `, nil)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	fn := ast.(*Prog).stmts[0].(*FnDec)
@@ -442,7 +445,7 @@ func TestFnDec(t *testing.T) {
 func TestFnExpr(t *testing.T) {
 	ast, err := compile(`
   let a = function a({ b }) {}
-  `)
+  `, nil)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	fn := ast.(*Prog).stmts[0].(*VarDecStmt).decList[0].init.(*FnDec)
@@ -453,7 +456,7 @@ func TestFnExpr(t *testing.T) {
 func TestAsyncFnDec(t *testing.T) {
 	ast, err := compile(`
   async function a({ b }) {}
-  `)
+  `, nil)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	fn := ast.(*Prog).stmts[0].(*FnDec)
@@ -465,7 +468,7 @@ func TestAsyncFnDec(t *testing.T) {
 func TestArrowFn(t *testing.T) {
 	ast, err := compile(`
   a = () => {}
-  `)
+  `, nil)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	expr := ast.(*Prog).stmts[0].(*ExprStmt).expr.(*AssignExpr)
@@ -475,7 +478,7 @@ func TestArrowFn(t *testing.T) {
 func TestDoWhileStmt(t *testing.T) {
 	ast, err := compile(`
   do {} while(1)
-  `)
+  `, nil)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	_ = ast.(*Prog).stmts[0].(*DoWhileStmt)
@@ -484,7 +487,7 @@ func TestDoWhileStmt(t *testing.T) {
 func TestWhileStmt(t *testing.T) {
 	ast, err := compile(`
   while(1) {}
-  `)
+  `, nil)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	_ = ast.(*Prog).stmts[0].(*WhileStmt)
@@ -493,7 +496,7 @@ func TestWhileStmt(t *testing.T) {
 func TestForStmt(t *testing.T) {
 	ast, err := compile(`
   for(;;) {}
-  `)
+  `, nil)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	_ = ast.(*Prog).stmts[0].(*ForStmt)
@@ -502,7 +505,7 @@ func TestForStmt(t *testing.T) {
 func TestForInStmt(t *testing.T) {
 	ast, err := compile(`
   for (a in b) {}
-  `)
+  `, nil)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	_ = ast.(*Prog).stmts[0].(*ForInOfStmt)
@@ -512,7 +515,7 @@ func TestForOfStmt(t *testing.T) {
 	ast, err := compile(`
   for (a of b) {}
   for await (a of b) {}
-  `)
+  `, nil)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	_ = ast.(*Prog).stmts[0].(*ForInOfStmt)
@@ -525,7 +528,7 @@ func TestIfStmt(t *testing.T) {
 	ast, err := compile(`
   if (a) {} else b
   if (c) {}
-  `)
+  `, nil)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	stmt := ast.(*Prog).stmts[0].(*IfStmt)
@@ -539,7 +542,7 @@ func TestSwitchStmtEmpty(t *testing.T) {
 	ast, err := compile(`
 	switch (a) {
 	}
-	`)
+	`, nil)
 	assert.Equal(t, nil, err, "should be prog ok")
 	_ = ast.(*Prog).stmts[0].(*SwitchStmt)
 }
@@ -553,7 +556,7 @@ func TestSwitchStmt(t *testing.T) {
     case f:
     default:
   }
-  `)
+  `, nil)
 	assert.Equal(t, nil, err, "should be prog ok")
 	stmt := ast.(*Prog).stmts[0].(*SwitchStmt)
 
@@ -584,7 +587,7 @@ func TestSwitchStmtDefaultMiddle(t *testing.T) {
     default:
     case f:
   }
-  `)
+  `, nil)
 	assert.Equal(t, nil, err, "should be prog ok")
 	stmt := ast.(*Prog).stmts[0].(*SwitchStmt)
 
@@ -609,13 +612,13 @@ func TestSwitchStmtDefaultMiddle(t *testing.T) {
 func TestBrkStmt(t *testing.T) {
 	ast, err := compile(`
   break
-  `)
+  `, nil)
 	assert.Equal(t, nil, err, "should be prog ok")
 	_ = ast.(*Prog).stmts[0].(*BrkStmt)
 
 	ast, err = compile(`
   break a;
-  `)
+  `, nil)
 	assert.Equal(t, nil, err, "should be prog ok")
 	stmt := ast.(*Prog).stmts[0].(*BrkStmt)
 	assert.Equal(t, "a", stmt.label.(*Ident).Text(), "should be a")
@@ -624,13 +627,13 @@ func TestBrkStmt(t *testing.T) {
 func TestContStmt(t *testing.T) {
 	ast, err := compile(`
   continue
-  `)
+  `, nil)
 	assert.Equal(t, nil, err, "should be prog ok")
 	_ = ast.(*Prog).stmts[0].(*ContStmt)
 
 	ast, err = compile(`
   continue a;
-  `)
+  `, nil)
 	assert.Equal(t, nil, err, "should be prog ok")
 	stmt := ast.(*Prog).stmts[0].(*ContStmt)
 	assert.Equal(t, "a", stmt.label.(*Ident).Text(), "should be a")
@@ -641,7 +644,7 @@ func TestLabelStmt(t *testing.T) {
   a:
   b
   c
-  `)
+  `, nil)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	lbStmt := ast.(*Prog).stmts[0].(*LabelStmt)
@@ -656,7 +659,7 @@ func TestLabelStmt(t *testing.T) {
 	ast, err = compile(`
   a: b
   c
-  `)
+  `, nil)
 	assert.Equal(t, nil, err, "should be prog ok")
 	lbStmt = ast.(*Prog).stmts[0].(*LabelStmt)
 	assert.Equal(t, "a", lbStmt.label.(*Ident).Text(), "should be a")
@@ -671,7 +674,7 @@ func TestLabelStmt(t *testing.T) {
 func TestRetStmt(t *testing.T) {
 	ast, err := compile(`
   return a
-  `)
+  `, nil)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	retStmt := ast.(*Prog).stmts[0].(*RetStmt)
@@ -680,7 +683,7 @@ func TestRetStmt(t *testing.T) {
 	ast, err = compile(`
   return
   a
-  `)
+  `, nil)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	stmt0 := ast.(*Prog).stmts[0].(*RetStmt)
@@ -693,7 +696,7 @@ func TestRetStmt(t *testing.T) {
 func TestThrowStmt(t *testing.T) {
 	ast, err := compile(`
   throw a
-  `)
+  `, nil)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	stmt0 := ast.(*Prog).stmts[0].(*ThrowStmt)
@@ -702,7 +705,7 @@ func TestThrowStmt(t *testing.T) {
 	ast, err = compile(`
   throw
   a
-  `)
+  `, nil)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	stmt0 = ast.(*Prog).stmts[0].(*ThrowStmt)
@@ -715,7 +718,7 @@ func TestThrowStmt(t *testing.T) {
 func TestTryStmt(t *testing.T) {
 	ast, err := compile(`
   try {} catch(e) {} finally {}
-  `)
+  `, nil)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	stmt0 := ast.(*Prog).stmts[0].(*TryStmt)
@@ -726,14 +729,14 @@ func TestTryStmt(t *testing.T) {
 
 	ast, err = compile(`
   try {} finally {}
-  `)
+  `, nil)
 	assert.Equal(t, nil, err, "should be prog ok")
 	stmt0 = ast.(*Prog).stmts[0].(*TryStmt)
 	assert.Equal(t, true, stmt0.fin != nil, "should have fin")
 
 	_, err = compile(`
   try {}
-  `)
+  `, nil)
 	assert.Equal(t, true, err != nil, "should be err")
 }
 
@@ -742,7 +745,7 @@ func TestDebugStmt(t *testing.T) {
   a
   debugger
   b
-  `)
+  `, nil)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	_ = ast.(*Prog).stmts[0].(*ExprStmt)
@@ -754,7 +757,7 @@ func TestEmptyStmt(t *testing.T) {
 	ast, err := compile(`
   ;a;;
   ;
-  `)
+  `, nil)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	_ = ast.(*Prog).stmts[0].(*EmptyStmt)
@@ -766,7 +769,7 @@ func TestEmptyStmt(t *testing.T) {
 func TestClassStmt(t *testing.T) {
 	ast, err := compile(`
   class a {}
-  `)
+  `, nil)
 	assert.Equal(t, nil, err, "should be prog ok")
 	_ = ast.(*Prog).stmts[0].(*ClassDec)
 }
@@ -776,7 +779,7 @@ func TestClassField(t *testing.T) {
   class a {
     #f1
   }
-  `)
+  `, nil)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	cls := ast.(*Prog).stmts[0].(*ClassDec)
@@ -795,7 +798,7 @@ func TestClassMethod(t *testing.T) {
     e
     #f () {}
   }
-  `)
+  `, nil)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	cls := ast.(*Prog).stmts[0].(*ClassDec)
@@ -814,7 +817,7 @@ func TestClassMethod(t *testing.T) {
 func TestSeqExpr(t *testing.T) {
 	ast, err := compile(`
   a = (b, c)
-  `)
+  `, nil)
 	assert.Equal(t, nil, err, "should be prog ok")
 	elem0 := ast.(*Prog).stmts[0].(*ExprStmt).expr.(*AssignExpr)
 	seq := elem0.rhs.(*SeqExpr)
@@ -825,7 +828,7 @@ func TestSeqExpr(t *testing.T) {
 func TestClassExpr(t *testing.T) {
 	ast, err := compile(`
   a = class {};
-  `)
+  `, nil)
 	assert.Equal(t, nil, err, "should be prog ok")
 	stmt0 := ast.(*Prog).stmts[0].(*ExprStmt).expr.(*AssignExpr)
 	_ = stmt0.rhs.(*ClassDec)
@@ -834,7 +837,7 @@ func TestClassExpr(t *testing.T) {
 func TestRegexpExpr(t *testing.T) {
 	ast, err := compile(`
   a = /a/
-  `)
+  `, nil)
 	assert.Equal(t, nil, err, "should be prog ok")
 	stmt0 := ast.(*Prog).stmts[0].(*ExprStmt).expr.(*AssignExpr)
 	_ = stmt0.rhs.(*RegexpLit)
@@ -843,14 +846,14 @@ func TestRegexpExpr(t *testing.T) {
 func TestParenExpr(t *testing.T) {
 	ast, err := compile(`
   a = (b)
-  `)
+  `, nil)
 	assert.Equal(t, nil, err, "should be prog ok")
 	stmt0 := ast.(*Prog).stmts[0].(*ExprStmt).expr.(*AssignExpr)
 	_ = stmt0.rhs.(*Ident)
 }
 
 func TestTplExpr(t *testing.T) {
-	ast, err := compile("tag`\na${b}c`")
+	ast, err := compile("tag`\na${b}c`", nil)
 	assert.Equal(t, nil, err, "should be prog ok")
 	tpl := ast.(*Prog).stmts[0].(*ExprStmt).expr.(*TplExpr)
 	tag := tpl.tag.(*Ident)
@@ -867,7 +870,7 @@ func TestTplExpr(t *testing.T) {
 }
 
 func TestTplExprNest(t *testing.T) {
-	ast, err := compile("tag`\na${ f`g\n${d}e` }c`")
+	ast, err := compile("tag`\na${ f`g\n${d}e` }c`", nil)
 	assert.Equal(t, nil, err, "should be prog ok")
 	tpl := ast.(*Prog).stmts[0].(*ExprStmt).expr.(*TplExpr)
 	tag := tpl.tag.(*Ident)
@@ -894,7 +897,7 @@ func TestTplExprNest(t *testing.T) {
 }
 
 func TestTplExprMember(t *testing.T) {
-	ast, err := compile("tag`\na${b}c`[d]")
+	ast, err := compile("tag`\na${b}c`[d]", nil)
 	assert.Equal(t, nil, err, "should be prog ok")
 	member := ast.(*Prog).stmts[0].(*ExprStmt).expr.(*MemberExpr)
 	tpl := member.obj.(*TplExpr)
@@ -903,7 +906,7 @@ func TestTplExprMember(t *testing.T) {
 }
 
 func TestSuper(t *testing.T) {
-	ast, err := compile("class a { constructor() { super() } }")
+	ast, err := compile("class a { constructor() { super() } }", nil)
 	assert.Equal(t, nil, err, "should be prog ok")
 	ctor := ast.(*Prog).stmts[0].(*ClassDec).body.(*ClassBody).elems[0].(*Method).value.(*FnDec)
 	expr := ctor.body.(*BlockStmt).body[0].(*ExprStmt).expr
@@ -912,7 +915,7 @@ func TestSuper(t *testing.T) {
 }
 
 func TestImportCall(t *testing.T) {
-	ast, err := compile("a = import(b)")
+	ast, err := compile("a = import(b)", nil)
 	assert.Equal(t, nil, err, "should be prog ok")
 	assign := ast.(*Prog).stmts[0].(*ExprStmt).expr.(*AssignExpr)
 	importCall := assign.rhs.(*ImportCall)
@@ -920,32 +923,229 @@ func TestImportCall(t *testing.T) {
 }
 
 func TestMetaProp(t *testing.T) {
-	ast, err := compile("a = import.meta")
+	ast, err := compile("a = import.meta", nil)
 	assert.Equal(t, nil, err, "should be prog ok")
 	assign := ast.(*Prog).stmts[0].(*ExprStmt).expr.(*AssignExpr)
 	metaProp := assign.rhs.(*MetaProp)
 	assert.Equal(t, "meta", metaProp.prop.(*Ident).Text(), "should be meta")
 }
 
-func TestFail(t *testing.T) {
-	// testFail(t, "{", "Unexpected token `end of script` at (1:1)")
-	// testFail(t, "}", "Unexpected token `}` at (1:0)")
-	// testFail(t, "3ea", "Invalid number at (1:0)")
-	// testFail(t, "3in []", "Identifier directly after number at (1:1)")
-	// testFail(t, "3e", "Invalid number at (1:0)")
-	// testFail(t, "3e+", "Invalid number at (1:0)")
-	// testFail(t, "3e-", "Invalid number at (1:0)")
-	// testFail(t, "3x", "Identifier directly after number at (1:1)")
-	// testFail(t, "3x0", "Identifier directly after number at (1:1)")
-	// testFail(t, "0x", "Expected number in radix 16 at (1:2)")
-	// testFail(t, "'use strict'; 09", "Invalid number at (1:14)")
-	// testFail(t, "01a", "Identifier directly after number at (1:2)")
-	// testFail(t, "3in[]", "Identifier directly after number at (1:1)")
-	// testFail(t, "0x3in[]", "Identifier directly after number at (1:3)")
-	// testFail(t, "\"Hello\nWorld\"", "Unterminated string constant at (1:0)")
-	// testFail(t, "x\\", "Expecting Unicode escape sequence \\uXXXX at (1:2)")
-	// testFail(t, "x\\u005c", "Invalid Unicode escape at (1:1)")
-	// testFail(t, "/", "Unterminated regular expression at (1:1)")
-	// testFail(t, "/test", "Unterminated regular expression at (1:1)")
-	testFail(t, "var x = /[a-z]/\\ux", "Bad character escape sequence at (1:17)")
+func TestFail1(t *testing.T) {
+	testFail(t, "{", "Unexpected token `EOF` at (1:1)", nil)
 }
+
+func TestFail2(t *testing.T) {
+	testFail(t, "}", "Unexpected token `}` at (1:0)", nil)
+}
+
+func TestFail3(t *testing.T) {
+	testFail(t, "3ea", "Invalid number at (1:0)", nil)
+}
+
+func TestFail4(t *testing.T) {
+	testFail(t, "3in []", "Identifier directly after number at (1:1)", nil)
+}
+
+func TestFail5(t *testing.T) {
+	testFail(t, "3e", "Invalid number at (1:0)", nil)
+}
+
+func TestFail6(t *testing.T) {
+	testFail(t, "3e+", "Invalid number at (1:0)", nil)
+}
+
+func TestFail7(t *testing.T) {
+	testFail(t, "3e-", "Invalid number at (1:0)", nil)
+}
+
+func TestFail8(t *testing.T) {
+	testFail(t, "3x", "Identifier directly after number at (1:1)", nil)
+}
+
+func TestFail9(t *testing.T) {
+	testFail(t, "3x0", "Identifier directly after number at (1:1)", nil)
+}
+
+func TestFail10(t *testing.T) {
+	testFail(t, "0x", "Expected number in radix 16 at (1:2)", nil)
+}
+
+func TestFail11(t *testing.T) {
+	testFail(t, "'use strict'; 09", "Invalid number at (1:14)", nil)
+}
+
+func TestFail12(t *testing.T) {
+	testFail(t, "01a", "Identifier directly after number at (1:2)", nil)
+}
+
+func TestFail13(t *testing.T) {
+	testFail(t, "3in[]", "Identifier directly after number at (1:1)", nil)
+}
+
+func TestFail14(t *testing.T) {
+	testFail(t, "0x3in[]", "Identifier directly after number at (1:3)", nil)
+}
+
+func TestFail15(t *testing.T) {
+	testFail(t, "\"Hello\nWorld\"", "Unterminated string constant at (1:0)", nil)
+}
+
+func TestFail16(t *testing.T) {
+	testFail(t, "x\\", "Expecting Unicode escape sequence \\uXXXX at (1:1)", nil)
+}
+
+func TestFail17(t *testing.T) {
+	testFail(t, "x\\u005c", "Invalid Unicode escape at (1:1)", nil)
+}
+
+func TestFail18(t *testing.T) {
+	testFail(t, "/", "Unterminated regular expression at (1:1)", nil)
+}
+
+func TestFail19(t *testing.T) {
+	testFail(t, "/test", "Unterminated regular expression at (1:1)", nil)
+}
+
+func TestFail20(t *testing.T) {
+	testFail(t, "var x = /[a-z]/\\ux", "Bad character escape sequence at (1:17)", nil)
+}
+
+func TestFail21(t *testing.T) {
+	testFail(t, "3 = 4", "Assigning to rvalue at (1:0)", nil)
+}
+
+func TestFail22(t *testing.T) {
+	testFail(t, "func() = 4", "Assigning to rvalue at (1:0)", nil)
+}
+
+func TestFail23(t *testing.T) {
+	testFail(t, "(1 + 1) = 10", "Assigning to rvalue at (1:0)", nil)
+}
+
+func TestFail24(t *testing.T) {
+	testFail(t, "1++", "Assigning to rvalue at (1:0)", nil)
+}
+
+func TestFail25(t *testing.T) {
+	testFail(t, "1--", "Assigning to rvalue at (1:0)", nil)
+}
+
+func TestFail26(t *testing.T) {
+	testFail(t, "++1", "Assigning to rvalue at (1:2)", nil)
+}
+
+func TestFail27(t *testing.T) {
+	testFail(t, "--1", "Assigning to rvalue at (1:2)", nil)
+}
+
+func TestFail28(t *testing.T) {
+	testFail(t, "for((1 + 1) in list) process(x);", "Assigning to rvalue at (1:4)", nil)
+}
+
+func TestFail29(t *testing.T) {
+	testFail(t, "[", "Unexpected token `EOF` at (1:1)", nil)
+}
+
+func TestFail30(t *testing.T) {
+	testFail(t, "[,", "Unexpected token `EOF` at (1:2)", nil)
+}
+
+func TestFail31(t *testing.T) {
+	testFail(t, "1 + {", "Unexpected token `EOF` at (1:5)", nil)
+}
+
+func TestFail32(t *testing.T) {
+	testFail(t, "1 + { t:t ", "Unexpected token `EOF` at (1:10)", nil)
+}
+
+func TestFail33(t *testing.T) {
+	testFail(t, "1 + { t:t,", "Unexpected token `EOF` at (1:10)", nil)
+}
+
+func TestFail34(t *testing.T) {
+	testFail(t, "var x = /\n/", "Unterminated regular expression at (1:8)", nil)
+}
+
+func TestFail35(t *testing.T) {
+	testFail(t, "var x = \"\n", "Unterminated string constant at (1:8)", nil)
+}
+
+func TestFail36(t *testing.T) {
+	testFail(t, "var if = 42", "Unexpected token `if` at (1:4)", nil)
+}
+
+func TestFail37(t *testing.T) {
+	testFail(t, "i + 2 = 42", "Assigning to rvalue at (1:0)", nil)
+}
+
+func TestFail38(t *testing.T) {
+	testFail(t, "+i = 42", "Assigning to rvalue at (1:0)", nil)
+}
+
+func TestFail39(t *testing.T) {
+	testFail(t, "1 + (", "Unexpected token `EOF` at (1:5)", nil)
+}
+
+func TestFail40(t *testing.T) {
+	testFail(t, "\n\n\n{", "Unexpected token `EOF` at (4:1)", nil)
+}
+
+func TestFail41(t *testing.T) {
+	testFail(t, "\n/* Some multiline\ncomment */\n)", "Unexpected token `)` at (4:0)", nil)
+}
+
+func TestFail42(t *testing.T) {
+	testFail(t, "{ set 1 }", "Missing semicolon at (1:6)", nil)
+}
+
+func TestFail43(t *testing.T) {
+	testFail(t, "{ get 2 }", "Missing semicolon at (1:6)", nil)
+}
+
+func TestFail44(t *testing.T) {
+	testFail(t, "({ set: s(if) { } })", "Unexpected token `if` at (1:10)", nil)
+}
+
+func TestFail45(t *testing.T) {
+	testFail(t, "({ set s(.) { } })", "Unexpected token `.` at (1:9)", nil)
+}
+
+func TestFail46(t *testing.T) {
+	testFail(t, "({ set: s() { } })", "Unexpected token `{` at (1:12)", nil)
+}
+
+func TestFail47(t *testing.T) {
+	testFail(t, "({ set: s(a, b) { } })", "Unexpected token `{` at (1:16)", nil)
+}
+
+func TestFail48(t *testing.T) {
+	testFail(t, "({ get: g(d) { } })", "Unexpected token `{` at (1:13)", nil)
+}
+
+func TestFail49(t *testing.T) {
+	testFail(t, "'use strict'; ({ __proto__: 1, __proto__: 2 })", "Redefinition of property at (1:31)", nil)
+}
+
+func TestFail50(t *testing.T) {
+	testFail(t, "function t(...) { }", "Unexpected token at (1:11)", &ParserOpts{Version: ES5})
+}
+
+func TestFail51(t *testing.T) {
+	testFail(t, "function t(...) { }", "Unexpected token `)` at (1:14)", nil)
+}
+
+func TestFail52(t *testing.T) {
+	testFail(t, "function t(...rest,) { }",
+		"Unexpected trailing comma after rest element at (1:18)",
+		nil)
+}
+
+func TestFail53(t *testing.T) {
+	testFail(t, "function t(...rest, b) { }",
+		"Rest element must be last element at (1:18)",
+		nil)
+}
+
+func TestFail54(t *testing.T) {}
+
+func TestFail55(t *testing.T) {}

@@ -330,7 +330,7 @@ type TokenKind struct {
 // order should be as same as `TokenValue`
 var TokenKinds = [T_TOKEN_DEF_END - 1]*TokenKind{
 	{T_ILLEGAL, "T_ILLEGAL", 0, false, false},
-	{T_EOF, "end of script", 0, false, false},
+	{T_EOF, "EOF", 0, false, false},
 	{T_COMMENT, "comment", 0, false, false},
 
 	// literals
