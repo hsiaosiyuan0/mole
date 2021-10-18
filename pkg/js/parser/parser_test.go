@@ -1095,11 +1095,11 @@ func TestFail41(t *testing.T) {
 }
 
 func TestFail42(t *testing.T) {
-	testFail(t, "{ set 1 }", "Missing semicolon at (1:6)", nil)
+	testFail(t, "{ set 1 }", "Unexpected token at (1:6)", nil)
 }
 
 func TestFail43(t *testing.T) {
-	testFail(t, "{ get 2 }", "Missing semicolon at (1:6)", nil)
+	testFail(t, "{ get 2 }", "Unexpected token at (1:6)", nil)
 }
 
 func TestFail44(t *testing.T) {
@@ -1136,16 +1136,140 @@ func TestFail51(t *testing.T) {
 
 func TestFail52(t *testing.T) {
 	testFail(t, "function t(...rest,) { }",
-		"Unexpected trailing comma after rest element at (1:18)",
-		nil)
+		"Unexpected trailing comma after rest element at (1:18)", nil)
 }
 
 func TestFail53(t *testing.T) {
 	testFail(t, "function t(...rest, b) { }",
-		"Rest element must be last element at (1:18)",
-		nil)
+		"Rest element must be last element at (1:18)", nil)
 }
 
-func TestFail54(t *testing.T) {}
+func TestFail54(t *testing.T) {
+	testFail(t, "function t(if) { }",
+		"Unexpected token `if` at (1:11)", nil)
+}
 
-func TestFail55(t *testing.T) {}
+func TestFail56(t *testing.T) {
+	testFail(t, "function t(false) { }",
+		"Unexpected token `false` at (1:11)", nil)
+}
+
+func TestFail57(t *testing.T) {
+	testFail(t, "function t(true) { }",
+		"Unexpected token `true` at (1:11)", nil)
+}
+
+func TestFail58(t *testing.T) {
+	testFail(t, "function t(null) { }",
+		"Unexpected token `null` at (1:11)", nil)
+}
+
+func TestFail59(t *testing.T) {
+	testFail(t, "function true() { }",
+		"Unexpected token `true` at (1:9)", nil)
+}
+
+func TestFail60(t *testing.T) {
+	testFail(t, "function false() { }",
+		"Unexpected token `false` at (1:9)", nil)
+}
+
+func TestFail61(t *testing.T) {
+	testFail(t, "function if() { }",
+		"Unexpected token `if` at (1:9)", nil)
+}
+
+func TestFail62(t *testing.T) {
+	testFail(t, "a b;",
+		"Unexpected token at (1:2)", nil)
+}
+
+func TestFail63(t *testing.T) {
+	testFail(t, "if.a;",
+		"Unexpected token `.` at (1:2)", nil)
+}
+
+func TestFail64(t *testing.T) {
+	testFail(t, "a if;",
+		"Unexpected token at (1:2)", nil)
+}
+
+func TestFail65(t *testing.T) {
+	testFail(t, "a class;",
+		"Unexpected token at (1:2)", nil)
+}
+
+func TestFail66(t *testing.T) {
+	// testFail(t, "break\n",
+	// 	"Unsyntactic break (1:0)", nil)
+}
+
+func TestFail67(t *testing.T) {}
+
+func TestFail68(t *testing.T) {}
+
+func TestFail69(t *testing.T) {}
+
+func TestFail70(t *testing.T) {}
+
+func TestFail71(t *testing.T) {}
+
+func TestFail72(t *testing.T) {}
+
+func TestFail73(t *testing.T) {}
+
+func TestFail74(t *testing.T) {}
+
+func TestFail75(t *testing.T) {}
+
+func TestFail76(t *testing.T) {}
+
+func TestFail77(t *testing.T) {}
+
+func TestFail78(t *testing.T) {}
+
+func TestFail79(t *testing.T) {}
+
+func TestFail80(t *testing.T) {}
+
+func TestFail81(t *testing.T) {}
+
+func TestFail82(t *testing.T) {}
+
+func TestFail83(t *testing.T) {}
+
+func TestFail84(t *testing.T) {}
+
+func TestFail85(t *testing.T) {}
+
+func TestFail86(t *testing.T) {}
+
+func TestFail87(t *testing.T) {}
+
+func TestFail88(t *testing.T) {}
+
+func TestFail89(t *testing.T) {}
+
+func TestFail90(t *testing.T) {}
+
+func TestFail91(t *testing.T) {}
+
+func TestFail92(t *testing.T) {}
+
+func TestFail93(t *testing.T) {}
+
+func TestFail94(t *testing.T) {}
+
+func TestFail95(t *testing.T) {}
+
+func TestFail96(t *testing.T) {}
+
+func TestFail97(t *testing.T) {}
+
+func TestFail98(t *testing.T) {}
+
+func TestFail99(t *testing.T) {}
+
+func TestFail100(t *testing.T) {}
+
+func TestFail101(t *testing.T) {}
