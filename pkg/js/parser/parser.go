@@ -455,7 +455,11 @@ func (p *Parser) classDec(expr bool) (Node, error) {
 
 func (p *Parser) classBody() (Node, error) {
 	loc := p.loc()
-	p.nextMustTok(T_BRACE_L)
+
+	if _, err := p.nextMustTok(T_BRACE_L); err != nil {
+		return nil, err
+	}
+
 	elems := make([]Node, 0)
 	for {
 		tok := p.lexer.Peek()
@@ -473,7 +477,11 @@ func (p *Parser) classBody() (Node, error) {
 		}
 		elems = append(elems, elem)
 	}
-	p.nextMustTok(T_BRACE_R)
+
+	if _, err := p.nextMustTok(T_BRACE_R); err != nil {
+		return nil, err
+	}
+
 	return &ClassBody{N_ClASS_BODY, p.finLoc(loc), elems}, nil
 }
 
@@ -597,12 +605,16 @@ func (p *Parser) withStmt() (Node, error) {
 	loc := p.loc()
 	p.lexer.Next()
 
-	p.nextMustTok(T_PAREN_L)
+	if _, err := p.nextMustTok(T_PAREN_L); err != nil {
+		return nil, err
+	}
 	expr, err := p.expr(false)
 	if err != nil {
 		return nil, err
 	}
-	p.nextMustTok(T_PAREN_R)
+	if _, err := p.nextMustTok(T_PAREN_R); err != nil {
+		return nil, err
+	}
 
 	body, err := p.stmt()
 	if err != nil {
@@ -643,12 +655,16 @@ func (p *Parser) tryStmt() (Node, error) {
 	if tok.value == T_CATCH {
 		loc := p.loc()
 		p.lexer.Next()
-		p.nextMustTok(T_PAREN_L)
+		if _, err := p.nextMustTok(T_PAREN_L); err != nil {
+			return nil, err
+		}
 		param, err := p.bindingPattern()
 		if err != nil {
 			return nil, err
 		}
-		p.nextMustTok(T_PAREN_R)
+		if _, err := p.nextMustTok(T_PAREN_R); err != nil {
+			return nil, err
+		}
 
 		body, err := p.blockStmt(false)
 		if err != nil {
@@ -801,15 +817,21 @@ func (p *Parser) switchStmt() (Node, error) {
 	loc := p.loc()
 	p.lexer.Next()
 
-	p.nextMustTok(T_PAREN_L)
+	if _, err := p.nextMustTok(T_PAREN_L); err != nil {
+		return nil, err
+	}
 	test, err := p.expr(false)
 	if err != nil {
 		return nil, err
 	}
-	p.nextMustTok(T_PAREN_R)
+	if _, err := p.nextMustTok(T_PAREN_R); err != nil {
+		return nil, err
+	}
 
 	cases := make([]*SwitchCase, 0)
-	p.nextMustTok(T_BRACE_L)
+	if _, err := p.nextMustTok(T_BRACE_L); err != nil {
+		return nil, err
+	}
 	metDefault := false
 	for {
 		tok := p.lexer.Peek()
@@ -835,7 +857,9 @@ func (p *Parser) switchStmt() (Node, error) {
 			break
 		}
 	}
-	p.nextMustTok(T_BRACE_R)
+	if _, err := p.nextMustTok(T_BRACE_R); err != nil {
+		return nil, err
+	}
 
 	return &SwitchStmt{N_STMT_SWITCH, p.finLoc(loc), test, cases}, nil
 }
@@ -852,7 +876,9 @@ func (p *Parser) switchCase(tok *Token) (*SwitchCase, error) {
 			return nil, err
 		}
 	}
-	p.nextMustTok(T_COLON)
+	if _, err := p.nextMustTok(T_COLON); err != nil {
+		return nil, err
+	}
 
 	cons := make([]Node, 0)
 	for {
@@ -878,12 +904,16 @@ func (p *Parser) ifStmt() (Node, error) {
 	loc := p.loc()
 	p.lexer.Next()
 
-	p.nextMustTok(T_PAREN_L)
+	if _, err := p.nextMustTok(T_PAREN_L); err != nil {
+		return nil, err
+	}
 	test, err := p.expr(false)
 	if err != nil {
 		return nil, err
 	}
-	p.nextMustTok(T_PAREN_R)
+	if _, err := p.nextMustTok(T_PAREN_R); err != nil {
+		return nil, err
+	}
 
 	cons, err := p.stmt()
 	if err != nil {
@@ -911,13 +941,19 @@ func (p *Parser) doWhileStmt() (Node, error) {
 		return nil, err
 	}
 
-	p.nextMustTok(T_WHILE)
-	p.nextMustTok(T_PAREN_L)
+	if _, err := p.nextMustTok(T_WHILE); err != nil {
+		return nil, err
+	}
+	if _, err := p.nextMustTok(T_PAREN_L); err != nil {
+		return nil, err
+	}
 	test, err := p.expr(false)
 	if err != nil {
 		return nil, err
 	}
-	p.nextMustTok(T_PAREN_R)
+	if _, err := p.nextMustTok(T_PAREN_R); err != nil {
+		return nil, err
+	}
 
 	if err := p.advanceIfSemi(true); err != nil {
 		return nil, err
@@ -930,12 +966,16 @@ func (p *Parser) whileStmt() (Node, error) {
 	loc := p.loc()
 	p.lexer.Next()
 
-	p.nextMustTok(T_PAREN_L)
+	if _, err := p.nextMustTok(T_PAREN_L); err != nil {
+		return nil, err
+	}
 	test, err := p.expr(false)
 	if err != nil {
 		return nil, err
 	}
-	p.nextMustTok(T_PAREN_R)
+	if _, err := p.nextMustTok(T_PAREN_R); err != nil {
+		return nil, err
+	}
 
 	body, err := p.stmt()
 	if err != nil {
@@ -956,7 +996,9 @@ func (p *Parser) forStmt() (Node, error) {
 		p.lexer.Next()
 	}
 
-	p.nextMustTok(T_PAREN_L)
+	if _, err := p.nextMustTok(T_PAREN_L); err != nil {
+		return nil, err
+	}
 
 	tok := p.lexer.Peek()
 
@@ -990,7 +1032,9 @@ func (p *Parser) forStmt() (Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		p.nextMustTok(T_PAREN_R)
+		if _, err := p.nextMustTok(T_PAREN_R); err != nil {
+			return nil, err
+		}
 		body, err := p.stmt()
 		if err != nil {
 			return nil, err
@@ -998,7 +1042,9 @@ func (p *Parser) forStmt() (Node, error) {
 		return &ForInOfStmt{N_STMT_FOR_IN_OF, p.finLoc(loc), isIn, await, init, right, body}, nil
 	}
 
-	p.nextMustTok(T_SEMI)
+	if _, err := p.nextMustTok(T_SEMI); err != nil {
+		return nil, err
+	}
 	var test Node
 	if p.lexer.Peek().value == T_SEMI {
 		p.lexer.Next()
@@ -1007,7 +1053,9 @@ func (p *Parser) forStmt() (Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		p.nextMustTok(T_SEMI)
+		if _, err := p.nextMustTok(T_SEMI); err != nil {
+			return nil, err
+		}
 	}
 
 	var update Node
@@ -1018,7 +1066,9 @@ func (p *Parser) forStmt() (Node, error) {
 		}
 	}
 
-	p.nextMustTok(T_PAREN_R)
+	if _, err := p.nextMustTok(T_PAREN_R); err != nil {
+		return nil, err
+	}
 	body, err := p.stmt()
 	if err != nil {
 		return nil, err
@@ -1907,7 +1957,9 @@ func (p *Parser) argList() ([]Node, error) {
 		}
 		args = append(args, arg)
 	}
-	p.nextMustTok(T_PAREN_R)
+	if _, err := p.nextMustTok(T_PAREN_R); err != nil {
+		return nil, err
+	}
 	return args, nil
 }
 
@@ -2324,7 +2376,7 @@ func (p *Parser) advanceIfSemi(raise bool) error {
 		p.lexer.Next()
 	}
 	if raise && tok.value != T_SEMI && tok.value != T_BRACE_R && !tok.afterLineTerminator && tok.value != T_EOF {
-		return p.errorAt(tok.value, &tok.begin, "Missing semicolon")
+		return p.errorAt(tok.value, &tok.begin, "Unexpected token")
 	}
 	return nil
 }
