@@ -122,7 +122,7 @@ func (t *Token) ErrMsg() string {
 	if msg, ok := t.ext.(*LexerError); ok {
 		return msg.Error()
 	}
-	return ""
+	return "Unexpected character"
 }
 
 type TokExtStr struct {

@@ -62,9 +62,7 @@ var errEof = errors.New("eof")
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-statements-and-declarations.html#prod-Statement
 func (p *Parser) stmt() (node Node, err error) {
-	p.lexer.beginStmt = true
-
-	tok := p.lexer.Peek()
+	tok := p.lexer.PeekStmtBegin()
 
 	if tok.value > T_KEYWORD_BEGIN && tok.value < T_KEYWORD_END {
 		switch tok.value {
@@ -106,7 +104,7 @@ func (p *Parser) stmt() (node Node, err error) {
 			node, err = p.exprStmt()
 		}
 	} else if tok.value == T_BRACE_L {
-		node, err = p.blockStmt(false)
+		node, err = p.blockStmt(true)
 	} else if p.aheadIsVarDec(tok) {
 		node, err = p.varDecStmt(false, false)
 	} else if p.aheadIsAsync(tok) {
@@ -125,7 +123,7 @@ func (p *Parser) stmt() (node Node, err error) {
 		return nil, err
 	}
 
-	p.lexer.beginStmt = true
+	p.lexer.beginStmt = false
 	return node, nil
 }
 
@@ -586,7 +584,7 @@ func (p *Parser) classElemName() (Node, error) {
 }
 
 func (p *Parser) staticBlock() (Node, error) {
-	block, err := p.blockStmt(false)
+	block, err := p.blockStmt(true)
 	if err != nil {
 		return nil, err
 	}
@@ -616,8 +614,12 @@ func (p *Parser) withStmt() (Node, error) {
 		return nil, err
 	}
 
+	tok := p.lexer.PeekStmtBegin()
 	body, err := p.stmt()
 	if err != nil {
+		if err == errEof {
+			return nil, p.errorTok(tok)
+		}
 		return nil, err
 	}
 
@@ -641,7 +643,7 @@ func (p *Parser) tryStmt() (Node, error) {
 	loc := p.loc()
 	p.lexer.Next()
 
-	try, err := p.blockStmt(false)
+	try, err := p.blockStmt(true)
 	if err != nil {
 		return nil, err
 	}
@@ -666,7 +668,7 @@ func (p *Parser) tryStmt() (Node, error) {
 			return nil, err
 		}
 
-		body, err := p.blockStmt(false)
+		body, err := p.blockStmt(true)
 		if err != nil {
 			return nil, err
 		}
@@ -676,7 +678,7 @@ func (p *Parser) tryStmt() (Node, error) {
 	var fin Node
 	if p.lexer.Peek().value == T_FINALLY {
 		p.lexer.Next()
-		fin, err = p.blockStmt(false)
+		fin, err = p.blockStmt(true)
 		if err != nil {
 			return nil, err
 		}
@@ -693,13 +695,13 @@ func (p *Parser) throwStmt() (Node, error) {
 	tok := p.lexer.Peek()
 	var arg Node
 	var err error
-	if tok.value == T_SEMI {
-		p.lexer.Next()
-	} else if tok.value != T_ILLEGAL && tok.value != T_EOF && !tok.afterLineTerminator {
+	if tok.value != T_ILLEGAL && tok.value != T_EOF && !tok.afterLineTerminator {
 		arg, err = p.expr(false)
 		if err != nil {
 			return nil, err
 		}
+	} else {
+		return nil, p.errorTok(tok)
 	}
 
 	if err := p.advanceIfSemi(true); err != nil {
@@ -735,6 +737,10 @@ func (p *Parser) retStmt() (Node, error) {
 		return nil, err
 	}
 
+	scope := p.scope()
+	if !scope.IsKind(SPK_FUNC) && !scope.IsKind(SPK_FUNC_INDIRECT) {
+		return nil, p.errorAtLoc(loc, "Illegal return")
+	}
 	return &RetStmt{N_STMT_RET, p.finLoc(loc), arg}, nil
 }
 
@@ -785,6 +791,13 @@ func (p *Parser) brkStmt() (Node, error) {
 	if err := p.advanceIfSemi(true); err != nil {
 		return nil, err
 	}
+
+	scope := p.scope()
+	if !scope.IsKind(SPK_LOOP_DIRECT) &&
+		!scope.IsKind(SPK_LOOP_INDIRECT) &&
+		!scope.IsKind(SPK_SWITCH) {
+		return nil, p.errorAtLoc(loc, "Illegal break")
+	}
 	return &BrkStmt{N_STMT_BRK, p.finLoc(loc), nil}, nil
 }
 
@@ -808,6 +821,11 @@ func (p *Parser) contStmt() (Node, error) {
 
 	if err := p.advanceIfSemi(true); err != nil {
 		return nil, err
+	}
+
+	scope := p.scope()
+	if !scope.IsKind(SPK_LOOP_DIRECT) && !scope.IsKind(SPK_LOOP_INDIRECT) {
+		return nil, p.errorAtLoc(loc, "Illegal continue")
 	}
 	return &ContStmt{N_STMT_CONT, p.finLoc(loc), nil}, nil
 }
@@ -833,6 +851,10 @@ func (p *Parser) switchStmt() (Node, error) {
 		return nil, err
 	}
 	metDefault := false
+
+	scope := p.symtab.EnterScope(false)
+	scope.AddKind(SPK_SWITCH)
+
 	for {
 		tok := p.lexer.Peek()
 		if tok.value == T_BRACE_R {
@@ -843,7 +865,7 @@ func (p *Parser) switchStmt() (Node, error) {
 			return nil, p.errorTok(tok)
 		}
 		if tok.value == T_DEFAULT && metDefault {
-			return nil, p.errorTok(tok)
+			return nil, p.errorAt(tok.value, &tok.begin, "Multiple default clauses")
 		}
 
 		caseClause, err := p.switchCase(tok)
@@ -899,6 +921,16 @@ func (p *Parser) switchCase(tok *Token) (*SwitchCase, error) {
 	return &SwitchCase{N_SWITCH_CASE, p.finLoc(loc), test, cons}, nil
 }
 
+func (p *Parser) forbidVarDec(stmt Node) error {
+	if stmt.Type() == N_STMT_VAR_DEC {
+		dec := stmt.(*VarDecStmt)
+		if dec.kind != T_VAR {
+			return p.errorAtLoc(stmt.Loc(), "Illegal lexical declaration")
+		}
+	}
+	return nil
+}
+
 // https://tc39.es/ecma262/multipage/ecmascript-language-statements-and-declarations.html#prod-IfStatement
 func (p *Parser) ifStmt() (Node, error) {
 	loc := p.loc()
@@ -915,16 +947,27 @@ func (p *Parser) ifStmt() (Node, error) {
 		return nil, err
 	}
 
+	tok := p.lexer.PeekStmtBegin()
 	cons, err := p.stmt()
 	if err != nil {
+		if err == errEof {
+			return nil, p.errorTok(tok)
+		}
+		return nil, err
+	}
+	if err = p.forbidVarDec(cons); err != nil {
 		return nil, err
 	}
 
 	var alt Node
 	if p.lexer.Peek().value == T_ELSE {
 		p.lexer.Next()
+		tok := p.lexer.PeekStmtBegin()
 		alt, err = p.stmt()
 		if err != nil {
+			if err == errEof {
+				return nil, p.errorTok(tok)
+			}
 			return nil, err
 		}
 	}
@@ -936,8 +979,12 @@ func (p *Parser) doWhileStmt() (Node, error) {
 	loc := p.loc()
 	p.lexer.Next()
 
+	tok := p.lexer.PeekStmtBegin()
 	body, err := p.stmt()
 	if err != nil {
+		if err == errEof {
+			return nil, p.errorTok(tok)
+		}
 		return nil, err
 	}
 
@@ -977,8 +1024,15 @@ func (p *Parser) whileStmt() (Node, error) {
 		return nil, err
 	}
 
+	scope := p.symtab.EnterScope(false)
+	scope.AddKind(SPK_LOOP_DIRECT)
+
+	tok := p.lexer.PeekStmtBegin()
 	body, err := p.stmt()
 	if err != nil {
+		if err == errEof {
+			return nil, p.errorTok(tok)
+		}
 		return nil, err
 	}
 
@@ -1025,6 +1079,11 @@ func (p *Parser) forStmt() (Node, error) {
 
 		if init.Type() != N_STMT_VAR_DEC && !p.isSimpleLVal(init) {
 			return nil, p.errorAtLoc(init.Loc(), "Assigning to rvalue")
+		} else if init.Type() == N_STMT_VAR_DEC {
+			varDec := init.(*VarDecStmt)
+			if len(varDec.decList) > 1 {
+				return nil, p.errorAtLoc(varDec.decList[1].Loc(), "Must have a single binding")
+			}
 		}
 
 		p.lexer.Next()
@@ -1035,8 +1094,12 @@ func (p *Parser) forStmt() (Node, error) {
 		if _, err := p.nextMustTok(T_PAREN_R); err != nil {
 			return nil, err
 		}
+		tok := p.lexer.PeekStmtBegin()
 		body, err := p.stmt()
 		if err != nil {
+			if err == errEof {
+				return nil, p.errorTok(tok)
+			}
 			return nil, err
 		}
 		return &ForInOfStmt{N_STMT_FOR_IN_OF, p.finLoc(loc), isIn, await, init, right, body}, nil
@@ -1069,8 +1132,12 @@ func (p *Parser) forStmt() (Node, error) {
 	if _, err := p.nextMustTok(T_PAREN_R); err != nil {
 		return nil, err
 	}
+	tok = p.lexer.PeekStmtBegin()
 	body, err := p.stmt()
 	if err != nil {
+		if err == errEof {
+			return nil, p.errorTok(tok)
+		}
 		return nil, err
 	}
 
@@ -1148,7 +1215,7 @@ func (p *Parser) fnDec(expr bool, async bool) (Node, error) {
 		p.lexer.popMode()
 	}
 
-	p.symtab.LeaveScope()
+	// p.symtab.LeaveScope()
 	// TODO: check formal params if in strict mode
 
 	if arrow {
@@ -1197,26 +1264,26 @@ func (p *Parser) formalParams() ([]Node, error) {
 }
 
 func (p *Parser) fnBody() (Node, error) {
-	return p.blockStmt(true)
+	return p.blockStmt(false)
 }
 
 func (p *Parser) scope() *Scope {
 	return p.symtab.Cur
 }
 
-func (p *Parser) blockStmt(fnBody bool) (*BlockStmt, error) {
+func (p *Parser) blockStmt(newScope bool) (*BlockStmt, error) {
 	tok, err := p.nextMustTok(T_BRACE_L)
 	if err != nil {
 		return nil, err
 	}
-	if !fnBody {
+	if newScope {
 		p.symtab.EnterScope(false)
 	}
 	loc := p.locFromTok(tok)
 
 	stmts := make([]Node, 0)
 	for {
-		tok := p.lexer.Peek()
+		tok := p.lexer.PeekStmtBegin()
 		if tok.value == T_BRACE_R {
 			p.lexer.Next()
 			break
@@ -1227,6 +1294,8 @@ func (p *Parser) blockStmt(fnBody bool) (*BlockStmt, error) {
 		if err != nil {
 			return nil, err
 		}
+
+		fnBody := p.scope().IsKind(SPK_FUNC)
 		if stmt != nil {
 			if fnBody && stmt.Type() == N_STMT_EXPR {
 				expr := stmt.(*ExprStmt).expr
@@ -1238,7 +1307,7 @@ func (p *Parser) blockStmt(fnBody bool) (*BlockStmt, error) {
 			stmts = append(stmts, stmt)
 		}
 	}
-	if !fnBody {
+	if newScope {
 		p.symtab.LeaveScope()
 	}
 	return &BlockStmt{N_STMT_BLOCK, p.finLoc(loc), stmts}, nil
@@ -2358,6 +2427,8 @@ func (p *Parser) propMethod(key Node, kind string, gen bool, async bool, allowNa
 	if gen {
 		p.lexer.extMode(LM_GENERATOR, true)
 	}
+
+	p.symtab.EnterScope(true)
 	body, err := p.fnBody()
 	if gen {
 		p.lexer.popMode()
