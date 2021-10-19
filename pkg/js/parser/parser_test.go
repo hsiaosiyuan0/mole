@@ -611,31 +611,35 @@ func TestSwitchStmtDefaultMiddle(t *testing.T) {
 
 func TestBrkStmt(t *testing.T) {
 	ast, err := compile(`
-  break
+  while(true) break
   `, nil)
 	assert.Equal(t, nil, err, "should be prog ok")
-	_ = ast.(*Prog).stmts[0].(*BrkStmt)
+	whileStmt := ast.(*Prog).stmts[0].(*WhileStmt)
+	_ = whileStmt.body.(*BrkStmt)
 
 	ast, err = compile(`
-  break a;
+  while(true) break a;
   `, nil)
 	assert.Equal(t, nil, err, "should be prog ok")
-	stmt := ast.(*Prog).stmts[0].(*BrkStmt)
+	whileStmt = ast.(*Prog).stmts[0].(*WhileStmt)
+	stmt := whileStmt.body.(*BrkStmt)
 	assert.Equal(t, "a", stmt.label.(*Ident).Text(), "should be a")
 }
 
 func TestContStmt(t *testing.T) {
 	ast, err := compile(`
-  continue
+  while(true) continue
   `, nil)
 	assert.Equal(t, nil, err, "should be prog ok")
-	_ = ast.(*Prog).stmts[0].(*ContStmt)
+	whileStmt := ast.(*Prog).stmts[0].(*WhileStmt)
+	_ = whileStmt.body.(*ContStmt)
 
 	ast, err = compile(`
-  continue a;
+  while(true) continue a;
   `, nil)
 	assert.Equal(t, nil, err, "should be prog ok")
-	stmt := ast.(*Prog).stmts[0].(*ContStmt)
+	whileStmt = ast.(*Prog).stmts[0].(*WhileStmt)
+	stmt := whileStmt.body.(*ContStmt)
 	assert.Equal(t, "a", stmt.label.(*Ident).Text(), "should be a")
 }
 
@@ -673,23 +677,25 @@ func TestLabelStmt(t *testing.T) {
 
 func TestRetStmt(t *testing.T) {
 	ast, err := compile(`
-  return a
+  function a() { return a }
   `, nil)
 	assert.Equal(t, nil, err, "should be prog ok")
 
-	retStmt := ast.(*Prog).stmts[0].(*RetStmt)
-	assert.Equal(t, "a", retStmt.arg.(*Ident).Text(), "should be a")
+	stmt0 := ast.(*Prog).stmts[0].(*FnDec)
+	assert.Equal(t, "a", stmt0.body.(*BlockStmt).body[0].(*RetStmt).arg.(*Ident).Text(), "should be a")
 
 	ast, err = compile(`
-  return
-  a
+  function a() {
+    return
+    a
+  }
   `, nil)
 	assert.Equal(t, nil, err, "should be prog ok")
 
-	stmt0 := ast.(*Prog).stmts[0].(*RetStmt)
-	assert.Equal(t, nil, stmt0.arg, "should be nil")
+	stmt0 = ast.(*Prog).stmts[0].(*FnDec)
+	assert.Equal(t, nil, stmt0.body.(*BlockStmt).body[0].(*RetStmt).arg, "should be nil")
 
-	stmt1 := ast.(*Prog).stmts[1].(*ExprStmt)
+	stmt1 := stmt0.body.(*BlockStmt).body[1].(*ExprStmt)
 	assert.Equal(t, "a", stmt1.expr.(*Ident).Text(), "should be a")
 }
 
@@ -702,17 +708,11 @@ func TestThrowStmt(t *testing.T) {
 	stmt0 := ast.(*Prog).stmts[0].(*ThrowStmt)
 	assert.Equal(t, "a", stmt0.arg.(*Ident).Text(), "should be a")
 
-	ast, err = compile(`
+	_, err = compile(`
   throw
   a
   `, nil)
-	assert.Equal(t, nil, err, "should be prog ok")
-
-	stmt0 = ast.(*Prog).stmts[0].(*ThrowStmt)
-	assert.Equal(t, nil, stmt0.arg, "should be nil")
-
-	stmt1 := ast.(*Prog).stmts[1].(*ExprStmt)
-	assert.Equal(t, "a", stmt1.expr.(*Ident).Text(), "should be a")
+	assert.Equal(t, true, err != nil, "should be failed")
 }
 
 func TestTryStmt(t *testing.T) {
@@ -1200,76 +1200,607 @@ func TestFail65(t *testing.T) {
 }
 
 func TestFail66(t *testing.T) {
-	// testFail(t, "break\n",
-	// 	"Unsyntactic break (1:0)", nil)
+	testFail(t, "break\n",
+		"Illegal break at (1:0)", nil)
 }
 
-func TestFail67(t *testing.T) {}
+func TestFail67(t *testing.T) {
+	testFail(t, "break 1;",
+		"Unexpected token at (1:6)", nil)
+}
 
-func TestFail68(t *testing.T) {}
+func TestFail68(t *testing.T) {
+	testFail(t, "continue\n",
+		"Illegal continue at (1:0)", nil)
+}
 
-func TestFail69(t *testing.T) {}
+func TestFail69(t *testing.T) {
+	testFail(t, "continue 2;",
+		"Unexpected token at (1:9)", nil)
+}
 
-func TestFail70(t *testing.T) {}
+func TestFail70(t *testing.T) {
+	testFail(t, "throw",
+		"Unexpected token `EOF` at (1:5)", nil)
+}
 
-func TestFail71(t *testing.T) {}
+func TestFail71(t *testing.T) {
+	testFail(t, "throw;",
+		"Unexpected token `;` at (1:5)", nil)
+}
 
-func TestFail72(t *testing.T) {}
+func TestFail72(t *testing.T) {
+	testFail(t, "for (var i, i2 in {});",
+		"Must have a single binding at (1:12)", nil)
+}
 
-func TestFail73(t *testing.T) {}
+func TestFail73(t *testing.T) {
+	testFail(t, "for ((i in {}));",
+		"Unexpected token `)` at (1:14)", nil)
+}
 
-func TestFail74(t *testing.T) {}
+func TestFail74(t *testing.T) {
+	testFail(t, "for (i + 1 in {});",
+		"Assigning to rvalue at (1:5)", nil)
+}
 
-func TestFail75(t *testing.T) {}
+func TestFail75(t *testing.T) {
+	testFail(t, "for (+i in {});",
+		"Assigning to rvalue at (1:5)", nil)
+}
 
-func TestFail76(t *testing.T) {}
+func TestFail76(t *testing.T) {
+	testFail(t, "if(false)",
+		"Unexpected token `EOF` at (1:9)", nil)
+}
 
-func TestFail77(t *testing.T) {}
+func TestFail77(t *testing.T) {
+	testFail(t, "if(false) doThis(); else",
+		"Unexpected token `EOF` at (1:24)", nil)
+}
 
-func TestFail78(t *testing.T) {}
+func TestFail78(t *testing.T) {
+	testFail(t, "do",
+		"Unexpected token `EOF` at (1:2)", nil)
+}
 
-func TestFail79(t *testing.T) {}
+func TestFail79(t *testing.T) {
+	testFail(t, "while(false)",
+		"Unexpected token `EOF` at (1:12)", nil)
+}
 
-func TestFail80(t *testing.T) {}
+func TestFail80(t *testing.T) {
+	testFail(t, "for(;;)",
+		"Unexpected token `EOF` at (1:7)", nil)
+}
 
-func TestFail81(t *testing.T) {}
+func TestFail81(t *testing.T) {
+	testFail(t, "with(x)",
+		"Unexpected token `EOF` at (1:7)", nil)
+}
 
-func TestFail82(t *testing.T) {}
+func TestFail82(t *testing.T) {
+	testFail(t, "try { }",
+		"Unexpected token `EOF` at (1:7)", nil)
+}
 
-func TestFail83(t *testing.T) {}
+func TestFail83(t *testing.T) {
+	testFail(t, "‿ = 10",
+		"Unexpected character at (1:0)", nil)
+}
 
-func TestFail84(t *testing.T) {}
+func TestFail84(t *testing.T) {
+	testFail(t, "if(true) let a = 1;",
+		"Illegal lexical declaration at (1:9)", nil)
+}
 
-func TestFail85(t *testing.T) {}
+func TestFail85(t *testing.T) {
+	testFail(t, "switch (c) { default: default: }",
+		"Multiple default clauses at (1:22)", nil)
+}
 
-func TestFail86(t *testing.T) {}
+func TestFail86(t *testing.T) {
+	testFail(t, "new X().\"s\"",
+		"Unexpected token `string` at (1:8)", nil)
+}
 
-func TestFail87(t *testing.T) {}
+func TestFail87(t *testing.T) {
+	testFail(t, "/*",
+		"Unterminated comment at (1:0)", nil)
+}
 
-func TestFail88(t *testing.T) {}
+func TestFail88(t *testing.T) {
+	testFail(t, "/*\n\n\n",
+		"Unterminated comment at (1:0)", nil)
+}
 
-func TestFail89(t *testing.T) {}
+func TestFail89(t *testing.T) {
+	testFail(t, "/**",
+		"Unterminated comment at (1:0)", nil)
+}
 
-func TestFail90(t *testing.T) {}
+func TestFail90(t *testing.T) {
+	testFail(t, "/*\n\n*",
+		"Unterminated comment at (1:0)", nil)
+}
 
-func TestFail91(t *testing.T) {}
+func TestFail91(t *testing.T) {
+	testFail(t, "/*hello",
+		"Unterminated comment at (1:0)", nil)
+}
 
-func TestFail92(t *testing.T) {}
+func TestFail92(t *testing.T) {
+	testFail(t, "/*hello  *",
+		"Unterminated comment at (1:0)", nil)
+}
 
-func TestFail93(t *testing.T) {}
+func TestFail93(t *testing.T) {
+	testFail(t, "\n]",
+		"Unexpected token `]` at (2:0)", nil)
+}
 
-func TestFail94(t *testing.T) {}
+func TestFail94(t *testing.T) {
+	testFail(t, "\r]",
+		"Unexpected token `]` at (2:0)", nil)
+}
 
-func TestFail95(t *testing.T) {}
+func TestFail95(t *testing.T) {
+	testFail(t, "\r\n]",
+		"Unexpected token `]` at (2:0)", nil)
+}
 
-func TestFail96(t *testing.T) {}
+func TestFail96(t *testing.T) {
+	testFail(t, "\n\r]",
+		"Unexpected token `]` at (3:0)", nil)
+}
 
-func TestFail97(t *testing.T) {}
+func TestFail97(t *testing.T) {
+	testFail(t, "//\r\n]",
+		"Unexpected token `]` at (2:0)", nil)
+}
 
-func TestFail98(t *testing.T) {}
+func TestFail98(t *testing.T) {
+	testFail(t, "//\n\r]",
+		"Unexpected token `]` at (3:0)", nil)
+}
 
-func TestFail99(t *testing.T) {}
+func TestFail99(t *testing.T) {
+	testFail(t, "/a\\\n/",
+		"Unterminated regular expression at (1:0)", nil)
+}
 
-func TestFail100(t *testing.T) {}
+func TestFail100(t *testing.T) {
+	testFail(t, "//\r \n]",
+		"Unexpected token `]` at (3:0)", nil)
+}
 
-func TestFail101(t *testing.T) {}
+func TestFail101(t *testing.T) {
+	testFail(t, "/*\r\n*/]",
+		"Unexpected token `]` at (2:2)", nil)
+}
+
+func TestFail102(t *testing.T) {
+	testFail(t, "/*\n\r*/]",
+		"Unexpected token `]` at (3:2)", nil)
+}
+
+func TestFail103(t *testing.T) {
+	testFail(t, "/*\r \n*/]",
+		"Unexpected token `]` at (3:2)", nil)
+}
+
+func TestFail104(t *testing.T) {
+	testFail(t, "\\\\",
+		"Expecting Unicode escape sequence \\uXXXX at (1:0)", nil)
+}
+
+func TestFail105(t *testing.T) {
+	testFail(t, "\\u005c",
+		"Invalid Unicode escape at (1:0)", nil)
+}
+
+func TestFail106(t *testing.T) {
+	testFail(t, "\\x",
+		"Expecting Unicode escape sequence \\uXXXX at (1:0)", nil)
+}
+
+func TestFail107(t *testing.T) {
+	testFail(t, "\\u0000",
+		"Invalid Unicode escape at (1:0)", nil)
+}
+
+func TestFail108(t *testing.T) {
+	//lint:ignore ST1018 lhs is `\u200c`
+	testFail(t, "‌ = []",
+		"Unexpected character at (1:0)", nil)
+}
+
+func TestFail109(t *testing.T) {
+	//lint:ignore ST1018 lhs is `\u200d`
+	testFail(t, "‍ = []",
+		"Unexpected character at (1:0)", nil)
+}
+
+func TestFail110(t *testing.T) {
+	testFail(t, "\"\\",
+		"Unterminated string constant at (1:0)", nil)
+}
+
+func TestFail111(t *testing.T) {
+	testFail(t, "\"\\u",
+		"Bad character escape sequence at (1:0)", nil)
+}
+
+func TestFail112(t *testing.T) {
+	testFail(t, "return",
+		"Illegal return at (1:0)", nil)
+}
+
+func TestFail113(t *testing.T) {
+	testFail(t, "break",
+		"Illegal break at (1:0)", nil)
+}
+
+func TestFail114(t *testing.T) {
+	testFail(t, "continue",
+		"Illegal continue at (1:0)", nil)
+}
+
+func TestFail115(t *testing.T) {
+	testFail(t, "switch (x) { default: continue; }",
+		"Illegal continue at (1:22)", nil)
+}
+
+func TestFail116(t *testing.T) {
+	testFail(t, "do { x } *",
+		"Unexpected token `*` at (1:9)", nil)
+}
+
+func TestFail117(t *testing.T) {
+	// testFail(t, "while (true) { break x; }",
+	// 	"Unsyntactic break (1:15)", nil)
+}
+
+func TestFail118(t *testing.T) {
+
+}
+
+func TestFail119(t *testing.T) {
+
+}
+
+func TestFail120(t *testing.T) {
+
+}
+
+func TestFail121(t *testing.T) {
+
+}
+
+func TestFail122(t *testing.T) {
+
+}
+
+func TestFail123(t *testing.T) {
+
+}
+
+func TestFail124(t *testing.T) {
+
+}
+
+func TestFail125(t *testing.T) {
+
+}
+
+func TestFail126(t *testing.T) {
+
+}
+
+func TestFail127(t *testing.T) {
+
+}
+
+func TestFail128(t *testing.T) {
+
+}
+
+func TestFail129(t *testing.T) {
+
+}
+
+func TestFail130(t *testing.T) {
+
+}
+
+func TestFail131(t *testing.T) {
+
+}
+
+func TestFail132(t *testing.T) {
+
+}
+
+func TestFail133(t *testing.T) {
+
+}
+
+func TestFail134(t *testing.T) {
+
+}
+
+func TestFail135(t *testing.T) {
+
+}
+
+func TestFail136(t *testing.T) {
+
+}
+
+func TestFail137(t *testing.T) {
+
+}
+
+func TestFail138(t *testing.T) {
+
+}
+
+func TestFail139(t *testing.T) {
+
+}
+
+func TestFail140(t *testing.T) {
+
+}
+
+func TestFail141(t *testing.T) {
+
+}
+
+func TestFail142(t *testing.T) {
+
+}
+
+func TestFail143(t *testing.T) {
+
+}
+
+func TestFail144(t *testing.T) {
+
+}
+
+func TestFail145(t *testing.T) {
+
+}
+
+func TestFail146(t *testing.T) {
+
+}
+
+func TestFail147(t *testing.T) {
+
+}
+
+func TestFail148(t *testing.T) {
+
+}
+
+func TestFail149(t *testing.T) {
+
+}
+
+func TestFail150(t *testing.T) {
+
+}
+
+func TestFail151(t *testing.T) {
+
+}
+
+func TestFail152(t *testing.T) {
+
+}
+
+func TestFail153(t *testing.T) {
+
+}
+
+func TestFail154(t *testing.T) {
+
+}
+
+func TestFail155(t *testing.T) {
+
+}
+
+func TestFail156(t *testing.T) {
+
+}
+
+func TestFail157(t *testing.T) {
+
+}
+
+func TestFail158(t *testing.T) {
+
+}
+
+func TestFail159(t *testing.T) {
+
+}
+
+func TestFail160(t *testing.T) {
+
+}
+
+func TestFail161(t *testing.T) {
+
+}
+
+func TestFail162(t *testing.T) {
+
+}
+
+func TestFail163(t *testing.T) {
+
+}
+
+func TestFail164(t *testing.T) {
+
+}
+
+func TestFail165(t *testing.T) {
+
+}
+
+func TestFail166(t *testing.T) {
+
+}
+
+func TestFail167(t *testing.T) {
+
+}
+
+func TestFail168(t *testing.T) {
+
+}
+
+func TestFail169(t *testing.T) {
+
+}
+
+func TestFail170(t *testing.T) {
+
+}
+
+func TestFail171(t *testing.T) {
+
+}
+
+func TestFail172(t *testing.T) {
+
+}
+
+func TestFail173(t *testing.T) {
+
+}
+
+func TestFail174(t *testing.T) {
+
+}
+
+func TestFail175(t *testing.T) {
+
+}
+
+func TestFail176(t *testing.T) {
+
+}
+
+func TestFail177(t *testing.T) {
+
+}
+
+func TestFail178(t *testing.T) {
+
+}
+
+func TestFail179(t *testing.T) {
+
+}
+
+func TestFail180(t *testing.T) {
+
+}
+
+func TestFail181(t *testing.T) {
+
+}
+
+func TestFail182(t *testing.T) {
+
+}
+
+func TestFail183(t *testing.T) {
+
+}
+
+func TestFail184(t *testing.T) {
+
+}
+
+func TestFail185(t *testing.T) {
+
+}
+
+func TestFail186(t *testing.T) {
+
+}
+
+func TestFail187(t *testing.T) {
+
+}
+
+func TestFail188(t *testing.T) {
+
+}
+
+func TestFail189(t *testing.T) {
+
+}
+
+func TestFail190(t *testing.T) {
+
+}
+
+func TestFail191(t *testing.T) {
+
+}
+
+func TestFail192(t *testing.T) {
+
+}
+
+func TestFail193(t *testing.T) {
+
+}
+
+func TestFail194(t *testing.T) {
+
+}
+
+func TestFail195(t *testing.T) {
+
+}
+
+func TestFail196(t *testing.T) {
+
+}
+
+func TestFail197(t *testing.T) {
+
+}
+
+func TestFail198(t *testing.T) {
+
+}
+
+func TestFail199(t *testing.T) {
+
+}
+
+func TestFail200(t *testing.T) {
+
+}
+
+func TestFail201(t *testing.T) {
+
+}
+
+func TestFail202(t *testing.T) {
+
+}
+
+func TestFail203(t *testing.T) {
+
+}

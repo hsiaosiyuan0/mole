@@ -219,6 +219,13 @@ func (l *Lexer) Peek() *Token {
 	return l.PeekGrow()
 }
 
+func (l *Lexer) PeekStmtBegin() *Token {
+	l.beginStmt = true
+	tok := l.Peek()
+	l.beginStmt = false
+	return tok
+}
+
 func (l *Lexer) nextTok() *Token {
 	if l.pl > 0 {
 		tok := &l.peeked[l.pr]
@@ -339,9 +346,9 @@ func (l *Lexer) ReadName() *Token {
 	tok := l.newToken()
 
 	runes := make([]rune, 0, 10)
-	r := l.readIdStart()
-	if r == utf8.RuneError {
-		return l.errToken(tok, "")
+	r, err := l.readIdStart()
+	if r == utf8.RuneError || err != "" {
+		return l.errToken(tok, err)
 	}
 	runes = append(runes, r)
 
@@ -619,6 +626,8 @@ func (l *Lexer) readMultilineComment(tok *Token) *Token {
 			}
 		} else if c == EOL {
 			multiline = true
+		} else if c == EOF {
+			return l.errToken(tok, "Unterminated comment")
 		}
 	}
 	l.finToken(tok, T_COMMENT)
@@ -653,7 +662,10 @@ func (l *Lexer) readRegexp(tok *Token) *Token {
 		}
 		if c == '\\' {
 			l.src.Read()
-			l.src.Read()
+			nc := l.src.Peek()
+			if !IsLineTerminator(nc) {
+				l.src.Read()
+			}
 			continue
 		}
 		if c == '/' {
@@ -713,7 +725,7 @@ func (l *Lexer) ReadStr() *Token {
 				// allow `utf8.RuneError` to represent "Unicode replacement character"
 				// in string literal
 				if r == EOF {
-					return l.errToken(tok, "")
+					return l.errToken(tok, "Unterminated string constant")
 				}
 				text = append(text, r)
 			}
@@ -964,10 +976,9 @@ func (l *Lexer) readHexNum(tok *Token) *Token {
 	return l.finToken(tok, T_NUM)
 }
 
-func (l *Lexer) readIdStart() rune {
+func (l *Lexer) readIdStart() (rune, string) {
 	c := l.src.Read()
-	r, _ := l.readUnicodeEscape(c, true)
-	return r
+	return l.readUnicodeEscape(c, true)
 }
 
 func (l *Lexer) readIdPart() ([]rune, string) {
@@ -990,9 +1001,13 @@ func (l *Lexer) readIdPart() ([]rune, string) {
 }
 
 func (l *Lexer) readUnicodeEscape(c rune, id bool) (rune, string) {
-	if c == '\\' && l.src.AheadIsCh('u') {
-		l.src.Read()
-		return l.readUnicodeEscapeSeq(id)
+	if c == '\\' {
+		if l.src.AheadIsCh('u') {
+			l.src.Read()
+			return l.readUnicodeEscapeSeq(id)
+		} else {
+			return utf8.RuneError, "Expecting Unicode escape sequence \\uXXXX"
+		}
 	}
 	return c, ""
 }
@@ -1129,8 +1144,6 @@ func IsIdStart(c rune) bool {
 		unicode.In(c, unicode.Upper, unicode.Lower,
 			unicode.Title, unicode.Modi,
 			unicode.Lo,
-			unicode.Pc,
-			unicode.Mark,
 			unicode.Other_Lowercase,
 			unicode.Other_Uppercase,
 			unicode.Other_ID_Start) ||
@@ -1138,7 +1151,10 @@ func IsIdStart(c rune) bool {
 }
 
 func IsIdPart(c rune) bool {
-	return IsIdStart(c) || c >= '0' && c <= '9' || c == 0x200C || c == 0x200D
+	return IsIdStart(c) || c >= '0' && c <= '9' || c == 0x200C || c == 0x200D ||
+		unicode.In(c,
+			unicode.Pc,
+			unicode.Mark)
 }
 
 func IsOctalDigit(c rune) bool {

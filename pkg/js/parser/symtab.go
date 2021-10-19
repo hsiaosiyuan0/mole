@@ -6,10 +6,13 @@ const (
 	SPK_NONE          ScopeKind = 0
 	SPK_LOOP_DIRECT             = 1 << 0
 	SPK_LOOP_INDIRECT           = 1 << 1
-	SPK_STRICT                  = 1 << 2
-	SPK_BLOCK                   = 1 << 3
-	SPK_ASYNC                   = 1 << 4
-	SPK_GENERATOR               = 1 << 5
+	SPK_SWITCH                  = 1 << 2
+	SPK_STRICT                  = 1 << 3
+	SPK_BLOCK                   = 1 << 4
+	SPK_FUNC                    = 1 << 5
+	SPK_FUNC_INDIRECT           = 1 << 6
+	SPK_ASYNC                   = 1 << 7
+	SPK_GENERATOR               = 1 << 8
 )
 
 type Binding struct {
@@ -105,10 +108,15 @@ func (s *SymTab) EnterScope(fn bool) *Scope {
 
 	if !fn {
 		scope.Kind = SPK_BLOCK
+	} else {
+		scope.Kind = SPK_FUNC
 	}
 	// inherit scope kind
 	if s.Cur.IsKind(SPK_LOOP_DIRECT) {
 		scope.Kind |= SPK_LOOP_INDIRECT
+	}
+	if s.Cur.IsKind(SPK_FUNC) {
+		scope.Kind |= SPK_FUNC_INDIRECT
 	}
 	if s.Cur.IsKind(SPK_STRICT) {
 		scope.Kind |= SPK_STRICT
