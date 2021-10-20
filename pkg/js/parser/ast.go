@@ -292,9 +292,10 @@ func (n *NumLit) ToFloat() float64 {
 }
 
 type StrLit struct {
-	typ NodeType
-	loc *Loc
-	val string
+	typ                  NodeType
+	loc                  *Loc
+	val                  string
+	legacyOctalEscapeSeq bool
 }
 
 func (n *StrLit) Type() NodeType {

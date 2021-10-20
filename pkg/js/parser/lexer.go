@@ -259,7 +259,7 @@ func (l *Lexer) ReadTplSpan() *Token {
 	}
 
 	tok := l.newToken()
-	text, fin, line, col, ofst, pos, err := l.readTplChs()
+	text, fin, line, col, ofst, pos, err, _ := l.readTplChs()
 	if text == nil {
 		l.popMode()
 		return l.errToken(tok, err)
@@ -272,7 +272,8 @@ func (l *Lexer) ReadTplSpan() *Token {
 	tok.end.line = line
 	tok.end.col = col
 	tok.afterLineTerminator = l.src.metLineTerminator
-	tok.ext = false
+	ext := &TokExtTplSpan{false}
+	tok.ext = ext
 
 	if head {
 		tok.value = T_TPL_HEAD
@@ -283,7 +284,7 @@ func (l *Lexer) ReadTplSpan() *Token {
 	if fin {
 		l.popMode()
 		if head {
-			tok.ext = true
+			ext.Plain = true
 			return tok
 		}
 		tok.value = T_TPL_TAIL
@@ -292,7 +293,7 @@ func (l *Lexer) ReadTplSpan() *Token {
 	return tok
 }
 
-func (l *Lexer) readTplChs() (text []rune, fin bool, line, col, ofst, pos int, err string) {
+func (l *Lexer) readTplChs() (text []rune, fin bool, line, col, ofst, pos int, err string, legacyOctalEscapeSeq bool) {
 	text = make([]rune, 0, 10)
 	for {
 		line = l.src.line
@@ -315,7 +316,10 @@ func (l *Lexer) readTplChs() (text []rune, fin bool, line, col, ofst, pos int, e
 			if IsLineTerminator(nc) {
 				l.readLineTerminator() // LineContinuation
 			} else {
-				r, e := l.readEscapeSeq()
+				r, e, lo := l.readEscapeSeq()
+				if !legacyOctalEscapeSeq && lo {
+					legacyOctalEscapeSeq = lo
+				}
 				if e != "" {
 					err = e
 					text = nil
@@ -709,6 +713,7 @@ func (l *Lexer) ReadStr() *Token {
 	tok := l.newToken()
 	open := l.src.Read()
 	text := make([]rune, 0, 10)
+	legacyOctalEscapeSeq := false
 	for {
 		c := l.src.Read()
 		if c == utf8.RuneError || c == EOF {
@@ -718,7 +723,10 @@ func (l *Lexer) ReadStr() *Token {
 			if IsLineTerminator(nc) {
 				l.readLineTerminator() // LineContinuation
 			} else {
-				r, err := l.readEscapeSeq()
+				r, err, lo := l.readEscapeSeq()
+				if !legacyOctalEscapeSeq && lo {
+					legacyOctalEscapeSeq = lo
+				}
 				if err != "" {
 					return l.errToken(tok, err)
 				}
@@ -737,46 +745,56 @@ func (l *Lexer) ReadStr() *Token {
 			text = append(text, c)
 		}
 	}
-	tok.ext = &TokExtStr{open}
+	tok.ext = &TokExtStr{open, legacyOctalEscapeSeq}
 	tok.text = string(text)
 	return l.finToken(tok, T_STRING)
 }
 
-func (l *Lexer) readEscapeSeq() (rune, string) {
+func (l *Lexer) readEscapeSeq() (r rune, errMsg string, octalEscapeSeq bool) {
 	c := l.src.Read()
 	switch c {
 	case 'b':
-		return '\b', ""
+		r = '\b'
+		return
 	case 'f':
-		return '\f', ""
+		r = '\f'
+		return
 	case 'n':
-		return '\n', ""
+		r = '\n'
+		return
 	case 'r':
-		return '\r', ""
+		r = '\r'
+		return
 	case 't':
-		return '\t', ""
+		r = '\t'
+		return
 	case 'v':
-		return '\v', ""
+		r = '\v'
+		return
 	case '0', '1', '2', '3', '4', '5', '6', '7':
-		return l.readOctalEscapeSeq(c)
+		octalEscapeSeq = true
+		r, errMsg = l.readOctalEscapeSeq(c)
+		return
 	case 'x':
-		return l.readHexEscapeSeq()
+		r, errMsg = l.readHexEscapeSeq()
+		return
 	case 'u':
-		return l.readUnicodeEscapeSeq(false)
+		r, errMsg = l.readUnicodeEscapeSeq(false)
+		return
 	}
-	return c, ""
+	r = c
+	return
 }
 
-// https://tc39.es/ecma262/multipage/additional-ecmascript-features-for-web-browsers.html#prod-annexB-LegacyOctalEscapeSequence
+// https://tc39.es/ecma262/multipage/ecmascript-language-lexical-grammar.html#prod-LegacyOctalEscapeSequence
 // TODO: disabled in strict mode
 func (l *Lexer) readOctalEscapeSeq(first rune) (rune, string) {
 	octal := make([]rune, 0, 3)
 	octal = append(octal, first)
 	zeroToThree := first >= '0' && first <= '3'
 	i := 1
-	if first != '0' && l.isMode(LM_TEMPLATE) {
-		// octal escape sequences are not allowed in template strings
-		return utf8.RuneError, ""
+	if l.isMode(LM_TEMPLATE) {
+		return utf8.RuneError, "Octal escape sequences are not allowed in template strings"
 	}
 	for {
 		if !zeroToThree && i == 2 || zeroToThree && i == 3 {

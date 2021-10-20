@@ -31,6 +31,7 @@ type Scope struct {
 	Up   *Scope
 	Down []*Scope
 
+	Labels   map[string]Node
 	Bindings map[string]int
 }
 
@@ -38,6 +39,7 @@ func NewScope() *Scope {
 	scope := &Scope{
 		Id:       0,
 		Down:     make([]*Scope, 0),
+		Labels:   make(map[string]Node),
 		Bindings: make(map[string]int),
 	}
 	return scope
@@ -82,6 +84,11 @@ func (s *Scope) LocalIdx(name string) int {
 	return -1
 }
 
+func (s *Scope) HasLabel(name string) bool {
+	_, ok := s.Labels[name]
+	return ok
+}
+
 type SymTab struct {
 	Externals []string
 	Scopes    map[uint]*Scope
@@ -106,10 +113,14 @@ func (s *SymTab) EnterScope(fn bool) *Scope {
 	scope := NewScope()
 	scope.Id = s.Cur.Id + 1
 
-	if !fn {
-		scope.Kind = SPK_BLOCK
-	} else {
+	if fn {
 		scope.Kind = SPK_FUNC
+	} else {
+		// inherit labels from parent scope
+		for k, v := range s.Cur.Labels {
+			scope.Labels[k] = v
+		}
+		scope.Kind = SPK_BLOCK
 	}
 	// inherit scope kind
 	if s.Cur.IsKind(SPK_LOOP_DIRECT) {

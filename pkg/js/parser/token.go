@@ -112,7 +112,14 @@ func (t *Token) IsPlainTpl() bool {
 	if t.value != T_TPL_HEAD {
 		return false
 	}
-	return t.ext == true
+	return t.ext.(*TokExtTplSpan).Plain
+}
+
+func (t *Token) HasLegacyOctalEscapeSeq() bool {
+	if t.value == T_STRING {
+		return t.ext.(*TokExtStr).LegacyOctalEscapeSeq
+	}
+	return false
 }
 
 func (t *Token) ErrMsg() string {
@@ -126,7 +133,12 @@ func (t *Token) ErrMsg() string {
 }
 
 type TokExtStr struct {
-	open rune
+	Open                 rune
+	LegacyOctalEscapeSeq bool
+}
+
+type TokExtTplSpan struct {
+	Plain bool
 }
 
 type TokExtRegexp struct {
