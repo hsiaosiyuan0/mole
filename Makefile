@@ -1,3 +1,6 @@
+dep: cmd/lint/*.go internal/*/*.go pkg/*/*.go go.mod
+	go get -v ./...
+
 lint: cmd/lint/*.go internal/*/*.go pkg/*/*.go go.mod
 	go build ./cmd/lint
 
