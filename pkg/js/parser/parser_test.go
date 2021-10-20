@@ -618,10 +618,11 @@ func TestBrkStmt(t *testing.T) {
 	_ = whileStmt.body.(*BrkStmt)
 
 	ast, err = compile(`
-  while(true) break a;
+  a: while(true) break a;
   `, nil)
 	assert.Equal(t, nil, err, "should be prog ok")
-	whileStmt = ast.(*Prog).stmts[0].(*WhileStmt)
+	labelStmt := ast.(*Prog).stmts[0].(*LabelStmt)
+	whileStmt = labelStmt.body.(*WhileStmt)
 	stmt := whileStmt.body.(*BrkStmt)
 	assert.Equal(t, "a", stmt.label.(*Ident).Text(), "should be a")
 }
@@ -635,10 +636,11 @@ func TestContStmt(t *testing.T) {
 	_ = whileStmt.body.(*ContStmt)
 
 	ast, err = compile(`
-  while(true) continue a;
+  a: while(true) continue a;
   `, nil)
 	assert.Equal(t, nil, err, "should be prog ok")
-	whileStmt = ast.(*Prog).stmts[0].(*WhileStmt)
+	labelStmt := ast.(*Prog).stmts[0].(*LabelStmt)
+	whileStmt = labelStmt.body.(*WhileStmt)
 	stmt := whileStmt.body.(*ContStmt)
 	assert.Equal(t, "a", stmt.label.(*Ident).Text(), "should be a")
 }
@@ -1457,44 +1459,53 @@ func TestFail116(t *testing.T) {
 }
 
 func TestFail117(t *testing.T) {
-	// testFail(t, "while (true) { break x; }",
-	// 	"Unsyntactic break (1:15)", nil)
+	testFail(t, "while (true) { break x; }",
+		"Undefined label `x` at (1:21)", nil)
 }
 
 func TestFail118(t *testing.T) {
-
+	testFail(t, "while (true) { continue x; }",
+		"Undefined label `x` at (1:24)", nil)
 }
 
 func TestFail119(t *testing.T) {
-
+	testFail(t, "x: while (true) { (function () { break x; }); }",
+		"Undefined label `x` at (1:39)", nil)
 }
 
 func TestFail120(t *testing.T) {
-
+	testFail(t, "x: while (true) { (function () { continue x; }); }",
+		"Undefined label `x` at (1:42)", nil)
 }
 
 func TestFail121(t *testing.T) {
-
+	testFail(t, "x: while (true) { (function () { break; }); }",
+		"Illegal break at (1:33)", nil)
 }
 
 func TestFail122(t *testing.T) {
-
+	testFail(t, "x: while (true) { (function () { continue; }); }",
+		"Illegal continue at (1:33)", nil)
 }
 
 func TestFail123(t *testing.T) {
-
+	testFail(t, "x: while (true) { x: while (true) { } }",
+		"Label `x` already declared at (1:18)", nil)
 }
 
 func TestFail124(t *testing.T) {
-
+	testFail(t, "(function () { 'use strict'; delete i; }())",
+		"Deleting local variable in strict mode at (1:36)", nil)
 }
 
 func TestFail125(t *testing.T) {
-
+	testFail(t, "function x() { '\\12'; 'use strict'; }",
+		"Octal escape sequences are not allowed in strict mode at (1:15)", nil)
 }
 
 func TestFail126(t *testing.T) {
-
+	testFail(t, "function hello() {'use strict'; ({ i: 42, i: 42 }) }",
+		"Redefinition of property (1:42)", nil)
 }
 
 func TestFail127(t *testing.T) {

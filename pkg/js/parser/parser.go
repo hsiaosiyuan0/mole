@@ -230,7 +230,7 @@ func (p *Parser) exportFrom() ([]Node, bool, Node, error) {
 		if err != nil {
 			return nil, false, nil, err
 		}
-		src = &StrLit{N_LIT_STR, p.finLoc(p.locFromTok(str)), str.Text()}
+		src = &StrLit{N_LIT_STR, p.finLoc(p.locFromTok(str)), str.Text(), str.HasLegacyOctalEscapeSeq()}
 	}
 	return specs, ns, src, nil
 }
@@ -323,7 +323,7 @@ func (p *Parser) importDec() (Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	src := &StrLit{N_LIT_STR, p.finLoc(p.locFromTok(str)), str.Text()}
+	src := &StrLit{N_LIT_STR, p.finLoc(p.locFromTok(str)), str.Text(), str.HasLegacyOctalEscapeSeq()}
 
 	if err := p.advanceIfSemi(true); err != nil {
 		return nil, err
@@ -763,11 +763,24 @@ func (p *Parser) labelStmt() (Node, error) {
 	// advance `:`
 	p.lexer.Next()
 
+	scope := p.scope()
+	labelName := label.Text()
+	if scope.HasLabel(labelName) {
+		return nil, p.errorAtLoc(loc, fmt.Sprintf("Label `%s` already declared", labelName))
+	}
+
+	node := &LabelStmt{N_STMT_LABEL, nil, label, nil}
+	scope.Labels[labelName] = node
+
 	body, err := p.stmt()
 	if err != nil {
 		return nil, err
 	}
-	return &LabelStmt{N_STMT_LABEL, p.finLoc(loc), label, body}, nil
+
+	node.loc = p.finLoc(loc)
+	node.body = body
+	scope.Labels = make(map[string]Node)
+	return node, nil
 }
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-statements-and-declarations.html#prod-BreakStatement
@@ -785,6 +798,11 @@ func (p *Parser) brkStmt() (Node, error) {
 		if err := p.advanceIfSemi(true); err != nil {
 			return nil, err
 		}
+
+		if !p.scope().HasLabel(label.Text()) {
+			return nil, p.errorAtLoc(label.loc, fmt.Sprintf("Undefined label `%s`", label.Text()))
+		}
+
 		return &BrkStmt{N_STMT_BRK, p.finLoc(loc), label}, nil
 	}
 
@@ -816,6 +834,11 @@ func (p *Parser) contStmt() (Node, error) {
 		if err := p.advanceIfSemi(true); err != nil {
 			return nil, err
 		}
+
+		if !p.scope().HasLabel(label.Text()) {
+			return nil, p.errorAtLoc(label.loc, fmt.Sprintf("Undefined label `%s`", label.Text()))
+		}
+
 		return &ContStmt{N_STMT_CONT, p.finLoc(loc), label}, nil
 	}
 
@@ -1271,6 +1294,17 @@ func (p *Parser) scope() *Scope {
 	return p.symtab.Cur
 }
 
+func (p *Parser) isStrictDirective(exprStmt Node) bool {
+	expr := exprStmt.(*ExprStmt).expr
+	if expr.Type() == N_LIT_STR {
+		str := expr.(*StrLit).Raw()
+		if str == "\"use strict\"" || str == "'use strict'" {
+			return true
+		}
+	}
+	return false
+}
+
 func (p *Parser) blockStmt(newScope bool) (*BlockStmt, error) {
 	tok, err := p.nextMustTok(T_BRACE_L)
 	if err != nil {
@@ -1282,6 +1316,12 @@ func (p *Parser) blockStmt(newScope bool) (*BlockStmt, error) {
 	loc := p.locFromTok(tok)
 
 	stmts := make([]Node, 0)
+	prologue := 0
+	isPrologueClosed := false
+
+	scope := p.scope()
+	fnBody := scope.IsKind(SPK_FUNC)
+
 	for {
 		tok := p.lexer.PeekStmtBegin()
 		if tok.value == T_BRACE_R {
@@ -1295,18 +1335,30 @@ func (p *Parser) blockStmt(newScope bool) (*BlockStmt, error) {
 			return nil, err
 		}
 
-		fnBody := p.scope().IsKind(SPK_FUNC)
 		if stmt != nil {
 			if fnBody && stmt.Type() == N_STMT_EXPR {
-				expr := stmt.(*ExprStmt).expr
-				if expr.Type() == N_LIT_STR && expr.(*StrLit).Text() == "use strict" {
-					p.scope().AddKind(SPK_STRICT)
+				if p.isStrictDirective(stmt) {
+					scope.AddKind(SPK_STRICT)
 					p.lexer.addMode(LM_STRICT)
+					isPrologueClosed = true
 				}
+			}
+			if !isPrologueClosed {
+				prologue += 1
 			}
 			stmts = append(stmts, stmt)
 		}
 	}
+
+	if isPrologueClosed && prologue > 0 {
+		for i := 0; i < prologue; i++ {
+			expr := stmts[i].(*ExprStmt).expr
+			if expr.Type() == N_LIT_STR && expr.(*StrLit).legacyOctalEscapeSeq {
+				return nil, p.errorAtLoc(expr.Loc(), "Octal escape sequences are not allowed in strict mode")
+			}
+		}
+	}
+
 	if newScope {
 		p.symtab.LeaveScope()
 	}
@@ -1485,7 +1537,7 @@ func (p *Parser) propName(allowNamePVT bool) (Node, error) {
 		return &Ident{N_NAME, p.finLoc(loc), tok.Text(), tok.value == T_NAME_PVT}, nil
 	}
 	if tok.value == T_STRING {
-		return &StrLit{N_LIT_STR, p.finLoc(loc), tok.Text()}, nil
+		return &StrLit{N_LIT_STR, p.finLoc(loc), tok.Text(), tok.HasLegacyOctalEscapeSeq()}, nil
 	}
 	if tok.value == T_NUM {
 		return &NumLit{N_LIT_NUM, p.finLoc(loc)}, nil
@@ -1793,6 +1845,12 @@ func (p *Parser) unaryExpr() (Node, error) {
 		if err != nil {
 			return nil, err
 		}
+
+		scope := p.scope()
+		if scope.IsKind(SPK_STRICT) && tok.value == T_DELETE && arg.Type() == N_NAME {
+			return nil, p.errorAtLoc(arg.Loc(), "Deleting local variable in strict mode")
+		}
+
 		return &UnaryExpr{N_EXPR_UNARY, p.finLoc(loc), op, arg}, nil
 	}
 	return p.updateExpr()
@@ -1974,13 +2032,13 @@ func (p *Parser) tplExpr(tag Node) (Node, error) {
 		if tok.value == T_TPL_TAIL {
 			loc := p.loc()
 			p.lexer.Next()
-			str := &StrLit{N_LIT_STR, p.finLoc(loc), tok.Text()}
+			str := &StrLit{N_LIT_STR, p.finLoc(loc), tok.Text(), false}
 			elems = append(elems, str)
 			break
 		} else if tok.value == T_TPL_SPAN || tok.value == T_TPL_HEAD {
 			loc := p.loc()
 			p.lexer.Next()
-			str := &StrLit{N_LIT_STR, p.finLoc(loc), tok.Text()}
+			str := &StrLit{N_LIT_STR, p.finLoc(loc), tok.Text(), false}
 			elems = append(elems, str)
 
 			if tok.IsPlainTpl() {
@@ -2161,7 +2219,7 @@ func (p *Parser) primaryExpr() (Node, error) {
 		return &NumLit{N_LIT_NUM, p.finLoc(loc)}, nil
 	case T_STRING:
 		p.lexer.Next()
-		return &StrLit{N_LIT_STR, p.finLoc(loc), tok.Text()}, nil
+		return &StrLit{N_LIT_STR, p.finLoc(loc), tok.Text(), tok.HasLegacyOctalEscapeSeq()}, nil
 	case T_NULL:
 		p.lexer.Next()
 		return &NullLit{N_LIT_NULL, p.finLoc(loc)}, nil

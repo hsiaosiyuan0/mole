@@ -236,7 +236,7 @@ func TestReadTpl(t *testing.T) {
 
 	tok := l.Next()
 	assert.Equal(t, T_TPL_HEAD, tok.value, "should be tok str")
-	assert.Equal(t, true, tok.ext, "should be tok str")
+	assert.Equal(t, true, tok.ext.(*TokExtTplSpan).Plain, "should be tok str")
 	assert.Equal(t, "abc", tok.Text(), "should be tok str abc")
 
 	tok = l.Next()
