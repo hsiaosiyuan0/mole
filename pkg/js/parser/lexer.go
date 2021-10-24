@@ -612,7 +612,7 @@ func (l *Lexer) ReadSymbol() *Token {
 	}
 
 	if val == T_DOT_TRI && l.ver < ES6 {
-		return l.errToken(tok, "Unexpected token")
+		return l.errToken(tok, ERR_MSG_UNEXPECTED_TOKEN)
 	}
 
 	return l.finToken(tok, val)
@@ -631,7 +631,7 @@ func (l *Lexer) readMultilineComment(tok *Token) *Token {
 		} else if c == EOL {
 			multiline = true
 		} else if c == EOF {
-			return l.errToken(tok, "Unterminated comment")
+			return l.errToken(tok, ERR_UNTERMINATED_COMMENT)
 		}
 	}
 	l.finToken(tok, T_COMMENT)
@@ -662,7 +662,7 @@ func (l *Lexer) readRegexp(tok *Token) *Token {
 		if c == utf8.RuneError {
 			return l.errToken(tok, "")
 		} else if IsLineTerminator(c) {
-			return l.errToken(tok, "Unterminated regular expression")
+			return l.errToken(tok, ERR_UNTERMINATED_REGEXP)
 		}
 		if c == '\\' {
 			l.src.Read()
@@ -676,7 +676,7 @@ func (l *Lexer) readRegexp(tok *Token) *Token {
 			break
 		} else if c == EOF {
 			tok.begin.col += 1
-			return l.errToken(tok, "Unterminated regular expression")
+			return l.errToken(tok, ERR_UNTERMINATED_REGEXP)
 		}
 		l.src.Read()
 	}
@@ -717,7 +717,7 @@ func (l *Lexer) ReadStr() *Token {
 	for {
 		c := l.src.Read()
 		if c == utf8.RuneError || c == EOF {
-			return l.errToken(tok, "Unterminated string constant")
+			return l.errToken(tok, ERR_UNTERMINATED_STR)
 		} else if c == '\\' {
 			nc := l.src.Peek()
 			if IsLineTerminator(nc) {
@@ -733,12 +733,12 @@ func (l *Lexer) ReadStr() *Token {
 				// allow `utf8.RuneError` to represent "Unicode replacement character"
 				// in string literal
 				if r == EOF {
-					return l.errToken(tok, "Unterminated string constant")
+					return l.errToken(tok, ERR_UNTERMINATED_STR)
 				}
 				text = append(text, r)
 			}
 		} else if IsLineTerminator(c) {
-			return l.errToken(tok, "Unterminated string constant")
+			return l.errToken(tok, ERR_UNTERMINATED_STR)
 		} else if c == open {
 			break
 		} else {
@@ -794,7 +794,7 @@ func (l *Lexer) readOctalEscapeSeq(first rune) (rune, string) {
 	zeroToThree := first >= '0' && first <= '3'
 	i := 1
 	if l.isMode(LM_TEMPLATE) {
-		return utf8.RuneError, "Octal escape sequences are not allowed in template strings"
+		return utf8.RuneError, ERR_MSG_LEGACY_OCTAL_ESCAPE_IN_TPL
 	}
 	for {
 		if !zeroToThree && i == 2 || zeroToThree && i == 3 {
@@ -862,11 +862,13 @@ func (l *Lexer) ReadNum() *Token {
 		nc := l.src.Peek()
 		if IsDecimalDigit(nc) {
 			if IsOctalDigit(nc) {
-				if !l.isMode(LM_STRICT) {
+				if l.isMode(LM_STRICT) {
+					return l.errToken(tok, ERR_MSG_LEGACY_OCTAL_IN_STRICT_MODE)
+				} else {
 					return l.readOctalNum(tok, 1)
 				}
 			} else {
-				return l.errToken(tok, "Invalid number")
+				return l.errToken(tok, ERR_MSG_INVALID_NUMBER)
 			}
 		}
 	}
@@ -878,7 +880,7 @@ func (l *Lexer) readDecimalNum(tok *Token, first rune) *Token {
 		c := l.src.Peek()
 		if c != 'e' && c != 'E' && c != 'n' && IsIdStart(c) {
 			tok = l.newToken()
-			return l.errToken(tok, "Identifier directly after number")
+			return l.errToken(tok, ERR_MSG_IDENT_AFTER_NUMBER)
 		}
 		l.readDecimalDigits(true)
 	}
@@ -890,15 +892,15 @@ func (l *Lexer) readDecimalNum(tok *Token, first rune) *Token {
 		// read the fraction part
 		if err := l.readDecimalDigits(true); err != nil {
 			if IsIdStart(l.src.Peek()) {
-				return l.errToken(nil, "Identifier directly after number")
+				return l.errToken(nil, ERR_MSG_IDENT_AFTER_NUMBER)
 			}
-			return l.errToken(tok, "Invalid number")
+			return l.errToken(tok, ERR_MSG_INVALID_NUMBER)
 		}
 	}
 
 	if l.src.AheadIsChOr('e', 'E') {
 		if err := l.readExpPart(); err != nil {
-			return l.errToken(tok, "Invalid number")
+			return l.errToken(tok, ERR_MSG_INVALID_NUMBER)
 		}
 	}
 
@@ -941,13 +943,13 @@ func (l *Lexer) readBinaryNum(tok *Token) *Token {
 			l.src.Read()
 			i += 1
 		} else if IsIdStart(c) {
-			return l.errToken(nil, "Identifier directly after number")
+			return l.errToken(nil, ERR_MSG_IDENT_AFTER_NUMBER)
 		} else {
 			break
 		}
 	}
 	if i == 0 {
-		return l.errToken(tok, "Invalid number")
+		return l.errToken(tok, ERR_MSG_INVALID_NUMBER)
 	}
 	l.src.ReadIfNextIs('n')
 	return l.finToken(tok, T_NUM)
@@ -961,13 +963,13 @@ func (l *Lexer) readOctalNum(tok *Token, i int) *Token {
 			l.src.Read()
 			i += 1
 		} else if IsIdStart(c) {
-			return l.errToken(nil, "Identifier directly after number")
+			return l.errToken(nil, ERR_MSG_IDENT_AFTER_NUMBER)
 		} else {
 			break
 		}
 	}
 	if i == 0 {
-		return l.errToken(tok, "Invalid number")
+		return l.errToken(tok, ERR_MSG_INVALID_NUMBER)
 	}
 	l.src.ReadIfNextIs('n')
 	return l.finToken(tok, T_NUM)
@@ -982,7 +984,7 @@ func (l *Lexer) readHexNum(tok *Token) *Token {
 			l.src.Read()
 			i += 1
 		} else if IsIdStart(c) {
-			return l.errToken(nil, "Identifier directly after number")
+			return l.errToken(nil, ERR_MSG_IDENT_AFTER_NUMBER)
 		} else {
 			break
 		}
@@ -1008,7 +1010,7 @@ func (l *Lexer) readIdPart() ([]rune, string) {
 			if err != "" {
 				return nil, err
 			} else if c == '\\' {
-				return nil, "Expecting Unicode escape sequence \\uXXXX"
+				return nil, ERR_EXPECTING_UNICODE_ESCAPE
 			}
 			runes = append(runes, c)
 		} else {
@@ -1024,7 +1026,7 @@ func (l *Lexer) readUnicodeEscape(c rune, id bool) (rune, string) {
 			l.src.Read()
 			return l.readUnicodeEscapeSeq(id)
 		} else {
-			return utf8.RuneError, "Expecting Unicode escape sequence \\uXXXX"
+			return utf8.RuneError, ERR_EXPECTING_UNICODE_ESCAPE
 		}
 	}
 	return c, ""
@@ -1044,18 +1046,18 @@ func (l *Lexer) readCodepoint() (rune, string) {
 		if l.src.ReadIfNextIs('}') {
 			break
 		} else if l.src.AheadIsEOF() {
-			return utf8.RuneError, "Bad character escape sequence"
+			return utf8.RuneError, ERR_BAD_ESCAPE_SEQ
 		} else {
 			c := l.src.Read()
 			if c == utf8.RuneError || !IsHexDigit(c) {
-				return utf8.RuneError, "Bad character escape sequence"
+				return utf8.RuneError, ERR_BAD_ESCAPE_SEQ
 			}
 			hex = append(hex, byte(c))
 		}
 	}
 	r, err := strconv.ParseInt(string(hex), 16, 32)
 	if err != nil {
-		return utf8.RuneError, "Bad character escape sequence"
+		return utf8.RuneError, ERR_BAD_ESCAPE_SEQ
 	}
 	return rune(r), ""
 }
@@ -1065,18 +1067,18 @@ func (l *Lexer) readHex4Digits(id bool) (rune, string) {
 	for i := 0; i < 4; i++ {
 		c := l.src.Peek()
 		if c == utf8.RuneError || !IsHexDigit(c) {
-			return utf8.RuneError, "Bad character escape sequence"
+			return utf8.RuneError, ERR_BAD_ESCAPE_SEQ
 		}
 		hex[i] = byte(l.src.Read())
 	}
 	r, err := strconv.ParseInt(string(hex[:]), 16, 32)
 	if err != nil {
-		return utf8.RuneError, "Bad character escape sequence"
+		return utf8.RuneError, ERR_BAD_ESCAPE_SEQ
 	}
 	rr := rune(r)
 	if id {
 		if !IsIdPart(rr) || rr == '\\' {
-			return utf8.RuneError, "Invalid Unicode escape"
+			return utf8.RuneError, ERR_INVALID_UNICODE_ESCAPE
 		}
 	}
 	return rr, ""

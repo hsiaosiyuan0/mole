@@ -9,10 +9,11 @@ const (
 	SPK_SWITCH                  = 1 << 2
 	SPK_STRICT                  = 1 << 3
 	SPK_BLOCK                   = 1 << 4
-	SPK_FUNC                    = 1 << 5
-	SPK_FUNC_INDIRECT           = 1 << 6
-	SPK_ASYNC                   = 1 << 7
-	SPK_GENERATOR               = 1 << 8
+	SPK_GLOBAL                  = 1 << 5
+	SPK_FUNC                    = 1 << 6
+	SPK_FUNC_INDIRECT           = 1 << 7
+	SPK_ASYNC                   = 1 << 8
+	SPK_GENERATOR               = 1 << 9
 )
 
 type Binding struct {

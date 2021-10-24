@@ -484,7 +484,7 @@ func convert(node parser.Node) Node {
 			Argument: convert(n.Arg()),
 		}
 	case parser.N_PATTERN_REST:
-		n := node.(*parser.RestPattern)
+		n := node.(*parser.RestPat)
 		return &RestElement{
 			Type:     "RestElement",
 			Start:    start(n.Loc()),

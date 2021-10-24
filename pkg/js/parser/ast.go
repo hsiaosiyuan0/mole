@@ -691,65 +691,92 @@ func (n *VarDec) Loc() *Loc {
 	return n.loc
 }
 
-type ArrayPattern struct {
+type ArrPat struct {
 	typ   NodeType
 	loc   *Loc
 	elems []Node
 }
 
-func (n *ArrayPattern) Type() NodeType {
+func (n *ArrPat) Type() NodeType {
 	return n.typ
 }
 
-func (n *ArrayPattern) Loc() *Loc {
+func (n *ArrPat) Loc() *Loc {
 	return n.loc
 }
 
-type AssignPattern struct {
+type AssignPat struct {
 	typ   NodeType
 	loc   *Loc
 	left  Node
 	right Node
 }
 
-func (n *AssignPattern) Type() NodeType {
+func (n *AssignPat) Type() NodeType {
 	return n.typ
 }
 
-func (n *AssignPattern) Loc() *Loc {
+func (n *AssignPat) Loc() *Loc {
 	return n.loc
 }
 
-type RestPattern struct {
+type RestPat struct {
 	typ NodeType
 	loc *Loc
 	arg Node
 }
 
-func (n *RestPattern) Arg() Node {
+func (n *RestPat) Arg() Node {
 	return n.arg
 }
 
-func (n *RestPattern) Type() NodeType {
+func (n *RestPat) Type() NodeType {
 	return n.typ
 }
 
-func (n *RestPattern) Loc() *Loc {
+func (n *RestPat) Loc() *Loc {
 	return n.loc
 }
 
-type ObjPattern struct {
+type ObjPat struct {
 	typ   NodeType
 	loc   *Loc
 	props []Node
 }
 
-func (n *ObjPattern) Type() NodeType {
+func (n *ObjPat) Type() NodeType {
 	return n.typ
 }
 
-func (n *ObjPattern) Loc() *Loc {
+func (n *ObjPat) Loc() *Loc {
 	return n.loc
+}
+
+type PropKind uint8
+
+const (
+	PK_INIT   PropKind = 1
+	PK_GETTER          = 2
+	PK_SETTER          = 3
+	PK_CTOR            = 4
+	PK_METHOD          = 5
+)
+
+func (pk PropKind) ToString() string {
+	switch pk {
+	case PK_INIT:
+		return "init"
+	case PK_GETTER:
+		return "get"
+	case PK_SETTER:
+		return "set"
+	case PK_CTOR:
+		return "constructor"
+	case PK_METHOD:
+		return "method"
+	default:
+		return ""
+	}
 }
 
 type Prop struct {
@@ -758,14 +785,11 @@ type Prop struct {
 	key      Node
 	value    Node
 	computed bool
-	kind     string
+	kind     PropKind
 }
 
 func (n *Prop) Kind() string {
-	if n.kind != "" {
-		return n.kind
-	}
-	return "init"
+	return n.kind.ToString()
 }
 
 func (n *Prop) Method() bool {
@@ -1301,15 +1325,12 @@ type Method struct {
 	key      Node
 	static   bool
 	computed bool
-	kind     string
+	kind     PropKind
 	value    Node
 }
 
 func (n *Method) Kind() string {
-	if n.kind != "" {
-		return n.kind
-	}
-	return "init"
+	return n.kind.ToString()
 }
 
 func (n *Method) Key() Node {

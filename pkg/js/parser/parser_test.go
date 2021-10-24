@@ -275,24 +275,24 @@ func TestVarDecArrPattern(t *testing.T) {
 	init := varDec.init.(*Ident)
 	assert.Equal(t, "e", init.Text(), "should be e")
 
-	arr := varDec.id.(*ArrayPattern)
+	arr := varDec.id.(*ArrPat)
 	elem0 := arr.elems[0].(*Ident)
 	assert.Equal(t, "a", elem0.Text(), "should be a")
 
-	elem1 := arr.elems[1].(*AssignPattern)
+	elem1 := arr.elems[1].(*AssignPat)
 	elem1Lhs := elem1.left.(*Ident)
 	elem1Rhs := elem1.right.(*NumLit)
 	assert.Equal(t, "b", elem1Lhs.Text(), "should be b")
 	assert.Equal(t, "1", elem1Rhs.Text(), "should be 1")
 
-	elem2 := arr.elems[2].(*AssignPattern)
-	elem2Lhs := elem2.left.(*ArrayPattern)
+	elem2 := arr.elems[2].(*AssignPat)
+	elem2Lhs := elem2.left.(*ArrPat)
 	elem2Rhs := elem2.right.(*NumLit)
 	assert.Equal(t, "c", elem2Lhs.elems[0].(*Ident).Text(), "should be c")
 	assert.Equal(t, "1", elem2Rhs.Text(), "should be 1")
 
-	elem3 := arr.elems[3].(*ArrayPattern)
-	elem31 := elem3.elems[0].(*AssignPattern)
+	elem3 := arr.elems[3].(*ArrPat)
+	elem31 := elem3.elems[0].(*AssignPat)
 	assert.Equal(t, "d", elem31.left.(*Ident).Text(), "should be d")
 	assert.Equal(t, "1", elem31.right.(*NumLit).Text(), "should be 1")
 }
@@ -307,7 +307,7 @@ func TestVarDecArrPatternElision(t *testing.T) {
 	init := varDec.init.(*Ident)
 	assert.Equal(t, "e", init.Text(), "should be e")
 
-	arr := varDec.id.(*ArrayPattern)
+	arr := varDec.id.(*ArrPat)
 	assert.Equal(t, 7, len(arr.elems), "should be len 7")
 
 	elem0 := arr.elems[0].(*Ident)
@@ -1504,248 +1504,305 @@ func TestFail125(t *testing.T) {
 }
 
 func TestFail126(t *testing.T) {
-	testFail(t, "function hello() {'use strict'; ({ i: 42, i: 42 }) }",
-		"Redefinition of property (1:42)", nil)
+	testFail(t, "function hello() {'use strict'; var eval = 10; }",
+		"Unexpected strict mode reserved word at (1:36)", nil)
 }
 
 func TestFail127(t *testing.T) {
-
+	testFail(t, "function hello() {'use strict'; var arguments = 10; }",
+		"Unexpected strict mode reserved word at (1:36)", nil)
 }
 
 func TestFail128(t *testing.T) {
-
+	testFail(t, "function hello() {'use strict'; try { } catch (arguments) { } }",
+		"Unexpected strict mode reserved word at (1:47)", nil)
 }
 
 func TestFail129(t *testing.T) {
-
+	testFail(t, "function hello() {'use strict'; try { } catch (arguments) { } }",
+		"Unexpected strict mode reserved word at (1:47)", nil)
 }
 
 func TestFail130(t *testing.T) {
-
+	testFail(t, "function hello() {'use strict'; eval = 10; }",
+		"Unexpected strict mode reserved word at (1:32)", nil)
 }
 
 func TestFail131(t *testing.T) {
-
+	testFail(t, "function hello() {'use strict'; arguments = 10; }",
+		"Unexpected strict mode reserved word at (1:32)", nil)
 }
 
 func TestFail132(t *testing.T) {
-
+	testFail(t, "function hello() {'use strict'; ++eval; }",
+		"Unexpected strict mode reserved word at (1:34)", nil)
 }
 
 func TestFail133(t *testing.T) {
-
+	testFail(t, "function hello() {'use strict'; --eval; }",
+		"Unexpected strict mode reserved word at (1:34)", nil)
 }
 
 func TestFail134(t *testing.T) {
-
+	testFail(t, "function hello() {'use strict'; ++arguments; }",
+		"Unexpected strict mode reserved word at (1:34)", nil)
 }
 
 func TestFail135(t *testing.T) {
-
+	testFail(t, "function hello() {'use strict'; --arguments; }",
+		"Unexpected strict mode reserved word at (1:34)", nil)
 }
 
 func TestFail136(t *testing.T) {
-
+	testFail(t, "function hello() {'use strict'; eval++; }",
+		"Unexpected strict mode reserved word at (1:32)", nil)
 }
 
 func TestFail137(t *testing.T) {
-
+	testFail(t, "function hello() {'use strict'; eval--; }",
+		"Unexpected strict mode reserved word at (1:32)", nil)
 }
 
 func TestFail138(t *testing.T) {
-
+	testFail(t, "function hello() {'use strict'; arguments++; }",
+		"Unexpected strict mode reserved word at (1:32)", nil)
 }
 
 func TestFail139(t *testing.T) {
-
+	testFail(t, "function hello() {'use strict'; arguments--; }",
+		"Unexpected strict mode reserved word at (1:32)", nil)
 }
 
 func TestFail140(t *testing.T) {
-
+	testFail(t, "function hello() {'use strict'; function eval() { } }",
+		"Unexpected strict mode reserved word at (1:41)", nil)
 }
 
 func TestFail141(t *testing.T) {
-
+	testFail(t, "function hello() {'use strict'; function arguments() { } }",
+		"Unexpected strict mode reserved word at (1:41)", nil)
 }
 
 func TestFail142(t *testing.T) {
-
+	testFail(t, "function eval() {'use strict'; }",
+		"Unexpected strict mode reserved word at (1:9)", nil)
 }
 
 func TestFail143(t *testing.T) {
-
+	testFail(t, "function arguments() {'use strict'; }",
+		"Unexpected strict mode reserved word at (1:9)", nil)
 }
 
 func TestFail144(t *testing.T) {
-
+	testFail(t, "function hello() {'use strict'; (function eval() { }()) }",
+		"Unexpected strict mode reserved word at (1:42)", nil)
 }
 
 func TestFail145(t *testing.T) {
-
+	testFail(t, "function hello() {'use strict'; (function arguments() { }()) }",
+		"Unexpected strict mode reserved word at (1:42)", nil)
 }
 
 func TestFail146(t *testing.T) {
-
+	testFail(t, "(function eval() {'use strict'; })()",
+		"Unexpected strict mode reserved word at (1:10)", nil)
 }
 
 func TestFail147(t *testing.T) {
-
+	testFail(t, "(function arguments() {'use strict'; })()",
+		"Unexpected strict mode reserved word at (1:10)", nil)
 }
 
 func TestFail148(t *testing.T) {
-
+	testFail(t, "function hello() {'use strict'; ({ s: function eval() { } }); }",
+		"Unexpected strict mode reserved word at (1:47)", nil)
 }
 
 func TestFail149(t *testing.T) {
-
+	testFail(t, "(function package() {'use strict'; })()",
+		"Unexpected strict mode reserved word at (1:10)", nil)
 }
 
 func TestFail150(t *testing.T) {
-
+	testFail(t, "function hello() {'use strict'; ({ i: 10, set s(eval) { } }); }",
+		"Unexpected strict mode reserved word at (1:48)", nil)
 }
 
 func TestFail151(t *testing.T) {
-
+	testFail(t, "function hello() {'use strict'; ({ set s(eval) { } }); }",
+		"Unexpected strict mode reserved word at (1:41)", nil)
 }
 
 func TestFail152(t *testing.T) {
-
+	testFail(t, "function hello() {'use strict'; ({ s: function s(eval) { } }); }",
+		"Unexpected strict mode reserved word at (1:49)", nil)
 }
 
 func TestFail153(t *testing.T) {
-
+	testFail(t, "function hello(eval) {'use strict';}",
+		"Unexpected strict mode reserved word at (1:15)", nil)
 }
 
 func TestFail154(t *testing.T) {
-
+	testFail(t, "function hello(arguments) {'use strict';}",
+		"Unexpected strict mode reserved word at (1:15)", nil)
 }
 
 func TestFail155(t *testing.T) {
-
+	testFail(t, "function hello() { 'use strict'; function inner(eval) {} }",
+		"Unexpected strict mode reserved word at (1:48)", nil)
 }
 
 func TestFail156(t *testing.T) {
-
+	testFail(t, "function hello() { 'use strict'; function inner(arguments) {} }",
+		"Unexpected strict mode reserved word at (1:48)", nil)
 }
 
 func TestFail157(t *testing.T) {
-
+	testFail(t, "function hello() { 'use strict'; \"\\1\"; }",
+		"Octal escape sequences are not allowed in strict mode at (1:33)", nil)
 }
 
 func TestFail158(t *testing.T) {
-
+	testFail(t, "function hello() { 'use strict'; \"\\00\"; }",
+		"Octal escape sequences are not allowed in strict mode at (1:33)", nil)
 }
 
 func TestFail159(t *testing.T) {
-
+	testFail(t, "function hello() { 'use strict'; \"\\000\"; }",
+		"Octal escape sequences are not allowed in strict mode at (1:33)", nil)
 }
 
 func TestFail160(t *testing.T) {
-
+	testFail(t, "function hello() { 'use strict'; 021; }",
+		"Octal literals are not allowed in strict mode at (1:33)", nil)
 }
 
 func TestFail161(t *testing.T) {
+	testFail(t, "function hello() { 'use strict'; ({ \"\\1\": 42 }); }",
+		"Octal escape sequences are not allowed in strict mode at (1:36)", nil)
 
 }
 
 func TestFail162(t *testing.T) {
-
+	testFail(t, "function hello() { 'use strict'; ({ 021: 42 }); }",
+		"Octal literals are not allowed in strict mode at (1:36)", nil)
 }
 
 func TestFail163(t *testing.T) {
-
+	testFail(t, "function hello() { \"use strict\"; function inner() { \"octal directive\\1\"; } }",
+		"Octal escape sequences are not allowed in strict mode at (1:52)", nil)
 }
 
 func TestFail164(t *testing.T) {
-
+	testFail(t, "function hello() { \"use strict\"; var implements; }",
+		"Unexpected token `implements` at (1:37)", nil)
 }
 
 func TestFail165(t *testing.T) {
-
+	testFail(t, "function hello() { \"use strict\"; var interface; }",
+		"Unexpected token `interface` at (1:37)", nil)
 }
 
 func TestFail166(t *testing.T) {
-
+	testFail(t, "function hello() { \"use strict\"; var package; }",
+		"Unexpected token `package` at (1:37)", nil)
 }
 
 func TestFail167(t *testing.T) {
-
+	testFail(t, "function hello() { \"use strict\"; var private; }",
+		"Unexpected token `private` at (1:37)", nil)
 }
 
 func TestFail168(t *testing.T) {
-
+	testFail(t, "function hello() { \"use strict\"; var protected; }",
+		"Unexpected token `protected` at (1:37)", nil)
 }
 
 func TestFail169(t *testing.T) {
-
+	testFail(t, "function hello() { \"use strict\"; var public; }",
+		"Unexpected token `public` at (1:37)", nil)
 }
 
 func TestFail170(t *testing.T) {
-
+	testFail(t, "function hello() { \"use strict\"; var static; }",
+		"Unexpected token `static` at (1:37)", nil)
 }
 
 func TestFail171(t *testing.T) {
-
+	testFail(t, "function hello(static) { \"use strict\"; }",
+		"Unexpected strict mode reserved word at (1:15)", nil)
 }
 
 func TestFail172(t *testing.T) {
-
+	testFail(t, "function static() { \"use strict\"; }",
+		"Unexpected strict mode reserved word at (1:9)", nil)
 }
 
 func TestFail173(t *testing.T) {
-
+	testFail(t, "\"use strict\"; function static() { }",
+		"Unexpected token `static` at (1:23)", nil)
 }
 
 func TestFail174(t *testing.T) {
-
+	testFail(t, "function a(t, t) { \"use strict\"; }",
+		"Parameter name clash at (1:14)", nil)
 }
 
 func TestFail175(t *testing.T) {
-
+	testFail(t, "function a(eval) { \"use strict\"; }",
+		"Unexpected strict mode reserved word at (1:11)", nil)
 }
 
 func TestFail176(t *testing.T) {
-
+	testFail(t, "function a(package) { \"use strict\"; }",
+		"Unexpected strict mode reserved word at (1:11)", nil)
 }
 
 func TestFail177(t *testing.T) {
-
+	testFail(t, "function a() { \"use strict\"; function b(t, t) { }; }",
+		"Parameter name clash at (1:43)", nil)
 }
 
 func TestFail178(t *testing.T) {
-
+	testFail(t, "(function a(t, t) { \"use strict\"; })",
+		"Parameter name clash at (1:15)", nil)
 }
 
 func TestFail179(t *testing.T) {
-
+	testFail(t, "function a() { \"use strict\"; (function b(t, t) { }); }",
+		"Parameter name clash at (1:44)", nil)
 }
 
 func TestFail180(t *testing.T) {
-
+	testFail(t, "(function a(eval) { \"use strict\"; })",
+		"Unexpected strict mode reserved word at (1:12)", nil)
 }
 
 func TestFail181(t *testing.T) {
-
+	testFail(t, "(function a(package) { \"use strict\"; })",
+		"Unexpected strict mode reserved word at (1:12)", nil)
 }
 
 func TestFail182(t *testing.T) {
-
+	testFail(t, "\"use strict\";function foo(){\"use strict\";}function bar(){var v = 015}",
+		"Octal literals are not allowed in strict mode at (1:65)", nil)
 }
 
 func TestFail183(t *testing.T) {
-
+	testFail(t, "var this = 10;", "Unexpected token `this` at (1:4)", nil)
 }
 
 func TestFail184(t *testing.T) {
-
+	testFail(t, "throw\n10;", "Illegal newline after throw at (1:0)", nil)
 }
 
 func TestFail185(t *testing.T) {
-
+	testFail(t, "const a;", "Const declarations require an initialization value at (1:6)", nil)
 }
 
 func TestFail186(t *testing.T) {
-
+	testFail(t, "({ get prop(x) {} })", "Getter must not have any formal parameters at (1:12)", nil)
 }
 
 func TestFail187(t *testing.T) {
