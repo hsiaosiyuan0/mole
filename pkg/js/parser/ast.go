@@ -393,10 +393,11 @@ func (n *ObjLit) Loc() *Loc {
 }
 
 type Ident struct {
-	typ NodeType
-	loc *Loc
-	val string
-	pvt bool
+	typ            NodeType
+	loc            *Loc
+	val            string
+	pvt            bool
+	containsEscape bool
 }
 
 func (n *Ident) Type() NodeType {
@@ -413,6 +414,10 @@ func (n *Ident) Text() string {
 
 func (n *Ident) IsPrivate() bool {
 	return n.pvt
+}
+
+func (n *Ident) ContainsEscape() bool {
+	return n.containsEscape
 }
 
 type NewExpr struct {

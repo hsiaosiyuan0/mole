@@ -1798,71 +1798,85 @@ func TestFail184(t *testing.T) {
 }
 
 func TestFail185(t *testing.T) {
-	testFail(t, "const a;", "Const declarations require an initialization value at (1:6)", nil)
+	testFail(t, "const a;",
+		"Const declarations require an initialization value at (1:6)", nil)
 }
 
 func TestFail186(t *testing.T) {
-	testFail(t, "({ get prop(x) {} })", "Getter must not have any formal parameters at (1:12)", nil)
+	testFail(t, "({ get prop(x) {} })",
+		"Getter must not have any formal parameters at (1:12)", nil)
 }
 
 func TestFail187(t *testing.T) {
-
+	testFail(t, "({ set prop() {} })",
+		"Setter must have exactly one formal parameter at (1:11)", nil)
 }
 
 func TestFail188(t *testing.T) {
-
+	testFail(t, "({ set prop(x, y) {} })",
+		"Setter must have exactly one formal parameter at (1:11)", nil)
 }
 
 func TestFail189(t *testing.T) {
-
+	testFail(t, "function(){}", "Unexpected token `(` at (1:8)", nil)
 }
 
 func TestFail190(t *testing.T) {
-
+	testFail(t, "07.5", "Unexpected token at (1:2)", nil)
 }
 
 func TestFail191(t *testing.T) {
-
+	testFail(t, "\\u{74}rue",
+		"Keyword must not contain escaped characters at (1:0)", nil)
 }
 
 func TestFail192(t *testing.T) {
-
+	testFail(t, "export { X \\u0061s Y }",
+		"Keyword must not contain escaped characters at (1:11)", nil)
 }
 
 func TestFail193(t *testing.T) {
-
+	testFail(t, "import X fro\\u006d 'x'",
+		"Keyword must not contain escaped characters at (1:9)", nil)
 }
 
 func TestFail194(t *testing.T) {
-
+	testFail(t, "le\\u0074 x = 5", "Unexpected token at (1:9)", nil)
 }
 
 func TestFail195(t *testing.T) {
-
+	testFail(t, "(function* () { y\\u0069eld 10 })",
+		"Unexpected token at (1:27)", nil)
 }
 
 func TestFail196(t *testing.T) {
-
+	testFail(t, "(async function() { aw\\u0061it x })",
+		"Unexpected token at (1:31)", nil)
 }
 
 func TestFail197(t *testing.T) {
-
+	testFail(t, "(\\u0061sync function() { await x })",
+		"Keyword must not contain escaped characters at (1:1)", nil)
 }
 
 func TestFail198(t *testing.T) {
-
+	testFail(t, "(\\u0061sync () => { await x })",
+		"Keyword must not contain escaped characters at (1:1)", nil)
 }
 
 func TestFail199(t *testing.T) {
-
+	testFail(t, "\\u0061sync x => { await x }",
+		"Unexpected token at (1:11)", nil)
 }
 
 func TestFail200(t *testing.T) {
-
+	testFail(t, "class X { \\u0061sync function x() { await x } }",
+		"Keyword must not contain escaped characters at (1:10)", nil)
 }
 
 func TestFail201(t *testing.T) {
-
+	testFail(t, "class X { \\u0061sync x() { await x } }",
+		"Keyword must not contain escaped characters at (1:10)", nil)
 }
 
 func TestFail202(t *testing.T) {

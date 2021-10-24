@@ -350,14 +350,14 @@ func (l *Lexer) ReadName() *Token {
 	tok := l.newToken()
 
 	runes := make([]rune, 0, 10)
-	r, err := l.readIdStart()
+	r, escapeInStart, err := l.readIdStart()
 	if r == utf8.RuneError || err != "" {
 		return l.errToken(tok, err)
 	}
 	runes = append(runes, r)
 
 	col := l.src.col
-	idPart, err := l.readIdPart()
+	idPart, escapeInPart, err := l.readIdPart()
 	if err != "" {
 		tok.begin.col = col
 		return l.errToken(tok, err)
@@ -365,7 +365,12 @@ func (l *Lexer) ReadName() *Token {
 	runes = append(runes, idPart...)
 	text := string(runes)
 
+	containsEscape := escapeInStart || escapeInPart
+	tok.ext = &TokExtIdent{containsEscape}
 	if IsKeyword(text) {
+		if containsEscape {
+			return l.errToken(tok, ERR_ESCAPE_IN_KEYWORD)
+		}
 		return l.finToken(tok, Keywords[text])
 	} else if l.isMode(LM_STRICT) && IsStrictKeyword(text) {
 		return l.finToken(tok, StrictKeywords[text])
@@ -688,7 +693,7 @@ func (l *Lexer) readRegexp(tok *Token) *Token {
 	for {
 		if l.aheadIsIdPart() {
 			col := l.src.col
-			_, err := l.readIdPart()
+			_, _, err := l.readIdPart()
 			if err != "" {
 				tok.begin.col = col
 				return l.errToken(nil, err)
@@ -996,40 +1001,45 @@ func (l *Lexer) readHexNum(tok *Token) *Token {
 	return l.finToken(tok, T_NUM)
 }
 
-func (l *Lexer) readIdStart() (rune, string) {
+func (l *Lexer) readIdStart() (r rune, containsEscape bool, errMsg string) {
 	c := l.src.Read()
 	return l.readUnicodeEscape(c, true)
 }
 
-func (l *Lexer) readIdPart() ([]rune, string) {
+func (l *Lexer) readIdPart() (rs []rune, containsEscape bool, errMsg string) {
 	runes := make([]rune, 0, 10)
 	for {
 		c := l.src.Peek()
 		if IsIdPart(c) {
-			c, err := l.readUnicodeEscape(l.src.Read(), true)
+			c, escape, err := l.readUnicodeEscape(l.src.Read(), true)
+			if escape && !containsEscape {
+				containsEscape = escape
+			}
 			if err != "" {
-				return nil, err
+				return nil, escape, err
 			} else if c == '\\' {
-				return nil, ERR_EXPECTING_UNICODE_ESCAPE
+				return nil, escape, ERR_EXPECTING_UNICODE_ESCAPE
 			}
 			runes = append(runes, c)
 		} else {
 			break
 		}
 	}
-	return runes, ""
+	return runes, containsEscape, ""
 }
 
-func (l *Lexer) readUnicodeEscape(c rune, id bool) (rune, string) {
+func (l *Lexer) readUnicodeEscape(c rune, id bool) (r rune, containsEscape bool, errMsg string) {
 	if c == '\\' {
 		if l.src.AheadIsCh('u') {
 			l.src.Read()
-			return l.readUnicodeEscapeSeq(id)
+			containsEscape = true
+			r, errMsg = l.readUnicodeEscapeSeq(id)
+			return
 		} else {
-			return utf8.RuneError, ERR_EXPECTING_UNICODE_ESCAPE
+			return utf8.RuneError, false, ERR_EXPECTING_UNICODE_ESCAPE
 		}
 	}
-	return c, ""
+	return c, false, ""
 }
 
 func (l *Lexer) readUnicodeEscapeSeq(id bool) (rune, string) {

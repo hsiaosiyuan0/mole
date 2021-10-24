@@ -90,7 +90,7 @@ func (t *Token) IsBin(notIn bool) TokenValue {
 	if bin {
 		return t.value
 	}
-	if !notIn && IsName(t, "in") {
+	if !notIn && IsName(t, "in", false) {
 		return T_IN
 	}
 	return T_ILLEGAL
@@ -122,6 +122,13 @@ func (t *Token) HasLegacyOctalEscapeSeq() bool {
 	return false
 }
 
+func (t *Token) ContainsEscape() bool {
+	if _, ok := t.ext.(*TokExtIdent); ok {
+		return t.ext.(*TokExtIdent).ContainsEscape
+	}
+	return false
+}
+
 func (t *Token) ErrMsg() string {
 	if msg, ok := t.ext.(string); ok {
 		return msg
@@ -135,6 +142,10 @@ func (t *Token) ErrMsg() string {
 type TokExtStr struct {
 	Open                 rune
 	LegacyOctalEscapeSeq bool
+}
+
+type TokExtIdent struct {
+	ContainsEscape bool
 }
 
 type TokExtTplSpan struct {
@@ -542,6 +553,13 @@ func IsStrictKeyword(str string) bool {
 	return ok
 }
 
-func IsName(tok *Token, name string) bool {
-	return tok.value == T_NAME && tok.Text() == name
+func IsName(tok *Token, name string, canContainsEscape bool) bool {
+	matched := tok.value == T_NAME && tok.Text() == name
+	if !matched {
+		return false
+	}
+	if !canContainsEscape {
+		return !tok.ContainsEscape()
+	}
+	return true
 }

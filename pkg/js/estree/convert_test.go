@@ -32459,12 +32459,67 @@ func Test357(t *testing.T) {
 }
 
 func Test358(t *testing.T) {
-	// ast, err := compile("x = { false: 42 }")
-	// assert.Equal(t, nil, err, "should be prog ok")
+	ast, err := compile("class a { async a() {} }")
+	assert.Equal(t, nil, err, "should be prog ok")
 
-	// assert.EqualJson(t, `
-
-	// `, ast)
+	assert.EqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 24,
+  "body": [
+    {
+      "type": "ClassDeclaration",
+      "start": 0,
+      "end": 24,
+      "id": {
+        "type": "Identifier",
+        "start": 6,
+        "end": 7,
+        "name": "a"
+      },
+      "superClass": null,
+      "body": {
+        "type": "ClassBody",
+        "start": 8,
+        "end": 24,
+        "body": [
+          {
+            "type": "MethodDefinition",
+            "start": 10,
+            "end": 22,
+            "static": false,
+            "computed": false,
+            "key": {
+              "type": "Identifier",
+              "start": 16,
+              "end": 17,
+              "name": "a"
+            },
+            "kind": "method",
+            "value": {
+              "type": "FunctionExpression",
+              "start": 17,
+              "end": 22,
+              "id": null,
+              "expression": false,
+              "generator": false,
+              "async": true,
+              "params": [],
+              "body": {
+                "type": "BlockStatement",
+                "start": 20,
+                "end": 22,
+                "body": []
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
+	`, ast)
 }
 
 func Test359(t *testing.T) {
