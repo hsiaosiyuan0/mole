@@ -3,7 +3,6 @@ package estree
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"testing"
 
 	"github.com/hsiaosiyuan0/mole/pkg/assert"
@@ -32646,7 +32645,6 @@ func Test361(t *testing.T) {
 	ast, err := compile("for (; class {} / 1;);")
 	assert.Equal(t, nil, err, "should be prog ok")
 
-	fmt.Println(ast)
 	assert.EqualJson(t, `
 {
   "type": "Program",
