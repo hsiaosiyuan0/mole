@@ -691,7 +691,7 @@ func (l *Lexer) readRegexp(tok *Token) *Token {
 	flags := l.src.NewOpenRange()
 	i := 0
 	for {
-		if l.aheadIsIdPart() {
+		if l.aheadIsIdPart(false) {
 			col := l.src.col
 			_, _, err := l.readIdPart()
 			if err != "" {
@@ -1010,7 +1010,7 @@ func (l *Lexer) readIdPart() (rs []rune, containsEscape bool, errMsg string) {
 	runes := make([]rune, 0, 10)
 	for {
 		c := l.src.Peek()
-		if IsIdPart(c) {
+		if IsIdStart(c) || IsIdPart(c) {
 			c, escape, err := l.readUnicodeEscape(l.src.Read(), true)
 			if escape && !containsEscape {
 				containsEscape = escape
@@ -1087,7 +1087,7 @@ func (l *Lexer) readHex4Digits(id bool) (rune, string) {
 	}
 	rr := rune(r)
 	if id {
-		if !IsIdPart(rr) || rr == '\\' {
+		if !IsIdStart(rr) && !IsIdPart(rr) || rr == '\\' {
 			return utf8.RuneError, ERR_INVALID_UNICODE_ESCAPE
 		}
 	}
@@ -1110,8 +1110,9 @@ func (l *Lexer) aheadIsPvt() bool {
 	return l.src.AheadIsCh('#')
 }
 
-func (l *Lexer) aheadIsIdPart() bool {
-	return IsIdPart(l.src.Peek())
+func (l *Lexer) aheadIsIdPart(permitBackslash bool) bool {
+	c := l.src.Peek()
+	return IsIdStart(c) && (permitBackslash || c != '\\') || IsIdPart(c)
 }
 
 func (l *Lexer) aheadIsNumStart() bool {
@@ -1181,10 +1182,11 @@ func IsIdStart(c rune) bool {
 }
 
 func IsIdPart(c rune) bool {
-	return IsIdStart(c) || c >= '0' && c <= '9' || c == 0x200C || c == 0x200D ||
+	return c >= '0' && c <= '9' || c == 0x200C || c == 0x200D ||
 		unicode.In(c,
 			unicode.Pc,
-			unicode.Mark)
+			unicode.Mark,
+			unicode.Other_ID_Continue)
 }
 
 func IsOctalDigit(c rune) bool {

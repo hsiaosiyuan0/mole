@@ -23,6 +23,13 @@ func testFail(t *testing.T, code, errMs string, opts *ParserOpts) {
 	assert.Equal(t, errMs, err.Error(), "")
 }
 
+func testPass(t *testing.T, code string, opts *ParserOpts) {
+	_, err := compile(code, opts)
+	if err != nil {
+		t.Fatalf("should pass code:\n%s\nerr:\n%v", code, err)
+	}
+}
+
 func TestExpr(t *testing.T) {
 	ast, err := compile("a + b - c", nil)
 	assert.Equal(t, nil, err, "should be prog ok")
@@ -1009,7 +1016,7 @@ func TestFail19(t *testing.T) {
 }
 
 func TestFail20(t *testing.T) {
-	testFail(t, "var x = /[a-z]/\\ux", "Bad character escape sequence at (1:17)", nil)
+	testFail(t, "var x = /[a-z]/\\ux", "Bad character escape sequence at (1:15)", nil)
 }
 
 func TestFail21(t *testing.T) {
@@ -1880,9 +1887,192 @@ func TestFail201(t *testing.T) {
 }
 
 func TestFail202(t *testing.T) {
-
+	testFail(t, "class X { static \\u0061sync x() { await x } }",
+		"Keyword must not contain escaped characters at (1:17)", nil)
 }
 
 func TestFail203(t *testing.T) {
+	testFail(t, "({ ge\\u0074 x() {} })",
+		"Keyword must not contain escaped characters at (1:3)", nil)
+}
+
+func TestFail204(t *testing.T) {
+	testFail(t, "export \\u0061sync function y() { await x }",
+		"Keyword must not contain escaped characters at (1:7)", nil)
+}
+
+func TestFail205(t *testing.T) {
+	testFail(t, "export default \\u0061sync function () { await x }",
+		"Keyword must not contain escaped characters at (1:15)", nil)
+}
+
+func TestFail206(t *testing.T) {
+	testFail(t, "({ \\u0061sync x() { await x } })",
+		"Keyword must not contain escaped characters at (1:3)", nil)
+}
+
+func TestFail207(t *testing.T) {
+	testFail(t, "for (x \\u006ff y) {}", "Unexpected token `identifier` at (1:7)", nil)
+}
+
+func TestFail208(t *testing.T) {
+	testFail(t, "(x=1)=2", "Assigning to rvalue at (1:0)", nil)
+}
+
+func TestFail209(t *testing.T) {
+	testFail(t, "let foo; try {} catch (foo) {} let foo;",
+		"Identifier `foo` has already been declared at (1:35)", nil)
+}
+
+func TestFail210(t *testing.T) {
+	testFail(t, "try {} catch (foo) { let foo; }",
+		"Identifier `foo` has already been declared at (1:25)", nil)
+}
+
+func TestFail211(t *testing.T) {
+	testFail(t, "try {} catch ([foo]) { var foo; }",
+		"Identifier `foo` has already been declared at (1:27)", nil)
+}
+
+func TestFail212(t *testing.T) {
+	testFail(t, "try {} catch ([foo, foo]) {}",
+		"Identifier `foo` has already been declared at (1:20)", nil)
+}
+
+func TestFail213(t *testing.T) {
+	testFail(t, "try {} catch ({ a: foo, b: { c: [foo] } }) {}",
+		"Identifier `foo` has already been declared at (1:33)", nil)
+}
+
+func TestFail214(t *testing.T) {
+	testFail(t, "try {} catch (foo) { function foo() {} }",
+		"Identifier `foo` has already been declared at (1:30)", nil)
+}
+
+func TestFail215(t *testing.T) {
+	testPass(t, "try {} catch (foo) {} var foo;", nil)
+}
+
+func TestFail216(t *testing.T) {
+	testPass(t, "try {} catch (foo) {} let foo;", nil)
+}
+
+func TestFail217(t *testing.T) {
+	testPass(t, "try {} catch (foo) { function x() { var foo; } }", nil)
+}
+
+func TestFail218(t *testing.T) {
+	testPass(t, "'use strict'; let foo = function foo() {}", nil)
+}
+
+func TestFail219(t *testing.T) {
+	testFail(t, "½", "Unexpected character at (1:0)", nil)
+}
+
+func TestFail220(t *testing.T) {
+	testFail(t, "\"use strict\"\nfoo\n05", "Octal literals are not allowed in strict mode at (3:0)", nil)
+}
+
+func TestFail221(t *testing.T) {
+	testFail(t, "\"use strict\"\n;(foo)\n05", "Octal literals are not allowed in strict mode at (3:0)", nil)
+}
+
+func TestFail222(t *testing.T) {
+	testFail(t, "'use strict'\n!blah; 05", "Octal literals are not allowed in strict mode at (2:7)", nil)
+}
+
+func TestFail223(t *testing.T) {
+	testFail(t, "var x = /[P QR]/\\u0067", "Unexpected token at (1:16)", nil)
+}
+
+func TestFail224(t *testing.T) {
+	// Make sure a slash after an anonymous function/class in a for spec is treated as division
+	testPass(t, "for (; function () {} / 1;);", nil)
+	testPass(t, "for (; class {} / 1;);", nil)
+	testPass(t, "for (;; function () {} / 1);", nil)
+	testPass(t, "for (;; class {} / 1);", nil)
+}
+
+func TestFail225(t *testing.T) {
+
+}
+
+func TestFail226(t *testing.T) {
+
+}
+
+func TestFail227(t *testing.T) {
+
+}
+
+func TestFail228(t *testing.T) {
+
+}
+
+func TestFail229(t *testing.T) {
+
+}
+
+func TestFail230(t *testing.T) {
+
+}
+
+func TestFail231(t *testing.T) {
+
+}
+
+func TestFail232(t *testing.T) {
+
+}
+
+func TestFail233(t *testing.T) {
+
+}
+
+func TestFail234(t *testing.T) {
+
+}
+
+func TestFail235(t *testing.T) {
+
+}
+
+func TestFail236(t *testing.T) {
+
+}
+
+func TestFail237(t *testing.T) {
+
+}
+
+func TestFail238(t *testing.T) {
+
+}
+
+func TestFail239(t *testing.T) {
+
+}
+
+func TestFail240(t *testing.T) {
+
+}
+
+func TestFail241(t *testing.T) {
+
+}
+
+func TestFail242(t *testing.T) {
+
+}
+
+func TestFail243(t *testing.T) {
+
+}
+
+func TestFail244(t *testing.T) {
+
+}
+
+func TestFail245(t *testing.T) {
 
 }

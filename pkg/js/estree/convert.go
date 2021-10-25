@@ -763,6 +763,17 @@ func convert(node parser.Node) Node {
 			SuperClass: convert(stmt.Super()),
 			Body:       convert(stmt.Body()),
 		}
+	case parser.N_EXPR_CLASS:
+		stmt := node.(*parser.ClassDec)
+		return &ClassExpression{
+			Type:       "ClassExpression",
+			Start:      start(stmt.Loc()),
+			End:        end(stmt.Loc()),
+			Loc:        loc(stmt.Loc()),
+			Id:         convert(stmt.Id()),
+			SuperClass: convert(stmt.Super()),
+			Body:       convert(stmt.Body()),
+		}
 	case parser.N_ClASS_BODY:
 		stmt := node.(*parser.ClassBody)
 		return &ClassBody{

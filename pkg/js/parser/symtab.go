@@ -8,19 +8,43 @@ const (
 	SPK_LOOP_INDIRECT           = 1 << 1
 	SPK_SWITCH                  = 1 << 2
 	SPK_STRICT                  = 1 << 3
-	SPK_BLOCK                   = 1 << 4
-	SPK_GLOBAL                  = 1 << 5
-	SPK_FUNC                    = 1 << 6
-	SPK_FUNC_INDIRECT           = 1 << 7
-	SPK_ASYNC                   = 1 << 8
-	SPK_GENERATOR               = 1 << 9
+	SPK_CATCH                   = 1 << 4
+	SPK_BLOCK                   = 1 << 5
+	SPK_GLOBAL                  = 1 << 6
+	SPK_FUNC                    = 1 << 7
+	SPK_FUNC_INDIRECT           = 1 << 8
+	SPK_ASYNC                   = 1 << 9
+	SPK_GENERATOR               = 1 << 10
 )
 
-type Binding struct {
-	name     *Token
-	local    bool
-	legal    bool
-	refByCnt int
+type BindKind uint8
+
+const (
+	BK_NONE  BindKind = 0
+	BK_VAR   BindKind = 1
+	BK_PARAM BindKind = 2
+	BK_LET   BindKind = 3
+	BK_CONST BindKind = 4
+)
+
+type Ref struct {
+	Node     *Ident
+	Scope    *Scope
+	Orig     *Ref
+	BindKind BindKind
+	Props    map[string][]*Ref
+	Refs     []*Ref
+}
+
+func NewRef() *Ref {
+	return &Ref{
+		Node:     nil,
+		Scope:    nil,
+		Orig:     nil,
+		BindKind: BK_NONE,
+		Props:    make(map[string][]*Ref),
+		Refs:     make([]*Ref, 0),
+	}
 }
 
 type Scope struct {
@@ -32,16 +56,26 @@ type Scope struct {
 	Up   *Scope
 	Down []*Scope
 
-	Labels   map[string]Node
-	Bindings map[string]int
+	// label should be unique in its label chain
+	uniqueLabels map[string]int
+	// labels can be redefined in their defined scope
+	// so slice type used here
+	Labels []Node
+
+	// `IsBind` of the elems of the `scope.Refs` are all `true`,
+	// `IsBind` of their children are `true` means `rebind`
+	Refs map[string]*Ref
 }
 
 func NewScope() *Scope {
 	scope := &Scope{
-		Id:       0,
-		Down:     make([]*Scope, 0),
-		Labels:   make(map[string]Node),
-		Bindings: make(map[string]int),
+		Id:   0,
+		Down: make([]*Scope, 0),
+
+		uniqueLabels: make(map[string]int),
+		Labels:       make([]Node, 0),
+
+		Refs: make(map[string]*Ref),
 	}
 	return scope
 }
@@ -55,22 +89,69 @@ func (s *Scope) AddKind(kind ScopeKind) *Scope {
 	return s
 }
 
-func (s *Scope) HasLocal(name string) bool {
-	_, ok := s.Bindings[name]
-	return ok
+func (s *Scope) Local(name string) *Ref {
+	return s.Refs[name]
 }
 
-func (s *Scope) AddBinding(name string) {
-	if s.HasLocal(name) {
-		return
-	}
-	s.Bindings[name] = len(s.Bindings)
-}
-
-func (s *Scope) HasBinding(name string) bool {
+func (s *Scope) UpperFn() *Scope {
 	scope := s
 	for scope != nil {
-		if scope.HasLocal(name) {
+		if scope.IsKind(SPK_FUNC) || scope.IsKind(SPK_GLOBAL) {
+			return scope
+		}
+		scope = scope.Up
+	}
+	return nil
+}
+
+func (s *Scope) AddLocal(ref *Ref, checkDup bool) bool {
+	cur := s
+	name := ref.Node.Text()
+	local := s.Local(name)
+
+	// `try {} catch (foo) { let foo; }` is illegal
+	if cur.IsKind(SPK_CATCH) && local != nil {
+		return false
+	}
+
+	if ref.BindKind == BK_VAR {
+		s = s.UpperFn()
+	}
+
+	if !checkDup {
+		ref.Scope = s
+		s.Refs[ref.Node.Text()] = ref
+		return true
+	}
+
+	bindKind := ref.BindKind
+	if local != nil && bindKind != BK_VAR {
+		return false
+	}
+
+	ref.Scope = s
+	s.Refs[ref.Node.Text()] = ref
+	return true
+}
+
+func (s *Scope) RetainRef(ref *Ref) {
+	n := ref.Node.Text()
+	scope := s
+	for scope != nil {
+		if orig, ok := scope.Refs[n]; ok {
+			ref.Scope = scope
+			ref.Orig = orig
+			orig.Refs = append(ref.Refs, ref)
+			return
+		}
+		scope = scope.Up
+	}
+}
+
+func (s *Scope) HasName(name string) bool {
+	scope := s
+	for scope != nil {
+		if scope.Local(name) != nil {
 			return true
 		}
 		scope = scope.Up
@@ -78,15 +159,8 @@ func (s *Scope) HasBinding(name string) bool {
 	return false
 }
 
-func (s *Scope) LocalIdx(name string) int {
-	if s.HasLocal(name) {
-		return s.Bindings[name]
-	}
-	return -1
-}
-
 func (s *Scope) HasLabel(name string) bool {
-	_, ok := s.Labels[name]
+	_, ok := s.uniqueLabels[name]
 	return ok
 }
 
@@ -118,8 +192,8 @@ func (s *SymTab) EnterScope(fn bool) *Scope {
 		scope.Kind = SPK_FUNC
 	} else {
 		// inherit labels from parent scope
-		for k, v := range s.Cur.Labels {
-			scope.Labels[k] = v
+		for k := range s.Cur.uniqueLabels {
+			scope.uniqueLabels[k] = 1
 		}
 		scope.Kind = SPK_BLOCK
 	}

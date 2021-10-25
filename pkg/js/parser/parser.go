@@ -648,10 +648,26 @@ func (p *Parser) tryStmt() (Node, error) {
 			return nil, err
 		}
 
-		body, err := p.blockStmt(true)
+		scope := p.symtab.EnterScope(false)
+		scope.AddKind(SPK_CATCH)
+
+		names, _ := p.collectNames([]Node{param})
+		for _, nameNode := range names {
+			ref := NewRef()
+			ref.Node = nameNode.(*Ident)
+			ref.BindKind = BK_LET
+			if err := p.addLocalBinding(nil, ref, true); err != nil {
+				return nil, err
+			}
+		}
+
+		body, err := p.blockStmt(false)
+		p.symtab.LeaveScope()
+
 		if err != nil {
 			return nil, err
 		}
+
 		catch = &Catch{N_CATCH, p.finLoc(loc), param, body}
 	}
 
@@ -753,7 +769,8 @@ func (p *Parser) labelStmt() (Node, error) {
 	}
 
 	node := &LabelStmt{N_STMT_LABEL, nil, label, nil}
-	scope.Labels[labelName] = node
+	scope.uniqueLabels[labelName] = 1
+	scope.Labels = append(scope.Labels, node)
 
 	body, err := p.stmt()
 	if err != nil {
@@ -762,7 +779,8 @@ func (p *Parser) labelStmt() (Node, error) {
 
 	node.loc = p.finLoc(loc)
 	node.body = body
-	scope.Labels = make(map[string]Node)
+	// reset to check next label chain
+	scope.uniqueLabels = make(map[string]int)
 	return node, nil
 }
 
@@ -1175,6 +1193,7 @@ func (p *Parser) fnDec(expr bool, async bool) (Node, error) {
 		p.lexer.Next()
 	}
 
+	parentScope := p.scope()
 	scope := p.symtab.EnterScope(true)
 	isOuterStrict := scope.IsKind(SPK_STRICT)
 	generator := p.lexer.Peek().value == T_MUL
@@ -1191,6 +1210,18 @@ func (p *Parser) fnDec(expr bool, async bool) (Node, error) {
 		if err != nil {
 			return nil, err
 		}
+
+		// name of the function expression will not add a ref record
+		if !expr {
+			ref := NewRef()
+			ref.Node = id.(*Ident)
+			// TODO: from es6 the function declaration is block-level scope,
+			// BK_VAR => BK_LET from es6
+			ref.BindKind = BK_VAR
+			if err := p.addLocalBinding(parentScope, ref, true); err != nil {
+				return nil, err
+			}
+		}
 	}
 	if !expr && id == nil {
 		return nil, p.errorTok(tok)
@@ -1199,6 +1230,14 @@ func (p *Parser) fnDec(expr bool, async bool) (Node, error) {
 	params, err := p.formalParams()
 	if err != nil {
 		return nil, err
+	}
+	paramNames, firstComplicated := p.collectNames(params)
+	for _, paramName := range paramNames {
+		ref := NewRef()
+		ref.Node = paramName.(*Ident)
+		ref.BindKind = BK_PARAM
+		// does not check duplicates, delegated to below `checkParams`
+		p.addLocalBinding(nil, ref, false)
 	}
 
 	if generator {
@@ -1230,7 +1269,7 @@ func (p *Parser) fnDec(expr bool, async bool) (Node, error) {
 	}
 
 	directUseStrict := !isOuterStrict && scope.IsKind(SPK_STRICT)
-	if err := p.checkParams(params, isStrict, directUseStrict); err != nil {
+	if err := p.checkParams(paramNames, firstComplicated, isStrict, directUseStrict); err != nil {
 		return nil, err
 	}
 
@@ -1245,18 +1284,20 @@ func (p *Parser) fnDec(expr bool, async bool) (Node, error) {
 	return &FnDec{typ, p.finLoc(loc), id, generator, async, params, body}, nil
 }
 
-// https://tc39.es/ecma262/multipage/ecmascript-language-functions-and-classes.html#sec-parameter-lists-static-semantics-early-errors
-// `isSimpleParamList` should be true if function body directly contains `use strict` directive
-func (p *Parser) checkParams(params []Node, isStrict bool, directUseStrict bool) error {
-	var patLoc *Loc
-	names := make([]Node, 0)
-	for _, param := range params {
-		if patLoc == nil && param.Type() != N_NAME {
-			patLoc = param.Loc()
+func (p *Parser) collectNames(nodes []Node) (names []Node, firstComplicated *Loc) {
+	names = make([]Node, 0)
+	for _, param := range nodes {
+		if firstComplicated == nil && param.Type() != N_NAME {
+			firstComplicated = param.Loc()
 		}
 		names = append(names, p.namesInPattern(param)...)
 	}
+	return
+}
 
+// https://tc39.es/ecma262/multipage/ecmascript-language-functions-and-classes.html#sec-parameter-lists-static-semantics-early-errors
+// `isSimpleParamList` should be true if function body directly contains `use strict` directive
+func (p *Parser) checkParams(names []Node, firstComplicated *Loc, isStrict bool, directUseStrict bool) error {
 	var dupLoc *Loc
 	unique := make(map[string]bool)
 	for _, id := range names {
@@ -1275,15 +1316,15 @@ func (p *Parser) checkParams(params []Node, isStrict bool, directUseStrict bool)
 		}
 	}
 
-	if directUseStrict && patLoc != nil {
-		return p.errorAtLoc(patLoc, ERR_STRICT_DIRECTIVE_AFTER_NOT_SIMPLE)
+	if directUseStrict && firstComplicated != nil {
+		return p.errorAtLoc(firstComplicated, ERR_STRICT_DIRECTIVE_AFTER_NOT_SIMPLE)
 	}
 
 	if dupLoc != nil {
 		if isStrict {
 			return p.errorAtLoc(dupLoc, ERR_DUP_PARAM_NAME)
 		}
-		if patLoc != nil {
+		if firstComplicated != nil {
 			return p.errorAtLoc(dupLoc, ERR_DUP_PARAM_NAME)
 		}
 	}
@@ -1292,6 +1333,9 @@ func (p *Parser) checkParams(params []Node, isStrict bool, directUseStrict bool)
 
 func (p *Parser) namesInPattern(node Node) []Node {
 	out := make([]Node, 0)
+	if node == nil {
+		return out
+	}
 	switch node.Type() {
 	case N_PATTERN_ARRAY:
 		elems := node.(*ArrPat).elems
@@ -1300,12 +1344,18 @@ func (p *Parser) namesInPattern(node Node) []Node {
 			out = append(out, names...)
 		}
 	case N_PATTERN_ASSIGN:
-		id := node.(*AssignPat).left.(*Ident)
-		out = append(out, id)
+		names := p.namesInPattern(node.(*AssignPat).left)
+		out = append(out, names...)
 	case N_PATTERN_OBJ:
 		props := node.(*ObjPat).props
 		for _, node := range props {
-			names := p.namesInPattern(node)
+			var names []Node
+			if node.Type() == N_NAME {
+				names = p.namesInPattern(node)
+			} else if node.Type() == N_PROP {
+				val := node.(*Prop).value
+				names = p.namesInPattern(val)
+			}
 			out = append(out, names...)
 		}
 	case N_PATTERN_REST:
@@ -1442,7 +1492,25 @@ func (p *Parser) aheadIsVarDec(tok *Token) bool {
 	if tok.value == T_VAR {
 		return true
 	}
+	if tok.value == T_LET || tok.value == T_CONST {
+		return true
+	}
 	return IsName(tok, "let", false) || IsName(tok, "const", false)
+}
+
+func (p *Parser) addLocalBinding(s *Scope, ref *Ref, checkDup bool) error {
+	if s == nil {
+		s = p.scope()
+	}
+	ok := s.AddLocal(ref, checkDup)
+	if ok {
+		return nil
+	}
+	if !ok {
+		name := ref.Node.Text()
+		return p.errorAtLoc(ref.Node.loc, fmt.Sprintf(ERR_ID_DUP_DEF, name))
+	}
+	return nil
 }
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-statements-and-declarations.html#prod-VariableStatement
@@ -1462,11 +1530,13 @@ func (p *Parser) varDecStmt(notIn bool, asExpr bool) (Node, error) {
 		node.kind = T_VAR
 	}
 
+	lvs := make([]Node, 0)
 	for {
 		dec, err := p.varDec(notIn)
 		if err != nil {
 			return nil, err
 		}
+		lvs = append(lvs, dec.id)
 
 		if isConst && dec.init == nil {
 			return nil, p.errorAtLoc(dec.loc, ERR_CONST_DEC_INIT_REQUIRED)
@@ -1479,6 +1549,23 @@ func (p *Parser) varDecStmt(notIn bool, asExpr bool) (Node, error) {
 			break
 		}
 	}
+
+	names, _ := p.collectNames(lvs)
+	for _, nameNode := range names {
+		id := nameNode.(*Ident)
+		ref := NewRef()
+		ref.Node = id
+		ref.BindKind = BK_VAR
+		if node.kind == T_LET {
+			ref.BindKind = BK_LET
+		} else if node.kind == T_CONST {
+			ref.BindKind = BK_CONST
+		}
+		if err := p.addLocalBinding(nil, ref, true); err != nil {
+			return nil, err
+		}
+	}
+
 	if !asExpr {
 		if err := p.advanceIfSemi(true); err != nil {
 			return nil, err
@@ -1631,6 +1718,10 @@ func (p *Parser) propName(allowNamePVT bool) (Node, error) {
 			ahead.value == T_SEMI ||
 			ahead.afterLineTerminator
 		if !isField {
+			if tok.ContainsEscape() {
+				return nil, p.errorAt(tok.value, &tok.begin, ERR_ESCAPE_IN_KEYWORD)
+			}
+
 			k := PK_INIT
 			if name == "get" {
 				k = PK_GETTER
@@ -2657,7 +2748,15 @@ func (p *Parser) advanceIfSemi(raise bool) error {
 		p.lexer.Next()
 	}
 	if raise && tok.value != T_SEMI && tok.value != T_BRACE_R && !tok.afterLineTerminator && tok.value != T_EOF {
-		return p.errorAt(tok.value, &tok.begin, ERR_MSG_UNEXPECTED_TOKEN)
+		errMsg := ERR_MSG_UNEXPECTED_TOKEN
+		if tok.value == T_ILLEGAL {
+			if msg, ok := tok.ext.(string); ok {
+				errMsg = msg
+			} else if msg, ok := tok.ext.(*LexerError); ok {
+				errMsg = msg.Error()
+			}
+		}
+		return p.errorAt(tok.value, &tok.begin, errMsg)
 	}
 	return nil
 }

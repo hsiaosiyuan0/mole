@@ -96,4 +96,5 @@ const (
 	ERR_GETTER_SHOULD_NO_PARAM                 = "Getter must not have any formal parameters"
 	ERR_SETTER_SHOULD_ONE_PARAM                = "Setter must have exactly one formal parameter"
 	ERR_ESCAPE_IN_KEYWORD                      = "Keyword must not contain escaped characters"
+	ERR_ID_DUP_DEF                             = "Identifier `%s` has already been declared"
 )

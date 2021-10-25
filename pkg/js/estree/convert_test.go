@@ -3,6 +3,7 @@ package estree
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"testing"
 
 	"github.com/hsiaosiyuan0/mole/pkg/assert"
@@ -32523,15 +32524,285 @@ func Test358(t *testing.T) {
 }
 
 func Test359(t *testing.T) {
-	// ast, err := compile("x = { false: 42 }")
-	// assert.Equal(t, nil, err, "should be prog ok")
+	ast, err := compile("class a { async* [1]() {} }")
+	assert.Equal(t, nil, err, "should be prog ok")
 
-	// assert.EqualJson(t, `
-
-	// `, ast)
+	assert.EqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 27,
+  "body": [
+    {
+      "type": "ClassDeclaration",
+      "start": 0,
+      "end": 27,
+      "id": {
+        "type": "Identifier",
+        "start": 6,
+        "end": 7,
+        "name": "a"
+      },
+      "superClass": null,
+      "body": {
+        "type": "ClassBody",
+        "start": 8,
+        "end": 27,
+        "body": [
+          {
+            "type": "MethodDefinition",
+            "start": 10,
+            "end": 25,
+            "static": false,
+            "computed": true,
+            "key": {
+              "type": "Literal",
+              "start": 18,
+              "end": 19,
+              "value": 1
+            },
+            "kind": "method",
+            "value": {
+              "type": "FunctionExpression",
+              "start": 20,
+              "end": 25,
+              "id": null,
+              "expression": false,
+              "generator": true,
+              "async": true,
+              "params": [],
+              "body": {
+                "type": "BlockStatement",
+                "start": 23,
+                "end": 25,
+                "body": []
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
+	`, ast)
 }
 
 func Test360(t *testing.T) {
+	ast, err := compile("for (; function () {} / 1;);")
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	assert.EqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 28,
+  "body": [
+    {
+      "type": "ForStatement",
+      "start": 0,
+      "end": 28,
+      "init": null,
+      "test": {
+        "type": "BinaryExpression",
+        "start": 7,
+        "end": 25,
+        "left": {
+          "type": "FunctionExpression",
+          "start": 7,
+          "end": 21,
+          "id": null,
+          "expression": false,
+          "generator": false,
+          "async": false,
+          "params": [],
+          "body": {
+            "type": "BlockStatement",
+            "start": 19,
+            "end": 21,
+            "body": []
+          }
+        },
+        "operator": "/",
+        "right": {
+          "type": "Literal",
+          "start": 24,
+          "end": 25,
+          "value": 1
+        }
+      },
+      "update": null,
+      "body": {
+        "type": "EmptyStatement",
+        "start": 27,
+        "end": 28
+      }
+    }
+  ]
+}
+	`, ast)
+}
+
+func Test361(t *testing.T) {
+	ast, err := compile("for (; class {} / 1;);")
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	fmt.Println(ast)
+	assert.EqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 22,
+  "body": [
+    {
+      "type": "ForStatement",
+      "start": 0,
+      "end": 22,
+      "init": null,
+      "test": {
+        "type": "BinaryExpression",
+        "start": 7,
+        "end": 19,
+        "left": {
+          "type": "ClassExpression",
+          "start": 7,
+          "end": 15,
+          "id": null,
+          "superClass": null,
+          "body": {
+            "type": "ClassBody",
+            "start": 13,
+            "end": 15,
+            "body": []
+          }
+        },
+        "operator": "/",
+        "right": {
+          "type": "Literal",
+          "start": 18,
+          "end": 19,
+          "value": 1
+        }
+      },
+      "update": null,
+      "body": {
+        "type": "EmptyStatement",
+        "start": 21,
+        "end": 22
+      }
+    }
+  ]
+}
+	`, ast)
+}
+
+func Test362(t *testing.T) {
+	ast, err := compile("for (;; function () {} / 1);")
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	assert.EqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 28,
+  "body": [
+    {
+      "type": "ForStatement",
+      "start": 0,
+      "end": 28,
+      "init": null,
+      "test": null,
+      "update": {
+        "type": "BinaryExpression",
+        "start": 8,
+        "end": 26,
+        "left": {
+          "type": "FunctionExpression",
+          "start": 8,
+          "end": 22,
+          "id": null,
+          "expression": false,
+          "generator": false,
+          "async": false,
+          "params": [],
+          "body": {
+            "type": "BlockStatement",
+            "start": 20,
+            "end": 22,
+            "body": []
+          }
+        },
+        "operator": "/",
+        "right": {
+          "type": "Literal",
+          "start": 25,
+          "end": 26,
+          "value": 1
+        }
+      },
+      "body": {
+        "type": "EmptyStatement",
+        "start": 27,
+        "end": 28
+      }
+    }
+  ]
+}
+	`, ast)
+}
+
+func Test363(t *testing.T) {
+	ast, err := compile("for (;; class {} / 1);")
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	assert.EqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 22,
+  "body": [
+    {
+      "type": "ForStatement",
+      "start": 0,
+      "end": 22,
+      "init": null,
+      "test": null,
+      "update": {
+        "type": "BinaryExpression",
+        "start": 8,
+        "end": 20,
+        "left": {
+          "type": "ClassExpression",
+          "start": 8,
+          "end": 16,
+          "id": null,
+          "superClass": null,
+          "body": {
+            "type": "ClassBody",
+            "start": 14,
+            "end": 16,
+            "body": []
+          }
+        },
+        "operator": "/",
+        "right": {
+          "type": "Literal",
+          "start": 19,
+          "end": 20,
+          "value": 1
+        }
+      },
+      "body": {
+        "type": "EmptyStatement",
+        "start": 21,
+        "end": 22
+      }
+    }
+  ]
+}
+	`, ast)
+}
+
+func Test364(t *testing.T) {
 	// ast, err := compile("x = { false: 42 }")
 	// assert.Equal(t, nil, err, "should be prog ok")
 
