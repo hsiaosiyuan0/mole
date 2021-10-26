@@ -617,7 +617,7 @@ func (l *Lexer) ReadSymbol() *Token {
 	}
 
 	if val == T_DOT_TRI && l.ver < ES6 {
-		return l.errToken(tok, ERR_MSG_UNEXPECTED_TOKEN)
+		return l.errToken(tok, ERR_UNEXPECTED_TOKEN)
 	}
 
 	return l.finToken(tok, val)
@@ -792,14 +792,13 @@ func (l *Lexer) readEscapeSeq() (r rune, errMsg string, octalEscapeSeq bool) {
 }
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-lexical-grammar.html#prod-LegacyOctalEscapeSequence
-// TODO: disabled in strict mode
 func (l *Lexer) readOctalEscapeSeq(first rune) (rune, string) {
 	octal := make([]rune, 0, 3)
 	octal = append(octal, first)
 	zeroToThree := first >= '0' && first <= '3'
 	i := 1
 	if l.isMode(LM_TEMPLATE) {
-		return utf8.RuneError, ERR_MSG_LEGACY_OCTAL_ESCAPE_IN_TPL
+		return utf8.RuneError, ERR_LEGACY_OCTAL_ESCAPE_IN_TPL
 	}
 	for {
 		if !zeroToThree && i == 2 || zeroToThree && i == 3 {
@@ -868,12 +867,12 @@ func (l *Lexer) ReadNum() *Token {
 		if IsDecimalDigit(nc) {
 			if IsOctalDigit(nc) {
 				if l.isMode(LM_STRICT) {
-					return l.errToken(tok, ERR_MSG_LEGACY_OCTAL_IN_STRICT_MODE)
+					return l.errToken(tok, ERR_LEGACY_OCTAL_IN_STRICT_MODE)
 				} else {
 					return l.readOctalNum(tok, 1)
 				}
 			} else {
-				return l.errToken(tok, ERR_MSG_INVALID_NUMBER)
+				return l.errToken(tok, ERR_INVALID_NUMBER)
 			}
 		}
 	}
@@ -885,7 +884,7 @@ func (l *Lexer) readDecimalNum(tok *Token, first rune) *Token {
 		c := l.src.Peek()
 		if c != 'e' && c != 'E' && c != 'n' && IsIdStart(c) {
 			tok = l.newToken()
-			return l.errToken(tok, ERR_MSG_IDENT_AFTER_NUMBER)
+			return l.errToken(tok, ERR_IDENT_AFTER_NUMBER)
 		}
 		l.readDecimalDigits(true)
 	}
@@ -897,15 +896,15 @@ func (l *Lexer) readDecimalNum(tok *Token, first rune) *Token {
 		// read the fraction part
 		if err := l.readDecimalDigits(true); err != nil {
 			if IsIdStart(l.src.Peek()) {
-				return l.errToken(nil, ERR_MSG_IDENT_AFTER_NUMBER)
+				return l.errToken(nil, ERR_IDENT_AFTER_NUMBER)
 			}
-			return l.errToken(tok, ERR_MSG_INVALID_NUMBER)
+			return l.errToken(tok, ERR_INVALID_NUMBER)
 		}
 	}
 
 	if l.src.AheadIsChOr('e', 'E') {
 		if err := l.readExpPart(); err != nil {
-			return l.errToken(tok, ERR_MSG_INVALID_NUMBER)
+			return l.errToken(tok, ERR_INVALID_NUMBER)
 		}
 	}
 
@@ -948,13 +947,13 @@ func (l *Lexer) readBinaryNum(tok *Token) *Token {
 			l.src.Read()
 			i += 1
 		} else if IsIdStart(c) {
-			return l.errToken(nil, ERR_MSG_IDENT_AFTER_NUMBER)
+			return l.errToken(nil, ERR_IDENT_AFTER_NUMBER)
 		} else {
 			break
 		}
 	}
 	if i == 0 {
-		return l.errToken(tok, ERR_MSG_INVALID_NUMBER)
+		return l.errToken(tok, ERR_INVALID_NUMBER)
 	}
 	l.src.ReadIfNextIs('n')
 	return l.finToken(tok, T_NUM)
@@ -968,13 +967,13 @@ func (l *Lexer) readOctalNum(tok *Token, i int) *Token {
 			l.src.Read()
 			i += 1
 		} else if IsIdStart(c) {
-			return l.errToken(nil, ERR_MSG_IDENT_AFTER_NUMBER)
+			return l.errToken(nil, ERR_IDENT_AFTER_NUMBER)
 		} else {
 			break
 		}
 	}
 	if i == 0 {
-		return l.errToken(tok, ERR_MSG_INVALID_NUMBER)
+		return l.errToken(tok, ERR_INVALID_NUMBER)
 	}
 	l.src.ReadIfNextIs('n')
 	return l.finToken(tok, T_NUM)
@@ -989,7 +988,7 @@ func (l *Lexer) readHexNum(tok *Token) *Token {
 			l.src.Read()
 			i += 1
 		} else if IsIdStart(c) {
-			return l.errToken(nil, ERR_MSG_IDENT_AFTER_NUMBER)
+			return l.errToken(nil, ERR_IDENT_AFTER_NUMBER)
 		} else {
 			break
 		}

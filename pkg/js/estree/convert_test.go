@@ -32801,6 +32801,1004 @@ func Test363(t *testing.T) {
 }
 
 func Test364(t *testing.T) {
+	ast, err := compile("class a { a = 1 }")
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	assert.EqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 17,
+  "body": [
+    {
+      "type": "ClassDeclaration",
+      "start": 0,
+      "end": 17,
+      "id": {
+        "type": "Identifier",
+        "start": 6,
+        "end": 7,
+        "name": "a"
+      },
+      "superClass": null,
+      "body": {
+        "type": "ClassBody",
+        "start": 8,
+        "end": 17,
+        "body": [
+          {
+            "type": "PropertyDefinition",
+            "start": 10,
+            "end": 15,
+            "static": false,
+            "computed": false,
+            "key": {
+              "type": "Identifier",
+              "start": 10,
+              "end": 11,
+              "name": "a"
+            },
+            "value": {
+              "type": "Literal",
+              "start": 14,
+              "end": 15,
+              "value": 1
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
+	`, ast)
+}
+
+func Test365(t *testing.T) {
+	ast, err := compile("function a(a = 1) {}")
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	assert.EqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 20,
+  "body": [
+    {
+      "type": "FunctionDeclaration",
+      "start": 0,
+      "end": 20,
+      "id": {
+        "type": "Identifier",
+        "start": 9,
+        "end": 10,
+        "name": "a"
+      },
+      "generator": false,
+      "async": false,
+      "params": [
+        {
+          "type": "AssignmentPattern",
+          "start": 11,
+          "end": 16,
+          "left": {
+            "type": "Identifier",
+            "start": 11,
+            "end": 12,
+            "name": "a"
+          },
+          "right": {
+            "type": "Literal",
+            "start": 15,
+            "end": 16,
+            "value": 1
+          }
+        }
+      ],
+      "body": {
+        "type": "BlockStatement",
+        "start": 18,
+        "end": 20,
+        "body": []
+      }
+    }
+  ]
+}
+	`, ast)
+}
+
+func Test366(t *testing.T) {
+	ast, err := compile("function a({ a: { b = 1 } }) {}")
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	assert.EqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 31,
+  "body": [
+    {
+      "type": "FunctionDeclaration",
+      "start": 0,
+      "end": 31,
+      "id": {
+        "type": "Identifier",
+        "start": 9,
+        "end": 10,
+        "name": "a"
+      },
+      "generator": false,
+      "async": false,
+      "params": [
+        {
+          "type": "ObjectPattern",
+          "start": 11,
+          "end": 27,
+          "properties": [
+            {
+              "type": "Property",
+              "start": 13,
+              "end": 25,
+              "method": false,
+              "shorthand": false,
+              "computed": false,
+              "key": {
+                "type": "Identifier",
+                "start": 13,
+                "end": 14,
+                "name": "a"
+              },
+              "value": {
+                "type": "ObjectPattern",
+                "start": 16,
+                "end": 25,
+                "properties": [
+                  {
+                    "type": "Property",
+                    "start": 18,
+                    "end": 23,
+                    "method": false,
+                    "shorthand": true,
+                    "computed": false,
+                    "key": {
+                      "type": "Identifier",
+                      "start": 18,
+                      "end": 19,
+                      "name": "b"
+                    },
+                    "kind": "init",
+                    "value": {
+                      "type": "AssignmentPattern",
+                      "start": 18,
+                      "end": 23,
+                      "left": {
+                        "type": "Identifier",
+                        "start": 18,
+                        "end": 19,
+                        "name": "b"
+                      },
+                      "right": {
+                        "type": "Literal",
+                        "start": 22,
+                        "end": 23,
+                        "value": 1
+                      }
+                    }
+                  }
+                ]
+              },
+              "kind": "init"
+            }
+          ]
+        }
+      ],
+      "body": {
+        "type": "BlockStatement",
+        "start": 29,
+        "end": 31,
+        "body": []
+      }
+    }
+  ]
+}
+	`, ast)
+}
+
+func Test367(t *testing.T) {
+	ast, err := compile("function a({ a: { b = 1 } }) {}")
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	assert.EqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 31,
+  "body": [
+    {
+      "type": "FunctionDeclaration",
+      "start": 0,
+      "end": 31,
+      "id": {
+        "type": "Identifier",
+        "start": 9,
+        "end": 10,
+        "name": "a"
+      },
+      "generator": false,
+      "async": false,
+      "params": [
+        {
+          "type": "ObjectPattern",
+          "start": 11,
+          "end": 27,
+          "properties": [
+            {
+              "type": "Property",
+              "start": 13,
+              "end": 25,
+              "method": false,
+              "shorthand": false,
+              "computed": false,
+              "key": {
+                "type": "Identifier",
+                "start": 13,
+                "end": 14,
+                "name": "a"
+              },
+              "value": {
+                "type": "ObjectPattern",
+                "start": 16,
+                "end": 25,
+                "properties": [
+                  {
+                    "type": "Property",
+                    "start": 18,
+                    "end": 23,
+                    "method": false,
+                    "shorthand": true,
+                    "computed": false,
+                    "key": {
+                      "type": "Identifier",
+                      "start": 18,
+                      "end": 19,
+                      "name": "b"
+                    },
+                    "kind": "init",
+                    "value": {
+                      "type": "AssignmentPattern",
+                      "start": 18,
+                      "end": 23,
+                      "left": {
+                        "type": "Identifier",
+                        "start": 18,
+                        "end": 19,
+                        "name": "b"
+                      },
+                      "right": {
+                        "type": "Literal",
+                        "start": 22,
+                        "end": 23,
+                        "value": 1
+                      }
+                    }
+                  }
+                ]
+              },
+              "kind": "init"
+            }
+          ]
+        }
+      ],
+      "body": {
+        "type": "BlockStatement",
+        "start": 29,
+        "end": 31,
+        "body": []
+      }
+    }
+  ]
+}
+	`, ast)
+}
+
+func Test368(t *testing.T) {
+	ast, err := compile("function a({ a: { b: { c = 1 } } }) {}")
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	assert.EqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 38,
+  "body": [
+    {
+      "type": "FunctionDeclaration",
+      "start": 0,
+      "end": 38,
+      "id": {
+        "type": "Identifier",
+        "start": 9,
+        "end": 10,
+        "name": "a"
+      },
+      "generator": false,
+      "async": false,
+      "params": [
+        {
+          "type": "ObjectPattern",
+          "start": 11,
+          "end": 34,
+          "properties": [
+            {
+              "type": "Property",
+              "start": 13,
+              "end": 32,
+              "method": false,
+              "shorthand": false,
+              "computed": false,
+              "key": {
+                "type": "Identifier",
+                "start": 13,
+                "end": 14,
+                "name": "a"
+              },
+              "value": {
+                "type": "ObjectPattern",
+                "start": 16,
+                "end": 32,
+                "properties": [
+                  {
+                    "type": "Property",
+                    "start": 18,
+                    "end": 30,
+                    "method": false,
+                    "shorthand": false,
+                    "computed": false,
+                    "key": {
+                      "type": "Identifier",
+                      "start": 18,
+                      "end": 19,
+                      "name": "b"
+                    },
+                    "value": {
+                      "type": "ObjectPattern",
+                      "start": 21,
+                      "end": 30,
+                      "properties": [
+                        {
+                          "type": "Property",
+                          "start": 23,
+                          "end": 28,
+                          "method": false,
+                          "shorthand": true,
+                          "computed": false,
+                          "key": {
+                            "type": "Identifier",
+                            "start": 23,
+                            "end": 24,
+                            "name": "c"
+                          },
+                          "kind": "init",
+                          "value": {
+                            "type": "AssignmentPattern",
+                            "start": 23,
+                            "end": 28,
+                            "left": {
+                              "type": "Identifier",
+                              "start": 23,
+                              "end": 24,
+                              "name": "c"
+                            },
+                            "right": {
+                              "type": "Literal",
+                              "start": 27,
+                              "end": 28,
+                              "value": 1
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "kind": "init"
+                  }
+                ]
+              },
+              "kind": "init"
+            }
+          ]
+        }
+      ],
+      "body": {
+        "type": "BlockStatement",
+        "start": 36,
+        "end": 38,
+        "body": []
+      }
+    }
+  ]
+}
+	`, ast)
+}
+
+func Test369(t *testing.T) {
+	ast, err := compile("let a = (a = 1) => {}")
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	assert.EqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 21,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 0,
+      "end": 21,
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 4,
+          "end": 21,
+          "id": {
+            "type": "Identifier",
+            "start": 4,
+            "end": 5,
+            "name": "a"
+          },
+          "init": {
+            "type": "ArrowFunctionExpression",
+            "start": 8,
+            "end": 21,
+            "id": null,
+            "generator": false,
+            "async": false,
+            "params": [
+              {
+                "type": "AssignmentPattern",
+                "start": 9,
+                "end": 14,
+                "left": {
+                  "type": "Identifier",
+                  "start": 9,
+                  "end": 10,
+                  "name": "a"
+                },
+                "right": {
+                  "type": "Literal",
+                  "start": 13,
+                  "end": 14,
+                  "value": 1
+                }
+              }
+            ],
+            "body": {
+              "type": "BlockStatement",
+              "start": 19,
+              "end": 21,
+              "body": []
+            }
+          }
+        }
+      ],
+      "kind": "let"
+    }
+  ]
+}
+	`, ast)
+}
+
+func Test370(t *testing.T) {
+	ast, err := compile("let a = ({ a = 1 }) => {}")
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	assert.EqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 25,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 0,
+      "end": 25,
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 4,
+          "end": 25,
+          "id": {
+            "type": "Identifier",
+            "start": 4,
+            "end": 5,
+            "name": "a"
+          },
+          "init": {
+            "type": "ArrowFunctionExpression",
+            "start": 8,
+            "end": 25,
+            "id": null,
+            "generator": false,
+            "async": false,
+            "params": [
+              {
+                "type": "ObjectPattern",
+                "start": 9,
+                "end": 18,
+                "properties": [
+                  {
+                    "type": "Property",
+                    "start": 11,
+                    "end": 16,
+                    "method": false,
+                    "shorthand": true,
+                    "computed": false,
+                    "key": {
+                      "type": "Identifier",
+                      "start": 11,
+                      "end": 12,
+                      "name": "a"
+                    },
+                    "kind": "init",
+                    "value": {
+                      "type": "AssignmentPattern",
+                      "start": 11,
+                      "end": 16,
+                      "left": {
+                        "type": "Identifier",
+                        "start": 11,
+                        "end": 12,
+                        "name": "a"
+                      },
+                      "right": {
+                        "type": "Literal",
+                        "start": 15,
+                        "end": 16,
+                        "value": 1
+                      }
+                    }
+                  }
+                ]
+              }
+            ],
+            "body": {
+              "type": "BlockStatement",
+              "start": 23,
+              "end": 25,
+              "body": []
+            }
+          }
+        }
+      ],
+      "kind": "let"
+    }
+  ]
+}
+	`, ast)
+}
+
+func Test371(t *testing.T) {
+	ast, err := compile("let a = ({ a: { b = 1 } }) => {}")
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	assert.EqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 32,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 0,
+      "end": 32,
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 4,
+          "end": 32,
+          "id": {
+            "type": "Identifier",
+            "start": 4,
+            "end": 5,
+            "name": "a"
+          },
+          "init": {
+            "type": "ArrowFunctionExpression",
+            "start": 8,
+            "end": 32,
+            "id": null,
+            "generator": false,
+            "async": false,
+            "params": [
+              {
+                "type": "ObjectPattern",
+                "start": 9,
+                "end": 25,
+                "properties": [
+                  {
+                    "type": "Property",
+                    "start": 11,
+                    "end": 23,
+                    "method": false,
+                    "shorthand": false,
+                    "computed": false,
+                    "key": {
+                      "type": "Identifier",
+                      "start": 11,
+                      "end": 12,
+                      "name": "a"
+                    },
+                    "value": {
+                      "type": "ObjectPattern",
+                      "start": 14,
+                      "end": 23,
+                      "properties": [
+                        {
+                          "type": "Property",
+                          "start": 16,
+                          "end": 21,
+                          "method": false,
+                          "shorthand": true,
+                          "computed": false,
+                          "key": {
+                            "type": "Identifier",
+                            "start": 16,
+                            "end": 17,
+                            "name": "b"
+                          },
+                          "kind": "init",
+                          "value": {
+                            "type": "AssignmentPattern",
+                            "start": 16,
+                            "end": 21,
+                            "left": {
+                              "type": "Identifier",
+                              "start": 16,
+                              "end": 17,
+                              "name": "b"
+                            },
+                            "right": {
+                              "type": "Literal",
+                              "start": 20,
+                              "end": 21,
+                              "value": 1
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "kind": "init"
+                  }
+                ]
+              }
+            ],
+            "body": {
+              "type": "BlockStatement",
+              "start": 30,
+              "end": 32,
+              "body": []
+            }
+          }
+        }
+      ],
+      "kind": "let"
+    }
+  ]
+}
+	`, ast)
+}
+
+func Test372(t *testing.T) {
+	ast, err := compile("function a([ a = 1 ]) {}")
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	assert.EqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 24,
+  "body": [
+    {
+      "type": "FunctionDeclaration",
+      "start": 0,
+      "end": 24,
+      "id": {
+        "type": "Identifier",
+        "start": 9,
+        "end": 10,
+        "name": "a"
+      },
+      "generator": false,
+      "async": false,
+      "params": [
+        {
+          "type": "ArrayPattern",
+          "start": 11,
+          "end": 20,
+          "elements": [
+            {
+              "type": "AssignmentPattern",
+              "start": 13,
+              "end": 18,
+              "left": {
+                "type": "Identifier",
+                "start": 13,
+                "end": 14,
+                "name": "a"
+              },
+              "right": {
+                "type": "Literal",
+                "start": 17,
+                "end": 18,
+                "value": 1
+              }
+            }
+          ]
+        }
+      ],
+      "body": {
+        "type": "BlockStatement",
+        "start": 22,
+        "end": 24,
+        "body": []
+      }
+    }
+  ]
+}
+	`, ast)
+}
+
+func Test373(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test374(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test375(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test376(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test377(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test378(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test379(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test380(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test381(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test382(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test383(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test384(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test385(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test386(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test387(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test388(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test389(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test390(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test391(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test392(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test393(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test394(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test395(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test396(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test397(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test398(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test399(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test400(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test401(t *testing.T) {
 	// ast, err := compile("x = { false: 42 }")
 	// assert.Equal(t, nil, err, "should be prog ok")
 

@@ -272,6 +272,14 @@ func exportNamed(node *parser.ExportDec) Node {
 	}
 }
 
+func elems(nodes []parser.Node) []Node {
+	ret := make([]Node, len(nodes))
+	for i, node := range nodes {
+		ret[i] = convert(node)
+	}
+	return ret
+}
+
 func convert(node parser.Node) Node {
 	if node == nil {
 		return nil
@@ -402,15 +410,16 @@ func convert(node parser.Node) Node {
 	case parser.N_PROP:
 		prop := node.(*parser.Prop)
 		return &Property{
-			Type:     "Property",
-			Start:    start(prop.Loc()),
-			End:      end(prop.Loc()),
-			Loc:      loc(prop.Loc()),
-			Key:      convert(prop.Key()),
-			Value:    convert(prop.Value()),
-			Kind:     prop.Kind(),
-			Computed: prop.Computed(),
-			Method:   prop.Method(),
+			Type:      "Property",
+			Start:     start(prop.Loc()),
+			End:       end(prop.Loc()),
+			Loc:       loc(prop.Loc()),
+			Key:       convert(prop.Key()),
+			Value:     convert(prop.Value()),
+			Kind:      prop.Kind(),
+			Computed:  prop.Computed(),
+			Shorthand: prop.Shorthand(),
+			Method:    prop.Method(),
 		}
 	case parser.N_STMT_BLOCK:
 		return blockStmt(node.(*parser.BlockStmt))
@@ -483,7 +492,35 @@ func convert(node parser.Node) Node {
 			Loc:      loc(n.Loc()),
 			Argument: convert(n.Arg()),
 		}
-	case parser.N_PATTERN_REST:
+	case parser.N_PAT_ARRAY:
+		n := node.(*parser.ArrPat)
+		return &ArrayPattern{
+			Type:     "ArrayPattern",
+			Start:    start(n.Loc()),
+			End:      end(n.Loc()),
+			Loc:      loc(n.Loc()),
+			Elements: elems(n.Elems()),
+		}
+	case parser.N_PAT_ASSIGN:
+		n := node.(*parser.AssignPat)
+		return &AssignmentPattern{
+			Type:  "AssignmentPattern",
+			Start: start(n.Loc()),
+			End:   end(n.Loc()),
+			Loc:   loc(n.Loc()),
+			Left:  convert(n.Left()),
+			Right: convert(n.Right()),
+		}
+	case parser.N_PAT_OBJ:
+		n := node.(*parser.ObjPat)
+		return &ObjectPattern{
+			Type:       "ObjectPattern",
+			Start:      start(n.Loc()),
+			End:        end(n.Loc()),
+			Loc:        loc(n.Loc()),
+			Properties: elems(n.Props()),
+		}
+	case parser.N_PAT_REST:
 		n := node.(*parser.RestPat)
 		return &RestElement{
 			Type:     "RestElement",

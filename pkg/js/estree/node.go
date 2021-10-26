@@ -594,20 +594,20 @@ type AssignmentProperty struct {
 
 // https://github.com/estree/estree/blob/master/es2015.md#objectpattern
 type ObjectPattern struct {
-	Type       string               `json:"type"`
-	Start      int                  `json:"start"`
-	End        int                  `json:"end"`
-	Loc        *SrcLoc              `json:"loc"`
-	Properties []AssignmentProperty `json:"properties"`
+	Type       string  `json:"type"`
+	Start      int     `json:"start"`
+	End        int     `json:"end"`
+	Loc        *SrcLoc `json:"loc"`
+	Properties []Node  `json:"properties"`
 }
 
 // https://github.com/estree/estree/blob/master/es2015.md#arraypattern
 type ArrayPattern struct {
-	Type     string    `json:"type"`
-	Start    int       `json:"start"`
-	End      int       `json:"end"`
-	Loc      *SrcLoc   `json:"loc"`
-	Elements []Pattern `json:"elements"`
+	Type     string  `json:"type"`
+	Start    int     `json:"start"`
+	End      int     `json:"end"`
+	Loc      *SrcLoc `json:"loc"`
+	Elements []Node  `json:"elements"`
 }
 
 // https://github.com/estree/estree/blob/master/es2015.md#restelement
@@ -621,12 +621,12 @@ type RestElement struct {
 
 // https://github.com/estree/estree/blob/master/es2015.md#assignmentpattern
 type AssignmentPattern struct {
-	Type  string     `json:"type"`
-	Start int        `json:"start"`
-	End   int        `json:"end"`
-	Loc   *SrcLoc    `json:"loc"`
-	Left  Pattern    `json:"left"`
-	Right Expression `json:"right"`
+	Type  string  `json:"type"`
+	Start int     `json:"start"`
+	End   int     `json:"end"`
+	Loc   *SrcLoc `json:"loc"`
+	Left  Node    `json:"left"`
+	Right Node    `json:"right"`
 }
 
 // https://github.com/estree/estree/blob/master/es2015.md#classbody

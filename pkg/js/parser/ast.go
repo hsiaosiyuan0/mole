@@ -139,10 +139,10 @@ const (
 	N_NAME
 
 	N_VAR_DEC
-	N_PATTERN_REST
-	N_PATTERN_ARRAY
-	N_PATTERN_ASSIGN
-	N_PATTERN_OBJ
+	N_PAT_REST
+	N_PAT_ARRAY
+	N_PAT_ASSIGN
+	N_PAT_OBJ
 	N_PROP
 	N_SPREAD
 	N_SWITCH_CASE
@@ -619,11 +619,12 @@ func (n *CondExpr) Loc() *Loc {
 }
 
 type AssignExpr struct {
-	typ NodeType
-	loc *Loc
-	op  TokenValue
-	lhs Node
-	rhs Node
+	typ   NodeType
+	loc   *Loc
+	op    TokenValue
+	opLoc *Loc
+	lhs   Node
+	rhs   Node
 }
 
 func (n *AssignExpr) Op() TokenValue {
@@ -710,11 +711,23 @@ func (n *ArrPat) Loc() *Loc {
 	return n.loc
 }
 
+func (n *ArrPat) Elems() []Node {
+	return n.elems
+}
+
 type AssignPat struct {
-	typ   NodeType
-	loc   *Loc
-	left  Node
-	right Node
+	typ NodeType
+	loc *Loc
+	lhs Node
+	rhs Node
+}
+
+func (n *AssignPat) Left() Node {
+	return n.lhs
+}
+
+func (n *AssignPat) Right() Node {
+	return n.rhs
 }
 
 func (n *AssignPat) Type() NodeType {
@@ -747,6 +760,10 @@ type ObjPat struct {
 	typ   NodeType
 	loc   *Loc
 	props []Node
+}
+
+func (n *ObjPat) Props() []Node {
+	return n.props
 }
 
 func (n *ObjPat) Type() NodeType {
@@ -785,12 +802,14 @@ func (pk PropKind) ToString() string {
 }
 
 type Prop struct {
-	typ      NodeType
-	loc      *Loc
-	key      Node
-	value    Node
-	computed bool
-	kind     PropKind
+	typ       NodeType
+	loc       *Loc
+	key       Node
+	opLoc     *Loc
+	value     Node
+	computed  bool
+	shorthand bool
+	kind      PropKind
 }
 
 func (n *Prop) Kind() string {
@@ -811,6 +830,10 @@ func (n *Prop) Value() Node {
 
 func (n *Prop) Computed() bool {
 	return n.computed
+}
+
+func (n *Prop) Shorthand() bool {
+	return n.shorthand
 }
 
 func (n *Prop) Type() NodeType {
@@ -1376,7 +1399,7 @@ func (n *Field) Key() Node {
 }
 
 func (n *Field) Value() Node {
-	return n.key
+	return n.value
 }
 
 func (n *Field) Static() bool {

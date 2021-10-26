@@ -7,12 +7,16 @@ import (
 )
 
 func compile(code string, opts *ParserOpts) (Node, error) {
+	p := newParser(code, opts)
+	return p.Prog()
+}
+
+func newParser(code string, opts *ParserOpts) *Parser {
 	if opts == nil {
 		opts = NewParserOpts()
 	}
 	s := NewSource("", code)
-	p := NewParser(s, opts)
-	return p.Prog()
+	return NewParser(s, opts)
 }
 
 func testFail(t *testing.T, code, errMs string, opts *ParserOpts) {
@@ -197,17 +201,17 @@ func TestNewExpr(t *testing.T) {
 }
 
 func TestCallExpr(t *testing.T) {
-	ast, err := compile("a()(c, ...a, b)", nil)
+	ast, err := compile("a()(c, b, ...a)", nil)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	expr := ast.(*Prog).stmts[0].(*ExprStmt).expr.(*CallExpr)
 	callee := expr.callee.(*CallExpr)
-	assert.Equal(t, "a", callee.callee.(*Ident).Text(), "should be a")
+	assert.Equal(t, "a", callee.callee.(*Ident).Text(), "should be b")
 
 	params := expr.args
 	assert.Equal(t, "c", params[0].(*Ident).Text(), "should be c")
-	assert.Equal(t, "a", params[1].(*Spread).arg.(*Ident).Text(), "should be a")
-	assert.Equal(t, "b", params[2].(*Ident).Text(), "should be b")
+	assert.Equal(t, "a", params[2].(*Spread).arg.(*Ident).Text(), "should be b")
+	assert.Equal(t, "b", params[1].(*Ident).Text(), "should be a")
 }
 
 func TestCallExprMem(t *testing.T) {
@@ -287,21 +291,21 @@ func TestVarDecArrPattern(t *testing.T) {
 	assert.Equal(t, "a", elem0.Text(), "should be a")
 
 	elem1 := arr.elems[1].(*AssignPat)
-	elem1Lhs := elem1.left.(*Ident)
-	elem1Rhs := elem1.right.(*NumLit)
+	elem1Lhs := elem1.lhs.(*Ident)
+	elem1Rhs := elem1.rhs.(*NumLit)
 	assert.Equal(t, "b", elem1Lhs.Text(), "should be b")
 	assert.Equal(t, "1", elem1Rhs.Text(), "should be 1")
 
 	elem2 := arr.elems[2].(*AssignPat)
-	elem2Lhs := elem2.left.(*ArrPat)
-	elem2Rhs := elem2.right.(*NumLit)
+	elem2Lhs := elem2.lhs.(*ArrPat)
+	elem2Rhs := elem2.rhs.(*NumLit)
 	assert.Equal(t, "c", elem2Lhs.elems[0].(*Ident).Text(), "should be c")
 	assert.Equal(t, "1", elem2Rhs.Text(), "should be 1")
 
 	elem3 := arr.elems[3].(*ArrPat)
 	elem31 := elem3.elems[0].(*AssignPat)
-	assert.Equal(t, "d", elem31.left.(*Ident).Text(), "should be d")
-	assert.Equal(t, "1", elem31.right.(*NumLit).Text(), "should be 1")
+	assert.Equal(t, "d", elem31.lhs.(*Ident).Text(), "should be d")
+	assert.Equal(t, "1", elem31.rhs.(*NumLit).Text(), "should be 1")
 }
 
 func TestVarDecArrPatternElision(t *testing.T) {
@@ -939,6 +943,12 @@ func TestMetaProp(t *testing.T) {
 	assert.Equal(t, "meta", metaProp.prop.(*Ident).Text(), "should be meta")
 }
 
+func TestScopeBalance(t *testing.T) {
+	parser := newParser("function a () {}", nil)
+	parser.Prog()
+	assert.Equal(t, uint(0), parser.symtab.Cur.Id, "scope should be balanced")
+}
+
 func TestFail1(t *testing.T) {
 	testFail(t, "{", "Unexpected token `EOF` at (1:1)", nil)
 }
@@ -1160,17 +1170,17 @@ func TestFail54(t *testing.T) {
 
 func TestFail56(t *testing.T) {
 	testFail(t, "function t(false) { }",
-		"Unexpected token `false` at (1:11)", nil)
+		"Unexpected token at (1:11)", nil)
 }
 
 func TestFail57(t *testing.T) {
 	testFail(t, "function t(true) { }",
-		"Unexpected token `true` at (1:11)", nil)
+		"Unexpected token at (1:11)", nil)
 }
 
 func TestFail58(t *testing.T) {
 	testFail(t, "function t(null) { }",
-		"Unexpected token `null` at (1:11)", nil)
+		"Unexpected token at (1:11)", nil)
 }
 
 func TestFail59(t *testing.T) {
@@ -1986,55 +1996,61 @@ func TestFail223(t *testing.T) {
 }
 
 func TestFail224(t *testing.T) {
-	// Make sure a slash after an anonymous function/class in a for spec is treated as division
-	testPass(t, "for (; function () {} / 1;);", nil)
-	testPass(t, "for (; class {} / 1;);", nil)
-	testPass(t, "for (;; function () {} / 1);", nil)
-	testPass(t, "for (;; class {} / 1);", nil)
+	testFail(t, "let a = () => { 'use strict'; delete i; }",
+		"Deleting local variable in strict mode at (1:37)", nil)
 }
 
 func TestFail225(t *testing.T) {
-
+	testFail(t, "let a = () => { '\\12'; 'use strict'; }",
+		"Octal escape sequences are not allowed in strict mode at (1:16)", nil)
 }
 
 func TestFail226(t *testing.T) {
-
+	testFail(t, "(function () { 'use strict'; with (i); }())",
+		"Strict mode code may not include a with statement at (1:29)", nil)
 }
 
 func TestFail227(t *testing.T) {
-
+	testFail(t, "let hello = () => {'use strict'; var eval = 10; }",
+		"Unexpected strict mode reserved word at (1:37)", nil)
 }
 
 func TestFail228(t *testing.T) {
-
+	testFail(t, "let hello = () => {'use strict'; try { } catch (eval) { } }",
+		"Unexpected strict mode reserved word at (1:48)", nil)
 }
 
 func TestFail229(t *testing.T) {
-
+	testFail(t, "let a = (t, t) => { \"use strict\"; }",
+		"Parameter name clash at (1:12)", nil)
 }
 
 func TestFail230(t *testing.T) {
-
+	testFail(t, "let a = ({ t }) => { \"use strict\"; }",
+		"Illegal 'use strict' directive in function with non-simple parameter list at (1:9)", nil)
 }
 
 func TestFail231(t *testing.T) {
-
+	testFail(t, "class { a = 1 }", "Class name is required at (1:6)", nil)
 }
 
 func TestFail232(t *testing.T) {
-
+	testFail(t, "function a(1) {}", "Unexpected token at (1:11)", nil)
 }
 
 func TestFail233(t *testing.T) {
-
+	testFail(t, "function a([ a = { b = 1 } ]) {}",
+		"Shorthand property assignments are valid only in destructuring patterns at (1:21)", nil)
 }
 
 func TestFail234(t *testing.T) {
-
+	testFail(t, "let a = ([ a = { b = 1 } ]) => {}",
+		"Shorthand property assignments are valid only in destructuring patterns at (1:19)", nil)
 }
 
 func TestFail235(t *testing.T) {
-
+	testFail(t, "let a = ([ a = { b: { c = 1 } } ]) => {}",
+		"Shorthand property assignments are valid only in destructuring patterns at (1:24)", nil)
 }
 
 func TestFail236(t *testing.T) {
