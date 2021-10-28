@@ -329,11 +329,11 @@ type ArrayExpression struct {
 
 // https://github.com/estree/estree/blob/master/es5.md#objectexpression
 type ObjectExpression struct {
-	Type       string      `json:"type"`
-	Start      int         `json:"start"`
-	End        int         `json:"end"`
-	Loc        *SrcLoc     `json:"loc"`
-	Properties []*Property `json:"properties"`
+	Type       string  `json:"type"`
+	Start      int     `json:"start"`
+	End        int     `json:"end"`
+	Loc        *SrcLoc `json:"loc"`
+	Properties []Node  `json:"properties"` // Property | SpreadElement
 }
 
 // https://github.com/estree/estree/blob/master/es5.md#functionexpression

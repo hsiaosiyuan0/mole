@@ -2054,41 +2054,380 @@ func TestFail235(t *testing.T) {
 }
 
 func TestFail236(t *testing.T) {
-
+	testFail(t, "f({x = 0})",
+		"Shorthand property assignments are valid only in destructuring patterns at (1:5)", nil)
 }
 
 func TestFail237(t *testing.T) {
-
+	testFail(t, "class c { f([ a = { b = 1 } ]) {} }",
+		"Shorthand property assignments are valid only in destructuring patterns at (1:22)", nil)
 }
 
 func TestFail238(t *testing.T) {
-
+	testFail(t, "({...})", "Unexpected token `}` at (1:5)", nil)
 }
 
 func TestFail239(t *testing.T) {
-
+	testFail(t, "let {...obj1,} = foo",
+		"Unexpected trailing comma after rest element at (1:12)", nil)
 }
 
 func TestFail240(t *testing.T) {
-
+	testFail(t, "let {...obj1,a} = foo",
+		"Unexpected trailing comma after rest element at (1:12)", nil)
 }
 
 func TestFail241(t *testing.T) {
-
+	testFail(t, "let {...obj1,...obj2} = foo",
+		"Unexpected trailing comma after rest element at (1:12)", nil)
 }
 
 func TestFail242(t *testing.T) {
-
+	testFail(t, "let {...(obj)} = foo", "Unexpected token `(` at (1:8)", nil)
 }
 
 func TestFail243(t *testing.T) {
-
+	testFail(t, "let {...(a,b)} = foo", "Unexpected token `(` at (1:8)", nil)
 }
 
 func TestFail244(t *testing.T) {
-
+	testFail(t, "let {...{a,b}} = foo", "Unexpected token `{` at (1:8)", nil)
 }
 
 func TestFail245(t *testing.T) {
+	testFail(t, "let {...[a,b]} = foo", "Unexpected token `[` at (1:8)", nil)
+}
+
+func TestFail246(t *testing.T) {
+	testFail(t, "({...obj1,} = foo)",
+		"Unexpected trailing comma after rest element at (1:9)", nil)
+}
+
+func TestFail247(t *testing.T) {
+	testFail(t, "({...obj1,a} = foo)",
+		"Unexpected trailing comma after rest element at (1:9)", nil)
+}
+
+func TestFail248(t *testing.T) {
+
+}
+
+func TestFail249(t *testing.T) {
+
+}
+
+func TestFail250(t *testing.T) {
+
+}
+
+func TestFail251(t *testing.T) {
+
+}
+
+func TestFail252(t *testing.T) {
+
+}
+
+func TestFail253(t *testing.T) {
+
+}
+
+func TestFail254(t *testing.T) {
+
+}
+
+func TestFail255(t *testing.T) {
+
+}
+
+func TestFail256(t *testing.T) {
+
+}
+
+func TestFail257(t *testing.T) {
+
+}
+
+func TestFail258(t *testing.T) {
+
+}
+
+func TestFail259(t *testing.T) {
+
+}
+
+func TestFail260(t *testing.T) {
+
+}
+
+func TestFail261(t *testing.T) {
+
+}
+
+func TestFail262(t *testing.T) {
+
+}
+
+func TestFail263(t *testing.T) {
+
+}
+
+func TestFail264(t *testing.T) {
+
+}
+
+func TestFail265(t *testing.T) {
+
+}
+
+func TestFail266(t *testing.T) {
+
+}
+
+func TestFail267(t *testing.T) {
+
+}
+
+func TestFail268(t *testing.T) {
+
+}
+
+func TestFail269(t *testing.T) {
+
+}
+
+func TestFail270(t *testing.T) {
+
+}
+
+func TestFail271(t *testing.T) {
+
+}
+
+func TestFail272(t *testing.T) {
+
+}
+
+func TestFail273(t *testing.T) {
+
+}
+
+func TestFail274(t *testing.T) {
+
+}
+
+func TestFail275(t *testing.T) {
+
+}
+
+func TestFail276(t *testing.T) {
+
+}
+
+func TestFail277(t *testing.T) {
+
+}
+
+func TestFail278(t *testing.T) {
+
+}
+
+func TestFail279(t *testing.T) {
+
+}
+
+func TestFail280(t *testing.T) {
+
+}
+
+func TestFail281(t *testing.T) {
+
+}
+
+func TestFail282(t *testing.T) {
+
+}
+
+func TestFail283(t *testing.T) {
+
+}
+
+func TestFail284(t *testing.T) {
+
+}
+
+func TestFail285(t *testing.T) {
+
+}
+
+func TestFail286(t *testing.T) {
+
+}
+
+func TestFail287(t *testing.T) {
+
+}
+
+func TestFail288(t *testing.T) {
+
+}
+
+func TestFail289(t *testing.T) {
+
+}
+
+func TestFail290(t *testing.T) {
+
+}
+
+func TestFail291(t *testing.T) {
+
+}
+
+func TestFail292(t *testing.T) {
+
+}
+
+func TestFail293(t *testing.T) {
+
+}
+
+func TestFail294(t *testing.T) {
+
+}
+
+func TestFail295(t *testing.T) {
+
+}
+
+func TestFail296(t *testing.T) {
+
+}
+
+func TestFail297(t *testing.T) {
+
+}
+
+func TestFail298(t *testing.T) {
+
+}
+
+func TestFail299(t *testing.T) {
+
+}
+
+func TestFail300(t *testing.T) {
+
+}
+
+func TestFail301(t *testing.T) {
+
+}
+
+func TestFail302(t *testing.T) {
+
+}
+
+func TestFail303(t *testing.T) {
+
+}
+
+func TestFail304(t *testing.T) {
+
+}
+
+func TestFail305(t *testing.T) {
+
+}
+
+func TestFail306(t *testing.T) {
+
+}
+
+func TestFail307(t *testing.T) {
+
+}
+
+func TestFail308(t *testing.T) {
+
+}
+
+func TestFail309(t *testing.T) {
+
+}
+
+func TestFail310(t *testing.T) {
+
+}
+
+func TestFail311(t *testing.T) {
+
+}
+
+func TestFail312(t *testing.T) {
+
+}
+
+func TestFail313(t *testing.T) {
+
+}
+
+func TestFail314(t *testing.T) {
+
+}
+
+func TestFail315(t *testing.T) {
+
+}
+
+func TestFail316(t *testing.T) {
+
+}
+
+func TestFail317(t *testing.T) {
+
+}
+
+func TestFail318(t *testing.T) {
+
+}
+
+func TestFail319(t *testing.T) {
+
+}
+
+func TestFail320(t *testing.T) {
+
+}
+
+func TestFail321(t *testing.T) {
+
+}
+
+func TestFail322(t *testing.T) {
+
+}
+
+func TestFail323(t *testing.T) {
+
+}
+
+func TestFail324(t *testing.T) {
+
+}
+
+func TestFail325(t *testing.T) {
+
+}
+
+func TestFail326(t *testing.T) {
+
+}
+
+func TestFail327(t *testing.T) {
+
+}
+
+func TestFail328(t *testing.T) {
 
 }

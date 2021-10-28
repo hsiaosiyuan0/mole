@@ -357,9 +357,10 @@ func (n *ArrLit) Elems() []Node {
 }
 
 type Spread struct {
-	typ NodeType
-	loc *Loc
-	arg Node
+	typ              NodeType
+	loc              *Loc
+	arg              Node
+	trailingCommaLoc *Loc
 }
 
 func (n *Spread) Arg() Node {
@@ -777,11 +778,11 @@ func (n *ObjPat) Loc() *Loc {
 type PropKind uint8
 
 const (
-	PK_INIT   PropKind = 1
-	PK_GETTER          = 2
-	PK_SETTER          = 3
-	PK_CTOR            = 4
-	PK_METHOD          = 5
+	PK_INIT PropKind = iota
+	PK_GETTER
+	PK_SETTER
+	PK_CTOR
+	PK_METHOD
 )
 
 func (pk PropKind) ToString() string {
@@ -802,14 +803,20 @@ func (pk PropKind) ToString() string {
 }
 
 type Prop struct {
-	typ       NodeType
-	loc       *Loc
-	key       Node
-	opLoc     *Loc
-	value     Node
-	computed  bool
+	typ      NodeType
+	loc      *Loc
+	key      Node
+	opLoc    *Loc
+	value    Node
+	computed bool
+
+	// for keeping compatible with the output of acorn.js, `shorthand`
+	// is `true` if the prop value is assign pattern, so a semantic
+	// `shorthand` is: `semantic shorthand = shorthand && !assign`
 	shorthand bool
-	kind      PropKind
+	assign    bool
+
+	kind PropKind
 }
 
 func (n *Prop) Kind() string {

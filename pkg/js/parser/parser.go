@@ -185,7 +185,7 @@ func (p *Parser) exportDec() (Node, error) {
 		} else if tok.value == T_CLASS {
 			node.dec, err = p.classDec(false)
 		} else {
-			node.dec, err = p.assignExpr(false)
+			node.dec, err = p.assignExpr(false, true)
 		}
 		if err != nil {
 			return nil, err
@@ -552,7 +552,7 @@ func (p *Parser) field(static bool) (Node, error) {
 	tok := p.lexer.Peek()
 	if tok.value == T_ASSIGN {
 		p.lexer.Next()
-		value, err = p.assignExpr(false)
+		value, err = p.assignExpr(false, true)
 		if err != nil {
 			return nil, err
 		}
@@ -1230,7 +1230,9 @@ func (p *Parser) fnDec(expr bool, async bool) (Node, error) {
 		return nil, p.errorTok(tok)
 	}
 
-	args, err := p.argList()
+	// the arg check is skipped here, its correctness is guaranteed by
+	// below `argsToFormalParams`
+	args, err := p.argList(false)
 	if err != nil {
 		return nil, err
 	}
@@ -1563,7 +1565,7 @@ func (p *Parser) varDec(notIn bool) (*VarDec, error) {
 	var init Node
 	if p.lexer.Peek().value == T_ASSIGN {
 		p.lexer.Next()
-		init, err = p.assignExpr(notIn)
+		init, err = p.assignExpr(notIn, true)
 		if err != nil {
 			return nil, err
 		}
@@ -1640,6 +1642,9 @@ func (p *Parser) patternObj() (Node, error) {
 
 		tok := p.lexer.Peek()
 		if node.Type() == N_PAT_REST && tok.value != T_BRACE_R {
+			if tok.value == T_COMMA {
+				return nil, p.errorAt(tok.value, &tok.begin, ERR_REST_TRAILING_COMMA)
+			}
 			return nil, p.errorTok(tok)
 		}
 		props = append(props, node)
@@ -1657,6 +1662,14 @@ func (p *Parser) patternObj() (Node, error) {
 }
 
 func (p *Parser) patternProp() (Node, error) {
+	if p.lexer.Peek().value == T_DOT_TRI {
+		binding, err := p.patternRest()
+		if err != nil {
+			return nil, err
+		}
+		return binding, nil
+	}
+
 	key, err := p.propName(false)
 	if err != nil {
 		return nil, err
@@ -1668,7 +1681,7 @@ func (p *Parser) patternProp() (Node, error) {
 
 	tok := p.lexer.Peek()
 	opLoc := p.locFromTok(tok)
-	shorthand := tok.value == T_ASSIGN
+	assign := tok.value == T_ASSIGN
 	if tok.value != T_COLON {
 		if key.Type() == N_NAME {
 			return p.patternAssign(key, true)
@@ -1682,7 +1695,7 @@ func (p *Parser) patternProp() (Node, error) {
 		return nil, err
 	}
 
-	return &Prop{N_PROP, p.finLoc(loc), key, opLoc, value, !IsLitPropName(key), shorthand, PK_INIT}, nil
+	return &Prop{N_PROP, p.finLoc(loc), key, opLoc, value, !IsLitPropName(key), false, assign, PK_INIT}, nil
 }
 
 func (p *Parser) propName(allowNamePVT bool) (Node, error) {
@@ -1728,7 +1741,7 @@ func (p *Parser) propName(allowNamePVT bool) (Node, error) {
 		return &NumLit{N_LIT_NUM, p.finLoc(loc)}, nil
 	}
 	if tok.value == T_BRACKET_L {
-		name, err := p.assignExpr(false)
+		name, err := p.assignExpr(false, true)
 		if err != nil {
 			return nil, err
 		}
@@ -1815,7 +1828,7 @@ func (p *Parser) patternAssign(ident Node, asProp bool) (Node, error) {
 	if p.lexer.Peek().value == T_ASSIGN {
 		tok := p.lexer.Next()
 		opLoc = p.locFromTok(tok)
-		init, err = p.assignExpr(false)
+		init, err = p.assignExpr(false, true)
 		if err != nil {
 			return nil, err
 		}
@@ -1830,27 +1843,23 @@ func (p *Parser) patternAssign(ident Node, asProp bool) (Node, error) {
 	if !asProp {
 		return val, nil
 	}
-	return &Prop{N_PROP, p.finLoc(loc.Clone()), val.lhs, opLoc, val, false, true, PK_INIT}, nil
+	return &Prop{N_PROP, p.finLoc(loc.Clone()), val.lhs, opLoc, val, false, true, true, PK_INIT}, nil
 }
 
 func (p *Parser) patternRest() (Node, error) {
 	loc := p.loc()
 	p.lexer.Next()
 
-	var arg Node
-	var err error
-	tok := p.lexer.Peek()
-	if tok.value == T_BRACE_L {
-		arg, err = p.patternObj()
-	} else if tok.value == T_BRACKET_L {
-		arg, err = p.patternArr()
-	} else {
-		arg, err = p.ident()
-	}
-
+	arg, err := p.ident()
 	if err != nil {
 		return nil, err
 	}
+
+	tok := p.lexer.Peek()
+	if tok.value == T_COMMA {
+		return nil, p.errorAt(tok.value, &tok.begin, ERR_REST_TRAILING_COMMA)
+	}
+
 	return &RestPat{N_PAT_REST, p.finLoc(loc), arg}, nil
 }
 
@@ -1890,7 +1899,7 @@ func (p *Parser) expr(notIn bool) (Node, error) {
 
 func (p *Parser) seqExpr(notIn bool) (Node, error) {
 	loc := p.loc()
-	expr, err := p.assignExpr(notIn)
+	expr, err := p.assignExpr(notIn, true)
 	if err != nil {
 		return nil, err
 	}
@@ -1904,7 +1913,7 @@ func (p *Parser) seqExpr(notIn bool) (Node, error) {
 		tok := p.lexer.Peek()
 		if tok.value == T_COMMA {
 			p.lexer.Next()
-			expr, err = p.assignExpr(notIn)
+			expr, err = p.assignExpr(notIn, true)
 			if err != nil {
 				return nil, err
 			}
@@ -1942,7 +1951,7 @@ func (p *Parser) yieldExpr(notIn bool) (Node, error) {
 		delegate = true
 	}
 
-	arg, err := p.assignExpr(notIn)
+	arg, err := p.assignExpr(notIn, true)
 	if err != nil {
 		return nil, err
 	}
@@ -1950,7 +1959,7 @@ func (p *Parser) yieldExpr(notIn bool) (Node, error) {
 }
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-expressions.html#prod-AssignmentExpression
-func (p *Parser) assignExpr(notIn bool) (Node, error) {
+func (p *Parser) assignExpr(notIn bool, checkLhs bool) (Node, error) {
 	loc := p.loc()
 	if p.aheadIsYield() {
 		return p.yieldExpr(notIn)
@@ -1968,12 +1977,19 @@ func (p *Parser) assignExpr(notIn bool) (Node, error) {
 	op := assign.value
 	opLoc := p.locFromTok(assign)
 
-	rhs, err := p.assignExpr(notIn)
+	rhs, err := p.assignExpr(notIn, checkLhs)
 	if err != nil {
 		return nil, err
 	}
 
-	if !p.isSimpleLVal(lhs) {
+	// set `depth` to 1 to pass expr like `i + 2 = 42`
+	// and so just do the arg to param transform silently
+	lhs, err = p.argToParam(lhs, 1, false)
+	if err != nil {
+		return nil, err
+	}
+
+	if checkLhs && !p.isSimpleLVal(lhs) {
 		return nil, p.errorAtLoc(lhs.Loc(), ERR_ASSIGN_TO_RVALUE)
 	}
 
@@ -2011,7 +2027,7 @@ func (p *Parser) condExpr(notIn bool) (Node, error) {
 		return test, nil
 	}
 
-	cons, err := p.assignExpr(notIn)
+	cons, err := p.assignExpr(notIn, true)
 	if err != nil {
 		return nil, err
 	}
@@ -2021,7 +2037,7 @@ func (p *Parser) condExpr(notIn bool) (Node, error) {
 		return nil, err
 	}
 
-	alt, err := p.assignExpr(notIn)
+	alt, err := p.assignExpr(notIn, true)
 	if err != nil {
 		return nil, err
 	}
@@ -2107,7 +2123,7 @@ func (p *Parser) newExpr() (Node, error) {
 
 	var args []Node
 	if p.lexer.Peek().value == T_PAREN_L {
-		args, err = p.argList()
+		args, err = p.argList(true)
 		if err != nil {
 			return nil, err
 		}
@@ -2149,7 +2165,7 @@ func (p *Parser) callExpr(callee Node) (Node, error) {
 	for {
 		tok := p.lexer.Peek()
 		if tok.value == T_PAREN_L {
-			args, err := p.argList()
+			args, err := p.argList(true)
 			if err != nil {
 				return nil, err
 			}
@@ -2194,7 +2210,7 @@ func (p *Parser) importCall() (Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	src, err := p.assignExpr(false)
+	src, err := p.assignExpr(false, true)
 	if err != nil {
 		return nil, err
 	}
@@ -2265,7 +2281,7 @@ func (p *Parser) argsToFormalParams(args []Node) ([]Node, error) {
 	params := make([]Node, len(args))
 	var err error
 	for i, arg := range args {
-		params[i], err = p.argToFormalParam(arg, 0, false)
+		params[i], err = p.argToParam(arg, 0, false)
 		if err != nil {
 			return nil, err
 		}
@@ -2273,7 +2289,7 @@ func (p *Parser) argsToFormalParams(args []Node) ([]Node, error) {
 	return params, nil
 }
 
-func (p *Parser) argToFormalParam(arg Node, depth int, prop bool) (Node, error) {
+func (p *Parser) argToParam(arg Node, depth int, prop bool) (Node, error) {
 	switch arg.Type() {
 	case N_LIT_ARR:
 		arr := arg.(*ArrLit)
@@ -2284,7 +2300,7 @@ func (p *Parser) argToFormalParam(arg Node, depth int, prop bool) (Node, error) 
 		}
 		var err error
 		for i, node := range arr.elems {
-			pat.elems[i], err = p.argToFormalParam(node, depth+1, false)
+			pat.elems[i], err = p.argToParam(node, depth+1, false)
 			if err != nil {
 				return nil, err
 			}
@@ -2302,7 +2318,7 @@ func (p *Parser) argToFormalParam(arg Node, depth int, prop bool) (Node, error) 
 			isProp = prop
 		}
 		for i, prop := range n.props {
-			pp, err := p.argToFormalParam(prop, depth+1, isProp)
+			pp, err := p.argToParam(prop, depth+1, isProp)
 			if err != nil {
 				return nil, err
 			}
@@ -2313,12 +2329,12 @@ func (p *Parser) argToFormalParam(arg Node, depth int, prop bool) (Node, error) 
 		n := arg.(*Prop)
 		var err error
 		if n.value != nil {
-			n.value, err = p.argToFormalParam(n.value, depth+1, prop)
+			n.value, err = p.argToParam(n.value, depth+1, prop)
 			if err != nil {
 				return nil, err
 			}
 		}
-		if n.shorthand {
+		if n.assign {
 			if !prop && depth > 0 {
 				return nil, p.errorAtLoc(n.opLoc, ERR_SHORTHAND_PROP_ASSIGN_NOT_IN_DESTRUCT)
 			}
@@ -2337,26 +2353,29 @@ func (p *Parser) argToFormalParam(arg Node, depth int, prop bool) (Node, error) 
 			return nil, p.errorAtLoc(n.opLoc, ERR_UNEXPECTED_TOKEN)
 		}
 
-		lhs := n.lhs
-		if lhs.Type() != N_NAME {
-			return nil, p.errorAtLoc(lhs.Loc(), ERR_UNEXPECTED_TOKEN)
+		lhs, err := p.argToParam(n.lhs, depth+1, false)
+		if err != nil {
+			return nil, err
 		}
 
-		val, err := p.argToFormalParam(n.rhs, depth+1, false)
+		err = p.checkArg(n.rhs, false)
 		if err != nil {
 			return nil, err
 		}
 		p := &AssignPat{
 			typ: N_PAT_ASSIGN,
 			loc: n.loc,
-			lhs: n.lhs,
-			rhs: val,
+			lhs: lhs,
+			rhs: n.rhs,
 		}
 		return p, nil
 	case N_NAME, N_PAT_REST:
 		return arg, nil
 	case N_SPREAD:
 		n := arg.(*Spread)
+		if n.trailingCommaLoc != nil {
+			return nil, p.errorAtLoc(n.trailingCommaLoc, ERR_REST_TRAILING_COMMA)
+		}
 		return &RestPat{
 			typ: N_PAT_REST,
 			loc: n.loc,
@@ -2369,7 +2388,47 @@ func (p *Parser) argToFormalParam(arg Node, depth int, prop bool) (Node, error) 
 	return arg, nil
 }
 
-func (p *Parser) argList() ([]Node, error) {
+func (p *Parser) checkArg(arg Node, spread bool) error {
+	switch arg.Type() {
+	case N_LIT_OBJ:
+		n := arg.(*ObjLit)
+		for _, prop := range n.props {
+			err := p.checkArg(prop, true)
+			if err != nil {
+				return err
+			}
+		}
+	case N_PROP:
+		n := arg.(*Prop)
+		if n.assign {
+			return p.errorAtLoc(n.opLoc, ERR_SHORTHAND_PROP_ASSIGN_NOT_IN_DESTRUCT)
+		}
+		var err error
+		if n.value != nil {
+			err = p.checkArg(n.value, true)
+			if err != nil {
+				return err
+			}
+		}
+	case N_PAT_REST, N_SPREAD:
+		if !spread {
+			return p.errorAtLoc(arg.Loc(), ERR_UNEXPECTED_TOKEN)
+		}
+	}
+	return nil
+}
+
+func (p *Parser) checkArgs(args []Node, spread bool) error {
+	for _, arg := range args {
+		err := p.checkArg(arg, spread)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (p *Parser) argList(check bool) ([]Node, error) {
 	p.lexer.Next()
 	args := make([]Node, 0)
 
@@ -2388,7 +2447,7 @@ func (p *Parser) argList() ([]Node, error) {
 		if p.lexer.Peek().value == T_COMMA {
 			tok := p.lexer.Next()
 			if arg.Type() == N_SPREAD {
-				msg := ERR_REST_ELEM_UNEXPECTED_TRAILING_COMMA
+				msg := ERR_REST_TRAILING_COMMA
 				if p.lexer.Peek().value != T_PAREN_R {
 					msg = ERR_REST_ELEM_MUST_LAST
 				}
@@ -2396,11 +2455,15 @@ func (p *Parser) argList() ([]Node, error) {
 			}
 		}
 
-		args = append(args, arg)
-
-		if tok.value == T_COMMA {
-			p.lexer.Next()
+		if check {
+			// `spread` or `pattern_rest` expression is legal argument:
+			// `f(c, b, ...a)`
+			if err := p.checkArg(arg, true); err != nil {
+				return nil, err
+			}
 		}
+
+		args = append(args, arg)
 	}
 
 	if _, err := p.nextMustTok(T_PAREN_R); err != nil {
@@ -2413,7 +2476,7 @@ func (p *Parser) arg() (Node, error) {
 	if p.lexer.Peek().value == T_DOT_TRI {
 		return p.spread()
 	}
-	return p.assignExpr(false)
+	return p.assignExpr(false, false)
 }
 
 func (p *Parser) binExpr(lhs Node, minPcd int, notIn bool) (Node, error) {
@@ -2594,11 +2657,12 @@ func (p *Parser) primaryExpr() (Node, error) {
 
 func (p *Parser) parenExpr() (Node, error) {
 	loc := p.loc()
-	args, err := p.argList()
+	args, err := p.argList(false)
 	if err != nil {
 		return nil, err
 	}
 
+	// next is arrow-expression
 	if p.lexer.Peek().value == T_ARROW {
 		params, err := p.argsToFormalParams(args)
 		if err != nil {
@@ -2640,11 +2704,21 @@ func (p *Parser) parenExpr() (Node, error) {
 	argsLen := len(args)
 	if argsLen == 0 {
 		return nil, p.errorAt(p.lexer.prtVal, &p.lexer.prtBegin, "")
-	} else if argsLen == 1 {
+	}
+
+	if err := p.checkArgs(args, false); err != nil {
+		return nil, err
+	}
+
+	if argsLen == 1 {
 		return &ParenExpr{N_EXPR_PAREN, p.finLoc(loc), args[0]}, nil
 	}
-	// TODO: check spread
-	return &SeqExpr{N_EXPR_SEQ, p.finLoc(loc), args}, nil
+
+	loc = args[0].Loc().Clone()
+	end := args[len(args)-1].Loc()
+	loc.end = end.end.Clone()
+	loc.rng.end = end.rng.end
+	return &SeqExpr{N_EXPR_SEQ, loc, args}, nil
 }
 
 func (p *Parser) unParen(expr Node) Node {
@@ -2694,19 +2768,35 @@ func (p *Parser) arrElem() (Node, error) {
 	if p.lexer.Peek().value == T_DOT_TRI {
 		return p.spread()
 	}
-	return p.assignExpr(false)
+	return p.assignExpr(false, true)
 }
 
 func (p *Parser) spread() (Node, error) {
 	loc := p.loc()
 	p.lexer.Next()
 
-	node, err := p.assignExpr(false)
+	node, err := p.assignExpr(false, true)
 	if err != nil {
 		return nil, err
 	}
 
-	return &Spread{N_SPREAD, p.finLoc(loc), node}, nil
+	// trailing comma is legal in after spread-expr but it's syntax
+	// error after rest-expr
+	//
+	// when paring expr like `({...obj1,} = foo)` the part `{...obj1,}`
+	// is parsed as spread-expr firstly then applied a arg-to-param
+	// transform to become obj-pattern, that behavior is caused by the
+	// left-most paren, it leads the state of parser to fulfill the rule
+	// of paren-expr and then the inner `{...obj1,}` is parsed as obj-expr
+	//
+	// keep the loc of tailing comma for reporting the `tailing comma after rest-expr`
+	// err in the arg-to-param transform
+	var trailingCommaLoc *Loc
+	tok := p.lexer.Peek()
+	if tok.value == T_COMMA {
+		trailingCommaLoc = p.locFromTok(tok)
+	}
+	return &Spread{N_SPREAD, p.finLoc(loc), p.unParen(node), trailingCommaLoc}, nil
 }
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-expressions.html#prod-ObjectLiteral
@@ -2801,18 +2891,23 @@ func (p *Parser) propData() (Node, error) {
 	var value Node
 	tok := p.lexer.Peek()
 	opLoc := p.locFromTok(tok)
-	shorthand := tok.value == T_ASSIGN
-	if tok.value == T_COLON || shorthand {
+	assign := tok.value == T_ASSIGN
+	if tok.value == T_COLON || assign {
 		p.lexer.Next()
-		value, err = p.assignExpr(false)
+		value, err = p.assignExpr(false, true)
 		if err != nil {
 			return nil, err
 		}
 	} else if tok.value == T_PAREN_L {
-		return p.method(nil, key, shorthand, PK_INIT, false, false, false, false, false)
+		return p.method(nil, key, false, PK_INIT, false, false, false, false, false)
 	}
 
-	return &Prop{N_PROP, p.finLoc(loc), key, opLoc, value, !IsLitPropName(key), shorthand, PK_INIT}, nil
+	shorthand := assign
+	if value == nil && key.Type() == N_NAME {
+		shorthand = true
+		value = key
+	}
+	return &Prop{N_PROP, p.finLoc(loc), key, opLoc, value, !IsLitPropName(key), shorthand, assign, PK_INIT}, nil
 }
 
 func (p *Parser) method(loc *Loc, key Node, shorthand bool, kind PropKind, gen bool, async bool, allowNamePVT bool,
@@ -2844,7 +2939,16 @@ func (p *Parser) method(loc *Loc, key Node, shorthand bool, kind PropKind, gen b
 	}
 
 	fnLoc := p.loc()
-	params, err := p.argList()
+	args, err := p.argList(false)
+	if err != nil {
+		return nil, err
+	}
+
+	params, err := p.argsToFormalParams(args)
+	if err != nil {
+		return nil, err
+	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -2871,7 +2975,7 @@ func (p *Parser) method(loc *Loc, key Node, shorthand bool, kind PropKind, gen b
 	if inClass {
 		return &Method{N_METHOD, p.finLoc(loc), key, static, key.Type() != N_NAME, kind, value}, nil
 	}
-	return &Prop{N_PROP, p.finLoc(loc), key, nil, value, !IsLitPropName(key), shorthand, kind}, nil
+	return &Prop{N_PROP, p.finLoc(loc), key, nil, value, !IsLitPropName(key), shorthand, false, kind}, nil
 }
 
 func (p *Parser) advanceIfSemi(raise bool) error {

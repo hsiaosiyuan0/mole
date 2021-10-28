@@ -3,6 +3,7 @@ package estree
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"testing"
 
 	"github.com/hsiaosiyuan0/mole/pkg/assert"
@@ -33547,147 +33548,1012 @@ func Test372(t *testing.T) {
 }
 
 func Test373(t *testing.T) {
-	// ast, err := compile("x = { false: 42 }")
-	// assert.Equal(t, nil, err, "should be prog ok")
+	ast, err := compile("({...obj})")
+	assert.Equal(t, nil, err, "should be prog ok")
 
-	// assert.EqualJson(t, `
-
-	// `, ast)
+	assert.EqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 10,
+  "body": [
+    {
+      "type": "ExpressionStatement",
+      "start": 0,
+      "end": 10,
+      "expression": {
+        "type": "ObjectExpression",
+        "start": 1,
+        "end": 9,
+        "properties": [
+          {
+            "type": "SpreadElement",
+            "start": 2,
+            "end": 8,
+            "argument": {
+              "type": "Identifier",
+              "start": 5,
+              "end": 8,
+              "name": "obj"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
+	`, ast)
 }
 
 func Test374(t *testing.T) {
-	// ast, err := compile("x = { false: 42 }")
-	// assert.Equal(t, nil, err, "should be prog ok")
+	ast, err := compile("({...obj1,})")
+	assert.Equal(t, nil, err, "should be prog ok")
 
-	// assert.EqualJson(t, `
-
-	// `, ast)
+	assert.EqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 12,
+  "body": [
+    {
+      "type": "ExpressionStatement",
+      "start": 0,
+      "end": 12,
+      "expression": {
+        "type": "ObjectExpression",
+        "start": 1,
+        "end": 11,
+        "properties": [
+          {
+            "type": "SpreadElement",
+            "start": 2,
+            "end": 9,
+            "argument": {
+              "type": "Identifier",
+              "start": 5,
+              "end": 9,
+              "name": "obj1"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
+	`, ast)
 }
 
 func Test375(t *testing.T) {
-	// ast, err := compile("x = { false: 42 }")
-	// assert.Equal(t, nil, err, "should be prog ok")
+	ast, err := compile("({...obj1,...obj2})")
+	assert.Equal(t, nil, err, "should be prog ok")
 
-	// assert.EqualJson(t, `
-
-	// `, ast)
+	assert.EqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 19,
+  "body": [
+    {
+      "type": "ExpressionStatement",
+      "start": 0,
+      "end": 19,
+      "expression": {
+        "type": "ObjectExpression",
+        "start": 1,
+        "end": 18,
+        "properties": [
+          {
+            "type": "SpreadElement",
+            "start": 2,
+            "end": 9,
+            "argument": {
+              "type": "Identifier",
+              "start": 5,
+              "end": 9,
+              "name": "obj1"
+            }
+          },
+          {
+            "type": "SpreadElement",
+            "start": 10,
+            "end": 17,
+            "argument": {
+              "type": "Identifier",
+              "start": 13,
+              "end": 17,
+              "name": "obj2"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
+	`, ast)
 }
 
 func Test376(t *testing.T) {
-	// ast, err := compile("x = { false: 42 }")
-	// assert.Equal(t, nil, err, "should be prog ok")
+	ast, err := compile("({a,...obj1,b:1,...obj2,c:2})")
+	assert.Equal(t, nil, err, "should be prog ok")
 
-	// assert.EqualJson(t, `
-
-	// `, ast)
+	assert.EqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 29,
+  "body": [
+    {
+      "type": "ExpressionStatement",
+      "start": 0,
+      "end": 29,
+      "expression": {
+        "type": "ObjectExpression",
+        "start": 1,
+        "end": 28,
+        "properties": [
+          {
+            "type": "Property",
+            "start": 2,
+            "end": 3,
+            "method": false,
+            "shorthand": true,
+            "computed": false,
+            "key": {
+              "type": "Identifier",
+              "start": 2,
+              "end": 3,
+              "name": "a"
+            },
+            "kind": "init",
+            "value": {
+              "type": "Identifier",
+              "start": 2,
+              "end": 3,
+              "name": "a"
+            }
+          },
+          {
+            "type": "SpreadElement",
+            "start": 4,
+            "end": 11,
+            "argument": {
+              "type": "Identifier",
+              "start": 7,
+              "end": 11,
+              "name": "obj1"
+            }
+          },
+          {
+            "type": "Property",
+            "start": 12,
+            "end": 15,
+            "method": false,
+            "shorthand": false,
+            "computed": false,
+            "key": {
+              "type": "Identifier",
+              "start": 12,
+              "end": 13,
+              "name": "b"
+            },
+            "value": {
+              "type": "Literal",
+              "start": 14,
+              "end": 15,
+              "value": 1
+            },
+            "kind": "init"
+          },
+          {
+            "type": "SpreadElement",
+            "start": 16,
+            "end": 23,
+            "argument": {
+              "type": "Identifier",
+              "start": 19,
+              "end": 23,
+              "name": "obj2"
+            }
+          },
+          {
+            "type": "Property",
+            "start": 24,
+            "end": 27,
+            "method": false,
+            "shorthand": false,
+            "computed": false,
+            "key": {
+              "type": "Identifier",
+              "start": 24,
+              "end": 25,
+              "name": "c"
+            },
+            "value": {
+              "type": "Literal",
+              "start": 26,
+              "end": 27,
+              "value": 2
+            },
+            "kind": "init"
+          }
+        ]
+      }
+    }
+  ]
+}
+	`, ast)
 }
 
 func Test377(t *testing.T) {
-	// ast, err := compile("x = { false: 42 }")
-	// assert.Equal(t, nil, err, "should be prog ok")
+	ast, err := compile("({...(obj)})")
+	assert.Equal(t, nil, err, "should be prog ok")
 
-	// assert.EqualJson(t, `
-
-	// `, ast)
+	assert.EqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 12,
+  "body": [
+    {
+      "type": "ExpressionStatement",
+      "start": 0,
+      "end": 12,
+      "expression": {
+        "type": "ObjectExpression",
+        "start": 1,
+        "end": 11,
+        "properties": [
+          {
+            "type": "SpreadElement",
+            "start": 2,
+            "end": 10,
+            "argument": {
+              "type": "Identifier",
+              "start": 6,
+              "end": 9,
+              "name": "obj"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
+	`, ast)
 }
 
 func Test378(t *testing.T) {
-	// ast, err := compile("x = { false: 42 }")
-	// assert.Equal(t, nil, err, "should be prog ok")
+	ast, err := compile("({...a,b,c})")
+	assert.Equal(t, nil, err, "should be prog ok")
 
-	// assert.EqualJson(t, `
-
-	// `, ast)
+	assert.EqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 12,
+  "body": [
+    {
+      "type": "ExpressionStatement",
+      "start": 0,
+      "end": 12,
+      "expression": {
+        "type": "ObjectExpression",
+        "start": 1,
+        "end": 11,
+        "properties": [
+          {
+            "type": "SpreadElement",
+            "start": 2,
+            "end": 6,
+            "argument": {
+              "type": "Identifier",
+              "start": 5,
+              "end": 6,
+              "name": "a"
+            }
+          },
+          {
+            "type": "Property",
+            "start": 7,
+            "end": 8,
+            "method": false,
+            "shorthand": true,
+            "computed": false,
+            "key": {
+              "type": "Identifier",
+              "start": 7,
+              "end": 8,
+              "name": "b"
+            },
+            "kind": "init",
+            "value": {
+              "type": "Identifier",
+              "start": 7,
+              "end": 8,
+              "name": "b"
+            }
+          },
+          {
+            "type": "Property",
+            "start": 9,
+            "end": 10,
+            "method": false,
+            "shorthand": true,
+            "computed": false,
+            "key": {
+              "type": "Identifier",
+              "start": 9,
+              "end": 10,
+              "name": "c"
+            },
+            "kind": "init",
+            "value": {
+              "type": "Identifier",
+              "start": 9,
+              "end": 10,
+              "name": "c"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
+	`, ast)
 }
 
 func Test379(t *testing.T) {
-	// ast, err := compile("x = { false: 42 }")
-	// assert.Equal(t, nil, err, "should be prog ok")
+	ast, err := compile("({...(a,b),c})")
+	assert.Equal(t, nil, err, "should be prog ok")
 
-	// assert.EqualJson(t, `
-
-	// `, ast)
+	assert.EqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 14,
+  "body": [
+    {
+      "type": "ExpressionStatement",
+      "start": 0,
+      "end": 14,
+      "expression": {
+        "type": "ObjectExpression",
+        "start": 1,
+        "end": 13,
+        "properties": [
+          {
+            "type": "SpreadElement",
+            "start": 2,
+            "end": 10,
+            "argument": {
+              "type": "SequenceExpression",
+              "start": 6,
+              "end": 9,
+              "expressions": [
+                {
+                  "type": "Identifier",
+                  "start": 6,
+                  "end": 7,
+                  "name": "a"
+                },
+                {
+                  "type": "Identifier",
+                  "start": 8,
+                  "end": 9,
+                  "name": "b"
+                }
+              ]
+            }
+          },
+          {
+            "type": "Property",
+            "start": 11,
+            "end": 12,
+            "method": false,
+            "shorthand": true,
+            "computed": false,
+            "key": {
+              "type": "Identifier",
+              "start": 11,
+              "end": 12,
+              "name": "c"
+            },
+            "kind": "init",
+            "value": {
+              "type": "Identifier",
+              "start": 11,
+              "end": 12,
+              "name": "c"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
+	`, ast)
 }
 
 func Test380(t *testing.T) {
-	// ast, err := compile("x = { false: 42 }")
-	// assert.Equal(t, nil, err, "should be prog ok")
+	ast, err := compile("({...obj} = foo)")
+	assert.Equal(t, nil, err, "should be prog ok")
 
-	// assert.EqualJson(t, `
-
-	// `, ast)
+	fmt.Println(ast)
+	assert.EqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 16,
+  "body": [
+    {
+      "type": "ExpressionStatement",
+      "start": 0,
+      "end": 16,
+      "expression": {
+        "type": "AssignmentExpression",
+        "start": 1,
+        "end": 15,
+        "operator": "=",
+        "left": {
+          "type": "ObjectPattern",
+          "start": 1,
+          "end": 9,
+          "properties": [
+            {
+              "type": "RestElement",
+              "start": 2,
+              "end": 8,
+              "argument": {
+                "type": "Identifier",
+                "start": 5,
+                "end": 8,
+                "name": "obj"
+              }
+            }
+          ]
+        },
+        "right": {
+          "type": "Identifier",
+          "start": 12,
+          "end": 15,
+          "name": "foo"
+        }
+      }
+    }
+  ]
+}
+	`, ast)
 }
 
 func Test381(t *testing.T) {
-	// ast, err := compile("x = { false: 42 }")
-	// assert.Equal(t, nil, err, "should be prog ok")
+	ast, err := compile("({a,...obj} = foo)")
+	assert.Equal(t, nil, err, "should be prog ok")
 
-	// assert.EqualJson(t, `
-
-	// `, ast)
+	assert.EqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 18,
+  "body": [
+    {
+      "type": "ExpressionStatement",
+      "start": 0,
+      "end": 18,
+      "expression": {
+        "type": "AssignmentExpression",
+        "start": 1,
+        "end": 17,
+        "operator": "=",
+        "left": {
+          "type": "ObjectPattern",
+          "start": 1,
+          "end": 11,
+          "properties": [
+            {
+              "type": "Property",
+              "start": 2,
+              "end": 3,
+              "method": false,
+              "shorthand": true,
+              "computed": false,
+              "key": {
+                "type": "Identifier",
+                "start": 2,
+                "end": 3,
+                "name": "a"
+              },
+              "kind": "init",
+              "value": {
+                "type": "Identifier",
+                "start": 2,
+                "end": 3,
+                "name": "a"
+              }
+            },
+            {
+              "type": "RestElement",
+              "start": 4,
+              "end": 10,
+              "argument": {
+                "type": "Identifier",
+                "start": 7,
+                "end": 10,
+                "name": "obj"
+              }
+            }
+          ]
+        },
+        "right": {
+          "type": "Identifier",
+          "start": 14,
+          "end": 17,
+          "name": "foo"
+        }
+      }
+    }
+  ]
+}
+	`, ast)
 }
 
 func Test382(t *testing.T) {
-	// ast, err := compile("x = { false: 42 }")
-	// assert.Equal(t, nil, err, "should be prog ok")
+	ast, err := compile("({a:b,...obj} = foo)")
+	assert.Equal(t, nil, err, "should be prog ok")
 
-	// assert.EqualJson(t, `
-
-	// `, ast)
+	assert.EqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 20,
+  "body": [
+    {
+      "type": "ExpressionStatement",
+      "start": 0,
+      "end": 20,
+      "expression": {
+        "type": "AssignmentExpression",
+        "start": 1,
+        "end": 19,
+        "operator": "=",
+        "left": {
+          "type": "ObjectPattern",
+          "start": 1,
+          "end": 13,
+          "properties": [
+            {
+              "type": "Property",
+              "start": 2,
+              "end": 5,
+              "method": false,
+              "shorthand": false,
+              "computed": false,
+              "key": {
+                "type": "Identifier",
+                "start": 2,
+                "end": 3,
+                "name": "a"
+              },
+              "value": {
+                "type": "Identifier",
+                "start": 4,
+                "end": 5,
+                "name": "b"
+              },
+              "kind": "init"
+            },
+            {
+              "type": "RestElement",
+              "start": 6,
+              "end": 12,
+              "argument": {
+                "type": "Identifier",
+                "start": 9,
+                "end": 12,
+                "name": "obj"
+              }
+            }
+          ]
+        },
+        "right": {
+          "type": "Identifier",
+          "start": 16,
+          "end": 19,
+          "name": "foo"
+        }
+      }
+    }
+  ]
+}
+	`, ast)
 }
 
 func Test383(t *testing.T) {
-	// ast, err := compile("x = { false: 42 }")
-	// assert.Equal(t, nil, err, "should be prog ok")
+	ast, err := compile("({...obj}) => {}")
+	assert.Equal(t, nil, err, "should be prog ok")
 
-	// assert.EqualJson(t, `
-
-	// `, ast)
+	assert.EqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 16,
+  "body": [
+    {
+      "type": "ExpressionStatement",
+      "start": 0,
+      "end": 16,
+      "expression": {
+        "type": "ArrowFunctionExpression",
+        "start": 0,
+        "end": 16,
+        "id": null,
+        "expression": false,
+        "generator": false,
+        "async": false,
+        "params": [
+          {
+            "type": "ObjectPattern",
+            "start": 1,
+            "end": 9,
+            "properties": [
+              {
+                "type": "RestElement",
+                "start": 2,
+                "end": 8,
+                "argument": {
+                  "type": "Identifier",
+                  "start": 5,
+                  "end": 8,
+                  "name": "obj"
+                }
+              }
+            ]
+          }
+        ],
+        "body": {
+          "type": "BlockStatement",
+          "start": 14,
+          "end": 16,
+          "body": []
+        }
+      }
+    }
+  ]
+}
+	`, ast)
 }
 
 func Test384(t *testing.T) {
-	// ast, err := compile("x = { false: 42 }")
-	// assert.Equal(t, nil, err, "should be prog ok")
+	ast, err := compile("({...obj} = {}) => {}")
+	assert.Equal(t, nil, err, "should be prog ok")
 
-	// assert.EqualJson(t, `
-
-	// `, ast)
+	assert.EqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 21,
+  "body": [
+    {
+      "type": "ExpressionStatement",
+      "start": 0,
+      "end": 21,
+      "expression": {
+        "type": "ArrowFunctionExpression",
+        "start": 0,
+        "end": 21,
+        "id": null,
+        "expression": false,
+        "generator": false,
+        "async": false,
+        "params": [
+          {
+            "type": "AssignmentPattern",
+            "start": 1,
+            "end": 14,
+            "left": {
+              "type": "ObjectPattern",
+              "start": 1,
+              "end": 9,
+              "properties": [
+                {
+                  "type": "RestElement",
+                  "start": 2,
+                  "end": 8,
+                  "argument": {
+                    "type": "Identifier",
+                    "start": 5,
+                    "end": 8,
+                    "name": "obj"
+                  }
+                }
+              ]
+            },
+            "right": {
+              "type": "ObjectExpression",
+              "start": 12,
+              "end": 14,
+              "properties": []
+            }
+          }
+        ],
+        "body": {
+          "type": "BlockStatement",
+          "start": 19,
+          "end": 21,
+          "body": []
+        }
+      }
+    }
+  ]
+}
+	`, ast)
 }
 
 func Test385(t *testing.T) {
-	// ast, err := compile("x = { false: 42 }")
-	// assert.Equal(t, nil, err, "should be prog ok")
+	ast, err := compile("({a,...obj}) => {}")
+	assert.Equal(t, nil, err, "should be prog ok")
 
-	// assert.EqualJson(t, `
-
-	// `, ast)
+	assert.EqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 18,
+  "body": [
+    {
+      "type": "ExpressionStatement",
+      "start": 0,
+      "end": 18,
+      "expression": {
+        "type": "ArrowFunctionExpression",
+        "start": 0,
+        "end": 18,
+        "id": null,
+        "expression": false,
+        "generator": false,
+        "async": false,
+        "params": [
+          {
+            "type": "ObjectPattern",
+            "start": 1,
+            "end": 11,
+            "properties": [
+              {
+                "type": "Property",
+                "start": 2,
+                "end": 3,
+                "method": false,
+                "shorthand": true,
+                "computed": false,
+                "key": {
+                  "type": "Identifier",
+                  "start": 2,
+                  "end": 3,
+                  "name": "a"
+                },
+                "kind": "init",
+                "value": {
+                  "type": "Identifier",
+                  "start": 2,
+                  "end": 3,
+                  "name": "a"
+                }
+              },
+              {
+                "type": "RestElement",
+                "start": 4,
+                "end": 10,
+                "argument": {
+                  "type": "Identifier",
+                  "start": 7,
+                  "end": 10,
+                  "name": "obj"
+                }
+              }
+            ]
+          }
+        ],
+        "body": {
+          "type": "BlockStatement",
+          "start": 16,
+          "end": 18,
+          "body": []
+        }
+      }
+    }
+  ]
+}
+	`, ast)
 }
 
 func Test386(t *testing.T) {
-	// ast, err := compile("x = { false: 42 }")
-	// assert.Equal(t, nil, err, "should be prog ok")
+	ast, err := compile("({a:b,...obj}) => {}")
+	assert.Equal(t, nil, err, "should be prog ok")
 
-	// assert.EqualJson(t, `
-
-	// `, ast)
+	assert.EqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 20,
+  "body": [
+    {
+      "type": "ExpressionStatement",
+      "start": 0,
+      "end": 20,
+      "expression": {
+        "type": "ArrowFunctionExpression",
+        "start": 0,
+        "end": 20,
+        "id": null,
+        "expression": false,
+        "generator": false,
+        "async": false,
+        "params": [
+          {
+            "type": "ObjectPattern",
+            "start": 1,
+            "end": 13,
+            "properties": [
+              {
+                "type": "Property",
+                "start": 2,
+                "end": 5,
+                "method": false,
+                "shorthand": false,
+                "computed": false,
+                "key": {
+                  "type": "Identifier",
+                  "start": 2,
+                  "end": 3,
+                  "name": "a"
+                },
+                "value": {
+                  "type": "Identifier",
+                  "start": 4,
+                  "end": 5,
+                  "name": "b"
+                },
+                "kind": "init"
+              },
+              {
+                "type": "RestElement",
+                "start": 6,
+                "end": 12,
+                "argument": {
+                  "type": "Identifier",
+                  "start": 9,
+                  "end": 12,
+                  "name": "obj"
+                }
+              }
+            ]
+          }
+        ],
+        "body": {
+          "type": "BlockStatement",
+          "start": 18,
+          "end": 20,
+          "body": []
+        }
+      }
+    }
+  ]
+}
+	`, ast)
 }
 
 func Test387(t *testing.T) {
-	// ast, err := compile("x = { false: 42 }")
-	// assert.Equal(t, nil, err, "should be prog ok")
+	ast, err := compile("let {...obj1} = foo")
+	assert.Equal(t, nil, err, "should be prog ok")
 
-	// assert.EqualJson(t, `
-
-	// `, ast)
+	assert.EqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 19,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 0,
+      "end": 19,
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 4,
+          "end": 19,
+          "id": {
+            "type": "ObjectPattern",
+            "start": 4,
+            "end": 13,
+            "properties": [
+              {
+                "type": "RestElement",
+                "start": 5,
+                "end": 12,
+                "argument": {
+                  "type": "Identifier",
+                  "start": 8,
+                  "end": 12,
+                  "name": "obj1"
+                }
+              }
+            ]
+          },
+          "init": {
+            "type": "Identifier",
+            "start": 16,
+            "end": 19,
+            "name": "foo"
+          }
+        }
+      ],
+      "kind": "let"
+    }
+  ]
+}
+	`, ast)
 }
 
 func Test388(t *testing.T) {
-	// ast, err := compile("x = { false: 42 }")
-	// assert.Equal(t, nil, err, "should be prog ok")
+	ast, err := compile("let {...obj1} =  {...a,}")
+	assert.Equal(t, nil, err, "should be prog ok")
 
-	// assert.EqualJson(t, `
-
-	// `, ast)
+	assert.EqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 24,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 0,
+      "end": 24,
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 4,
+          "end": 24,
+          "id": {
+            "type": "ObjectPattern",
+            "start": 4,
+            "end": 13,
+            "properties": [
+              {
+                "type": "RestElement",
+                "start": 5,
+                "end": 12,
+                "argument": {
+                  "type": "Identifier",
+                  "start": 8,
+                  "end": 12,
+                  "name": "obj1"
+                }
+              }
+            ]
+          },
+          "init": {
+            "type": "ObjectExpression",
+            "start": 17,
+            "end": 24,
+            "properties": [
+              {
+                "type": "SpreadElement",
+                "start": 18,
+                "end": 22,
+                "argument": {
+                  "type": "Identifier",
+                  "start": 21,
+                  "end": 22,
+                  "name": "a"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "kind": "let"
+    }
+  ]
+}
+	`, ast)
 }
 
 func Test389(t *testing.T) {

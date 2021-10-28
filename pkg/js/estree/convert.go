@@ -56,9 +56,9 @@ func arrExpr(n *parser.ArrLit) *ArrayExpression {
 
 func obj(n *parser.ObjLit) *ObjectExpression {
 	ps := n.Props()
-	props := make([]*Property, len(ps))
+	props := make([]Node, len(ps))
 	for i, p := range ps {
-		props[i] = convert(p).(*Property)
+		props[i] = convert(p)
 	}
 	return &ObjectExpression{
 		Type:       "ObjectExpression",
@@ -449,7 +449,7 @@ func convert(node parser.Node) Node {
 			Body:       convert(fn.Body()),
 			Generator:  false,
 			Async:      fn.Async(),
-			Expression: true,
+			Expression: false,
 		}
 	case parser.N_STMT_FN:
 		fn := node.(*parser.FnDec)

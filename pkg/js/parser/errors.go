@@ -87,7 +87,7 @@ const (
 	ERR_RESERVED_WORD_IN_STRICT_MODE          = "Unexpected strict mode reserved word"
 	ERR_STRICT_DIRECTIVE_AFTER_NOT_SIMPLE     = "Illegal 'use strict' directive in function with non-simple parameter list"
 	ERR_DUP_PARAM_NAME                        = "Parameter name clash"
-	ERR_REST_ELEM_UNEXPECTED_TRAILING_COMMA   = "Unexpected trailing comma after rest element"
+	ERR_REST_TRAILING_COMMA                   = "Unexpected trailing comma after rest element"
 	ERR_REST_ELEM_MUST_LAST                   = "Rest element must be last element"
 	ERR_DELETE_LOCAL_IN_STRICT                = "Deleting local variable in strict mode"
 	ERR_REDEF_PROP                            = "Redefinition of property"
