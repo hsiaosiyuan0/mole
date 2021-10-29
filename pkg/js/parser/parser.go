@@ -237,7 +237,7 @@ func (p *Parser) exportFrom() ([]Node, bool, Node, error) {
 		if err != nil {
 			return nil, false, nil, err
 		}
-		src = &StrLit{N_LIT_STR, p.finLoc(p.locFromTok(str)), str.Text(), str.HasLegacyOctalEscapeSeq()}
+		src = &StrLit{N_LIT_STR, p.finLoc(p.locFromTok(str)), str.Text(), str.HasLegacyOctalEscapeSeq(), nil}
 	}
 	return specs, ns, src, nil
 }
@@ -337,7 +337,7 @@ func (p *Parser) importDec() (Node, error) {
 	if p.scope().IsKind(SPK_STRICT) && legacyOctalEscapeSeq {
 		return nil, p.errorAtLoc(p.locFromTok(str), ERR_LEGACY_OCTAL_ESCAPE_IN_STRICT_MODE)
 	}
-	src := &StrLit{N_LIT_STR, p.finLoc(p.locFromTok(str)), str.Text(), legacyOctalEscapeSeq}
+	src := &StrLit{N_LIT_STR, p.finLoc(p.locFromTok(str)), str.Text(), legacyOctalEscapeSeq, nil}
 
 	if err := p.advanceIfSemi(true); err != nil {
 		return nil, err
@@ -1287,14 +1287,14 @@ func (p *Parser) fnDec(expr bool, async bool) (Node, error) {
 	p.symtab.LeaveScope()
 
 	if arrow {
-		return &ArrowFn{N_EXPR_ARROW, p.finLoc(loc), async, params, body}, nil
+		return &ArrowFn{N_EXPR_ARROW, p.finLoc(loc), async, params, body, nil}, nil
 	}
 
 	typ := N_STMT_FN
 	if expr {
 		typ = N_EXPR_FN
 	}
-	return &FnDec{typ, p.finLoc(loc), id, generator, async, params, body}, nil
+	return &FnDec{typ, p.finLoc(loc), id, generator, async, params, body, nil}, nil
 }
 
 func (p *Parser) collectNames(nodes []Node) (names []Node, firstComplicated *Loc) {
@@ -1368,6 +1368,8 @@ func (p *Parser) namesInPattern(node Node) []Node {
 			} else if node.Type() == N_PROP {
 				val := node.(*Prop).value
 				names = p.namesInPattern(val)
+			} else {
+				names = p.namesInPattern(node)
 			}
 			out = append(out, names...)
 		}
@@ -1501,13 +1503,15 @@ func (p *Parser) varDecStmt(notIn bool, asExpr bool) (Node, error) {
 	kind := p.lexer.Next()
 
 	isConst := false
+	node.kind = T_VAR
+	bindKind := BK_VAR
 	if IsName(kind, "let", false) {
 		node.kind = T_LET
+		bindKind = BK_LET
 	} else if IsName(kind, "const", false) {
 		isConst = true
 		node.kind = T_CONST
-	} else {
-		node.kind = T_VAR
+		bindKind = BK_CONST
 	}
 
 	lvs := make([]Node, 0)
@@ -1535,12 +1539,7 @@ func (p *Parser) varDecStmt(notIn bool, asExpr bool) (Node, error) {
 		id := nameNode.(*Ident)
 		ref := NewRef()
 		ref.Node = id
-		ref.BindKind = BK_VAR
-		if node.kind == T_LET {
-			ref.BindKind = BK_LET
-		} else if node.kind == T_CONST {
-			ref.BindKind = BK_CONST
-		}
+		ref.BindKind = bindKind
 		if err := p.addLocalBinding(nil, ref, true); err != nil {
 			return nil, err
 		}
@@ -1570,9 +1569,7 @@ func (p *Parser) varDec(notIn bool) (*VarDec, error) {
 			return nil, err
 		}
 	}
-
-	dec := &VarDec{N_VAR_DEC, p.finLoc(loc), binding, init}
-	return dec, nil
+	return &VarDec{N_VAR_DEC, p.finLoc(loc), binding, init}, nil
 }
 
 var prohibitedNames = map[string]bool{
@@ -1600,7 +1597,7 @@ func (p *Parser) ident() (*Ident, error) {
 	if err != nil {
 		return nil, err
 	}
-	ident := &Ident{N_NAME, nil, "", false, tok.ContainsEscape()}
+	ident := &Ident{N_NAME, nil, "", false, tok.ContainsEscape(), nil}
 	ident.loc = p.finLoc(p.locFromTok(tok))
 	ident.val = tok.Text()
 
@@ -1658,7 +1655,7 @@ func (p *Parser) patternObj() (Node, error) {
 			return nil, p.errorTok(tok)
 		}
 	}
-	return &ObjPat{N_PAT_OBJ, p.finLoc(loc), props}, nil
+	return &ObjPat{N_PAT_OBJ, p.finLoc(loc), props, nil}, nil
 }
 
 func (p *Parser) patternProp() (Node, error) {
@@ -1677,25 +1674,32 @@ func (p *Parser) patternProp() (Node, error) {
 	if key.Type() == N_PROP {
 		return key, nil
 	}
-	loc := key.Loc().Clone()
 
+	loc := key.Loc().Clone()
 	tok := p.lexer.Peek()
 	opLoc := p.locFromTok(tok)
 	assign := tok.value == T_ASSIGN
-	if tok.value != T_COLON {
+	var value Node
+	if tok.value == T_COLON {
+		p.lexer.Next()
+		value, err = p.bindingElem(true)
+		if err != nil {
+			return nil, err
+		}
+	} else if assign {
 		if key.Type() == N_NAME {
 			return p.patternAssign(key, true)
 		}
 		return nil, p.errorTok(tok)
 	}
 
-	p.lexer.Next()
-	value, err := p.bindingElem(true)
-	if err != nil {
-		return nil, err
+	shorthand := false
+	if value == nil {
+		value = key
+		shorthand = true
 	}
 
-	return &Prop{N_PROP, p.finLoc(loc), key, opLoc, value, !IsLitPropName(key), false, assign, PK_INIT}, nil
+	return &Prop{N_PROP, p.finLoc(loc), key, opLoc, value, !IsLitPropName(key), shorthand, assign, PK_INIT}, nil
 }
 
 func (p *Parser) propName(allowNamePVT bool) (Node, error) {
@@ -1726,19 +1730,19 @@ func (p *Parser) propName(allowNamePVT bool) (Node, error) {
 
 	if ok || (allowNamePVT && tok.value == T_NAME_PVT) {
 		if tok.value == T_NUM {
-			return &NumLit{N_LIT_NUM, p.finLoc(loc)}, nil
+			return &NumLit{N_LIT_NUM, p.finLoc(loc), nil}, nil
 		}
-		return &Ident{N_NAME, p.finLoc(loc), tok.Text(), tok.value == T_NAME_PVT, tok.ContainsEscape()}, nil
+		return &Ident{N_NAME, p.finLoc(loc), tok.Text(), tok.value == T_NAME_PVT, tok.ContainsEscape(), nil}, nil
 	}
 	if tok.value == T_STRING {
 		legacyOctalEscapeSeq := tok.HasLegacyOctalEscapeSeq()
 		if p.scope().IsKind(SPK_STRICT) && legacyOctalEscapeSeq {
 			return nil, p.errorAtLoc(p.locFromTok(tok), ERR_LEGACY_OCTAL_ESCAPE_IN_STRICT_MODE)
 		}
-		return &StrLit{N_LIT_STR, p.finLoc(loc), tok.Text(), tok.HasLegacyOctalEscapeSeq()}, nil
+		return &StrLit{N_LIT_STR, p.finLoc(loc), tok.Text(), tok.HasLegacyOctalEscapeSeq(), nil}, nil
 	}
 	if tok.value == T_NUM {
-		return &NumLit{N_LIT_NUM, p.finLoc(loc)}, nil
+		return &NumLit{N_LIT_NUM, p.finLoc(loc), nil}, nil
 	}
 	if tok.value == T_BRACKET_L {
 		name, err := p.assignExpr(false, true)
@@ -1786,7 +1790,7 @@ func (p *Parser) patternArr() (Node, error) {
 			return nil, p.errorTok(tok)
 		}
 	}
-	return &ArrPat{N_PAT_ARRAY, p.finLoc(loc), elems}, nil
+	return &ArrPat{N_PAT_ARRAY, p.finLoc(loc), elems, nil}, nil
 }
 
 func (p *Parser) elision() []Node {
@@ -1839,7 +1843,7 @@ func (p *Parser) patternAssign(ident Node, asProp bool) (Node, error) {
 	}
 
 	loc := ident.Loc()
-	val := &AssignPat{N_PAT_ASSIGN, p.finLoc(loc.Clone()), ident, init}
+	val := &AssignPat{N_PAT_ASSIGN, p.finLoc(loc.Clone()), ident, init, nil}
 	if !asProp {
 		return val, nil
 	}
@@ -1860,7 +1864,7 @@ func (p *Parser) patternRest() (Node, error) {
 		return nil, p.errorAt(tok.value, &tok.begin, ERR_REST_TRAILING_COMMA)
 	}
 
-	return &RestPat{N_PAT_REST, p.finLoc(loc), arg}, nil
+	return &RestPat{N_PAT_REST, p.finLoc(loc), arg, nil}, nil
 }
 
 func (p *Parser) exprStmt() (Node, error) {
@@ -1925,7 +1929,7 @@ func (p *Parser) seqExpr(notIn bool) (Node, error) {
 			break
 		}
 	}
-	return &SeqExpr{N_EXPR_SEQ, p.finLoc(loc), exprs}, nil
+	return &SeqExpr{N_EXPR_SEQ, p.finLoc(loc), exprs, nil}, nil
 }
 
 func (p *Parser) aheadIsYield() bool {
@@ -1942,7 +1946,7 @@ func (p *Parser) yieldExpr(notIn bool) (Node, error) {
 
 	tok := p.lexer.Peek()
 	if tok.afterLineTerminator {
-		return &YieldExpr{N_EXPR_YIELD, p.finLoc(loc), false, nil}, nil
+		return &YieldExpr{N_EXPR_YIELD, p.finLoc(loc), false, nil, nil}, nil
 	}
 
 	delegate := false
@@ -1955,7 +1959,7 @@ func (p *Parser) yieldExpr(notIn bool) (Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &YieldExpr{N_EXPR_YIELD, p.finLoc(loc), delegate, arg}, nil
+	return &YieldExpr{N_EXPR_YIELD, p.finLoc(loc), delegate, arg, nil}, nil
 }
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-expressions.html#prod-AssignmentExpression
@@ -1982,9 +1986,9 @@ func (p *Parser) assignExpr(notIn bool, checkLhs bool) (Node, error) {
 		return nil, err
 	}
 
-	// set `depth` to 1 to pass expr like `i + 2 = 42`
+	// set `depth` to 1 to permit expr like `i + 2 = 42`
 	// and so just do the arg to param transform silently
-	lhs, err = p.argToParam(lhs, 1, false)
+	lhs, err = p.argToParam(lhs, 1, false, true)
 	if err != nil {
 		return nil, err
 	}
@@ -1993,7 +1997,7 @@ func (p *Parser) assignExpr(notIn bool, checkLhs bool) (Node, error) {
 		return nil, p.errorAtLoc(lhs.Loc(), ERR_ASSIGN_TO_RVALUE)
 	}
 
-	node := &AssignExpr{N_EXPR_ASSIGN, p.finLoc(loc), op, opLoc, lhs, p.unParen(rhs)}
+	node := &AssignExpr{N_EXPR_ASSIGN, p.finLoc(loc), op, opLoc, lhs, p.unParen(rhs), nil}
 	return node, nil
 }
 
@@ -2042,7 +2046,7 @@ func (p *Parser) condExpr(notIn bool) (Node, error) {
 		return nil, err
 	}
 
-	node := &CondExpr{N_EXPR_COND, p.finLoc(loc), test, cons, alt}
+	node := &CondExpr{N_EXPR_COND, p.finLoc(loc), test, cons, alt, nil}
 	return node, nil
 }
 
@@ -2062,7 +2066,7 @@ func (p *Parser) unaryExpr() (Node, error) {
 			return nil, p.errorAtLoc(arg.Loc(), ERR_DELETE_LOCAL_IN_STRICT)
 		}
 
-		return &UnaryExpr{N_EXPR_UNARY, p.finLoc(loc), op, arg}, nil
+		return &UnaryExpr{N_EXPR_UNARY, p.finLoc(loc), op, arg, nil}, nil
 	}
 	return p.updateExpr()
 }
@@ -2079,7 +2083,7 @@ func (p *Parser) updateExpr() (Node, error) {
 		if !p.isSimpleLVal(arg) {
 			return nil, p.errorAtLoc(arg.Loc(), ERR_ASSIGN_TO_RVALUE)
 		}
-		return &UpdateExpr{N_EXPR_UPDATE, p.finLoc(loc), tok.value, true, arg}, nil
+		return &UpdateExpr{N_EXPR_UPDATE, p.finLoc(loc), tok.value, true, arg, nil}, nil
 	}
 
 	arg, err := p.lhs()
@@ -2098,7 +2102,7 @@ func (p *Parser) updateExpr() (Node, error) {
 	}
 
 	p.lexer.Next()
-	return &UpdateExpr{N_EXPR_UPDATE, p.finLoc(loc), tok.value, false, arg}, nil
+	return &UpdateExpr{N_EXPR_UPDATE, p.finLoc(loc), tok.value, false, arg, nil}, nil
 }
 
 func (p *Parser) lhs() (Node, error) {
@@ -2130,7 +2134,7 @@ func (p *Parser) newExpr() (Node, error) {
 	}
 
 	var ret Node
-	ret = &NewExpr{N_EXPR_NEW, p.finLoc(loc), expr, args}
+	ret = &NewExpr{N_EXPR_NEW, p.finLoc(loc), expr, args, nil}
 	for {
 		tok := p.lexer.Peek()
 		if tok.value == T_PAREN_L {
@@ -2169,7 +2173,7 @@ func (p *Parser) callExpr(callee Node) (Node, error) {
 			if err != nil {
 				return nil, err
 			}
-			callee = &CallExpr{N_EXPR_CALL, p.finLoc(loc), p.unParen(callee), args}
+			callee = &CallExpr{N_EXPR_CALL, p.finLoc(loc), p.unParen(callee), args, nil}
 		} else if tok.value == T_BRACKET_L || tok.value == T_DOT {
 			callee, err = p.memberExpr(callee, true)
 			if err != nil {
@@ -2192,7 +2196,7 @@ func (p *Parser) callExpr(callee Node) (Node, error) {
 func (p *Parser) importCall() (Node, error) {
 	loc := p.loc()
 	tok := p.lexer.Next()
-	meta := &Ident{N_NAME, p.finLoc(p.locFromTok(tok)), tok.Text(), false, tok.ContainsEscape()}
+	meta := &Ident{N_NAME, p.finLoc(p.locFromTok(tok)), tok.Text(), false, tok.ContainsEscape(), nil}
 
 	if p.lexer.Peek().value == T_DOT {
 		p.lexer.Next()
@@ -2218,7 +2222,7 @@ func (p *Parser) importCall() (Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &ImportCall{N_IMPORT_CALL, p.finLoc(loc), src}, nil
+	return &ImportCall{N_IMPORT_CALL, p.finLoc(loc), src, nil}, nil
 }
 
 func (p *Parser) tplExpr(tag Node) (Node, error) {
@@ -2243,13 +2247,13 @@ func (p *Parser) tplExpr(tag Node) (Node, error) {
 		if tok.value == T_TPL_TAIL {
 			loc := p.loc()
 			p.lexer.Next()
-			str := &StrLit{N_LIT_STR, p.finLoc(loc), tok.Text(), false}
+			str := &StrLit{N_LIT_STR, p.finLoc(loc), tok.Text(), false, nil}
 			elems = append(elems, str)
 			break
 		} else if tok.value == T_TPL_SPAN || tok.value == T_TPL_HEAD {
 			loc := p.loc()
 			p.lexer.Next()
-			str := &StrLit{N_LIT_STR, p.finLoc(loc), tok.Text(), false}
+			str := &StrLit{N_LIT_STR, p.finLoc(loc), tok.Text(), false, nil}
 			elems = append(elems, str)
 
 			if tok.IsPlainTpl() {
@@ -2274,14 +2278,14 @@ func (p *Parser) tplExpr(tag Node) (Node, error) {
 	loc = p.finLoc(loc)
 	loc.end.col += 1
 	loc.rng.end += 1
-	return &TplExpr{N_EXPR_TPL, loc, tag, elems}, nil
+	return &TplExpr{N_EXPR_TPL, loc, tag, elems, nil}, nil
 }
 
 func (p *Parser) argsToFormalParams(args []Node) ([]Node, error) {
 	params := make([]Node, len(args))
 	var err error
 	for i, arg := range args {
-		params[i], err = p.argToParam(arg, 0, false)
+		params[i], err = p.argToParam(arg, 0, false, false)
 		if err != nil {
 			return nil, err
 		}
@@ -2289,7 +2293,7 @@ func (p *Parser) argsToFormalParams(args []Node) ([]Node, error) {
 	return params, nil
 }
 
-func (p *Parser) argToParam(arg Node, depth int, prop bool) (Node, error) {
+func (p *Parser) argToParam(arg Node, depth int, prop bool, destruct bool) (Node, error) {
 	switch arg.Type() {
 	case N_LIT_ARR:
 		arr := arg.(*ArrLit)
@@ -2300,7 +2304,7 @@ func (p *Parser) argToParam(arg Node, depth int, prop bool) (Node, error) {
 		}
 		var err error
 		for i, node := range arr.elems {
-			pat.elems[i], err = p.argToParam(node, depth+1, false)
+			pat.elems[i], err = p.argToParam(node, depth+1, false, destruct)
 			if err != nil {
 				return nil, err
 			}
@@ -2318,7 +2322,7 @@ func (p *Parser) argToParam(arg Node, depth int, prop bool) (Node, error) {
 			isProp = prop
 		}
 		for i, prop := range n.props {
-			pp, err := p.argToParam(prop, depth+1, isProp)
+			pp, err := p.argToParam(prop, depth+1, isProp, destruct)
 			if err != nil {
 				return nil, err
 			}
@@ -2329,7 +2333,11 @@ func (p *Parser) argToParam(arg Node, depth int, prop bool) (Node, error) {
 		n := arg.(*Prop)
 		var err error
 		if n.value != nil {
-			n.value, err = p.argToParam(n.value, depth+1, prop)
+			if n.value.Type() == N_EXPR_FN && depth == 1 {
+				return nil, p.errorAtLoc(arg.Loc(), ERR_OBJ_PATTERN_CANNOT_FN)
+			}
+
+			n.value, err = p.argToParam(n.value, depth+1, prop, destruct)
 			if err != nil {
 				return nil, err
 			}
@@ -2353,7 +2361,7 @@ func (p *Parser) argToParam(arg Node, depth int, prop bool) (Node, error) {
 			return nil, p.errorAtLoc(n.opLoc, ERR_UNEXPECTED_TOKEN)
 		}
 
-		lhs, err := p.argToParam(n.lhs, depth+1, false)
+		lhs, err := p.argToParam(n.lhs, depth+1, false, destruct)
 		if err != nil {
 			return nil, err
 		}
@@ -2375,6 +2383,26 @@ func (p *Parser) argToParam(arg Node, depth int, prop bool) (Node, error) {
 		n := arg.(*Spread)
 		if n.trailingCommaLoc != nil {
 			return nil, p.errorAtLoc(n.trailingCommaLoc, ERR_REST_TRAILING_COMMA)
+		}
+
+		if n.arg.Type() == N_NAME {
+			// `({...(obj)} = foo)` raises error`Parenthesized pattern` in acorn
+			// however it's legal in babel-parser, chrome and firefox
+			//
+			// use `destruct` to require the caller to indicate the parsing state
+			// is in destructing or not
+			if !destruct {
+				if extra, ok := n.arg.Extra().(*ExprExtra); ok {
+					if extra != nil && extra.OuterParen != nil {
+						return nil, p.errorAtLoc(extra.OuterParen, ERR_INVALID_PAREN_ASSIGN_PATTERN)
+					}
+				}
+			}
+		} else {
+			if n.arg.Type() == N_EXPR_ASSIGN {
+				return nil, p.errorAtLoc(n.arg.Loc(), ERR_REST_CANNOT_SET_DEFAULT)
+			}
+			return nil, p.errorAtLoc(n.arg.Loc(), ERR_REST_ARG_NOT_SIMPLE)
 		}
 		return &RestPat{
 			typ: N_PAT_REST,
@@ -2514,7 +2542,7 @@ func (p *Parser) binExpr(lhs Node, minPcd int, notIn bool) (Node, error) {
 		}
 		pcd = kind.Pcd
 
-		bin := &BinExpr{N_EXPR_BIN, nil, T_ILLEGAL, nil, nil}
+		bin := &BinExpr{N_EXPR_BIN, nil, T_ILLEGAL, nil, nil, nil}
 		bin.loc = p.finLoc(lhs.Loc().Clone())
 		bin.op = op
 		bin.lhs = p.unParen(lhs)
@@ -2569,7 +2597,7 @@ func (p *Parser) memberExprPropSubscript(obj Node) (Node, error) {
 	if _, err := p.nextMustTok(T_BRACKET_R); err != nil {
 		return nil, err
 	}
-	node := &MemberExpr{N_EXPR_MEMBER, p.finLoc(obj.Loc().Clone()), p.unParen(obj), prop, true, false}
+	node := &MemberExpr{N_EXPR_MEMBER, p.finLoc(obj.Loc().Clone()), p.unParen(obj), prop, true, false, nil}
 	return node, nil
 }
 
@@ -2582,12 +2610,12 @@ func (p *Parser) memberExprPropDot(obj Node) (Node, error) {
 
 	var prop Node
 	if (ok && tok.value != T_NUM) || tok.value == T_NAME_PVT {
-		prop = &Ident{N_NAME, p.finLoc(loc), tok.Text(), tok.value == T_NAME_PVT, tok.ContainsEscape()}
+		prop = &Ident{N_NAME, p.finLoc(loc), tok.Text(), tok.value == T_NAME_PVT, tok.ContainsEscape(), nil}
 	} else {
 		return nil, p.errorTok(tok)
 	}
 
-	node := &MemberExpr{N_EXPR_MEMBER, p.finLoc(obj.Loc().Clone()), p.unParen(obj), prop, false, false}
+	node := &MemberExpr{N_EXPR_MEMBER, p.finLoc(obj.Loc().Clone()), p.unParen(obj), prop, false, false, nil}
 	return node, nil
 }
 
@@ -2598,20 +2626,20 @@ func (p *Parser) primaryExpr() (Node, error) {
 	switch tok.value {
 	case T_NUM:
 		p.lexer.Next()
-		return &NumLit{N_LIT_NUM, p.finLoc(loc)}, nil
+		return &NumLit{N_LIT_NUM, p.finLoc(loc), nil}, nil
 	case T_STRING:
 		p.lexer.Next()
 		legacyOctalEscapeSeq := tok.HasLegacyOctalEscapeSeq()
 		if p.scope().IsKind(SPK_STRICT) && legacyOctalEscapeSeq {
 			return nil, p.errorAtLoc(p.finLoc(loc), ERR_LEGACY_OCTAL_ESCAPE_IN_STRICT_MODE)
 		}
-		return &StrLit{N_LIT_STR, p.finLoc(loc), tok.Text(), legacyOctalEscapeSeq}, nil
+		return &StrLit{N_LIT_STR, p.finLoc(loc), tok.Text(), legacyOctalEscapeSeq, nil}, nil
 	case T_NULL:
 		p.lexer.Next()
-		return &NullLit{N_LIT_NULL, p.finLoc(loc)}, nil
+		return &NullLit{N_LIT_NULL, p.finLoc(loc), nil}, nil
 	case T_TRUE, T_FALSE:
 		p.lexer.Next()
-		return &BoolLit{N_LIT_BOOL, p.finLoc(loc), tok.Text() == "true"}, nil
+		return &BoolLit{N_LIT_BOOL, p.finLoc(loc), tok.Text() == "true", nil}, nil
 	case T_NAME:
 		if p.aheadIsAsync(tok, false, false) {
 			if tok.ContainsEscape() {
@@ -2626,10 +2654,10 @@ func (p *Parser) primaryExpr() (Node, error) {
 			return nil, p.errorAtLoc(p.finLoc(loc), ERR_RESERVED_WORD_IN_STRICT_MODE)
 		}
 
-		return &Ident{N_NAME, p.finLoc(loc), name, false, tok.ContainsEscape()}, nil
+		return &Ident{N_NAME, p.finLoc(loc), name, false, tok.ContainsEscape(), nil}, nil
 	case T_THIS:
 		p.lexer.Next()
-		return &ThisExpr{N_EXPR_THIS, p.finLoc(loc)}, nil
+		return &ThisExpr{N_EXPR_THIS, p.finLoc(loc), nil}, nil
 	case T_PAREN_L:
 		return p.parenExpr()
 	case T_BRACKET_L:
@@ -2641,12 +2669,12 @@ func (p *Parser) primaryExpr() (Node, error) {
 	case T_REGEXP:
 		p.lexer.Next()
 		ext := tok.ext.(*TokExtRegexp)
-		return &RegexpLit{N_LIT_REGEXP, p.finLoc(loc), tok.Text(), ext.Pattern(), ext.Flags()}, nil
+		return &RegexpLit{N_LIT_REGEXP, p.finLoc(loc), tok.Text(), ext.Pattern(), ext.Flags(), nil}, nil
 	case T_CLASS:
 		return p.classDec(true)
 	case T_SUPER:
 		p.lexer.Next()
-		return &Super{N_SUPER, p.finLoc(loc)}, nil
+		return &Super{N_SUPER, p.finLoc(loc), nil}, nil
 	case T_IMPORT:
 		return p.importCall()
 	case T_TPL_HEAD:
@@ -2698,7 +2726,7 @@ func (p *Parser) parenExpr() (Node, error) {
 		}
 		p.symtab.LeaveScope()
 
-		return &ArrowFn{N_EXPR_ARROW, p.finLoc(loc), false, params, body}, nil
+		return &ArrowFn{N_EXPR_ARROW, p.finLoc(loc), false, params, body, nil}, nil
 	}
 
 	argsLen := len(args)
@@ -2711,19 +2739,24 @@ func (p *Parser) parenExpr() (Node, error) {
 	}
 
 	if argsLen == 1 {
-		return &ParenExpr{N_EXPR_PAREN, p.finLoc(loc), args[0]}, nil
+		return &ParenExpr{N_EXPR_PAREN, p.finLoc(loc), args[0], nil}, nil
 	}
 
-	loc = args[0].Loc().Clone()
-	end := args[len(args)-1].Loc()
-	loc.end = end.end.Clone()
-	loc.rng.end = end.rng.end
-	return &SeqExpr{N_EXPR_SEQ, loc, args}, nil
+	return &SeqExpr{N_EXPR_SEQ, p.finLoc(loc), args, nil}, nil
 }
 
 func (p *Parser) unParen(expr Node) Node {
+	loc := expr.Loc().Clone()
 	if expr.Type() == N_EXPR_PAREN {
-		return expr.(*ParenExpr).Expr()
+		sub := expr.(*ParenExpr).Expr()
+		if extra, ok := sub.Extra().(*ExprExtra); ok {
+			if extra == nil {
+				extra = &ExprExtra{}
+				sub.setExtra(extra)
+			}
+			extra.OuterParen = loc
+		}
+		return sub
 	}
 	return expr
 }
@@ -2761,7 +2794,7 @@ func (p *Parser) arrLit() (Node, error) {
 			return nil, p.errorTok(tok)
 		}
 	}
-	return &ArrLit{N_LIT_ARR, p.finLoc(loc), elems}, nil
+	return &ArrLit{N_LIT_ARR, p.finLoc(loc), elems, nil}, nil
 }
 
 func (p *Parser) arrElem() (Node, error) {
@@ -2796,7 +2829,7 @@ func (p *Parser) spread() (Node, error) {
 	if tok.value == T_COMMA {
 		trailingCommaLoc = p.locFromTok(tok)
 	}
-	return &Spread{N_SPREAD, p.finLoc(loc), p.unParen(node), trailingCommaLoc}, nil
+	return &Spread{N_SPREAD, p.finLoc(loc), p.unParen(node), trailingCommaLoc, nil}, nil
 }
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-expressions.html#prod-ObjectLiteral
@@ -2856,7 +2889,7 @@ func (p *Parser) objLit() (Node, error) {
 			return nil, p.errorTok(tok)
 		}
 	}
-	return &ObjLit{N_LIT_OBJ, p.finLoc(loc), props}, nil
+	return &ObjLit{N_LIT_OBJ, p.finLoc(loc), props, nil}, nil
 }
 
 func (p *Parser) objProp() (Node, error) {
@@ -2971,7 +3004,7 @@ func (p *Parser) method(loc *Loc, key Node, shorthand bool, kind PropKind, gen b
 		return nil, err
 	}
 
-	value := &FnDec{N_EXPR_FN, p.finLoc(fnLoc), nil, gen, async, params, body}
+	value := &FnDec{N_EXPR_FN, p.finLoc(fnLoc), nil, gen, async, params, body, nil}
 	if inClass {
 		return &Method{N_METHOD, p.finLoc(loc), key, static, key.Type() != N_NAME, kind, value}, nil
 	}

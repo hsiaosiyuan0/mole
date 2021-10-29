@@ -2109,79 +2109,85 @@ func TestFail247(t *testing.T) {
 }
 
 func TestFail248(t *testing.T) {
-
+	testFail(t, "({...obj1,...obj2} = foo)",
+		"Unexpected trailing comma after rest element at (1:9)", nil)
 }
 
 func TestFail249(t *testing.T) {
-
+	testFail(t, "({...(a,b)} = foo)", "Invalid rest operator's argument at (1:5)", nil)
 }
 
 func TestFail250(t *testing.T) {
-
+	testFail(t, "({...{a,b}} = foo)", "Invalid rest operator's argument at (1:5)", nil)
 }
 
 func TestFail251(t *testing.T) {
-
+	testFail(t, "({...[a,b]} = foo)", "Invalid rest operator's argument at (1:5)", nil)
 }
 
 func TestFail252(t *testing.T) {
-
+	testFail(t, "({...(obj)}) => {}", "Invalid parenthesized assignment pattern at (1:5)", nil)
 }
 
 func TestFail253(t *testing.T) {
-
+	testFail(t, "({...(obj)}) => {}", "Invalid parenthesized assignment pattern at (1:5)", nil)
 }
 
 func TestFail254(t *testing.T) {
-
+	testFail(t, "({...(a,b)}) => {}", "Invalid rest operator's argument at (1:5)", nil)
 }
 
 func TestFail255(t *testing.T) {
-
+	testFail(t, "({...{a,b}}) => {}", "Invalid rest operator's argument at (1:5)", nil)
 }
 
 func TestFail256(t *testing.T) {
-
+	testFail(t, "({...[a,b]}) => {}", "Invalid rest operator's argument at (1:5)", nil)
 }
 
 func TestFail257(t *testing.T) {
-
+	testFail(t, "({get x() {}}) => {}",
+		"Object pattern can't contain getter or setter at (1:6)", nil)
 }
 
 func TestFail258(t *testing.T) {
-
+	testFail(t, "let {...x, ...y} = {}",
+		"Unexpected trailing comma after rest element at (1:9)", nil)
 }
 
 func TestFail259(t *testing.T) {
-
+	testFail(t, "({...x,}) => z",
+		"Unexpected trailing comma after rest element at (1:6)", nil)
 }
 
 func TestFail260(t *testing.T) {
-
+	testFail(t, "function ({...x,}) { z }", "Unexpected token `(` at (1:9)", nil)
 }
 
 func TestFail261(t *testing.T) {
-
+	testFail(t, "let {...{x, y}} = {}", "Unexpected token `{` at (1:8)", nil)
 }
 
 func TestFail262(t *testing.T) {
-
+	testFail(t, "let {...{...{x, y}}} = {}", "Unexpected token `{` at (1:8)", nil)
 }
 
 func TestFail263(t *testing.T) {
-
+	testFail(t, "0, {...rest, b} = {}",
+		"Unexpected trailing comma after rest element at (1:11)", nil)
 }
 
 func TestFail264(t *testing.T) {
-
+	testFail(t, "(([a, ...b = 0]) => {})", "Rest elements cannot have a default value at (1:9)", nil)
 }
 
 func TestFail265(t *testing.T) {
-
+	testFail(t, "(({a, ...b = 0}) => {})", "Rest elements cannot have a default value at (1:9)", nil)
 }
 
 func TestFail266(t *testing.T) {
-
+	testFail(t, "export const { foo, ...bar } = baz;\nexport const bar = 1;\n",
+		"Identifier `bar` has already been declared at (2:13)", nil)
 }
 
 func TestFail267(t *testing.T) {

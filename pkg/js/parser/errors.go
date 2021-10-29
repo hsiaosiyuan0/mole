@@ -100,4 +100,8 @@ const (
 	ERR_WITH_STMT_IN_STRICT                   = "Strict mode code may not include a with statement"
 	ERR_CLASS_NAME_REQUIRED                   = "Class name is required"
 	ERR_SHORTHAND_PROP_ASSIGN_NOT_IN_DESTRUCT = "Shorthand property assignments are valid only in destructuring patterns"
+	ERR_REST_ARG_NOT_SIMPLE                   = "Invalid rest operator's argument"
+	ERR_INVALID_PAREN_ASSIGN_PATTERN          = "Invalid parenthesized assignment pattern"
+	ERR_OBJ_PATTERN_CANNOT_FN                 = "Object pattern can't contain getter or setter"
+	ERR_REST_CANNOT_SET_DEFAULT               = "Rest elements cannot have a default value"
 )

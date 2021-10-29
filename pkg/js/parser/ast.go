@@ -5,12 +5,14 @@ import (
 	"strings"
 )
 
-// AST nodes is described as: https://github.com/estree/estree/blob/master/es5.md
-// flatterned struct is used instead of inheritance
+// below AST nodes are described as: https://github.com/estree/estree/blob/master/es5.md
+// the flatterned struct is used instead of inheritance
 
 type Node interface {
 	Type() NodeType
 	Loc() *Loc
+	Extra() interface{}
+	setExtra(interface{})
 }
 
 type Range struct {
@@ -182,6 +184,13 @@ func (n *Prog) Loc() *Loc {
 	return n.loc
 }
 
+func (n *Prog) Extra() interface{} {
+	return nil
+}
+
+func (n *Prog) setExtra(_ interface{}) {
+}
+
 type ExprStmt struct {
 	typ  NodeType
 	loc  *Loc
@@ -200,6 +209,13 @@ func (n *ExprStmt) Expr() Node {
 	return n.expr
 }
 
+func (n *ExprStmt) Extra() interface{} {
+	return nil
+}
+
+func (n *ExprStmt) setExtra(_ interface{}) {
+}
+
 type EmptyStmt struct {
 	typ NodeType
 	loc *Loc
@@ -213,9 +229,21 @@ func (n *EmptyStmt) Loc() *Loc {
 	return n.loc
 }
 
+func (n *EmptyStmt) Extra() interface{} {
+	return nil
+}
+
+func (n *EmptyStmt) setExtra(_ interface{}) {
+}
+
+type ExprExtra struct {
+	OuterParen *Loc
+}
+
 type NullLit struct {
-	typ NodeType
-	loc *Loc
+	typ   NodeType
+	loc   *Loc
+	extra *ExprExtra
 }
 
 func (n *NullLit) Type() NodeType {
@@ -230,10 +258,19 @@ func (n *NullLit) Text() string {
 	return "null"
 }
 
+func (n *NullLit) Extra() interface{} {
+	return nil
+}
+
+func (n *NullLit) setExtra(ext interface{}) {
+	n.extra = ext.(*ExprExtra)
+}
+
 type BoolLit struct {
-	typ NodeType
-	loc *Loc
-	val bool
+	typ   NodeType
+	loc   *Loc
+	val   bool
+	extra *ExprExtra
 }
 
 func (n *BoolLit) Value() bool {
@@ -255,9 +292,18 @@ func (n *BoolLit) Text() string {
 	return "false"
 }
 
+func (n *BoolLit) Extra() interface{} {
+	return nil
+}
+
+func (n *BoolLit) setExtra(ext interface{}) {
+	n.extra = ext.(*ExprExtra)
+}
+
 type NumLit struct {
-	typ NodeType
-	loc *Loc
+	typ   NodeType
+	loc   *Loc
+	extra *ExprExtra
 }
 
 func (n *NumLit) Type() NodeType {
@@ -291,11 +337,20 @@ func (n *NumLit) ToFloat() float64 {
 	return s
 }
 
+func (n *NumLit) Extra() interface{} {
+	return nil
+}
+
+func (n *NumLit) setExtra(ext interface{}) {
+	n.extra = ext.(*ExprExtra)
+}
+
 type StrLit struct {
 	typ                  NodeType
 	loc                  *Loc
 	val                  string
 	legacyOctalEscapeSeq bool
+	extra                *ExprExtra
 }
 
 func (n *StrLit) Type() NodeType {
@@ -314,12 +369,21 @@ func (n *StrLit) Raw() string {
 	return n.loc.Text()
 }
 
+func (n *StrLit) Extra() interface{} {
+	return nil
+}
+
+func (n *StrLit) setExtra(ext interface{}) {
+	n.extra = ext.(*ExprExtra)
+}
+
 type RegexpLit struct {
 	typ     NodeType
 	loc     *Loc
 	val     string
 	pattern string
 	flags   string
+	extra   *ExprExtra
 }
 
 func (n *RegexpLit) Type() NodeType {
@@ -338,10 +402,19 @@ func (n *RegexpLit) Flags() string {
 	return n.flags
 }
 
+func (n *RegexpLit) Extra() interface{} {
+	return nil
+}
+
+func (n *RegexpLit) setExtra(ext interface{}) {
+	n.extra = ext.(*ExprExtra)
+}
+
 type ArrLit struct {
 	typ   NodeType
 	loc   *Loc
 	elems []Node
+	extra *ExprExtra
 }
 
 func (n *ArrLit) Type() NodeType {
@@ -356,11 +429,20 @@ func (n *ArrLit) Elems() []Node {
 	return n.elems
 }
 
+func (n *ArrLit) Extra() interface{} {
+	return nil
+}
+
+func (n *ArrLit) setExtra(ext interface{}) {
+	n.extra = ext.(*ExprExtra)
+}
+
 type Spread struct {
 	typ              NodeType
 	loc              *Loc
 	arg              Node
 	trailingCommaLoc *Loc
+	extra            *ExprExtra
 }
 
 func (n *Spread) Arg() Node {
@@ -375,10 +457,19 @@ func (n *Spread) Loc() *Loc {
 	return n.loc
 }
 
+func (n *Spread) Extra() interface{} {
+	return n.extra
+}
+
+func (n *Spread) setExtra(ext interface{}) {
+	n.extra = ext.(*ExprExtra)
+}
+
 type ObjLit struct {
 	typ   NodeType
 	loc   *Loc
 	props []Node
+	extra *ExprExtra
 }
 
 func (n *ObjLit) Props() []Node {
@@ -393,12 +484,21 @@ func (n *ObjLit) Loc() *Loc {
 	return n.loc
 }
 
+func (n *ObjLit) Extra() interface{} {
+	return n.extra
+}
+
+func (n *ObjLit) setExtra(ext interface{}) {
+	n.extra = ext.(*ExprExtra)
+}
+
 type Ident struct {
 	typ            NodeType
 	loc            *Loc
 	val            string
 	pvt            bool
 	containsEscape bool
+	extra          *ExprExtra
 }
 
 func (n *Ident) Type() NodeType {
@@ -421,11 +521,20 @@ func (n *Ident) ContainsEscape() bool {
 	return n.containsEscape
 }
 
+func (n *Ident) Extra() interface{} {
+	return n.extra
+}
+
+func (n *Ident) setExtra(ext interface{}) {
+	n.extra = ext.(*ExprExtra)
+}
+
 type NewExpr struct {
 	typ    NodeType
 	loc    *Loc
 	callee Node
 	args   []Node
+	extra  *ExprExtra
 }
 
 func (n *NewExpr) Type() NodeType {
@@ -444,6 +553,14 @@ func (n *NewExpr) Args() []Node {
 	return n.args
 }
 
+func (n *NewExpr) Extra() interface{} {
+	return n.extra
+}
+
+func (n *NewExpr) setExtra(ext interface{}) {
+	n.extra = ext.(*ExprExtra)
+}
+
 type MemberExpr struct {
 	typ      NodeType
 	loc      *Loc
@@ -451,6 +568,7 @@ type MemberExpr struct {
 	prop     Node
 	compute  bool
 	optional bool
+	extra    *ExprExtra
 }
 
 func (n *MemberExpr) Obj() Node {
@@ -477,11 +595,20 @@ func (n *MemberExpr) Loc() *Loc {
 	return n.loc
 }
 
+func (n *MemberExpr) Extra() interface{} {
+	return n.extra
+}
+
+func (n *MemberExpr) setExtra(ext interface{}) {
+	n.extra = ext.(*ExprExtra)
+}
+
 type CallExpr struct {
 	typ    NodeType
 	loc    *Loc
 	callee Node
 	args   []Node
+	extra  *ExprExtra
 }
 
 func (n *CallExpr) Callee() Node {
@@ -500,12 +627,21 @@ func (n *CallExpr) Loc() *Loc {
 	return n.loc
 }
 
+func (n *CallExpr) Extra() interface{} {
+	return n.extra
+}
+
+func (n *CallExpr) setExtra(ext interface{}) {
+	n.extra = ext.(*ExprExtra)
+}
+
 type BinExpr struct {
-	typ NodeType
-	loc *Loc
-	op  TokenValue
-	lhs Node
-	rhs Node
+	typ   NodeType
+	loc   *Loc
+	op    TokenValue
+	lhs   Node
+	rhs   Node
+	extra *ExprExtra
 }
 
 func (n *BinExpr) Op() TokenValue {
@@ -532,11 +668,20 @@ func (n *BinExpr) Loc() *Loc {
 	return n.loc
 }
 
+func (n *BinExpr) Extra() interface{} {
+	return n.extra
+}
+
+func (n *BinExpr) setExtra(ext interface{}) {
+	n.extra = ext.(*ExprExtra)
+}
+
 type UnaryExpr struct {
-	typ NodeType
-	loc *Loc
-	op  TokenValue
-	arg Node
+	typ   NodeType
+	loc   *Loc
+	op    TokenValue
+	arg   Node
+	extra *ExprExtra
 }
 
 func (n *UnaryExpr) Arg() Node {
@@ -559,12 +704,21 @@ func (n *UnaryExpr) Loc() *Loc {
 	return n.loc
 }
 
+func (n *UnaryExpr) Extra() interface{} {
+	return n.extra
+}
+
+func (n *UnaryExpr) setExtra(ext interface{}) {
+	n.extra = ext.(*ExprExtra)
+}
+
 type UpdateExpr struct {
 	typ    NodeType
 	loc    *Loc
 	op     TokenValue
 	prefix bool
 	arg    Node
+	extra  *ExprExtra
 }
 
 func (n *UpdateExpr) Arg() Node {
@@ -591,12 +745,21 @@ func (n *UpdateExpr) Loc() *Loc {
 	return n.loc
 }
 
+func (n *UpdateExpr) Extra() interface{} {
+	return n.extra
+}
+
+func (n *UpdateExpr) setExtra(ext interface{}) {
+	n.extra = ext.(*ExprExtra)
+}
+
 type CondExpr struct {
-	typ  NodeType
-	loc  *Loc
-	test Node
-	cons Node
-	alt  Node
+	typ   NodeType
+	loc   *Loc
+	test  Node
+	cons  Node
+	alt   Node
+	extra *ExprExtra
 }
 
 func (n *CondExpr) Test() Node {
@@ -619,6 +782,14 @@ func (n *CondExpr) Loc() *Loc {
 	return n.loc
 }
 
+func (n *CondExpr) Extra() interface{} {
+	return n.extra
+}
+
+func (n *CondExpr) setExtra(ext interface{}) {
+	n.extra = ext.(*ExprExtra)
+}
+
 type AssignExpr struct {
 	typ   NodeType
 	loc   *Loc
@@ -626,6 +797,7 @@ type AssignExpr struct {
 	opLoc *Loc
 	lhs   Node
 	rhs   Node
+	extra *ExprExtra
 }
 
 func (n *AssignExpr) Op() TokenValue {
@@ -652,56 +824,232 @@ func (n *AssignExpr) Loc() *Loc {
 	return n.loc
 }
 
-type VarDecStmt struct {
-	typ     NodeType
-	loc     *Loc
-	kind    TokenValue
-	decList []*VarDec
+func (n *AssignExpr) Extra() interface{} {
+	return n.extra
 }
 
-func (n *VarDecStmt) Kind() string {
-	return TokenKinds[n.kind].Name
+func (n *AssignExpr) setExtra(ext interface{}) {
+	n.extra = ext.(*ExprExtra)
 }
 
-func (n *VarDecStmt) DecList() []*VarDec {
-	return n.decList
+type ThisExpr struct {
+	typ   NodeType
+	loc   *Loc
+	extra *ExprExtra
 }
 
-func (n *VarDecStmt) Type() NodeType {
+func (n *ThisExpr) Type() NodeType {
 	return n.typ
 }
 
-func (n *VarDecStmt) Loc() *Loc {
+func (n *ThisExpr) Loc() *Loc {
 	return n.loc
 }
 
-type VarDec struct {
-	typ  NodeType
-	loc  *Loc
-	id   Node
-	init Node
+func (n *ThisExpr) Extra() interface{} {
+	return n.extra
 }
 
-func (n *VarDec) Id() Node {
-	return n.id
+func (n *ThisExpr) setExtra(ext interface{}) {
+	n.extra = ext.(*ExprExtra)
 }
 
-func (n *VarDec) Init() Node {
-	return n.init
+type SeqExpr struct {
+	typ   NodeType
+	loc   *Loc
+	elems []Node
+	extra *ExprExtra
 }
 
-func (n *VarDec) Type() NodeType {
+func (n *SeqExpr) Elems() []Node {
+	return n.elems
+}
+
+func (n *SeqExpr) Type() NodeType {
 	return n.typ
 }
 
-func (n *VarDec) Loc() *Loc {
+func (n *SeqExpr) Loc() *Loc {
 	return n.loc
+}
+
+func (n *SeqExpr) Extra() interface{} {
+	return n.extra
+}
+
+func (n *SeqExpr) setExtra(ext interface{}) {
+	n.extra = ext.(*ExprExtra)
+}
+
+type ParenExpr struct {
+	typ   NodeType
+	loc   *Loc
+	expr  Node
+	extra *ExprExtra
+}
+
+func (n *ParenExpr) Expr() Node {
+	expr := n.expr
+	for {
+		if expr.Type() == N_EXPR_PAREN {
+			expr = expr.(*ParenExpr).expr
+		} else {
+			break
+		}
+	}
+	return expr
+}
+
+func (n *ParenExpr) Type() NodeType {
+	return n.typ
+}
+
+func (n *ParenExpr) Loc() *Loc {
+	return n.loc
+}
+
+func (n *ParenExpr) Extra() interface{} {
+	return n.extra
+}
+
+func (n *ParenExpr) setExtra(ext interface{}) {
+	n.extra = ext.(*ExprExtra)
+}
+
+// there is no information kept to describe the program order of the quasis and expresions
+// according to below link descries how the quasis and expresion are being walk over:
+// https://opensource.apple.com/source/WebInspectorUI/WebInspectorUI-7602.2.14.0.5/UserInterface/Workers/Formatter/ESTreeWalker.js.auto.html
+// some meaningless output should be taken into its estree result, such as put first quasis as
+// a emptry string if the first element in `elems` is a expression
+type TplExpr struct {
+	typ   NodeType
+	loc   *Loc
+	tag   Node
+	elems []Node
+	extra *ExprExtra
+}
+
+func (n *TplExpr) Tag() Node {
+	return n.tag
+}
+
+func (n *TplExpr) Elems() []Node {
+	return n.elems
+}
+
+func (n *TplExpr) Type() NodeType {
+	return n.typ
+}
+
+// loc without the `tag`
+func (n *TplExpr) Loc() *Loc {
+	return n.loc
+}
+
+func (n *TplExpr) Extra() interface{} {
+	return n.extra
+}
+
+func (n *TplExpr) setExtra(ext interface{}) {
+	n.extra = ext.(*ExprExtra)
+}
+
+func (n *TplExpr) LocWithTag() *Loc {
+	loc := n.loc.Clone()
+	if n.tag != nil {
+		tl := n.tag.Loc()
+		loc.begin = tl.begin.Clone()
+		loc.rng.start = tl.rng.start
+	}
+	return loc
+}
+
+type Super struct {
+	typ   NodeType
+	loc   *Loc
+	extra *ExprExtra
+}
+
+func (n *Super) Type() NodeType {
+	return n.typ
+}
+
+func (n *Super) Loc() *Loc {
+	return n.loc
+}
+
+func (n *Super) Extra() interface{} {
+	return n.extra
+}
+
+func (n *Super) setExtra(ext interface{}) {
+	n.extra = ext.(*ExprExtra)
+}
+
+type ImportCall struct {
+	typ   NodeType
+	loc   *Loc
+	src   Node
+	extra *ExprExtra
+}
+
+func (n *ImportCall) Src() Node {
+	return n.src
+}
+
+func (n *ImportCall) Type() NodeType {
+	return n.typ
+}
+
+func (n *ImportCall) Loc() *Loc {
+	return n.loc
+}
+
+func (n *ImportCall) Extra() interface{} {
+	return n.extra
+}
+
+func (n *ImportCall) setExtra(ext interface{}) {
+	n.extra = ext.(*ExprExtra)
+}
+
+type YieldExpr struct {
+	typ      NodeType
+	loc      *Loc
+	delegate bool
+	arg      Node
+	extra    *ExprExtra
+}
+
+func (n *YieldExpr) Delegate() bool {
+	return n.delegate
+}
+
+func (n *YieldExpr) Arg() Node {
+	return n.arg
+}
+
+func (n *YieldExpr) Type() NodeType {
+	return n.typ
+}
+
+func (n *YieldExpr) Loc() *Loc {
+	return n.loc
+}
+
+func (n *YieldExpr) Extra() interface{} {
+	return n.extra
+}
+
+func (n *YieldExpr) setExtra(ext interface{}) {
+	n.extra = ext.(*ExprExtra)
 }
 
 type ArrPat struct {
 	typ   NodeType
 	loc   *Loc
 	elems []Node
+	extra *ExprExtra
 }
 
 func (n *ArrPat) Type() NodeType {
@@ -716,11 +1064,20 @@ func (n *ArrPat) Elems() []Node {
 	return n.elems
 }
 
+func (n *ArrPat) Extra() interface{} {
+	return n.extra
+}
+
+func (n *ArrPat) setExtra(ext interface{}) {
+	n.extra = ext.(*ExprExtra)
+}
+
 type AssignPat struct {
-	typ NodeType
-	loc *Loc
-	lhs Node
-	rhs Node
+	typ   NodeType
+	loc   *Loc
+	lhs   Node
+	rhs   Node
+	extra *ExprExtra
 }
 
 func (n *AssignPat) Left() Node {
@@ -739,10 +1096,19 @@ func (n *AssignPat) Loc() *Loc {
 	return n.loc
 }
 
+func (n *AssignPat) Extra() interface{} {
+	return n.extra
+}
+
+func (n *AssignPat) setExtra(ext interface{}) {
+	n.extra = ext.(*ExprExtra)
+}
+
 type RestPat struct {
-	typ NodeType
-	loc *Loc
-	arg Node
+	typ   NodeType
+	loc   *Loc
+	arg   Node
+	extra *ExprExtra
 }
 
 func (n *RestPat) Arg() Node {
@@ -757,10 +1123,19 @@ func (n *RestPat) Loc() *Loc {
 	return n.loc
 }
 
+func (n *RestPat) Extra() interface{} {
+	return n.extra
+}
+
+func (n *RestPat) setExtra(ext interface{}) {
+	n.extra = ext.(*ExprExtra)
+}
+
 type ObjPat struct {
 	typ   NodeType
 	loc   *Loc
 	props []Node
+	extra *ExprExtra
 }
 
 func (n *ObjPat) Props() []Node {
@@ -773,6 +1148,14 @@ func (n *ObjPat) Type() NodeType {
 
 func (n *ObjPat) Loc() *Loc {
 	return n.loc
+}
+
+func (n *ObjPat) Extra() interface{} {
+	return n.extra
+}
+
+func (n *ObjPat) setExtra(ext interface{}) {
+	n.extra = ext.(*ExprExtra)
 }
 
 type PropKind uint8
@@ -851,6 +1234,13 @@ func (n *Prop) Loc() *Loc {
 	return n.loc
 }
 
+func (n *Prop) Extra() interface{} {
+	return nil
+}
+
+func (n *Prop) setExtra(_ interface{}) {
+}
+
 type FnDec struct {
 	typ       NodeType
 	loc       *Loc
@@ -859,6 +1249,7 @@ type FnDec struct {
 	async     bool
 	params    []Node
 	body      Node
+	extra     *ExprExtra
 }
 
 func (n *FnDec) Id() Node {
@@ -889,12 +1280,21 @@ func (n *FnDec) Loc() *Loc {
 	return n.loc
 }
 
+func (n *FnDec) Extra() interface{} {
+	return n.extra
+}
+
+func (n *FnDec) setExtra(ext interface{}) {
+	n.extra = ext.(*ExprExtra)
+}
+
 type ArrowFn struct {
 	typ    NodeType
 	loc    *Loc
 	async  bool
 	params []Node
 	body   Node
+	extra  *ExprExtra
 }
 
 func (n *ArrowFn) Async() bool {
@@ -917,6 +1317,67 @@ func (n *ArrowFn) Loc() *Loc {
 	return n.loc
 }
 
+func (n *ArrowFn) Extra() interface{} {
+	return n.extra
+}
+
+func (n *ArrowFn) setExtra(ext interface{}) {
+	n.extra = ext.(*ExprExtra)
+}
+
+type VarDecStmt struct {
+	typ     NodeType
+	loc     *Loc
+	kind    TokenValue
+	decList []*VarDec
+}
+
+func (n *VarDecStmt) Kind() string {
+	return TokenKinds[n.kind].Name
+}
+
+func (n *VarDecStmt) DecList() []*VarDec {
+	return n.decList
+}
+
+func (n *VarDecStmt) Type() NodeType {
+	return n.typ
+}
+
+func (n *VarDecStmt) Loc() *Loc {
+	return n.loc
+}
+
+func (n *VarDecStmt) Extra() interface{} {
+	return nil
+}
+
+func (n *VarDecStmt) setExtra(_ interface{}) {
+}
+
+type VarDec struct {
+	typ  NodeType
+	loc  *Loc
+	id   Node
+	init Node
+}
+
+func (n *VarDec) Id() Node {
+	return n.id
+}
+
+func (n *VarDec) Init() Node {
+	return n.init
+}
+
+func (n *VarDec) Type() NodeType {
+	return n.typ
+}
+
+func (n *VarDec) Loc() *Loc {
+	return n.loc
+}
+
 type BlockStmt struct {
 	typ  NodeType
 	loc  *Loc
@@ -933,6 +1394,13 @@ func (n *BlockStmt) Type() NodeType {
 
 func (n *BlockStmt) Loc() *Loc {
 	return n.loc
+}
+
+func (n *BlockStmt) Extra() interface{} {
+	return nil
+}
+
+func (n *BlockStmt) setExtra(_ interface{}) {
 }
 
 type DoWhileStmt struct {
@@ -958,6 +1426,13 @@ func (n *DoWhileStmt) Loc() *Loc {
 	return n.loc
 }
 
+func (n *DoWhileStmt) Extra() interface{} {
+	return nil
+}
+
+func (n *DoWhileStmt) setExtra(_ interface{}) {
+}
+
 type WhileStmt struct {
 	typ  NodeType
 	loc  *Loc
@@ -979,6 +1454,13 @@ func (n *WhileStmt) Type() NodeType {
 
 func (n *WhileStmt) Loc() *Loc {
 	return n.loc
+}
+
+func (n *WhileStmt) Extra() interface{} {
+	return nil
+}
+
+func (n *WhileStmt) setExtra(_ interface{}) {
 }
 
 type ForStmt struct {
@@ -1012,6 +1494,13 @@ func (n *ForStmt) Type() NodeType {
 
 func (n *ForStmt) Loc() *Loc {
 	return n.loc
+}
+
+func (n *ForStmt) Extra() interface{} {
+	return nil
+}
+
+func (n *ForStmt) setExtra(_ interface{}) {
 }
 
 type ForInOfStmt struct {
@@ -1052,6 +1541,13 @@ func (n *ForInOfStmt) Loc() *Loc {
 	return n.loc
 }
 
+func (n *ForInOfStmt) Extra() interface{} {
+	return nil
+}
+
+func (n *ForInOfStmt) setExtra(_ interface{}) {
+}
+
 type IfStmt struct {
 	typ  NodeType
 	loc  *Loc
@@ -1080,6 +1576,13 @@ func (n *IfStmt) Loc() *Loc {
 	return n.loc
 }
 
+func (n *IfStmt) Extra() interface{} {
+	return nil
+}
+
+func (n *IfStmt) setExtra(_ interface{}) {
+}
+
 type SwitchStmt struct {
 	typ   NodeType
 	loc   *Loc
@@ -1101,6 +1604,13 @@ func (n *SwitchStmt) Type() NodeType {
 
 func (n *SwitchStmt) Loc() *Loc {
 	return n.loc
+}
+
+func (n *SwitchStmt) Extra() interface{} {
+	return nil
+}
+
+func (n *SwitchStmt) setExtra(_ interface{}) {
 }
 
 type SwitchCase struct {
@@ -1126,6 +1636,13 @@ func (n *SwitchCase) Loc() *Loc {
 	return n.loc
 }
 
+func (n *SwitchCase) Extra() interface{} {
+	return nil
+}
+
+func (n *SwitchCase) setExtra(_ interface{}) {
+}
+
 type BrkStmt struct {
 	typ   NodeType
 	loc   *Loc
@@ -1144,6 +1661,13 @@ func (n *BrkStmt) Loc() *Loc {
 	return n.loc
 }
 
+func (n *BrkStmt) Extra() interface{} {
+	return nil
+}
+
+func (n *BrkStmt) setExtra(_ interface{}) {
+}
+
 type ContStmt struct {
 	typ   NodeType
 	loc   *Loc
@@ -1160,6 +1684,13 @@ func (n *ContStmt) Type() NodeType {
 
 func (n *ContStmt) Loc() *Loc {
 	return n.loc
+}
+
+func (n *ContStmt) Extra() interface{} {
+	return nil
+}
+
+func (n *ContStmt) setExtra(_ interface{}) {
 }
 
 type LabelStmt struct {
@@ -1185,6 +1716,13 @@ func (n *LabelStmt) Loc() *Loc {
 	return n.loc
 }
 
+func (n *LabelStmt) Extra() interface{} {
+	return nil
+}
+
+func (n *LabelStmt) setExtra(_ interface{}) {
+}
+
 type RetStmt struct {
 	typ NodeType
 	loc *Loc
@@ -1203,6 +1741,13 @@ func (n *RetStmt) Loc() *Loc {
 	return n.loc
 }
 
+func (n *RetStmt) Extra() interface{} {
+	return nil
+}
+
+func (n *RetStmt) setExtra(_ interface{}) {
+}
+
 type ThrowStmt struct {
 	typ NodeType
 	loc *Loc
@@ -1219,6 +1764,13 @@ func (n *ThrowStmt) Type() NodeType {
 
 func (n *ThrowStmt) Loc() *Loc {
 	return n.loc
+}
+
+func (n *ThrowStmt) Extra() interface{} {
+	return nil
+}
+
+func (n *ThrowStmt) setExtra(_ interface{}) {
 }
 
 type Catch struct {
@@ -1242,6 +1794,13 @@ func (n *Catch) Type() NodeType {
 
 func (n *Catch) Loc() *Loc {
 	return n.loc
+}
+
+func (n *Catch) Extra() interface{} {
+	return nil
+}
+
+func (n *Catch) setExtra(_ interface{}) {
 }
 
 type TryStmt struct {
@@ -1272,6 +1831,13 @@ func (n *TryStmt) Loc() *Loc {
 	return n.loc
 }
 
+func (n *TryStmt) Extra() interface{} {
+	return nil
+}
+
+func (n *TryStmt) setExtra(_ interface{}) {
+}
+
 type DebugStmt struct {
 	typ NodeType
 	loc *Loc
@@ -1283,6 +1849,13 @@ func (n *DebugStmt) Type() NodeType {
 
 func (n *DebugStmt) Loc() *Loc {
 	return n.loc
+}
+
+func (n *DebugStmt) Extra() interface{} {
+	return nil
+}
+
+func (n *DebugStmt) setExtra(_ interface{}) {
 }
 
 type WithStmt struct {
@@ -1306,6 +1879,13 @@ func (n *WithStmt) Type() NodeType {
 
 func (n *WithStmt) Loc() *Loc {
 	return n.loc
+}
+
+func (n *WithStmt) Extra() interface{} {
+	return nil
+}
+
+func (n *WithStmt) setExtra(_ interface{}) {
 }
 
 type ClassDec struct {
@@ -1336,6 +1916,13 @@ func (n *ClassDec) Loc() *Loc {
 	return n.loc
 }
 
+func (n *ClassDec) Extra() interface{} {
+	return nil
+}
+
+func (n *ClassDec) setExtra(_ interface{}) {
+}
+
 type ClassBody struct {
 	typ   NodeType
 	loc   *Loc
@@ -1352,6 +1939,13 @@ func (n *ClassBody) Type() NodeType {
 
 func (n *ClassBody) Loc() *Loc {
 	return n.loc
+}
+
+func (n *ClassBody) Extra() interface{} {
+	return nil
+}
+
+func (n *ClassBody) setExtra(_ interface{}) {
 }
 
 type Method struct {
@@ -1392,6 +1986,13 @@ func (n *Method) Loc() *Loc {
 	return n.loc
 }
 
+func (n *Method) Extra() interface{} {
+	return nil
+}
+
+func (n *Method) setExtra(_ interface{}) {
+}
+
 type Field struct {
 	typ      NodeType
 	loc      *Loc
@@ -1425,6 +2026,13 @@ func (n *Field) Loc() *Loc {
 	return n.loc
 }
 
+func (n *Field) Extra() interface{} {
+	return nil
+}
+
+func (n *Field) setExtra(_ interface{}) {
+}
+
 type StaticBlock struct {
 	typ  NodeType
 	loc  *Loc
@@ -1439,131 +2047,11 @@ func (n *StaticBlock) Loc() *Loc {
 	return n.loc
 }
 
-type ThisExpr struct {
-	typ NodeType
-	loc *Loc
+func (n *StaticBlock) Extra() interface{} {
+	return nil
 }
 
-func (n *ThisExpr) Type() NodeType {
-	return n.typ
-}
-
-func (n *ThisExpr) Loc() *Loc {
-	return n.loc
-}
-
-type SeqExpr struct {
-	typ   NodeType
-	loc   *Loc
-	elems []Node
-}
-
-func (n *SeqExpr) Elems() []Node {
-	return n.elems
-}
-
-func (n *SeqExpr) Type() NodeType {
-	return n.typ
-}
-
-func (n *SeqExpr) Loc() *Loc {
-	return n.loc
-}
-
-type ParenExpr struct {
-	typ  NodeType
-	loc  *Loc
-	expr Node
-}
-
-func (n *ParenExpr) Expr() Node {
-	expr := n.expr
-	for {
-		if expr.Type() == N_EXPR_PAREN {
-			expr = expr.(*ParenExpr).expr
-		} else {
-			break
-		}
-	}
-	return expr
-}
-
-func (n *ParenExpr) Type() NodeType {
-	return n.typ
-}
-
-func (n *ParenExpr) Loc() *Loc {
-	return n.loc
-}
-
-// there is no information kept to describe the program order of the quasis and expresions
-// according to below link descries how the quasis and expresion are being walk over:
-// https://opensource.apple.com/source/WebInspectorUI/WebInspectorUI-7602.2.14.0.5/UserInterface/Workers/Formatter/ESTreeWalker.js.auto.html
-// some meaningless output should be taken into its estree result, such as put first quasis as
-// a emptry string if the first element in `elems` is a expression
-type TplExpr struct {
-	typ   NodeType
-	loc   *Loc
-	tag   Node
-	elems []Node
-}
-
-func (n *TplExpr) Tag() Node {
-	return n.tag
-}
-
-func (n *TplExpr) Elems() []Node {
-	return n.elems
-}
-
-func (n *TplExpr) Type() NodeType {
-	return n.typ
-}
-
-// loc without the `tag`
-func (n *TplExpr) Loc() *Loc {
-	return n.loc
-}
-
-func (n *TplExpr) LocWithTag() *Loc {
-	loc := n.loc.Clone()
-	if n.tag != nil {
-		tl := n.tag.Loc()
-		loc.begin = tl.begin.Clone()
-		loc.rng.start = tl.rng.start
-	}
-	return loc
-}
-
-type Super struct {
-	typ NodeType
-	loc *Loc
-}
-
-func (n *Super) Type() NodeType {
-	return n.typ
-}
-
-func (n *Super) Loc() *Loc {
-	return n.loc
-}
-
-type ImportCall struct {
-	typ NodeType
-	loc *Loc
-	src Node
-}
-
-func (n *ImportCall) Src() Node {
-	return n.src
-}
-
-func (n *ImportCall) Type() NodeType {
-	return n.typ
-}
-
-func (n *ImportCall) Loc() *Loc {
-	return n.loc
+func (n *StaticBlock) setExtra(_ interface{}) {
 }
 
 type MetaProp struct {
@@ -1589,6 +2077,13 @@ func (n *MetaProp) Loc() *Loc {
 	return n.loc
 }
 
+func (n *MetaProp) Extra() interface{} {
+	return nil
+}
+
+func (n *MetaProp) setExtra(_ interface{}) {
+}
+
 type ImportDec struct {
 	typ   NodeType
 	loc   *Loc
@@ -1610,6 +2105,13 @@ func (n *ImportDec) Type() NodeType {
 
 func (n *ImportDec) Loc() *Loc {
 	return n.loc
+}
+
+func (n *ImportDec) Extra() interface{} {
+	return nil
+}
+
+func (n *ImportDec) setExtra(_ interface{}) {
 }
 
 type ImportSpec struct {
@@ -1643,6 +2145,13 @@ func (n *ImportSpec) Type() NodeType {
 
 func (n *ImportSpec) Loc() *Loc {
 	return n.loc
+}
+
+func (n *ImportSpec) Extra() interface{} {
+	return nil
+}
+
+func (n *ImportSpec) setExtra(_ interface{}) {
 }
 
 type ExportDec struct {
@@ -1683,6 +2192,13 @@ func (n *ExportDec) Loc() *Loc {
 	return n.loc
 }
 
+func (n *ExportDec) Extra() interface{} {
+	return nil
+}
+
+func (n *ExportDec) setExtra(_ interface{}) {
+}
+
 type ExportSpec struct {
 	typ   NodeType
 	loc   *Loc
@@ -1711,25 +2227,9 @@ func (n *ExportSpec) Loc() *Loc {
 	return n.loc
 }
 
-type YieldExpr struct {
-	typ      NodeType
-	loc      *Loc
-	delegate bool
-	arg      Node
+func (n *ExportSpec) Extra() interface{} {
+	return nil
 }
 
-func (n *YieldExpr) Delegate() bool {
-	return n.delegate
-}
-
-func (n *YieldExpr) Arg() Node {
-	return n.arg
-}
-
-func (n *YieldExpr) Type() NodeType {
-	return n.typ
-}
-
-func (n *YieldExpr) Loc() *Loc {
-	return n.loc
+func (n *ExportSpec) setExtra(_ interface{}) {
 }
