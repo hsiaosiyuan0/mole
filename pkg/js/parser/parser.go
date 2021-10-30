@@ -2244,22 +2244,25 @@ func (p *Parser) tplExpr(tag Node) (Node, error) {
 	elems := make([]Node, 0)
 	for {
 		tok := p.lexer.Peek()
-		if tok.value == T_TPL_TAIL {
+		if tok.value == T_TPL_TAIL || tok.value == T_TPL_SPAN || tok.value == T_TPL_HEAD {
+			cooked := ""
+			if ext := tok.ext.(*TokExtTplSpan); ext != nil {
+				if ext.IllegalEscape != nil {
+					// raise error for bad escape sequence if the template is not tagged
+					if tag == nil {
+						return nil, p.errorAt(tok.value, &tok.begin, ext.IllegalEscape.Err)
+					}
+				} else {
+					cooked = tok.Text()
+				}
+			}
+
 			loc := p.loc()
 			p.lexer.Next()
-			str := &StrLit{N_LIT_STR, p.finLoc(loc), tok.Text(), false, nil}
-			elems = append(elems, str)
-			break
-		} else if tok.value == T_TPL_SPAN || tok.value == T_TPL_HEAD {
-			loc := p.loc()
-			p.lexer.Next()
-			str := &StrLit{N_LIT_STR, p.finLoc(loc), tok.Text(), false, nil}
+			str := &StrLit{N_LIT_STR, p.finLoc(loc), cooked, false, nil}
 			elems = append(elems, str)
 
-			if tok.IsPlainTpl() {
-				if tag == nil {
-					return str, nil
-				}
+			if tok.value == T_TPL_TAIL || tok.IsPlainTpl() {
 				break
 			}
 
@@ -2268,8 +2271,6 @@ func (p *Parser) tplExpr(tag Node) (Node, error) {
 				return nil, err
 			}
 			elems = append(elems, expr)
-		} else if tok.value == T_EOF {
-			return nil, p.errorTok(tok)
 		} else {
 			return nil, p.errorTok(tok)
 		}
@@ -2653,7 +2654,6 @@ func (p *Parser) primaryExpr() (Node, error) {
 		if p.scope().IsKind(SPK_STRICT) && isProhibitedName(name) {
 			return nil, p.errorAtLoc(p.finLoc(loc), ERR_RESERVED_WORD_IN_STRICT_MODE)
 		}
-
 		return &Ident{N_NAME, p.finLoc(loc), name, false, tok.ContainsEscape(), nil}, nil
 	case T_THIS:
 		p.lexer.Next()

@@ -298,7 +298,9 @@ func TestReadNestTpl(t *testing.T) {
 func TestReadTplOctalEscape(t *testing.T) {
 	s := NewSource("", "`\\1`")
 	l := NewLexer(s)
-	assert.Equal(t, T_ILLEGAL, l.Next().value, "should be tok illegal")
+	tok := l.Next()
+	assert.Equal(t, T_TPL_HEAD, tok.value, "should be tpl head")
+	assert.Equal(t, true, tok.ext.(*TokExtTplSpan).IllegalEscape != nil, "should be tpl head")
 	assert.Equal(t, 1, len(l.mode), "mode should be balanced")
 }
 

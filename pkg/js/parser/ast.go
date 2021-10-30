@@ -6,7 +6,7 @@ import (
 )
 
 // below AST nodes are described as: https://github.com/estree/estree/blob/master/es5.md
-// the flatterned struct is used instead of inheritance
+// however the flatterned struct is used instead of inheritance
 
 type Node interface {
 	Type() NodeType

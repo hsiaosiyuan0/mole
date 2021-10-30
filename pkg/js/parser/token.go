@@ -148,8 +148,19 @@ type TokExtIdent struct {
 	ContainsEscape bool
 }
 
+type IllegalEscapeInfo struct {
+	Err string
+	Loc *Loc
+}
+
 type TokExtTplSpan struct {
 	Plain bool
+	// from ES2018 and later the tagged template can contain
+	// illegal escape sequence, here records loc of the illegal
+	// sequence to report lexer error under ES2018
+	// see more details about that from: ES2018 revision of illegal escape sequences
+	// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Template_literals
+	IllegalEscape *IllegalEscapeInfo
 }
 
 type TokExtRegexp struct {

@@ -35287,33 +35287,920 @@ func Test396(t *testing.T) {
 }
 
 func Test397(t *testing.T) {
-	// ast, err := compile("x = { false: 42 }")
-	// assert.Equal(t, nil, err, "should be prog ok")
+	ast, err := compile("`foo`")
+	assert.Equal(t, nil, err, "should be prog ok")
 
-	// assert.EqualJson(t, `
-
-	// `, ast)
+	assert.EqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 5,
+  "body": [
+    {
+      "type": "ExpressionStatement",
+      "start": 0,
+      "end": 5,
+      "expression": {
+        "type": "TemplateLiteral",
+        "start": 0,
+        "end": 5,
+        "expressions": [],
+        "quasis": [
+          {
+            "type": "TemplateElement",
+            "start": 1,
+            "end": 4,
+            "value": {
+              "raw": "foo",
+              "cooked": "foo"
+            },
+            "tail": true
+          }
+        ]
+      }
+    }
+  ]
+}
+	`, ast)
 }
 
 func Test398(t *testing.T) {
-	// ast, err := compile("x = { false: 42 }")
-	// assert.Equal(t, nil, err, "should be prog ok")
+	ast, err := compile("`foo\\u25a0`")
+	assert.Equal(t, nil, err, "should be prog ok")
 
-	// assert.EqualJson(t, `
-
-	// `, ast)
+	assert.EqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 11,
+  "body": [
+    {
+      "type": "ExpressionStatement",
+      "start": 0,
+      "end": 11,
+      "expression": {
+        "type": "TemplateLiteral",
+        "start": 0,
+        "end": 11,
+        "expressions": [],
+        "quasis": [
+          {
+            "type": "TemplateElement",
+            "start": 1,
+            "end": 10,
+            "value": {
+              "raw": "foo\\u25a0",
+              "cooked": "foo■"
+            },
+            "tail": true
+          }
+        ]
+      }
+    }
+  ]
+}
+	`, ast)
 }
 
 func Test399(t *testing.T) {
-	// ast, err := compile("x = { false: 42 }")
-	// assert.Equal(t, nil, err, "should be prog ok")
+	ast, err := compile("`foo${bar}\\u25a0`")
+	assert.Equal(t, nil, err, "should be prog ok")
 
-	// assert.EqualJson(t, `
-
-	// `, ast)
+	assert.EqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 17,
+  "body": [
+    {
+      "type": "ExpressionStatement",
+      "start": 0,
+      "end": 17,
+      "expression": {
+        "type": "TemplateLiteral",
+        "start": 0,
+        "end": 17,
+        "expressions": [
+          {
+            "type": "Identifier",
+            "start": 6,
+            "end": 9,
+            "name": "bar"
+          }
+        ],
+        "quasis": [
+          {
+            "type": "TemplateElement",
+            "start": 1,
+            "end": 4,
+            "value": {
+              "raw": "foo",
+              "cooked": "foo"
+            },
+            "tail": false
+          },
+          {
+            "type": "TemplateElement",
+            "start": 10,
+            "end": 16,
+            "value": {
+              "raw": "\\u25a0",
+              "cooked": "■"
+            },
+            "tail": true
+          }
+        ]
+      }
+    }
+  ]
+}
+	`, ast)
 }
 
 func Test400(t *testing.T) {
+	ast, err := compile("foo`\\u25a0`")
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	assert.EqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 11,
+  "body": [
+    {
+      "type": "ExpressionStatement",
+      "start": 0,
+      "end": 11,
+      "expression": {
+        "type": "TaggedTemplateExpression",
+        "start": 0,
+        "end": 11,
+        "tag": {
+          "type": "Identifier",
+          "start": 0,
+          "end": 3,
+          "name": "foo"
+        },
+        "quasi": {
+          "type": "TemplateLiteral",
+          "start": 3,
+          "end": 11,
+          "expressions": [],
+          "quasis": [
+            {
+              "type": "TemplateElement",
+              "start": 4,
+              "end": 10,
+              "value": {
+                "raw": "\\u25a0",
+                "cooked": "■"
+              },
+              "tail": true
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
+	`, ast)
+}
+
+func Test401(t *testing.T) {
+	ast, err := compile("foo`foo${bar}\\u25a0`")
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	assert.EqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 20,
+  "body": [
+    {
+      "type": "ExpressionStatement",
+      "start": 0,
+      "end": 20,
+      "expression": {
+        "type": "TaggedTemplateExpression",
+        "start": 0,
+        "end": 20,
+        "tag": {
+          "type": "Identifier",
+          "start": 0,
+          "end": 3,
+          "name": "foo"
+        },
+        "quasi": {
+          "type": "TemplateLiteral",
+          "start": 3,
+          "end": 20,
+          "expressions": [
+            {
+              "type": "Identifier",
+              "start": 9,
+              "end": 12,
+              "name": "bar"
+            }
+          ],
+          "quasis": [
+            {
+              "type": "TemplateElement",
+              "start": 4,
+              "end": 7,
+              "value": {
+                "raw": "foo",
+                "cooked": "foo"
+              },
+              "tail": false
+            },
+            {
+              "type": "TemplateElement",
+              "start": 13,
+              "end": 19,
+              "value": {
+                "raw": "\\u25a0",
+                "cooked": "■"
+              },
+              "tail": true
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
+	`, ast)
+}
+
+func Test402(t *testing.T) {
+	ast, err := compile("foo`\\unicode`")
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	assert.EqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 13,
+  "body": [
+    {
+      "type": "ExpressionStatement",
+      "start": 0,
+      "end": 13,
+      "expression": {
+        "type": "TaggedTemplateExpression",
+        "start": 0,
+        "end": 13,
+        "tag": {
+          "type": "Identifier",
+          "start": 0,
+          "end": 3,
+          "name": "foo"
+        },
+        "quasi": {
+          "type": "TemplateLiteral",
+          "start": 3,
+          "end": 13,
+          "expressions": [],
+          "quasis": [
+            {
+              "type": "TemplateElement",
+              "start": 4,
+              "end": 12,
+              "value": {
+                "raw": "\\unicode",
+                "cooked": ""
+              },
+              "tail": true
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
+	`, ast)
+}
+
+func Test403(t *testing.T) {
+	ast, err := compile("foo`foo${bar}\\unicode`")
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	assert.EqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 22,
+  "body": [
+    {
+      "type": "ExpressionStatement",
+      "start": 0,
+      "end": 22,
+      "expression": {
+        "type": "TaggedTemplateExpression",
+        "start": 0,
+        "end": 22,
+        "tag": {
+          "type": "Identifier",
+          "start": 0,
+          "end": 3,
+          "name": "foo"
+        },
+        "quasi": {
+          "type": "TemplateLiteral",
+          "start": 3,
+          "end": 22,
+          "expressions": [
+            {
+              "type": "Identifier",
+              "start": 9,
+              "end": 12,
+              "name": "bar"
+            }
+          ],
+          "quasis": [
+            {
+              "type": "TemplateElement",
+              "start": 4,
+              "end": 7,
+              "value": {
+                "raw": "foo",
+                "cooked": "foo"
+              },
+              "tail": false
+            },
+            {
+              "type": "TemplateElement",
+              "start": 13,
+              "end": 21,
+              "value": {
+                "raw": "\\unicode",
+                "cooked": ""
+              },
+              "tail": true
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
+	`, ast)
+}
+
+func Test404(t *testing.T) {
+	ast, err := compile("foo`\\u`")
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	assert.EqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 7,
+  "body": [
+    {
+      "type": "ExpressionStatement",
+      "start": 0,
+      "end": 7,
+      "expression": {
+        "type": "TaggedTemplateExpression",
+        "start": 0,
+        "end": 7,
+        "tag": {
+          "type": "Identifier",
+          "start": 0,
+          "end": 3,
+          "name": "foo"
+        },
+        "quasi": {
+          "type": "TemplateLiteral",
+          "start": 3,
+          "end": 7,
+          "expressions": [],
+          "quasis": [
+            {
+              "type": "TemplateElement",
+              "start": 4,
+              "end": 6,
+              "value": {
+                "raw": "\\u",
+                "cooked": ""
+              },
+              "tail": true
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
+	`, ast)
+}
+
+func Test405(t *testing.T) {
+	ast, err := compile("foo`\\u{`")
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	assert.EqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 8,
+  "body": [
+    {
+      "type": "ExpressionStatement",
+      "start": 0,
+      "end": 8,
+      "expression": {
+        "type": "TaggedTemplateExpression",
+        "start": 0,
+        "end": 8,
+        "tag": {
+          "type": "Identifier",
+          "start": 0,
+          "end": 3,
+          "name": "foo"
+        },
+        "quasi": {
+          "type": "TemplateLiteral",
+          "start": 3,
+          "end": 8,
+          "expressions": [],
+          "quasis": [
+            {
+              "type": "TemplateElement",
+              "start": 4,
+              "end": 7,
+              "value": {
+                "raw": "\\u{",
+                "cooked": ""
+              },
+              "tail": true
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
+	`, ast)
+}
+
+func Test406(t *testing.T) {
+	ast, err := compile("foo`\\u{abcdx`")
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	assert.EqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 13,
+  "body": [
+    {
+      "type": "ExpressionStatement",
+      "start": 0,
+      "end": 13,
+      "expression": {
+        "type": "TaggedTemplateExpression",
+        "start": 0,
+        "end": 13,
+        "tag": {
+          "type": "Identifier",
+          "start": 0,
+          "end": 3,
+          "name": "foo"
+        },
+        "quasi": {
+          "type": "TemplateLiteral",
+          "start": 3,
+          "end": 13,
+          "expressions": [],
+          "quasis": [
+            {
+              "type": "TemplateElement",
+              "start": 4,
+              "end": 12,
+              "value": {
+                "raw": "\\u{abcdx",
+                "cooked": ""
+              },
+              "tail": true
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
+	`, ast)
+}
+
+func Test407(t *testing.T) {
+	ast, err := compile("foo`\\u{abcdx}`")
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	assert.EqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 14,
+  "body": [
+    {
+      "type": "ExpressionStatement",
+      "start": 0,
+      "end": 14,
+      "expression": {
+        "type": "TaggedTemplateExpression",
+        "start": 0,
+        "end": 14,
+        "tag": {
+          "type": "Identifier",
+          "start": 0,
+          "end": 3,
+          "name": "foo"
+        },
+        "quasi": {
+          "type": "TemplateLiteral",
+          "start": 3,
+          "end": 14,
+          "expressions": [],
+          "quasis": [
+            {
+              "type": "TemplateElement",
+              "start": 4,
+              "end": 13,
+              "value": {
+                "raw": "\\u{abcdx}",
+                "cooked": ""
+              },
+              "tail": true
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
+	`, ast)
+}
+
+func Test408(t *testing.T) {
+	ast, err := compile("foo`\\unicode\\\\`")
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	assert.EqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 15,
+  "body": [
+    {
+      "type": "ExpressionStatement",
+      "start": 0,
+      "end": 15,
+      "expression": {
+        "type": "TaggedTemplateExpression",
+        "start": 0,
+        "end": 15,
+        "tag": {
+          "type": "Identifier",
+          "start": 0,
+          "end": 3,
+          "name": "foo"
+        },
+        "quasi": {
+          "type": "TemplateLiteral",
+          "start": 3,
+          "end": 15,
+          "expressions": [],
+          "quasis": [
+            {
+              "type": "TemplateElement",
+              "start": 4,
+              "end": 14,
+              "value": {
+                "raw": "\\unicode\\\\",
+                "cooked": ""
+              },
+              "tail": true
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
+	`, ast)
+}
+
+func Test409(t *testing.T) {
+	ast, err := compile("`${ {class: 1} }`")
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	assert.EqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 17,
+  "body": [
+    {
+      "type": "ExpressionStatement",
+      "start": 0,
+      "end": 17,
+      "expression": {
+        "type": "TemplateLiteral",
+        "start": 0,
+        "end": 17,
+        "expressions": [
+          {
+            "type": "ObjectExpression",
+            "start": 4,
+            "end": 14,
+            "properties": [
+              {
+                "type": "Property",
+                "start": 5,
+                "end": 13,
+                "method": false,
+                "shorthand": false,
+                "computed": false,
+                "key": {
+                  "type": "Identifier",
+                  "start": 5,
+                  "end": 10,
+                  "name": "class"
+                },
+                "value": {
+                  "type": "Literal",
+                  "start": 12,
+                  "end": 13,
+                  "value": 1
+                },
+                "kind": "init"
+              }
+            ]
+          }
+        ],
+        "quasis": [
+          {
+            "type": "TemplateElement",
+            "start": 1,
+            "end": 1,
+            "value": {
+              "raw": "",
+              "cooked": ""
+            },
+            "tail": false
+          },
+          {
+            "type": "TemplateElement",
+            "start": 16,
+            "end": 16,
+            "value": {
+              "raw": "",
+              "cooked": ""
+            },
+            "tail": true
+          }
+        ]
+      }
+    }
+  ]
+}
+	`, ast)
+}
+
+func Test410(t *testing.T) {
+	ast, err := compile("`${ {delete: 1} }`")
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	assert.EqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 18,
+  "body": [
+    {
+      "type": "ExpressionStatement",
+      "start": 0,
+      "end": 18,
+      "expression": {
+        "type": "TemplateLiteral",
+        "start": 0,
+        "end": 18,
+        "expressions": [
+          {
+            "type": "ObjectExpression",
+            "start": 4,
+            "end": 15,
+            "properties": [
+              {
+                "type": "Property",
+                "start": 5,
+                "end": 14,
+                "method": false,
+                "shorthand": false,
+                "computed": false,
+                "key": {
+                  "type": "Identifier",
+                  "start": 5,
+                  "end": 11,
+                  "name": "delete"
+                },
+                "value": {
+                  "type": "Literal",
+                  "start": 13,
+                  "end": 14,
+                  "value": 1
+                },
+                "kind": "init"
+              }
+            ]
+          }
+        ],
+        "quasis": [
+          {
+            "type": "TemplateElement",
+            "start": 1,
+            "end": 1,
+            "value": {
+              "raw": "",
+              "cooked": ""
+            },
+            "tail": false
+          },
+          {
+            "type": "TemplateElement",
+            "start": 17,
+            "end": 17,
+            "value": {
+              "raw": "",
+              "cooked": ""
+            },
+            "tail": true
+          }
+        ]
+      }
+    }
+  ]
+}
+	`, ast)
+}
+
+func Test411(t *testing.T) {
+	ast, err := compile("`${ {enum: 1} }`")
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	assert.EqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 16,
+  "body": [
+    {
+      "type": "ExpressionStatement",
+      "start": 0,
+      "end": 16,
+      "expression": {
+        "type": "TemplateLiteral",
+        "start": 0,
+        "end": 16,
+        "expressions": [
+          {
+            "type": "ObjectExpression",
+            "start": 4,
+            "end": 13,
+            "properties": [
+              {
+                "type": "Property",
+                "start": 5,
+                "end": 12,
+                "method": false,
+                "shorthand": false,
+                "computed": false,
+                "key": {
+                  "type": "Identifier",
+                  "start": 5,
+                  "end": 9,
+                  "name": "enum"
+                },
+                "value": {
+                  "type": "Literal",
+                  "start": 11,
+                  "end": 12,
+                  "value": 1
+                },
+                "kind": "init"
+              }
+            ]
+          }
+        ],
+        "quasis": [
+          {
+            "type": "TemplateElement",
+            "start": 1,
+            "end": 1,
+            "value": {
+              "raw": "",
+              "cooked": ""
+            },
+            "tail": false
+          },
+          {
+            "type": "TemplateElement",
+            "start": 15,
+            "end": 15,
+            "value": {
+              "raw": "",
+              "cooked": ""
+            },
+            "tail": true
+          }
+        ]
+      }
+    }
+  ]
+}
+	`, ast)
+}
+
+func Test412(t *testing.T) {
+	ast, err := compile("`${ {function: 1} }`")
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	assert.EqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 20,
+  "body": [
+    {
+      "type": "ExpressionStatement",
+      "start": 0,
+      "end": 20,
+      "expression": {
+        "type": "TemplateLiteral",
+        "start": 0,
+        "end": 20,
+        "expressions": [
+          {
+            "type": "ObjectExpression",
+            "start": 4,
+            "end": 17,
+            "properties": [
+              {
+                "type": "Property",
+                "start": 5,
+                "end": 16,
+                "method": false,
+                "shorthand": false,
+                "computed": false,
+                "key": {
+                  "type": "Identifier",
+                  "start": 5,
+                  "end": 13,
+                  "name": "function"
+                },
+                "value": {
+                  "type": "Literal",
+                  "start": 15,
+                  "end": 16,
+                  "value": 1
+                },
+                "kind": "init"
+              }
+            ]
+          }
+        ],
+        "quasis": [
+          {
+            "type": "TemplateElement",
+            "start": 1,
+            "end": 1,
+            "value": {
+              "raw": "",
+              "cooked": ""
+            },
+            "tail": false
+          },
+          {
+            "type": "TemplateElement",
+            "start": 19,
+            "end": 19,
+            "value": {
+              "raw": "",
+              "cooked": ""
+            },
+            "tail": true
+          }
+        ]
+      }
+    }
+  ]
+}
+	`, ast)
+}
+
+func Test413(t *testing.T) {
 	// ast, err := compile("x = { false: 42 }")
 	// assert.Equal(t, nil, err, "should be prog ok")
 
@@ -35322,7 +36209,1024 @@ func Test400(t *testing.T) {
 	// `, ast)
 }
 
-func Test401(t *testing.T) {
+func Test414(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test415(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test416(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test417(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test418(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test419(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test420(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test421(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test422(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test423(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test424(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test425(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test426(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test427(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test428(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test429(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test430(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test431(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test432(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test433(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test434(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test435(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test436(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test437(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test438(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test439(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test440(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test441(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test442(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test443(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test444(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test445(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test446(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test447(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test448(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test449(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test450(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test451(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test452(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test453(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test454(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test455(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test456(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test457(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test458(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test459(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test460(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test461(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test462(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test463(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test464(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test465(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test466(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test467(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test468(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test469(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test470(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test471(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test472(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test473(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test474(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test475(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test476(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test477(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test478(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test479(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test480(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test481(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test482(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test483(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test484(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test485(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test486(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test487(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test488(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test489(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test490(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test491(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test492(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test493(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test494(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test495(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test496(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test497(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test498(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test499(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test500(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test501(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test502(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test503(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test504(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test505(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test506(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test507(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test508(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test509(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test510(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test511(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test512(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test513(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test514(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test515(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test516(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test517(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test518(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test519(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test520(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test521(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test522(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test523(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test524(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test525(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test526(t *testing.T) {
+	// ast, err := compile("x = { false: 42 }")
+	// assert.Equal(t, nil, err, "should be prog ok")
+
+	// assert.EqualJson(t, `
+
+	// `, ast)
+}
+
+func Test527(t *testing.T) {
 	// ast, err := compile("x = { false: 42 }")
 	// assert.Equal(t, nil, err, "should be prog ok")
 

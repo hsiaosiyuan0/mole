@@ -74,6 +74,8 @@ const (
 	ERR_LEGACY_OCTAL_ESCAPE_IN_STRICT_MODE    = "Octal escape sequences are not allowed in strict mode"
 	ERR_EXPECTING_UNICODE_ESCAPE              = "Expecting Unicode escape sequence \\uXXXX"
 	ERR_BAD_ESCAPE_SEQ                        = "Bad character escape sequence"
+	ERR_BAD_RUNE                              = "Bad character"
+	ERR_UNTERMINATED_TPL                      = "Unterminated template"
 	ERR_INVALID_UNICODE_ESCAPE                = "Invalid Unicode escape"
 	ERR_ILLEGAL_RETURN                        = "Illegal return"
 	ERR_ILLEGAL_BREAK                         = "Illegal break"

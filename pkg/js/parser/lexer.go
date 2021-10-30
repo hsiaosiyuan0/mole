@@ -10,14 +10,15 @@ import (
 type LexerModeValue int
 
 const (
-	LM_NONE       LexerModeValue = 0
-	LM_STRICT                    = 1 << 0
-	LM_TEMPLATE                  = 1 << 1 // for inline spans can tell they are in template string
-	LM_ASYNC                     = 1 << 2
-	LM_GENERATOR                 = 1 << 3
-	LM_CLASS_BODY                = 1 << 4
-	LM_CLASS_CTOR                = 1 << 5
-	LM_NEW                       = 1 << 6
+	LM_NONE            LexerModeValue = 0
+	LM_STRICT                         = 1 << 0
+	LM_TEMPLATE                       = 1 << 1 // for inline spans can tell they are in template string
+	LM_TEMPLATE_TAGGED                = 1 << 2
+	LM_ASYNC                          = 1 << 3
+	LM_GENERATOR                      = 1 << 4
+	LM_CLASS_BODY                     = 1 << 5
+	LM_CLASS_CTOR                     = 1 << 6
+	LM_NEW                            = 1 << 7
 )
 
 type LexerMode struct {
@@ -259,26 +260,34 @@ func (l *Lexer) ReadTplSpan() *Token {
 	}
 
 	tok := l.newToken()
-	text, fin, line, col, ofst, pos, err, _ := l.readTplChs()
-	if text == nil {
+	// below ugly assignment is account for taking the in-place optimization, which can
+	// use stack allocation instead of putting the values on heap, albeit it has not been proved
+	text, fin, line, col, ofst, pos, err, _, errEscape, errEscapeLine, errEscapeCol := l.readTplChs()
+	ext := &TokExtTplSpan{false, nil}
+
+	if err == ERR_UNTERMINATED_TPL {
 		l.popMode()
 		return l.errToken(tok, err)
 	}
 
+	if errEscape != "" {
+		loc := NewLoc()
+		loc.begin.line = errEscapeLine
+		loc.begin.col = errEscapeCol
+		ext.IllegalEscape = &IllegalEscapeInfo{errEscape, loc}
+	}
+
 	tok.text = string(text)
-	tok.value = T_ILLEGAL
 	tok.raw.hi = ofst
 	tok.len = pos - tok.len // tok.len stores the begin pos
 	tok.end.line = line
 	tok.end.col = col
 	tok.afterLineTerminator = l.src.metLineTerminator
-	ext := &TokExtTplSpan{false}
 	tok.ext = ext
 
+	tok.value = T_TPL_SPAN
 	if head {
 		tok.value = T_TPL_HEAD
-	} else {
-		tok.value = T_TPL_SPAN
 	}
 
 	if fin {
@@ -293,7 +302,8 @@ func (l *Lexer) ReadTplSpan() *Token {
 	return tok
 }
 
-func (l *Lexer) readTplChs() (text []rune, fin bool, line, col, ofst, pos int, err string, legacyOctalEscapeSeq bool) {
+func (l *Lexer) readTplChs() (text []rune, fin bool, line, col, ofst, pos int,
+	err string, legacyOctalEscapeSeq bool, errEscape string, errEscapeLine, errEscapeCol int) {
 	text = make([]rune, 0, 10)
 	for {
 		line = l.src.line
@@ -313,26 +323,43 @@ func (l *Lexer) readTplChs() (text []rune, fin bool, line, col, ofst, pos int, e
 		} else if c == '\\' {
 			l.src.Read()
 			nc := l.src.Peek()
+
+			// LineContinuation
 			if IsLineTerminator(nc) {
-				l.readLineTerminator() // LineContinuation
-			} else {
-				r, e, lo := l.readEscapeSeq()
-				if !legacyOctalEscapeSeq && lo {
-					legacyOctalEscapeSeq = lo
-				}
-				if e != "" {
-					err = e
-					text = nil
-					return
-				}
-				if r == utf8.RuneError || r == EOF {
-					text = nil
-					return
-				}
-				text = append(text, r)
+				l.readLineTerminator()
+				continue
 			}
+
+			// since the bad escape sequence is permitted in tagged template
+			// here advance the cursor if `errEscape` occurred
+			if errEscape != "" {
+				l.src.Read()
+				continue
+			}
+
+			r, e, lo := l.readEscapeSeq()
+			if !legacyOctalEscapeSeq && lo {
+				legacyOctalEscapeSeq = lo
+			}
+
+			// just records the first occurred escape error
+			if errEscape == "" {
+				if e != "" {
+					errEscape = e
+				} else if r == utf8.RuneError {
+					errEscape = ERR_BAD_ESCAPE_SEQ
+				}
+			}
+
+			if r == EOF {
+				err = ERR_UNTERMINATED_TPL
+				return
+			}
+			text = append(text, r)
 		} else if c == utf8.RuneError {
-			text = nil
+			errEscape = ERR_BAD_RUNE
+		} else if c == EOF {
+			err = ERR_UNTERMINATED_TPL
 			return
 		} else if c == '`' {
 			l.src.Read()
@@ -823,11 +850,11 @@ func (l *Lexer) readHexEscapeSeq() (rune, string) {
 	hex[0] = l.src.Read()
 	hex[1] = l.src.Read()
 	if !IsHexDigit(hex[0]) || !IsHexDigit(hex[1]) {
-		return utf8.RuneError, ""
+		return utf8.RuneError, ERR_BAD_ESCAPE_SEQ
 	}
 	r, err := strconv.ParseInt(string(hex[:]), 16, 32)
 	if err != nil {
-		return utf8.RuneError, ""
+		return utf8.RuneError, ERR_BAD_ESCAPE_SEQ
 	}
 	return rune(r), ""
 }
@@ -1057,11 +1084,11 @@ func (l *Lexer) readCodepoint() (rune, string) {
 		} else if l.src.AheadIsEOF() {
 			return utf8.RuneError, ERR_BAD_ESCAPE_SEQ
 		} else {
-			c := l.src.Read()
+			c := l.src.Peek()
 			if c == utf8.RuneError || !IsHexDigit(c) {
 				return utf8.RuneError, ERR_BAD_ESCAPE_SEQ
 			}
-			hex = append(hex, byte(c))
+			hex = append(hex, byte(l.src.Read()))
 		}
 	}
 	r, err := strconv.ParseInt(string(hex), 16, 32)

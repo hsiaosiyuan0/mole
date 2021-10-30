@@ -2191,43 +2191,35 @@ func TestFail266(t *testing.T) {
 }
 
 func TestFail267(t *testing.T) {
-
+	testFail(t, "`\\unicode`", "Bad character escape sequence at (1:1)", nil)
 }
 
 func TestFail268(t *testing.T) {
-
+	testFail(t, "`\\u`", "Bad character escape sequence at (1:1)", nil)
 }
 
 func TestFail269(t *testing.T) {
-
+	testFail(t, "`\\u{`", "Bad character escape sequence at (1:1)", nil)
 }
 
 func TestFail270(t *testing.T) {
-
+	testFail(t, "`\\u{abcdx`", "Bad character escape sequence at (1:1)", nil)
 }
 
 func TestFail271(t *testing.T) {
-
+	testFail(t, "`\\u{abcdx}`", "Bad character escape sequence at (1:1)", nil)
 }
 
 func TestFail272(t *testing.T) {
-
-}
-
-func TestFail273(t *testing.T) {
-
-}
-
-func TestFail274(t *testing.T) {
-
+	testFail(t, "`\\xylophone`", "Bad character escape sequence at (1:1)", nil)
 }
 
 func TestFail275(t *testing.T) {
-
+	testFail(t, "foo`\\unicode", "Unterminated template at (1:4)", nil)
 }
 
 func TestFail276(t *testing.T) {
-
+	testFail(t, "foo`\\unicode\\`", "Unterminated template at (1:4)", nil)
 }
 
 func TestFail277(t *testing.T) {
