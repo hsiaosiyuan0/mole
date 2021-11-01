@@ -449,7 +449,7 @@ func convert(node parser.Node) Node {
 			Body:       convert(fn.Body()),
 			Generator:  false,
 			Async:      fn.Async(),
-			Expression: false,
+			Expression: true,
 		}
 	case parser.N_STMT_FN:
 		fn := node.(*parser.FnDec)

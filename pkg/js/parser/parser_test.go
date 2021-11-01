@@ -2223,95 +2223,107 @@ func TestFail276(t *testing.T) {
 }
 
 func TestFail277(t *testing.T) {
-
+	testFail(t, "(...a,) => a",
+		"Unexpected trailing comma after rest element at (1:5)", nil)
 }
 
 func TestFail278(t *testing.T) {
-
+	testFail(t, "function foo(...a,) { }",
+		"Unexpected trailing comma after rest element at (1:17)", nil)
 }
 
 func TestFail279(t *testing.T) {
-
+	testFail(t, "(function(...a,) { })",
+		"Unexpected trailing comma after rest element at (1:14)", nil)
 }
 
 func TestFail280(t *testing.T) {
-
+	testFail(t, "async (...a,) => a",
+		"Unexpected trailing comma after rest element at (1:11)", nil)
 }
 
 func TestFail281(t *testing.T) {
-
+	testFail(t, "({foo(...a,) {}})", "Unexpected trailing comma after rest element at (1:10)", nil)
 }
 
 func TestFail282(t *testing.T) {
-
+	testFail(t, "class A {foo(...a,) {}}",
+		"Unexpected trailing comma after rest element at (1:17)", nil)
 }
 
 func TestFail283(t *testing.T) {
-
+	testFail(t, "class A {static foo(...a,) {}}",
+		"Unexpected trailing comma after rest element at (1:24)", nil)
 }
 
 func TestFail284(t *testing.T) {
-
+	testFail(t, "export default function foo(...a,) { }",
+		"Unexpected trailing comma after rest element at (1:32)", nil)
 }
 
 func TestFail285(t *testing.T) {
-
+	testFail(t, "export default (function foo(...a,) { })",
+		"Unexpected trailing comma after rest element at (1:33)", nil)
 }
 
 func TestFail286(t *testing.T) {
-
+	testFail(t, "export function foo(...a,) { }",
+		"Unexpected trailing comma after rest element at (1:24)", nil)
 }
 
 func TestFail287(t *testing.T) {
-
+	testFail(t, "function foo(,) { }", "Unexpected token `,` at (1:13)", nil)
 }
 
 func TestFail288(t *testing.T) {
-
+	testFail(t, "(function(,) { })", "Unexpected token `,` at (1:10)", nil)
 }
 
 func TestFail289(t *testing.T) {
-
+	testFail(t, "(,) => a", "Unexpected token `,` at (1:1)", nil)
 }
 
 func TestFail290(t *testing.T) {
-
+	testFail(t, "async (,) => a", "Unexpected token `,` at (1:7)", nil)
 }
 
 func TestFail291(t *testing.T) {
-
+	testFail(t, "({foo(,) {}})", "Unexpected token `,` at (1:6)", nil)
 }
 
 func TestFail292(t *testing.T) {
-
+	testFail(t, "class A {foo(,) {}}", "Unexpected token `,` at (1:13)", nil)
 }
 
 func TestFail293(t *testing.T) {
-
+	testFail(t, "class A {static foo(,) {}}", "Unexpected token `,` at (1:20)", nil)
 }
 
 func TestFail294(t *testing.T) {
-
+	testFail(t, "(class {foo(,) {}})", "Unexpected token `,` at (1:12)", nil)
 }
 
 func TestFail295(t *testing.T) {
-
+	testFail(t, "(class {static foo(,) {}})", "Unexpected token `,` at (1:19)", nil)
 }
 
 func TestFail296(t *testing.T) {
-
+	testFail(t, "export default function foo(,) { }",
+		"Unexpected token `,` at (1:28)", nil)
 }
 
 func TestFail297(t *testing.T) {
-
+	testFail(t, "export default (function foo(,) { })",
+		"Unexpected token `,` at (1:29)", nil)
 }
 
 func TestFail298(t *testing.T) {
-
+	testFail(t, "export function foo(,) { }",
+		"Unexpected token `,` at (1:20)", nil)
 }
 
 func TestFail299(t *testing.T) {
-
+	testFail(t, "(a,)", "Unexpected trailing comma at (1:2)", nil)
 }
 
 func TestFail300(t *testing.T) {

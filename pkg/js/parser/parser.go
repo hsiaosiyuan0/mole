@@ -194,6 +194,9 @@ func (p *Parser) exportDec() (Node, error) {
 		return nil, p.errorTok(tok)
 	}
 
+	if node.dec != nil {
+		node.dec = p.unParen(node.dec)
+	}
 	node.loc = p.finLoc(loc)
 	node.specs = specs
 	return node, nil
@@ -501,8 +504,13 @@ func (p *Parser) classBody() (Node, error) {
 }
 
 func (p *Parser) classElem() (Node, error) {
-	static := p.lexer.Peek().value == T_STATIC
-	if static {
+	var staticLoc *Loc
+	static := false
+	if p.lexer.Peek().value == T_STATIC {
+		staticLoc = p.loc()
+		static = true
+	}
+	if staticLoc != nil {
 		p.lexer.Next()
 		if p.lexer.Peek().value == T_BRACE_L {
 			return p.staticBlock()
@@ -539,10 +547,10 @@ func (p *Parser) classElem() (Node, error) {
 		return p.method(nil, nil, false, PK_METHOD, true, false, true, true, static)
 	}
 
-	return p.field(static)
+	return p.field(staticLoc)
 }
 
-func (p *Parser) field(static bool) (Node, error) {
+func (p *Parser) field(static *Loc) (Node, error) {
 	loc := p.loc()
 	key, err := p.classElemName()
 	if err != nil {
@@ -557,10 +565,13 @@ func (p *Parser) field(static bool) (Node, error) {
 			return nil, err
 		}
 	} else if tok.value == T_PAREN_L {
-		return p.method(nil, key, false, PK_METHOD, false, false, true, true, static)
+		if static != nil {
+			loc = static
+		}
+		return p.method(loc, key, false, PK_METHOD, false, false, true, true, static != nil)
 	}
 	p.advanceIfSemi(false)
-	return &Field{N_FIELD, p.finLoc(loc), key, static, key.Type() != N_NAME, value}, nil
+	return &Field{N_FIELD, p.finLoc(loc), key, static != nil, key.Type() != N_NAME, value}, nil
 }
 
 func (p *Parser) classElemName() (Node, error) {
@@ -1193,7 +1204,9 @@ func (p *Parser) fnDec(expr bool, async bool) (Node, error) {
 		p.lexer.Next()
 	}
 	tok := p.lexer.Peek()
+	fn := false
 	if tok.value == T_FUNC {
+		fn = true
 		p.lexer.Next()
 	}
 
@@ -1226,13 +1239,13 @@ func (p *Parser) fnDec(expr bool, async bool) (Node, error) {
 			}
 		}
 	}
-	if !expr && id == nil {
+	if fn && !expr && id == nil {
 		return nil, p.errorTok(tok)
 	}
 
 	// the arg check is skipped here, its correctness is guaranteed by
 	// below `argsToFormalParams`
-	args, err := p.argList(false)
+	args, _, err := p.argList(false, false)
 	if err != nil {
 		return nil, err
 	}
@@ -1259,7 +1272,7 @@ func (p *Parser) fnDec(expr bool, async bool) (Node, error) {
 	tok = p.lexer.Peek()
 	arrow := false
 	if tok.value == T_ARROW {
-		if expr {
+		if !fn {
 			p.lexer.Next()
 			arrow = true
 		} else {
@@ -1267,10 +1280,16 @@ func (p *Parser) fnDec(expr bool, async bool) (Node, error) {
 		}
 	}
 
-	body, err := p.fnBody()
+	var body Node
+	if p.lexer.Peek().value == T_BRACE_L {
+		body, err = p.fnBody()
+	} else {
+		body, err = p.expr(false)
+	}
 	if err != nil {
 		return nil, err
 	}
+
 	if generator {
 		p.lexer.popMode()
 	}
@@ -1287,7 +1306,11 @@ func (p *Parser) fnDec(expr bool, async bool) (Node, error) {
 	p.symtab.LeaveScope()
 
 	if arrow {
-		return &ArrowFn{N_EXPR_ARROW, p.finLoc(loc), async, params, body, nil}, nil
+		fn := &ArrowFn{N_EXPR_ARROW, p.finLoc(loc), async, params, body, nil}
+		if expr {
+			return fn, nil
+		}
+		return &ExprStmt{N_STMT_EXPR, p.finLoc(loc.Clone()), fn}, nil
 	}
 
 	typ := N_STMT_FN
@@ -2127,7 +2150,7 @@ func (p *Parser) newExpr() (Node, error) {
 
 	var args []Node
 	if p.lexer.Peek().value == T_PAREN_L {
-		args, err = p.argList(true)
+		args, _, err = p.argList(true, true)
 		if err != nil {
 			return nil, err
 		}
@@ -2169,7 +2192,7 @@ func (p *Parser) callExpr(callee Node) (Node, error) {
 	for {
 		tok := p.lexer.Peek()
 		if tok.value == T_PAREN_L {
-			args, err := p.argList(true)
+			args, _, err := p.argList(true, true)
 			if err != nil {
 				return nil, err
 			}
@@ -2417,6 +2440,8 @@ func (p *Parser) argToParam(arg Node, depth int, prop bool, destruct bool) (Node
 	return arg, nil
 }
 
+// check the `arg` is legal as argument, `spread` means whether
+// the spread is permitted
 func (p *Parser) checkArg(arg Node, spread bool) error {
 	switch arg.Type() {
 	case N_LIT_OBJ:
@@ -2457,30 +2482,38 @@ func (p *Parser) checkArgs(args []Node, spread bool) error {
 	return nil
 }
 
-func (p *Parser) argList(check bool) ([]Node, error) {
+func (p *Parser) argList(check bool, incall bool) ([]Node, *Loc, error) {
 	p.lexer.Next()
 	args := make([]Node, 0)
 
+	var tailingComma *Loc
 	for {
 		tok := p.lexer.Peek()
 		if tok.value == T_PAREN_R {
 			break
 		} else if tok.value == T_EOF {
-			return nil, p.errorTok(tok)
+			return nil, nil, p.errorTok(tok)
 		}
 		arg, err := p.arg()
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
 		if p.lexer.Peek().value == T_COMMA {
 			tok := p.lexer.Next()
-			if arg.Type() == N_SPREAD {
+			// trailing comma is need to be checked when it's in
+			// parenExpr, this expr is illegal as parenExpr: `(...a,)`
+			// however this expr is legal as arguments `foo(...a,)`
+			ahead := p.lexer.Peek()
+			if !incall && arg.Type() == N_SPREAD {
 				msg := ERR_REST_TRAILING_COMMA
-				if p.lexer.Peek().value != T_PAREN_R {
+				if ahead.value != T_PAREN_R {
 					msg = ERR_REST_ELEM_MUST_LAST
 				}
-				return nil, p.errorAt(tok.value, &tok.begin, msg)
+				return nil, tailingComma, p.errorAt(tok.value, &tok.begin, msg)
+			}
+			if tailingComma == nil && ahead.value == T_PAREN_R {
+				tailingComma = p.locFromTok(tok)
 			}
 		}
 
@@ -2488,7 +2521,7 @@ func (p *Parser) argList(check bool) ([]Node, error) {
 			// `spread` or `pattern_rest` expression is legal argument:
 			// `f(c, b, ...a)`
 			if err := p.checkArg(arg, true); err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 		}
 
@@ -2496,9 +2529,9 @@ func (p *Parser) argList(check bool) ([]Node, error) {
 	}
 
 	if _, err := p.nextMustTok(T_PAREN_R); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return args, nil
+	return args, tailingComma, nil
 }
 
 func (p *Parser) arg() (Node, error) {
@@ -2685,7 +2718,7 @@ func (p *Parser) primaryExpr() (Node, error) {
 
 func (p *Parser) parenExpr() (Node, error) {
 	loc := p.loc()
-	args, err := p.argList(false)
+	args, tailingComma, err := p.argList(false, false)
 	if err != nil {
 		return nil, err
 	}
@@ -2729,6 +2762,11 @@ func (p *Parser) parenExpr() (Node, error) {
 		return &ArrowFn{N_EXPR_ARROW, p.finLoc(loc), false, params, body, nil}, nil
 	}
 
+	// for report expr like: `(a,)`
+	if tailingComma != nil {
+		return nil, p.errorAtLoc(tailingComma, ERR_TRAILING_COMMA)
+	}
+
 	argsLen := len(args)
 	if argsLen == 0 {
 		return nil, p.errorAt(p.lexer.prtVal, &p.lexer.prtBegin, "")
@@ -2746,8 +2784,8 @@ func (p *Parser) parenExpr() (Node, error) {
 }
 
 func (p *Parser) unParen(expr Node) Node {
-	loc := expr.Loc().Clone()
 	if expr.Type() == N_EXPR_PAREN {
+		loc := expr.Loc().Clone()
 		sub := expr.(*ParenExpr).Expr()
 		if extra, ok := sub.Extra().(*ExprExtra); ok {
 			if extra == nil {
@@ -2932,7 +2970,7 @@ func (p *Parser) propData() (Node, error) {
 			return nil, err
 		}
 	} else if tok.value == T_PAREN_L {
-		return p.method(nil, key, false, PK_INIT, false, false, false, false, false)
+		return p.method(loc, key, false, PK_INIT, false, false, false, false, false)
 	}
 
 	shorthand := assign
@@ -2972,7 +3010,7 @@ func (p *Parser) method(loc *Loc, key Node, shorthand bool, kind PropKind, gen b
 	}
 
 	fnLoc := p.loc()
-	args, err := p.argList(false)
+	args, _, err := p.argList(false, false)
 	if err != nil {
 		return nil, err
 	}
