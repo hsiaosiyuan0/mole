@@ -260,7 +260,7 @@ func (l *Lexer) ReadTplSpan() *Token {
 	}
 
 	tok := l.newToken()
-	// below ugly assignment is account for taking the in-place optimization, which can
+	// below ugly assignment is account for taking the in-place optimization(RVO), which can
 	// use stack allocation instead of putting the values on heap, albeit it has not been proved
 	text, fin, line, col, ofst, pos, err, _, errEscape, errEscapeLine, errEscapeCol := l.readTplChs()
 	ext := &TokExtTplSpan{false, nil}

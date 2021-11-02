@@ -37042,39 +37042,179 @@ func Test429(t *testing.T) {
 }
 
 func Test430(t *testing.T) {
-	// ast, err := compile("x = { false: 42 }")
-	// assert.Equal(t, nil, err, "should be prog ok")
+	ast, err := compile("a &&= b")
+	assert.Equal(t, nil, err, "should be prog ok")
 
-	// assert.EqualJson(t, `
-
-	// `, ast)
+	assert.EqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 7,
+  "body": [
+    {
+      "type": "ExpressionStatement",
+      "start": 0,
+      "end": 7,
+      "expression": {
+        "type": "AssignmentExpression",
+        "start": 0,
+        "end": 7,
+        "operator": "&&=",
+        "left": {
+          "type": "Identifier",
+          "start": 0,
+          "end": 1,
+          "name": "a"
+        },
+        "right": {
+          "type": "Identifier",
+          "start": 6,
+          "end": 7,
+          "name": "b"
+        }
+      }
+    }
+  ]
+}
+	`, ast)
 }
 
 func Test431(t *testing.T) {
-	// ast, err := compile("x = { false: 42 }")
-	// assert.Equal(t, nil, err, "should be prog ok")
+	ast, err := compile("a ||= b")
+	assert.Equal(t, nil, err, "should be prog ok")
 
-	// assert.EqualJson(t, `
-
-	// `, ast)
+	assert.EqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 7,
+  "body": [
+    {
+      "type": "ExpressionStatement",
+      "start": 0,
+      "end": 7,
+      "expression": {
+        "type": "AssignmentExpression",
+        "start": 0,
+        "end": 7,
+        "operator": "||=",
+        "left": {
+          "type": "Identifier",
+          "start": 0,
+          "end": 1,
+          "name": "a"
+        },
+        "right": {
+          "type": "Identifier",
+          "start": 6,
+          "end": 7,
+          "name": "b"
+        }
+      }
+    }
+  ]
+}
+	`, ast)
 }
 
 func Test432(t *testing.T) {
-	// ast, err := compile("x = { false: 42 }")
-	// assert.Equal(t, nil, err, "should be prog ok")
+	ast, err := compile("a ??= b")
+	assert.Equal(t, nil, err, "should be prog ok")
 
-	// assert.EqualJson(t, `
-
-	// `, ast)
+	assert.EqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 7,
+  "body": [
+    {
+      "type": "ExpressionStatement",
+      "start": 0,
+      "end": 7,
+      "expression": {
+        "type": "AssignmentExpression",
+        "start": 0,
+        "end": 7,
+        "operator": "??=",
+        "left": {
+          "type": "Identifier",
+          "start": 0,
+          "end": 1,
+          "name": "a"
+        },
+        "right": {
+          "type": "Identifier",
+          "start": 6,
+          "end": 7,
+          "name": "b"
+        }
+      }
+    }
+  ]
+}
+	`, ast)
 }
 
 func Test433(t *testing.T) {
-	// ast, err := compile("x = { false: 42 }")
-	// assert.Equal(t, nil, err, "should be prog ok")
+	ast, err := compile("a &&= b ||= c ??= d")
+	assert.Equal(t, nil, err, "should be prog ok")
 
-	// assert.EqualJson(t, `
-
-	// `, ast)
+	assert.EqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 19,
+  "body": [
+    {
+      "type": "ExpressionStatement",
+      "start": 0,
+      "end": 19,
+      "expression": {
+        "type": "AssignmentExpression",
+        "start": 0,
+        "end": 19,
+        "operator": "&&=",
+        "left": {
+          "type": "Identifier",
+          "start": 0,
+          "end": 1,
+          "name": "a"
+        },
+        "right": {
+          "type": "AssignmentExpression",
+          "start": 6,
+          "end": 19,
+          "operator": "||=",
+          "left": {
+            "type": "Identifier",
+            "start": 6,
+            "end": 7,
+            "name": "b"
+          },
+          "right": {
+            "type": "AssignmentExpression",
+            "start": 12,
+            "end": 19,
+            "operator": "??=",
+            "left": {
+              "type": "Identifier",
+              "start": 12,
+              "end": 13,
+              "name": "c"
+            },
+            "right": {
+              "type": "Identifier",
+              "start": 18,
+              "end": 19,
+              "name": "d"
+            }
+          }
+        }
+      }
+    }
+  ]
+}
+	`, ast)
 }
 
 func Test434(t *testing.T) {

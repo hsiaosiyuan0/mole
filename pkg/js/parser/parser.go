@@ -1120,7 +1120,7 @@ func (p *Parser) forStmt() (Node, error) {
 			return nil, p.errorTok(tok)
 		}
 
-		if init.Type() != N_STMT_VAR_DEC && !p.isSimpleLVal(init) {
+		if init.Type() != N_STMT_VAR_DEC && !p.isSimpleLVal(init, true) {
 			return nil, p.errorAtLoc(init.Loc(), ERR_ASSIGN_TO_RVALUE)
 		} else if init.Type() == N_STMT_VAR_DEC {
 			varDec := init.(*VarDecStmt)
@@ -1987,7 +1987,6 @@ func (p *Parser) yieldExpr(notIn bool) (Node, error) {
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-expressions.html#prod-AssignmentExpression
 func (p *Parser) assignExpr(notIn bool, checkLhs bool) (Node, error) {
-	loc := p.loc()
 	if p.aheadIsYield() {
 		return p.yieldExpr(notIn)
 	}
@@ -1996,6 +1995,7 @@ func (p *Parser) assignExpr(notIn bool, checkLhs bool) (Node, error) {
 	if err != nil {
 		return nil, err
 	}
+	loc := lhs.Loc().Clone()
 
 	assign := p.advanceIfTokIn(T_ASSIGN_BEGIN, T_ASSIGN_END)
 	if assign == nil {
@@ -2016,7 +2016,7 @@ func (p *Parser) assignExpr(notIn bool, checkLhs bool) (Node, error) {
 		return nil, err
 	}
 
-	if checkLhs && !p.isSimpleLVal(lhs) {
+	if checkLhs && !p.isSimpleLVal(lhs, true) {
 		return nil, p.errorAtLoc(lhs.Loc(), ERR_ASSIGN_TO_RVALUE)
 	}
 
@@ -2025,7 +2025,8 @@ func (p *Parser) assignExpr(notIn bool, checkLhs bool) (Node, error) {
 }
 
 // https://tc39.es/ecma262/multipage/syntax-directed-operations.html#sec-static-semantics-assignmenttargettype
-func (p *Parser) isSimpleLVal(expr Node) bool {
+// `pat` indicate the internal to tell the pattern syntax as legal value
+func (p *Parser) isSimpleLVal(expr Node, pat bool) bool {
 	switch expr.Type() {
 	case N_NAME:
 		node := expr.(*Ident)
@@ -2033,11 +2034,13 @@ func (p *Parser) isSimpleLVal(expr Node) bool {
 			return false
 		}
 		return true
-	case N_PAT_OBJ, N_PAT_ARRAY, N_PAT_ASSIGN, N_PAT_REST, N_EXPR_MEMBER:
+	case N_PAT_OBJ, N_PAT_ARRAY, N_PAT_ASSIGN, N_PAT_REST:
+		return pat
+	case N_EXPR_MEMBER:
 		return true
 	case N_EXPR_PAREN:
 		node := expr.(*ParenExpr)
-		return p.isSimpleLVal(node.expr)
+		return p.isSimpleLVal(node.expr, pat)
 	}
 	return false
 }
@@ -2103,7 +2106,7 @@ func (p *Parser) updateExpr() (Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		if !p.isSimpleLVal(arg) {
+		if !p.isSimpleLVal(arg, true) {
 			return nil, p.errorAtLoc(arg.Loc(), ERR_ASSIGN_TO_RVALUE)
 		}
 		return &UpdateExpr{N_EXPR_UPDATE, p.finLoc(loc), tok.value, true, arg, nil}, nil
@@ -2120,7 +2123,7 @@ func (p *Parser) updateExpr() (Node, error) {
 		return arg, nil
 	}
 
-	if !p.isSimpleLVal(arg) {
+	if !p.isSimpleLVal(arg, true) {
 		return nil, p.errorAtLoc(arg.Loc(), ERR_ASSIGN_TO_RVALUE)
 	}
 
@@ -2390,7 +2393,7 @@ func (p *Parser) argToParam(arg Node, depth int, prop bool, destruct bool) (Node
 			return nil, err
 		}
 
-		err = p.checkArg(n.rhs, false)
+		err = p.checkArg(n.rhs, false, false)
 		if err != nil {
 			return nil, err
 		}
@@ -2440,14 +2443,15 @@ func (p *Parser) argToParam(arg Node, depth int, prop bool, destruct bool) (Node
 	return arg, nil
 }
 
-// check the `arg` is legal as argument, `spread` means whether
-// the spread is permitted
-func (p *Parser) checkArg(arg Node, spread bool) error {
+// check the `arg` is legal as argument
+// `spread` means whether the spread is permitted
+// `simplicity` means whether check simplicity of lhs of the assignExpr
+func (p *Parser) checkArg(arg Node, spread bool, simplicity bool) error {
 	switch arg.Type() {
 	case N_LIT_OBJ:
 		n := arg.(*ObjLit)
 		for _, prop := range n.props {
-			err := p.checkArg(prop, true)
+			err := p.checkArg(prop, true, false)
 			if err != nil {
 				return err
 			}
@@ -2459,7 +2463,7 @@ func (p *Parser) checkArg(arg Node, spread bool) error {
 		}
 		var err error
 		if n.value != nil {
-			err = p.checkArg(n.value, true)
+			err = p.checkArg(n.value, true, false)
 			if err != nil {
 				return err
 			}
@@ -2468,13 +2472,20 @@ func (p *Parser) checkArg(arg Node, spread bool) error {
 		if !spread {
 			return p.errorAtLoc(arg.Loc(), ERR_UNEXPECTED_TOKEN)
 		}
+	case N_EXPR_ASSIGN:
+		if simplicity {
+			n := arg.(*AssignExpr)
+			if n.op != T_ASSIGN && !p.isSimpleLVal(n.lhs, false) {
+				return p.errorAtLoc(n.lhs.Loc(), ERR_ASSIGN_TO_RVALUE)
+			}
+		}
 	}
 	return nil
 }
 
-func (p *Parser) checkArgs(args []Node, spread bool) error {
+func (p *Parser) checkArgs(args []Node, spread bool, simplicity bool) error {
 	for _, arg := range args {
-		err := p.checkArg(arg, spread)
+		err := p.checkArg(arg, spread, simplicity)
 		if err != nil {
 			return err
 		}
@@ -2520,7 +2531,7 @@ func (p *Parser) argList(check bool, incall bool) ([]Node, *Loc, error) {
 		if check {
 			// `spread` or `pattern_rest` expression is legal argument:
 			// `f(c, b, ...a)`
-			if err := p.checkArg(arg, true); err != nil {
+			if err := p.checkArg(arg, true, false); err != nil {
 				return nil, nil, err
 			}
 		}
@@ -2772,7 +2783,7 @@ func (p *Parser) parenExpr() (Node, error) {
 		return nil, p.errorAt(p.lexer.prtVal, &p.lexer.prtBegin, "")
 	}
 
-	if err := p.checkArgs(args, false); err != nil {
+	if err := p.checkArgs(args, false, true); err != nil {
 		return nil, err
 	}
 

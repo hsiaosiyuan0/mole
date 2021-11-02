@@ -2327,23 +2327,23 @@ func TestFail299(t *testing.T) {
 }
 
 func TestFail300(t *testing.T) {
-
+	testFail(t, "({a} &&= b)", "Assigning to rvalue at (1:1)", nil)
 }
 
 func TestFail301(t *testing.T) {
-
+	testFail(t, "({a} ||= b)", "Assigning to rvalue at (1:1)", nil)
 }
 
 func TestFail302(t *testing.T) {
-
+	testFail(t, "({a} ??= b)", "Assigning to rvalue at (1:1)", nil)
 }
 
 func TestFail303(t *testing.T) {
-
+	testFail(t, "/\u2029/", "Unterminated regular expression at (1:0)", nil)
 }
 
 func TestFail304(t *testing.T) {
-
+	testFail(t, "/\u2028/", "Unterminated regular expression at (1:0)", nil)
 }
 
 func TestFail305(t *testing.T) {
