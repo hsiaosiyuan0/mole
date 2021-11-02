@@ -338,20 +338,24 @@ func convert(node parser.Node) Node {
 			Loc:   loc(node.Loc()),
 		}
 	case parser.N_LIT_NUM:
+		num := node.(*parser.NumLit)
 		return &Literal{
 			Type:  "Literal",
 			Start: start(node.Loc()),
 			End:   end(node.Loc()),
 			Loc:   loc(node.Loc()),
-			Value: node.(*parser.NumLit).ToFloat(),
+			Value: num.ToFloat(),
+			Raw:   num.Text(),
 		}
 	case parser.N_LIT_STR:
+		str := node.(*parser.StrLit)
 		return &Literal{
 			Type:  "Literal",
 			Start: start(node.Loc()),
 			End:   end(node.Loc()),
 			Loc:   loc(node.Loc()),
-			Value: node.(*parser.StrLit).Text(),
+			Value: str.Text(),
+			Raw:   str.Raw(),
 		}
 	case parser.N_LIT_REGEXP:
 		regexp := node.(*parser.RegexpLit)

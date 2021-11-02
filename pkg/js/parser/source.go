@@ -148,7 +148,7 @@ func IsLineTerminator(c rune) bool {
 
 func (s *Source) ReadIfNextIs(c rune) bool {
 	if s.Peek() == c {
-		s.NextRune()
+		s.Read()
 		return true
 	}
 	return false
@@ -160,7 +160,9 @@ func (s *Source) Read() rune {
 	r := c
 	if IsLineTerminator(c) {
 		if c == '\r' {
-			s.ReadIfNextIs('\n')
+			if s.Peek() == '\n' {
+				s.NextRune()
+			}
 		}
 		r = EOL
 	}

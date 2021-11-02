@@ -324,8 +324,12 @@ func (n *NumLit) ToFloat() float64 {
 		s, _ := strconv.ParseUint(t[2:], 16, 32)
 		return float64(s)
 	}
-	if strings.HasPrefix(t, "0x") || strings.HasPrefix(t, "0X") {
+	if strings.HasPrefix(t, "0o") || strings.HasPrefix(t, "0O") {
 		s, _ := strconv.ParseUint(t[2:], 8, 32)
+		return float64(s)
+	}
+	if strings.HasPrefix(t, "0b") || strings.HasPrefix(t, "0B") {
+		s, _ := strconv.ParseUint(t[2:], 2, 32)
 		return float64(s)
 	}
 	if strings.HasPrefix(t, "0") && len(t) > 1 {
