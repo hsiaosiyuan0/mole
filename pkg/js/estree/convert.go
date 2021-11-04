@@ -285,6 +285,8 @@ func convert(node parser.Node) Node {
 		return nil
 	}
 	switch node.Type() {
+	case parser.N_EXPR_PAREN:
+		return convert(node.(*parser.ParenExpr).Expr())
 	case parser.N_STMT_EXPR:
 		expr := convert(node.(*parser.ExprStmt).Expr())
 		return &ExpressionStatement{

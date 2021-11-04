@@ -107,4 +107,5 @@ const (
 	ERR_INVALID_PAREN_ASSIGN_PATTERN          = "Invalid parenthesized assignment pattern"
 	ERR_OBJ_PATTERN_CANNOT_FN                 = "Object pattern can't contain getter or setter"
 	ERR_REST_CANNOT_SET_DEFAULT               = "Rest elements cannot have a default value"
+	ERR_MALFORMED_ARROW_PARAM                 = "Malformed arrow function parameter list"
 )

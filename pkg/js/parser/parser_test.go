@@ -833,7 +833,7 @@ func TestSeqExpr(t *testing.T) {
   `, nil)
 	assert.Equal(t, nil, err, "should be prog ok")
 	elem0 := ast.(*Prog).stmts[0].(*ExprStmt).expr.(*AssignExpr)
-	seq := elem0.rhs.(*SeqExpr)
+	seq := elem0.rhs.(*ParenExpr).expr.(*SeqExpr)
 	assert.Equal(t, "b", seq.elems[0].(*Ident).Text(), "should be b")
 	assert.Equal(t, "c", seq.elems[1].(*Ident).Text(), "should be c")
 }
@@ -862,7 +862,7 @@ func TestParenExpr(t *testing.T) {
   `, nil)
 	assert.Equal(t, nil, err, "should be prog ok")
 	stmt0 := ast.(*Prog).stmts[0].(*ExprStmt).expr.(*AssignExpr)
-	_ = stmt0.rhs.(*Ident)
+	_ = stmt0.rhs.(*ParenExpr).expr.(*Ident)
 }
 
 func TestTplExpr(t *testing.T) {
@@ -1038,7 +1038,7 @@ func TestFail22(t *testing.T) {
 }
 
 func TestFail23(t *testing.T) {
-	testFail(t, "(1 + 1) = 10", "Assigning to rvalue at (1:0)", nil)
+	testFail(t, "(1 + 1) = 10", "Assigning to rvalue at (1:1)", nil)
 }
 
 func TestFail24(t *testing.T) {
@@ -1926,7 +1926,7 @@ func TestFail207(t *testing.T) {
 }
 
 func TestFail208(t *testing.T) {
-	testFail(t, "(x=1)=2", "Assigning to rvalue at (1:0)", nil)
+	testFail(t, "(x=1)=2", "Assigning to rvalue at (1:1)", nil)
 }
 
 func TestFail209(t *testing.T) {
@@ -2114,7 +2114,7 @@ func TestFail248(t *testing.T) {
 }
 
 func TestFail249(t *testing.T) {
-	testFail(t, "({...(a,b)} = foo)", "Invalid rest operator's argument at (1:5)", nil)
+	testFail(t, "({...(a,b)} = foo)", "Invalid parenthesized assignment pattern at (1:5)", nil)
 }
 
 func TestFail250(t *testing.T) {
@@ -2134,7 +2134,7 @@ func TestFail253(t *testing.T) {
 }
 
 func TestFail254(t *testing.T) {
-	testFail(t, "({...(a,b)}) => {}", "Invalid rest operator's argument at (1:5)", nil)
+	testFail(t, "({...(a,b)}) => {}", "Invalid parenthesized assignment pattern at (1:5)", nil)
 }
 
 func TestFail255(t *testing.T) {
@@ -2215,11 +2215,11 @@ func TestFail272(t *testing.T) {
 }
 
 func TestFail275(t *testing.T) {
-	testFail(t, "foo`\\unicode", "Unterminated template at (1:4)", nil)
+	testFail(t, "foo`\\unicode", "Unterminated template at (1:3)", nil)
 }
 
 func TestFail276(t *testing.T) {
-	testFail(t, "foo`\\unicode\\`", "Unterminated template at (1:4)", nil)
+	testFail(t, "foo`\\unicode\\`", "Unterminated template at (1:3)", nil)
 }
 
 func TestFail277(t *testing.T) {
@@ -2347,23 +2347,23 @@ func TestFail304(t *testing.T) {
 }
 
 func TestFail305(t *testing.T) {
-
+	testFail(t, "([a.a]) => 42", "Assigning to rvalue at (1:2)", nil)
 }
 
 func TestFail306(t *testing.T) {
-
+	testFail(t, "() => {}()", "Unexpected token at (1:8)", nil)
 }
 
 func TestFail307(t *testing.T) {
-
+	testFail(t, "(a) => {}()", "Unexpected token at (1:9)", nil)
 }
 
 func TestFail308(t *testing.T) {
-
+	testFail(t, "a => {}()", "Unexpected token at (1:7)", nil)
 }
 
 func TestFail309(t *testing.T) {
-
+	testFail(t, "console.log(typeof () => {});", "Malformed arrow function parameter list at (1:19)", nil)
 }
 
 func TestFail310(t *testing.T) {

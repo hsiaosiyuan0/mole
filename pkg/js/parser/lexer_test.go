@@ -237,11 +237,11 @@ func TestReadTpl(t *testing.T) {
 	tok := l.Next()
 	assert.Equal(t, T_TPL_HEAD, tok.value, "should be tok str")
 	assert.Equal(t, true, tok.ext.(*TokExtTplSpan).Plain, "should be tok str")
-	assert.Equal(t, "abc", tok.Text(), "should be tok str abc")
+	assert.Equal(t, "abc", tok.ext.(*TokExtTplSpan).str, "should be tok str abc")
 
 	tok = l.Next()
 	assert.Equal(t, T_TPL_HEAD, tok.value, "should be tok tpl head")
-	assert.Equal(t, "a", tok.Text(), "should be tok tpl a")
+	assert.Equal(t, "a", tok.ext.(*TokExtTplSpan).str, "should be tok tpl a")
 
 	tok = l.Next()
 	assert.Equal(t, T_BRACE_L, tok.value, "should be tok {")
@@ -250,7 +250,7 @@ func TestReadTpl(t *testing.T) {
 
 	tok = l.Next()
 	assert.Equal(t, T_TPL_SPAN, tok.value, "should be tok tpl span")
-	assert.Equal(t, "b", tok.Text(), "should be tok tpl b")
+	assert.Equal(t, "b", tok.ext.(*TokExtTplSpan).str, "should be tok tpl b")
 
 	tok = l.Next()
 	assert.Equal(t, T_NAME, tok.value, "should be tok c")
@@ -258,7 +258,7 @@ func TestReadTpl(t *testing.T) {
 
 	tok = l.Next()
 	assert.Equal(t, T_TPL_TAIL, tok.value, "should be tok tpl tail")
-	assert.Equal(t, "d", tok.Text(), "should be tok tpl d")
+	assert.Equal(t, "d", tok.ext.(*TokExtTplSpan).str, "should be tok tpl d")
 }
 
 func TestReadNestTpl(t *testing.T) {
@@ -267,7 +267,7 @@ func TestReadNestTpl(t *testing.T) {
 
 	tok := l.Next()
 	assert.Equal(t, T_TPL_HEAD, tok.value, "should be tok tpl head")
-	assert.Equal(t, "a", tok.Text(), "should be tok tpl a")
+	assert.Equal(t, "a", tok.ext.(*TokExtTplSpan).str, "should be tok tpl a")
 
 	assert.Equal(t, T_NUM, l.Next().value, "should be tok 1")
 	assert.Equal(t, T_ADD, l.Next().value, "should be tok +")
@@ -277,7 +277,7 @@ func TestReadNestTpl(t *testing.T) {
 
 	tok = l.Next()
 	assert.Equal(t, T_TPL_HEAD, tok.value, "should be tok tpl head c")
-	assert.Equal(t, "c", tok.Text(), "should be tok tpl c")
+	assert.Equal(t, "c", tok.ext.(*TokExtTplSpan).str, "should be tok tpl c")
 
 	assert.Equal(t, T_NAME, l.Next().value, "should be tok d")
 
@@ -292,7 +292,7 @@ func TestReadNestTpl(t *testing.T) {
 
 	tok = l.Next()
 	assert.Equal(t, T_TPL_TAIL, tok.value, "should be tok tpl tail")
-	assert.Equal(t, "b", tok.Text(), "should be tok tpl b")
+	assert.Equal(t, "b", tok.ext.(*TokExtTplSpan).str, "should be tok tpl b")
 }
 
 func TestReadTplOctalEscape(t *testing.T) {

@@ -15,6 +15,7 @@ const (
 	SPK_FUNC_INDIRECT           = 1 << 8
 	SPK_ASYNC                   = 1 << 9
 	SPK_GENERATOR               = 1 << 10
+	SPK_PAREN                   = 1 << 11
 )
 
 type BindKind uint8

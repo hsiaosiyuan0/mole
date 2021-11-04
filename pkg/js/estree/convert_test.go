@@ -33926,8 +33926,8 @@ func Test379(t *testing.T) {
             "end": 10,
             "argument": {
               "type": "SequenceExpression",
-              "start": 5,
-              "end": 10,
+              "start": 6,
+              "end": 9,
               "expressions": [
                 {
                   "type": "Identifier",

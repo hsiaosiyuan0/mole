@@ -194,9 +194,6 @@ func (p *Parser) exportDec() (Node, error) {
 		return nil, p.errorTok(tok)
 	}
 
-	if node.dec != nil {
-		node.dec = p.unParen(node.dec)
-	}
 	node.loc = p.finLoc(loc)
 	node.specs = specs
 	return node, nil
@@ -1120,7 +1117,7 @@ func (p *Parser) forStmt() (Node, error) {
 			return nil, p.errorTok(tok)
 		}
 
-		if init.Type() != N_STMT_VAR_DEC && !p.isSimpleLVal(init, true) {
+		if init.Type() != N_STMT_VAR_DEC && !p.isSimpleLVal(init, true, false, true) {
 			return nil, p.errorAtLoc(init.Loc(), ERR_ASSIGN_TO_RVALUE)
 		} else if init.Type() == N_STMT_VAR_DEC {
 			varDec := init.(*VarDecStmt)
@@ -1250,7 +1247,7 @@ func (p *Parser) fnDec(expr bool, async bool) (Node, error) {
 		return nil, err
 	}
 
-	params, err := p.argsToFormalParams(args)
+	params, err := p.argsToParams(args)
 	if err != nil {
 		return nil, err
 	}
@@ -1897,25 +1894,13 @@ func (p *Parser) exprStmt() (Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	stmt.expr = p.unParen(expr)
+	stmt.expr = expr
 
 	if err := p.advanceIfSemi(true); err != nil {
 		return nil, err
 	}
 
 	stmt.loc = p.finLoc(loc)
-
-	// adjust col to include the open-close backquotes
-	if expr.Type() == N_EXPR_TPL {
-		if stmt.loc.begin.col > 0 {
-			stmt.loc.begin.col -= 1
-		}
-		if stmt.loc.rng.start > 0 {
-			stmt.loc.rng.start -= 1
-		}
-		stmt.loc.end.col += 1
-		stmt.loc.rng.end += 1
-	}
 	return stmt, nil
 }
 
@@ -1997,6 +1982,15 @@ func (p *Parser) assignExpr(notIn bool, checkLhs bool) (Node, error) {
 	}
 	loc := lhs.Loc().Clone()
 
+	tok := p.lexer.Peek()
+	if lhs.Type() == N_NAME && tok.value == T_ARROW {
+		fn, err := p.arrowFn(loc, []Node{lhs})
+		if err != nil {
+			return nil, err
+		}
+		lhs = fn
+	}
+
 	assign := p.advanceIfTokIn(T_ASSIGN_BEGIN, T_ASSIGN_END)
 	if assign == nil {
 		return lhs, nil
@@ -2011,22 +2005,23 @@ func (p *Parser) assignExpr(notIn bool, checkLhs bool) (Node, error) {
 
 	// set `depth` to 1 to permit expr like `i + 2 = 42`
 	// and so just do the arg to param transform silently
-	lhs, err = p.argToParam(lhs, 1, false, true)
+	lhs, err = p.argToParam(lhs, 1, false, true, false)
 	if err != nil {
 		return nil, err
 	}
 
-	if checkLhs && !p.isSimpleLVal(lhs, true) {
+	if checkLhs && !p.isSimpleLVal(lhs, true, false, true) {
 		return nil, p.errorAtLoc(lhs.Loc(), ERR_ASSIGN_TO_RVALUE)
 	}
 
-	node := &AssignExpr{N_EXPR_ASSIGN, p.finLoc(loc), op, opLoc, lhs, p.unParen(rhs), nil}
+	node := &AssignExpr{N_EXPR_ASSIGN, p.finLoc(loc), op, opLoc, lhs, rhs, nil}
 	return node, nil
 }
 
 // https://tc39.es/ecma262/multipage/syntax-directed-operations.html#sec-static-semantics-assignmenttargettype
-// `pat` indicate the internal to tell the pattern syntax as legal value
-func (p *Parser) isSimpleLVal(expr Node, pat bool) bool {
+// `pat` indicates whether to treat the pattern syntax as legal or not
+// `member` indicates whether the member expr can be treated as legal or not
+func (p *Parser) isSimpleLVal(expr Node, pat bool, inParen bool, member bool) bool {
 	switch expr.Type() {
 	case N_NAME:
 		node := expr.(*Ident)
@@ -2034,13 +2029,17 @@ func (p *Parser) isSimpleLVal(expr Node, pat bool) bool {
 			return false
 		}
 		return true
-	case N_PAT_OBJ, N_PAT_ARRAY, N_PAT_ASSIGN, N_PAT_REST:
+	case N_PAT_ASSIGN, N_PAT_REST:
+		if inParen {
+			return false
+		}
+	case N_PAT_OBJ, N_PAT_ARRAY:
 		return pat
 	case N_EXPR_MEMBER:
-		return true
+		return member
 	case N_EXPR_PAREN:
 		node := expr.(*ParenExpr)
-		return p.isSimpleLVal(node.expr, pat)
+		return p.isSimpleLVal(node.expr, pat, true, false)
 	}
 	return false
 }
@@ -2087,6 +2086,13 @@ func (p *Parser) unaryExpr() (Node, error) {
 			return nil, err
 		}
 
+		// current es grammar does not allow the arrowFn to be the arg of
+		// the unaryExpr such as `typeof () => {}` will raise an exception
+		// `Malformed arrow function parameter list`
+		if arg.Type() == N_EXPR_ARROW {
+			return nil, p.errorAtLoc(arg.Loc(), ERR_MALFORMED_ARROW_PARAM)
+		}
+
 		scope := p.scope()
 		if scope.IsKind(SPK_STRICT) && tok.value == T_DELETE && arg.Type() == N_NAME {
 			return nil, p.errorAtLoc(arg.Loc(), ERR_DELETE_LOCAL_IN_STRICT)
@@ -2106,7 +2112,7 @@ func (p *Parser) updateExpr() (Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		if !p.isSimpleLVal(arg, true) {
+		if !p.isSimpleLVal(arg, true, false, true) {
 			return nil, p.errorAtLoc(arg.Loc(), ERR_ASSIGN_TO_RVALUE)
 		}
 		return &UpdateExpr{N_EXPR_UPDATE, p.finLoc(loc), tok.value, true, arg, nil}, nil
@@ -2123,7 +2129,7 @@ func (p *Parser) updateExpr() (Node, error) {
 		return arg, nil
 	}
 
-	if !p.isSimpleLVal(arg, true) {
+	if !p.isSimpleLVal(arg, true, false, true) {
 		return nil, p.errorAtLoc(arg.Loc(), ERR_ASSIGN_TO_RVALUE)
 	}
 
@@ -2178,6 +2184,17 @@ func (p *Parser) newExpr() (Node, error) {
 	return ret, nil
 }
 
+func (p *Parser) checkCallee(callee Node, nextLoc *Loc) error {
+	scope := p.scope()
+	switch callee.Type() {
+	case N_EXPR_FN, N_EXPR_ARROW:
+		if !scope.IsKind(SPK_PAREN) {
+			return p.errorAtLoc(nextLoc, ERR_UNEXPECTED_TOKEN)
+		}
+	}
+	return nil
+}
+
 // https://tc39.es/ecma262/multipage/ecmascript-language-expressions.html#prod-CallExpression
 func (p *Parser) callExpr(callee Node) (Node, error) {
 	var loc *Loc
@@ -2192,6 +2209,13 @@ func (p *Parser) callExpr(callee Node) (Node, error) {
 		loc = callee.Loc().Clone()
 	}
 
+	ahead := p.lexer.Peek()
+	if ahead.value == T_PAREN_L {
+		if err = p.checkCallee(callee, p.locFromTok(ahead)); err != nil {
+			return nil, err
+		}
+	}
+
 	for {
 		tok := p.lexer.Peek()
 		if tok.value == T_PAREN_L {
@@ -2199,7 +2223,7 @@ func (p *Parser) callExpr(callee Node) (Node, error) {
 			if err != nil {
 				return nil, err
 			}
-			callee = &CallExpr{N_EXPR_CALL, p.finLoc(loc), p.unParen(callee), args, nil}
+			callee = &CallExpr{N_EXPR_CALL, p.finLoc(loc), callee, args, nil}
 		} else if tok.value == T_BRACKET_L || tok.value == T_DOT {
 			callee, err = p.memberExpr(callee, true)
 			if err != nil {
@@ -2257,35 +2281,31 @@ func (p *Parser) tplExpr(tag Node) (Node, error) {
 		tl := tag.Loc()
 		loc.begin = tl.end.Clone()
 		loc.rng.start = tl.rng.end
-	} else {
-		// move back one position to take the place of the beginning backquote
-		if loc.begin.col > 0 {
-			loc.begin.col -= 1
-		}
-		if loc.rng.start > 0 {
-			loc.rng.start -= 1
-		}
 	}
 
 	elems := make([]Node, 0)
 	for {
 		tok := p.lexer.Peek()
-		if tok.value == T_TPL_TAIL || tok.value == T_TPL_SPAN || tok.value == T_TPL_HEAD {
+		if tok.value >= T_TPL_HEAD || tok.value <= T_TPL_TAIL {
 			cooked := ""
-			if ext := tok.ext.(*TokExtTplSpan); ext != nil {
-				if ext.IllegalEscape != nil {
-					// raise error for bad escape sequence if the template is not tagged
-					if tag == nil {
-						return nil, p.errorAt(tok.value, &tok.begin, ext.IllegalEscape.Err)
-					}
-				} else {
-					cooked = tok.Text()
+			ext := tok.ext.(*TokExtTplSpan)
+			if ext.IllegalEscape != nil {
+				// raise error for bad escape sequence if the template is not tagged
+				if tag == nil {
+					return nil, p.errorAt(tok.value, ext.IllegalEscape.Loc.begin, ext.IllegalEscape.Err)
 				}
+			} else {
+				cooked = ext.str
 			}
 
-			loc := p.loc()
+			loc := &Loc{
+				src:   ext.strRng.src,
+				begin: ext.strBegin.Clone(),
+				end:   ext.strEnd.Clone(),
+				rng:   &Range{ext.strRng.lo, ext.strRng.hi},
+			}
 			p.lexer.Next()
-			str := &StrLit{N_LIT_STR, p.finLoc(loc), cooked, false, nil}
+			str := &StrLit{N_LIT_STR, loc, cooked, false, nil}
 			elems = append(elems, str)
 
 			if tok.value == T_TPL_TAIL || tok.IsPlainTpl() {
@@ -2303,24 +2323,25 @@ func (p *Parser) tplExpr(tag Node) (Node, error) {
 	}
 
 	loc = p.finLoc(loc)
-	loc.end.col += 1
-	loc.rng.end += 1
 	return &TplExpr{N_EXPR_TPL, loc, tag, elems, nil}, nil
 }
 
-func (p *Parser) argsToFormalParams(args []Node) ([]Node, error) {
+func (p *Parser) argsToParams(args []Node) ([]Node, error) {
 	params := make([]Node, len(args))
 	var err error
 	for i, arg := range args {
-		params[i], err = p.argToParam(arg, 0, false, false)
-		if err != nil {
-			return nil, err
+		if arg != nil {
+			params[i], err = p.argToParam(arg, 0, false, false, false)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 	return params, nil
 }
 
-func (p *Parser) argToParam(arg Node, depth int, prop bool, destruct bool) (Node, error) {
+// `destruct` indicate whether the parsing state is in destructing or not
+func (p *Parser) argToParam(arg Node, depth int, prop bool, destruct bool, inParen bool) (Node, error) {
 	switch arg.Type() {
 	case N_LIT_ARR:
 		arr := arg.(*ArrLit)
@@ -2331,9 +2352,12 @@ func (p *Parser) argToParam(arg Node, depth int, prop bool, destruct bool) (Node
 		}
 		var err error
 		for i, node := range arr.elems {
-			pat.elems[i], err = p.argToParam(node, depth+1, false, destruct)
-			if err != nil {
-				return nil, err
+			// elem maybe nil in expr like `([a, , b]) => 42`
+			if node != nil {
+				pat.elems[i], err = p.argToParam(node, depth+1, false, destruct, inParen)
+				if err != nil {
+					return nil, err
+				}
 			}
 		}
 		return pat, nil
@@ -2349,7 +2373,7 @@ func (p *Parser) argToParam(arg Node, depth int, prop bool, destruct bool) (Node
 			isProp = prop
 		}
 		for i, prop := range n.props {
-			pp, err := p.argToParam(prop, depth+1, isProp, destruct)
+			pp, err := p.argToParam(prop, depth+1, isProp, destruct, inParen)
 			if err != nil {
 				return nil, err
 			}
@@ -2364,9 +2388,13 @@ func (p *Parser) argToParam(arg Node, depth int, prop bool, destruct bool) (Node
 				return nil, p.errorAtLoc(arg.Loc(), ERR_OBJ_PATTERN_CANNOT_FN)
 			}
 
-			n.value, err = p.argToParam(n.value, depth+1, prop, destruct)
-			if err != nil {
-				return nil, err
+			// the correctness of the value should be checked account for
+			// using it as an alias
+			if !n.assign {
+				n.value, err = p.argToParam(n.value, depth+1, prop, destruct, inParen)
+				if err != nil {
+					return nil, err
+				}
 			}
 		}
 		if n.assign {
@@ -2388,7 +2416,7 @@ func (p *Parser) argToParam(arg Node, depth int, prop bool, destruct bool) (Node
 			return nil, p.errorAtLoc(n.opLoc, ERR_UNEXPECTED_TOKEN)
 		}
 
-		lhs, err := p.argToParam(n.lhs, depth+1, false, destruct)
+		lhs, err := p.argToParam(n.lhs, depth+1, false, destruct, inParen)
 		if err != nil {
 			return nil, err
 		}
@@ -2425,10 +2453,19 @@ func (p *Parser) argToParam(arg Node, depth int, prop bool, destruct bool) (Node
 					}
 				}
 			}
-		} else {
-			if n.arg.Type() == N_EXPR_ASSIGN {
-				return nil, p.errorAtLoc(n.arg.Loc(), ERR_REST_CANNOT_SET_DEFAULT)
+		} else if n.arg.Type() == N_EXPR_ASSIGN {
+			return nil, p.errorAtLoc(n.arg.Loc(), ERR_REST_CANNOT_SET_DEFAULT)
+		} else if n.arg.Type() == N_EXPR_PAREN {
+			if destruct {
+				arg, err := p.argToParam(n.arg, depth, prop, destruct, inParen)
+				if err != nil {
+					return nil, err
+				}
+				n.arg = arg
+			} else {
+				return nil, p.errorAtLoc(n.arg.Loc(), ERR_INVALID_PAREN_ASSIGN_PATTERN)
 			}
+		} else {
 			return nil, p.errorAtLoc(n.arg.Loc(), ERR_REST_ARG_NOT_SIMPLE)
 		}
 		return &RestPat{
@@ -2436,9 +2473,22 @@ func (p *Parser) argToParam(arg Node, depth int, prop bool, destruct bool) (Node
 			loc: n.loc,
 			arg: n.arg,
 		}, nil
+	case N_EXPR_PAREN:
+		sub := arg.(*ParenExpr).expr
+		if !destruct && depth > 1 || sub.Type() == N_EXPR_SEQ {
+			return nil, p.errorAtLoc(arg.Loc(), ERR_INVALID_PAREN_ASSIGN_PATTERN)
+		}
+		arg, err := p.argToParam(sub, depth, prop, destruct, true)
+		if err != nil {
+			return nil, err
+		}
+		return arg, nil
 	}
 	if depth == 0 {
 		return nil, p.errorAtLoc(arg.Loc(), ERR_UNEXPECTED_TOKEN)
+	}
+	if !p.isSimpleLVal(arg, true, inParen, false) {
+		return nil, p.errorAtLoc(arg.Loc(), ERR_ASSIGN_TO_RVALUE)
 	}
 	return arg, nil
 }
@@ -2475,10 +2525,12 @@ func (p *Parser) checkArg(arg Node, spread bool, simplicity bool) error {
 	case N_EXPR_ASSIGN:
 		if simplicity {
 			n := arg.(*AssignExpr)
-			if n.op != T_ASSIGN && !p.isSimpleLVal(n.lhs, false) {
+			if n.op != T_ASSIGN && !p.isSimpleLVal(n.lhs, false, false, true) {
 				return p.errorAtLoc(n.lhs.Loc(), ERR_ASSIGN_TO_RVALUE)
 			}
 		}
+	case N_EXPR_PAREN:
+		return p.checkArg(arg.(*ParenExpr).expr, spread, simplicity)
 	}
 	return nil
 }
@@ -2590,8 +2642,8 @@ func (p *Parser) binExpr(lhs Node, minPcd int, notIn bool) (Node, error) {
 		bin := &BinExpr{N_EXPR_BIN, nil, T_ILLEGAL, nil, nil, nil}
 		bin.loc = p.finLoc(lhs.Loc().Clone())
 		bin.op = op
-		bin.lhs = p.unParen(lhs)
-		bin.rhs = p.unParen(rhs)
+		bin.lhs = lhs
+		bin.rhs = rhs
 		lhs = bin
 	}
 	return lhs, nil
@@ -2630,7 +2682,14 @@ func (p *Parser) memberExpr(obj Node, call bool) (Node, error) {
 }
 
 func (p *Parser) memberExprObj() (Node, error) {
-	return p.primaryExpr()
+	obj, err := p.primaryExpr()
+	if err != nil {
+		return nil, err
+	}
+	if p.lexer.Peek().value == T_TPL_HEAD {
+		return p.tplExpr(obj)
+	}
+	return obj, nil
 }
 
 func (p *Parser) memberExprPropSubscript(obj Node) (Node, error) {
@@ -2642,7 +2701,7 @@ func (p *Parser) memberExprPropSubscript(obj Node) (Node, error) {
 	if _, err := p.nextMustTok(T_BRACKET_R); err != nil {
 		return nil, err
 	}
-	node := &MemberExpr{N_EXPR_MEMBER, p.finLoc(obj.Loc().Clone()), p.unParen(obj), prop, true, false, nil}
+	node := &MemberExpr{N_EXPR_MEMBER, p.finLoc(obj.Loc().Clone()), obj, prop, true, false, nil}
 	return node, nil
 }
 
@@ -2660,7 +2719,7 @@ func (p *Parser) memberExprPropDot(obj Node) (Node, error) {
 		return nil, p.errorTok(tok)
 	}
 
-	node := &MemberExpr{N_EXPR_MEMBER, p.finLoc(obj.Loc().Clone()), p.unParen(obj), prop, false, false, nil}
+	node := &MemberExpr{N_EXPR_MEMBER, p.finLoc(obj.Loc().Clone()), obj, prop, false, false, nil}
 	return node, nil
 }
 
@@ -2727,50 +2786,69 @@ func (p *Parser) primaryExpr() (Node, error) {
 	return nil, p.errorTok(tok)
 }
 
+func (p *Parser) arrowFn(loc *Loc, args []Node) (Node, error) {
+	params, err := p.argsToParams(args)
+	if err != nil {
+		return nil, err
+	}
+
+	p.lexer.Next()
+	scope := p.symtab.EnterScope(true)
+
+	paramNames, firstComplicated := p.collectNames(params)
+	for _, paramName := range paramNames {
+		ref := NewRef()
+		ref.Node = paramName.(*Ident)
+		ref.BindKind = BK_PARAM
+		// duplicate-checking is enable in strict mode so here skip doing checking,
+		// checking is delegated to below `checkParams`
+		p.addLocalBinding(nil, ref, false)
+	}
+
+	var body Node
+	if p.lexer.Peek().value == T_BRACE_L {
+		body, err = p.fnBody()
+	} else {
+		body, err = p.expr(false)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	isStrict := scope.IsKind(SPK_STRICT)
+	if err := p.checkParams(paramNames, firstComplicated, isStrict); err != nil {
+		return nil, err
+	}
+	p.symtab.LeaveScope()
+
+	return &ArrowFn{N_EXPR_ARROW, p.finLoc(loc), false, params, body, nil}, nil
+}
+
 func (p *Parser) parenExpr() (Node, error) {
 	loc := p.loc()
+
+	// the fnExpr and/or arrowExpr can not be followed by a pair of parens:
+	// `() => {}()` is illegal, therefor it should be encapsulated in parens
+	// to become the well-known IIFE - `(() => {})()`
+	//
+	// however, that's legal if the bad expr described above directly appear
+	// in parens, eg. `(() => {}())`
+	//
+	// for dealing with above situations, enter a new scope and flag it as paren
+	// to let the nested states can tell if they are in parenExpr to judge whether
+	// to raise the syntax-error exception or not
+	scope := p.symtab.EnterScope(false)
+	scope.AddKind(SPK_PAREN)
 	args, tailingComma, err := p.argList(false, false)
+	p.symtab.LeaveScope()
+
 	if err != nil {
 		return nil, err
 	}
 
 	// next is arrow-expression
 	if p.lexer.Peek().value == T_ARROW {
-		params, err := p.argsToFormalParams(args)
-		if err != nil {
-			return nil, err
-		}
-
-		p.lexer.Next()
-		scope := p.symtab.EnterScope(true)
-
-		paramNames, firstComplicated := p.collectNames(params)
-		for _, paramName := range paramNames {
-			ref := NewRef()
-			ref.Node = paramName.(*Ident)
-			ref.BindKind = BK_PARAM
-			// duplicate-checking is enable in strict mode so here skip doing checking,
-			// checking is delegated to below `checkParams`
-			p.addLocalBinding(nil, ref, false)
-		}
-
-		var body Node
-		if p.lexer.Peek().value == T_BRACE_L {
-			body, err = p.fnBody()
-		} else {
-			body, err = p.expr(false)
-		}
-		if err != nil {
-			return nil, err
-		}
-
-		isStrict := scope.IsKind(SPK_STRICT)
-		if err := p.checkParams(paramNames, firstComplicated, isStrict); err != nil {
-			return nil, err
-		}
-		p.symtab.LeaveScope()
-
-		return &ArrowFn{N_EXPR_ARROW, p.finLoc(loc), false, params, body, nil}, nil
+		return p.arrowFn(loc, args)
 	}
 
 	// for report expr like: `(a,)`
@@ -2791,10 +2869,15 @@ func (p *Parser) parenExpr() (Node, error) {
 		return &ParenExpr{N_EXPR_PAREN, p.finLoc(loc), args[0], nil}, nil
 	}
 
-	return &SeqExpr{N_EXPR_SEQ, p.finLoc(loc), args, nil}, nil
+	seqLoc := args[0].Loc().Clone()
+	end := args[argsLen-1].Loc()
+	seqLoc.rng.end = end.rng.end
+	seqLoc.end = end.end.Clone()
+	seq := &SeqExpr{N_EXPR_SEQ, seqLoc, args, nil}
+	return &ParenExpr{N_EXPR_PAREN, p.finLoc(loc), seq, nil}, nil
 }
 
-func (p *Parser) unParen(expr Node) Node {
+func (p *Parser) UnParen(expr Node) Node {
 	if expr.Type() == N_EXPR_PAREN {
 		loc := expr.Loc().Clone()
 		sub := expr.(*ParenExpr).Expr()
@@ -2878,7 +2961,7 @@ func (p *Parser) spread() (Node, error) {
 	if tok.value == T_COMMA {
 		trailingCommaLoc = p.locFromTok(tok)
 	}
-	return &Spread{N_SPREAD, p.finLoc(loc), p.unParen(node), trailingCommaLoc, nil}, nil
+	return &Spread{N_SPREAD, p.finLoc(loc), node, trailingCommaLoc, nil}, nil
 }
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-expressions.html#prod-ObjectLiteral
@@ -3026,7 +3109,7 @@ func (p *Parser) method(loc *Loc, key Node, shorthand bool, kind PropKind, gen b
 		return nil, err
 	}
 
-	params, err := p.argsToFormalParams(args)
+	params, err := p.argsToParams(args)
 	if err != nil {
 		return nil, err
 	}
@@ -3133,7 +3216,7 @@ func (p *Parser) locFromTok(tok *Token) *Loc {
 }
 
 func (p *Parser) finLoc(loc *Loc) *Loc {
-	return p.lexer.FinLoc(loc)
+	return p.lexer.finLoc(loc)
 }
 
 func (p *Parser) errorTok(tok *Token) *ParserError {

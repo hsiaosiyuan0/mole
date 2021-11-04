@@ -13,7 +13,10 @@ clean:
 test: cmd/lint/*.go internal/*/*.go pkg/*/*.go go.mod
 	go test ./...
 
-test-parser-base: cmd/lint/*.go internal/*/*.go pkg/*/*.go go.mod
+test-harmony: cmd/lint/*.go internal/*/*.go pkg/*/*.go go.mod
+	go test ./pkg/js/estree
+
+test-parser: cmd/lint/*.go internal/*/*.go pkg/*/*.go go.mod
 	go test ./pkg/js/parser
 
 bench-1: cmd/lint/*.go internal/*/*.go pkg/*/*.go go.mod

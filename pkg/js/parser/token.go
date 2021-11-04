@@ -26,8 +26,9 @@ type Token struct {
 	raw   SourceRange
 	begin Pos
 	end   Pos
-	len   int // len of codepoints in token
-
+	// len of the codepoints in token. during the token is processing,
+	// it will store the begin pos of that token
+	len                 int
 	afterLineTerminator bool
 
 	ext interface{}
@@ -154,7 +155,15 @@ type IllegalEscapeInfo struct {
 }
 
 type TokExtTplSpan struct {
+	// store the internal string
+	str      string
+	strLen   int
+	strRng   SourceRange
+	strBegin Pos
+	strEnd   Pos
+
 	Plain bool
+
 	// from ES2018 and later the tagged template can contain
 	// illegal escape sequence, here records loc of the illegal
 	// sequence to report lexer error under ES2018

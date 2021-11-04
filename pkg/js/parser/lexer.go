@@ -162,6 +162,9 @@ func (l *Lexer) PeekGrow() *Token {
 	}
 
 	tok := l.readTok()
+	// only update `prtVal` for telling whether ahead is regexp or not
+	// other prt fields such as `prtRng` will be updated after `Next` is
+	// called
 	l.prtVal = tok.value
 	l.pptAfterEOL = tok.afterLineTerminator
 
@@ -198,7 +201,7 @@ func (l *Lexer) Loc() *Loc {
 	return loc
 }
 
-func (l *Lexer) FinLoc(loc *Loc) *Loc {
+func (l *Lexer) finLoc(loc *Loc) *Loc {
 	if l.prtVal != T_ILLEGAL {
 		p := l.prtEnd
 		loc.end.line = p.line
@@ -251,6 +254,7 @@ func (l *Lexer) Next() *Token {
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-lexical-grammar.html#prod-Template
 func (l *Lexer) ReadTplSpan() *Token {
+	span := l.newToken()
 	c := l.src.Read() // consume `\`` or `}`
 	head := c == '`'
 	if head {
@@ -259,15 +263,21 @@ func (l *Lexer) ReadTplSpan() *Token {
 		l.popMode()
 	}
 
-	tok := l.newToken()
+	ext := &TokExtTplSpan{IllegalEscape: nil}
+
+	// record the begin info of the internal string
+	strBeginPos := l.src.Pos()
+	l.src.openRange(&ext.strRng)
+	ext.strBegin.line = l.src.line
+	ext.strBegin.col = l.src.col
+
 	// below ugly assignment is account for taking the in-place optimization(RVO), which can
 	// use stack allocation instead of putting the values on heap, albeit it has not been proved
 	text, fin, line, col, ofst, pos, err, _, errEscape, errEscapeLine, errEscapeCol := l.readTplChs()
-	ext := &TokExtTplSpan{false, nil}
 
 	if err == ERR_UNTERMINATED_TPL {
 		l.popMode()
-		return l.errToken(tok, err)
+		return l.errToken(span, err)
 	}
 
 	if errEscape != "" {
@@ -277,29 +287,30 @@ func (l *Lexer) ReadTplSpan() *Token {
 		ext.IllegalEscape = &IllegalEscapeInfo{errEscape, loc}
 	}
 
-	tok.text = string(text)
-	tok.raw.hi = ofst
-	tok.len = pos - tok.len // tok.len stores the begin pos
-	tok.end.line = line
-	tok.end.col = col
-	tok.afterLineTerminator = l.src.metLineTerminator
-	tok.ext = ext
+	ext.str = string(text)
+	ext.strRng.hi = ofst
+	ext.strLen = pos - strBeginPos
+	ext.strEnd.line = line
+	ext.strEnd.col = col
 
-	tok.value = T_TPL_SPAN
+	span.afterLineTerminator = l.src.metLineTerminator
+	span.ext = ext
+	span = l.finToken(span, T_TPL_SPAN)
+
 	if head {
-		tok.value = T_TPL_HEAD
+		span.value = T_TPL_HEAD
 	}
 
 	if fin {
 		l.popMode()
 		if head {
 			ext.Plain = true
-			return tok
+			return span
 		}
-		tok.value = T_TPL_TAIL
-		return tok
+		span.value = T_TPL_TAIL
+		return span
 	}
-	return tok
+	return span
 }
 
 func (l *Lexer) readTplChs() (text []rune, fin bool, line, col, ofst, pos int,
@@ -331,7 +342,7 @@ func (l *Lexer) readTplChs() (text []rune, fin bool, line, col, ofst, pos int,
 			}
 
 			// since the bad escape sequence is permitted in tagged template
-			// here advance the cursor if `errEscape` occurred
+			// here advance the cursor if `errEscape` already occurred
 			if errEscape != "" {
 				l.src.Read()
 				continue
@@ -349,6 +360,8 @@ func (l *Lexer) readTplChs() (text []rune, fin bool, line, col, ofst, pos int,
 				} else if r == utf8.RuneError {
 					errEscape = ERR_BAD_ESCAPE_SEQ
 				}
+				errEscapeLine = line
+				errEscapeCol = col
 			}
 
 			if r == EOF {
