@@ -223,7 +223,10 @@ func importSpecs(specs []parser.Node) []Node {
 }
 
 func exportAll(node *parser.ExportDec) Node {
-	spec := node.Specs()[0].(*parser.ExportSpec).Local()
+	var spec parser.Node
+	if len(node.Specs()) == 1 {
+		spec = node.Specs()[0].(*parser.ExportSpec).Local()
+	}
 	return &ExportAllDeclaration{
 		Type:     "ExportAllDeclaration",
 		Start:    start(node.Loc()),

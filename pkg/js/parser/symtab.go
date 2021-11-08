@@ -3,19 +3,24 @@ package parser
 type ScopeKind int
 
 const (
-	SPK_NONE          ScopeKind = 0
-	SPK_LOOP_DIRECT             = 1 << 0
-	SPK_LOOP_INDIRECT           = 1 << 1
-	SPK_SWITCH                  = 1 << 2
-	SPK_STRICT                  = 1 << 3
-	SPK_CATCH                   = 1 << 4
-	SPK_BLOCK                   = 1 << 5
-	SPK_GLOBAL                  = 1 << 6
-	SPK_FUNC                    = 1 << 7
-	SPK_FUNC_INDIRECT           = 1 << 8
-	SPK_ASYNC                   = 1 << 9
-	SPK_GENERATOR               = 1 << 10
-	SPK_PAREN                   = 1 << 11
+	SPK_NONE            ScopeKind = 0
+	SPK_LOOP_DIRECT               = 1 << 0
+	SPK_LOOP_INDIRECT             = 1 << 1
+	SPK_SWITCH                    = 1 << 2
+	SPK_STRICT                    = 1 << 3
+	SPK_STRICT_DIR                = 1 << 4
+	SPK_CATCH                     = 1 << 5
+	SPK_BLOCK                     = 1 << 6
+	SPK_GLOBAL                    = 1 << 7
+	SPK_FUNC                      = 1 << 8
+	SPK_FUNC_INDIRECT             = 1 << 9
+	SPK_ARROW                     = 1 << 10
+	SPK_ASYNC                     = 1 << 11
+	SPK_GENERATOR                 = 1 << 12
+	SPK_PAREN                     = 1 << 13
+	SPK_CLASS                     = 1 << 14
+	SPK_CLASS_HAS_SUPER           = 1 << 15
+	SPK_CTOR                      = 1 << 16
 )
 
 type BindKind uint8
@@ -185,7 +190,7 @@ func NewSymTab(externals []string) *SymTab {
 	return symtab
 }
 
-func (s *SymTab) EnterScope(fn bool) *Scope {
+func (s *SymTab) EnterScope(fn bool, arrow bool) *Scope {
 	scope := NewScope()
 	scope.Id = s.Cur.Id + 1
 
@@ -208,6 +213,19 @@ func (s *SymTab) EnterScope(fn bool) *Scope {
 	if s.Cur.IsKind(SPK_STRICT) {
 		scope.Kind |= SPK_STRICT
 	}
+	if s.Cur.IsKind(SPK_CLASS_HAS_SUPER) {
+		scope.Kind |= SPK_CLASS_HAS_SUPER
+	}
+
+	// `(class A extends B { constructor() { (() => { super() }); } })` is legal
+	// `(class A extends B { constructor() { function f() { super() } } })` is illegal
+	// it requires the `SPK_CTOR` to be inherited if new scope is arrow fn
+	if !fn || (fn && arrow) {
+		if s.Cur.IsKind(SPK_CTOR) {
+			scope.Kind |= SPK_CTOR
+		}
+	}
+
 	if s.Cur.IsKind(SPK_GENERATOR) && !fn {
 		scope.Kind |= SPK_GENERATOR
 	}

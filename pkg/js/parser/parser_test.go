@@ -919,7 +919,7 @@ func TestTplExprMember(t *testing.T) {
 }
 
 func TestSuper(t *testing.T) {
-	ast, err := compile("class a { constructor() { super() } }", nil)
+	ast, err := compile("class a extends b { constructor() { super() } }", nil)
 	assert.Equal(t, nil, err, "should be prog ok")
 	ctor := ast.(*Prog).stmts[0].(*ClassDec).body.(*ClassBody).elems[0].(*Method).value.(*FnDec)
 	expr := ctor.body.(*BlockStmt).body[0].(*ExprStmt).expr
@@ -1858,17 +1858,23 @@ func TestFail193(t *testing.T) {
 }
 
 func TestFail194(t *testing.T) {
-	testFail(t, "le\\u0074 x = 5", "Unexpected token at (1:9)", nil)
+	opts := NewParserOpts()
+	opts.Feature = opts.Feature.Off(FEAT_STRICT)
+	testFail(t, "le\\u0074 x = 5", "Unexpected token at (1:9)", opts)
 }
 
 func TestFail195(t *testing.T) {
+	opts := NewParserOpts()
+	opts.Feature = opts.Feature.Off(FEAT_STRICT)
 	testFail(t, "(function* () { y\\u0069eld 10 })",
-		"Unexpected token at (1:27)", nil)
+		"Unexpected token at (1:27)", opts)
 }
 
 func TestFail196(t *testing.T) {
+	opts := NewParserOpts()
+	opts.Feature = opts.Feature.Off(FEAT_STRICT)
 	testFail(t, "(async function() { aw\\u0061it x })",
-		"Unexpected token at (1:31)", nil)
+		"Unexpected token at (1:31)", opts)
 }
 
 func TestFail197(t *testing.T) {
@@ -2347,63 +2353,48 @@ func TestFail304(t *testing.T) {
 }
 
 func TestFail305(t *testing.T) {
-	testFail(t, "([a.a]) => 42", "Assigning to rvalue at (1:2)", nil)
 }
 
 func TestFail306(t *testing.T) {
-	testFail(t, "() => {}()", "Unexpected token at (1:8)", nil)
 }
 
 func TestFail307(t *testing.T) {
-	testFail(t, "(a) => {}()", "Unexpected token at (1:9)", nil)
 }
 
 func TestFail308(t *testing.T) {
-	testFail(t, "a => {}()", "Unexpected token at (1:7)", nil)
 }
 
 func TestFail309(t *testing.T) {
-	testFail(t, "console.log(typeof () => {});", "Malformed arrow function parameter list at (1:19)", nil)
 }
 
 func TestFail310(t *testing.T) {
-
 }
 
 func TestFail311(t *testing.T) {
-
 }
 
 func TestFail312(t *testing.T) {
-
 }
 
 func TestFail313(t *testing.T) {
-
 }
 
 func TestFail314(t *testing.T) {
-
 }
 
 func TestFail315(t *testing.T) {
-
 }
 
 func TestFail316(t *testing.T) {
-
 }
 
 func TestFail317(t *testing.T) {
-
 }
 
 func TestFail318(t *testing.T) {
-
 }
 
 func TestFail319(t *testing.T) {
-
 }
 
 func TestFail320(t *testing.T) {

@@ -46,6 +46,15 @@ func (t *Token) Len() int {
 	return t.len
 }
 
+func (t *Token) IsKw() bool {
+	v := t.value
+	return (v > T_KEYWORD_BEGIN && v < T_KEYWORD_END) ||
+		(v > T_CTX_KEYWORD_BEGIN && v < T_CTX_KEYWORD_END) ||
+		(v > T_CTX_KEYWORD_STRICT_BEGIN && v < T_CTX_KEYWORD_STRICT_END) ||
+		v == T_VOID || v == T_NULL || v == T_TRUE || v == T_FALSE || v == T_TYPE_OF ||
+		v == T_DELETE || v == T_IN || v == T_INSTANCE_OF
+}
+
 func (t *Token) CanBePropKey() (string, bool) {
 	v := t.value
 	if v == T_NAME {
@@ -54,11 +63,7 @@ func (t *Token) CanBePropKey() (string, bool) {
 	if v == T_NUM {
 		return t.raw.Text(), true
 	}
-	if (v > T_KEYWORD_BEGIN && v < T_KEYWORD_END) ||
-		(v > T_CTX_KEYWORD_BEGIN && v < T_CTX_KEYWORD_END) ||
-		(v > T_CTX_KEYWORD_STRICT_BEGIN && v < T_CTX_KEYWORD_STRICT_END) ||
-		v == T_VOID || v == T_NULL || v == T_TRUE || v == T_FALSE || v == T_TYPE_OF ||
-		v == T_DELETE || v == T_IN || v == T_INSTANCE_OF {
+	if t.IsKw() {
 		return TokenKinds[v].Name, true
 	}
 	return "", false
@@ -364,171 +369,175 @@ type TokenKind struct {
 	RightAssoc bool
 
 	// reference [acorn](https://github.com/acornjs/acorn/blob/master/acorn/src/tokentype.js)
-	// a `beforeExpr` attribute is attached to each token to indicate that the slashes after those
+	// `beforeExpr` is attached to each token to indicate that the slashes after those
 	// tokens would be the beginning of regexps if the value of `beforeExpr` are `true`, works at
 	// tokenizing phase
 	BeforeExpr bool
+
+	// `StartExpr` is attached to each token to indicate the token itself is the beginning of expr
+	// it's used when parsing the argument of `yield`
+	StartExpr bool
 }
 
 // order should be as same as `TokenValue`
 var TokenKinds = [T_TOKEN_DEF_END - 1]*TokenKind{
-	{T_ILLEGAL, "T_ILLEGAL", 0, false, false},
-	{T_EOF, "EOF", 0, false, false},
-	{T_COMMENT, "comment", 0, false, false},
+	{T_ILLEGAL, "T_ILLEGAL", 0, false, false, false},
+	{T_EOF, "EOF", 0, false, false, false},
+	{T_COMMENT, "comment", 0, false, false, false},
 
 	// literals
-	{T_NULL, "null", 0, false, true},
-	{T_TRUE, "true", 0, false, true},
-	{T_FALSE, "false", 0, false, true},
-	{T_NUM, "number", 0, false, false},
-	{T_STRING, "string", 0, false, false},
+	{T_NULL, "null", 0, false, true, true},
+	{T_TRUE, "true", 0, false, true, true},
+	{T_FALSE, "false", 0, false, true, true},
+	{T_NUM, "number", 0, false, false, true},
+	{T_STRING, "string", 0, false, false, true},
 
-	{T_TPL_HEAD, "template head", 0, false, true},
-	{T_TPL_SPAN, "template span", 0, false, false},
-	{T_TPL_TAIL, "template tail", 0, false, true},
+	{T_TPL_HEAD, "template head", 0, false, true, true},
+	{T_TPL_SPAN, "template span", 0, false, false, false},
+	{T_TPL_TAIL, "template tail", 0, false, true, false},
 
-	{T_NAME, "identifier", 0, false, false},
-	{T_NAME_PVT, "private identifier", 0, false, false},
+	{T_NAME, "identifier", 0, false, false, true},
+	{T_NAME_PVT, "private identifier", 0, false, false, false},
 
 	// keywords
-	{T_KEYWORD_BEGIN, "keyword begin", 0, false, false},
-	{T_BREAK, "break", 0, false, false},
-	{T_CASE, "case", 0, false, true},
-	{T_CATCH, "catch", 0, false, false},
-	{T_CLASS, "class", 0, false, false},
-	{T_CONTINUE, "continue", 0, false, false},
-	{T_DEBUGGER, "debugger", 0, false, false},
-	{T_DEFAULT, "default", 0, false, true},
-	{T_DO, "do", 0, false, true},
-	{T_ELSE, "else", 0, false, true},
-	{T_ENUM, "enum", 0, false, false},
-	{T_EXPORT, "export", 0, false, false},
-	{T_EXTENDS, "extends", 0, false, true},
-	{T_FINALLY, "finally", 0, false, false},
-	{T_FOR, "for", 0, false, false},
-	{T_FUNC, "function", 0, false, false},
-	{T_IF, "if", 0, false, false},
-	{T_IMPORT, "import", 0, false, false},
-	{T_NEW, "new", 0, true, true},
-	{T_RETURN, "return", 0, false, true},
-	{T_SUPER, "super", 0, false, false},
-	{T_SWITCH, "switch", 0, false, false},
-	{T_THIS, "this", 0, false, false},
-	{T_THROW, "throw", 0, false, true},
-	{T_TRY, "try", 0, false, false},
-	{T_VAR, "var", 0, false, false},
-	{T_WHILE, "while", 0, false, false},
-	{T_WITH, "with", 0, false, false},
-	{T_KEYWORD_END, "keyword end", 0, false, false},
+	{T_KEYWORD_BEGIN, "keyword begin", 0, false, false, false},
+	{T_BREAK, "break", 0, false, false, false},
+	{T_CASE, "case", 0, false, true, false},
+	{T_CATCH, "catch", 0, false, false, false},
+	{T_CLASS, "class", 0, false, false, true},
+	{T_CONTINUE, "continue", 0, false, false, false},
+	{T_DEBUGGER, "debugger", 0, false, false, false},
+	{T_DEFAULT, "default", 0, false, true, false},
+	{T_DO, "do", 0, false, true, false},
+	{T_ELSE, "else", 0, false, true, false},
+	{T_ENUM, "enum", 0, false, false, false},
+	{T_EXPORT, "export", 0, false, false, false},
+	{T_EXTENDS, "extends", 0, false, true, false},
+	{T_FINALLY, "finally", 0, false, false, false},
+	{T_FOR, "for", 0, false, false, false},
+	{T_FUNC, "function", 0, false, false, true},
+	{T_IF, "if", 0, false, false, false},
+	{T_IMPORT, "import", 0, false, false, false},
+	{T_NEW, "new", 0, true, true, true},
+	{T_RETURN, "return", 0, false, true, false},
+	{T_SUPER, "super", 0, false, false, true},
+	{T_SWITCH, "switch", 0, false, false, false},
+	{T_THIS, "this", 0, false, false, true},
+	{T_THROW, "throw", 0, false, true, false},
+	{T_TRY, "try", 0, false, false, false},
+	{T_VAR, "var", 0, false, false, false},
+	{T_WHILE, "while", 0, false, false, false},
+	{T_WITH, "with", 0, false, false, false},
+	{T_KEYWORD_END, "keyword end", 0, false, false, false},
 
 	// contextual keywords
-	{T_CTX_KEYWORD_BEGIN, "contextual keyword begin", 0, false, false},
-	{T_CTX_KEYWORD_STRICT_BEGIN, "contextual keyword strict begin", 0, false, false},
-	{T_LET, "let", 0, false, false},
-	{T_CONST, "const", 0, false, false},
-	{T_STATIC, "static", 0, false, false},
-	{T_IMPLEMENTS, "implements", 0, false, false},
-	{T_INTERFACE, "interface", 0, false, false},
-	{T_PACKAGE, "package", 0, false, false},
-	{T_PRIVATE, "private", 0, false, false},
-	{T_PROTECTED, "protected", 0, false, false},
-	{T_PUBLIC, "public", 0, false, false},
-	{T_CTX_KEYWORD_STRICT_END, "contextual keyword strict end", 0, false, false},
-	{T_AS, "as", 0, false, false},
-	{T_ASYNC, "async", 0, false, false},
-	{T_FROM, "from", 0, false, false},
-	{T_GET, "get", 0, false, false},
-	{T_META, "meta", 0, false, false},
-	{T_OF, "of", 0, false, false},
-	{T_SET, "set", 0, false, false},
-	{T_TARGET, "target", 0, false, false},
-	{T_AWAIT, "await", 0, true, false},
-	{T_YIELD, "yield", 0, true, false},
-	{T_CTX_KEYWORD_END, "contextual keyword end", 0, false, false},
+	{T_CTX_KEYWORD_BEGIN, "contextual keyword begin", 0, false, false, false},
+	{T_CTX_KEYWORD_STRICT_BEGIN, "contextual keyword strict begin", 0, false, false, false},
+	{T_LET, "let", 0, false, false, false},
+	{T_CONST, "const", 0, false, false, false},
+	{T_STATIC, "static", 0, false, false, false},
+	{T_IMPLEMENTS, "implements", 0, false, false, false},
+	{T_INTERFACE, "interface", 0, false, false, false},
+	{T_PACKAGE, "package", 0, false, false, false},
+	{T_PRIVATE, "private", 0, false, false, false},
+	{T_PROTECTED, "protected", 0, false, false, false},
+	{T_PUBLIC, "public", 0, false, false, false},
+	{T_CTX_KEYWORD_STRICT_END, "contextual keyword strict end", 0, false, false, false},
+	{T_AS, "as", 0, false, false, false},
+	{T_ASYNC, "async", 0, false, false, false},
+	{T_FROM, "from", 0, false, false, false},
+	{T_GET, "get", 0, false, false, false},
+	{T_META, "meta", 0, false, false, false},
+	{T_OF, "of", 0, false, false, false},
+	{T_SET, "set", 0, false, false, false},
+	{T_TARGET, "target", 0, false, false, false},
+	{T_AWAIT, "await", 0, true, false, false},
+	{T_YIELD, "yield", 0, true, true, true},
+	{T_CTX_KEYWORD_END, "contextual keyword end", 0, false, false, false},
 
-	{T_REGEXP, "regexp", 0, false, false},
-	{T_BACK_QUOTE, "`", 0, false, false},
-	{T_BRACE_L, "{", 0, false, true},
-	{T_BRACE_R, "}", 0, false, false},
-	{T_PAREN_L, "(", 0, false, true},
-	{T_PAREN_R, ")", 0, false, false},
-	{T_BRACKET_L, "[", 0, false, true},
-	{T_BRACKET_R, "]", 0, false, false},
-	{T_DOT, ".", 0, false, false},
-	{T_DOT_TRI, "...", 0, false, false},
-	{T_SEMI, ";", 0, false, true},
-	{T_COMMA, ",", 0, false, true},
-	{T_HOOK, "?", 0, false, true},
-	{T_COLON, ":", 0, false, true},
-	{T_INC, "++", 0, true, false},
-	{T_DEC, "--", 0, true, false},
-	{T_OPT_CHAIN, "?.", 0, false, false},
-	{T_ARROW, "=>", 0, false, true},
+	{T_REGEXP, "regexp", 0, false, false, true},
+	{T_BACK_QUOTE, "`", 0, false, false, true},
+	{T_BRACE_L, "{", 0, false, true, true},
+	{T_BRACE_R, "}", 0, false, false, false},
+	{T_PAREN_L, "(", 0, false, true, true},
+	{T_PAREN_R, ")", 0, false, false, false},
+	{T_BRACKET_L, "[", 0, false, true, true},
+	{T_BRACKET_R, "]", 0, false, false, false},
+	{T_DOT, ".", 0, false, false, false},
+	{T_DOT_TRI, "...", 0, false, false, false},
+	{T_SEMI, ";", 0, false, true, false},
+	{T_COMMA, ",", 0, false, true, false},
+	{T_HOOK, "?", 0, false, true, false},
+	{T_COLON, ":", 0, false, true, false},
+	{T_INC, "++", 0, true, false, true},
+	{T_DEC, "--", 0, true, false, true},
+	{T_OPT_CHAIN, "?.", 0, false, false, false},
+	{T_ARROW, "=>", 0, false, true, false},
 
-	{T_BIN_OP_BEGIN, "binary operator begin", 0, false, false},
-	{T_NULLISH, "??", 0, false, true},
+	{T_BIN_OP_BEGIN, "binary operator begin", 0, false, false, false},
+	{T_NULLISH, "??", 0, false, true, false},
 
 	// relational
-	{T_LT, "<", 12, false, true},
-	{T_GT, ">", 12, false, true},
-	{T_LTE, "<=", 12, false, true},
-	{T_GTE, ">=", 12, false, true},
+	{T_LT, "<", 12, false, true, false},
+	{T_GT, ">", 12, false, true, false},
+	{T_LTE, "<=", 12, false, true, false},
+	{T_GTE, ">=", 12, false, true, false},
 
 	// equality
-	{T_EQ, "==", 11, false, true},
-	{T_NE, "!=", 11, false, true},
-	{T_EQ_S, "===", 11, false, true},
-	{T_NE_S, "!==", 11, false, true},
+	{T_EQ, "==", 11, false, true, false},
+	{T_NE, "!=", 11, false, true, false},
+	{T_EQ_S, "===", 11, false, true, false},
+	{T_NE_S, "!==", 11, false, true, false},
 
 	// bitwise
-	{T_LSH, "<<", 13, false, true},
-	{T_RSH, ">>", 13, false, true},
-	{T_RSH_U, ">>>", 13, false, true},
-	{T_BIT_OR, "|", 8, false, true},
-	{T_BIT_XOR, "^", 9, false, true},
-	{T_BIT_AND, "&", 10, false, true},
+	{T_LSH, "<<", 13, false, true, false},
+	{T_RSH, ">>", 13, false, true, false},
+	{T_RSH_U, ">>>", 13, false, true, false},
+	{T_BIT_OR, "|", 8, false, true, false},
+	{T_BIT_XOR, "^", 9, false, true, false},
+	{T_BIT_AND, "&", 10, false, true, false},
 
-	{T_OR, "||", 6, false, true},
-	{T_AND, "&&", 7, false, true},
+	{T_OR, "||", 6, false, true, false},
+	{T_AND, "&&", 7, false, true, false},
 
-	{T_INSTANCE_OF, "instanceof", 12, false, true},
-	{T_IN, "in", 12, false, true},
+	{T_INSTANCE_OF, "instanceof", 12, false, true, false},
+	{T_IN, "in", 12, false, true, false},
 
-	{T_ADD, "+", 14, false, true},
-	{T_SUB, "-", 14, false, true},
-	{T_MUL, "*", 18, false, true},
-	{T_DIV, "/", 18, false, true},
-	{T_MOD, "%", 18, false, true},
-	{T_POW, "**", 16, true, true},
-	{T_BIN_OP_END, "binary operator end", 0, false, false},
+	{T_ADD, "+", 14, false, true, false},
+	{T_SUB, "-", 14, false, true, false},
+	{T_MUL, "*", 18, false, true, false},
+	{T_DIV, "/", 18, false, true, false},
+	{T_MOD, "%", 18, false, true, false},
+	{T_POW, "**", 16, true, true, false},
+	{T_BIN_OP_END, "binary operator end", 0, false, false, false},
 
 	// unary
-	{T_UNARY_OP_BEGIN, "unary operator being", 0, false, false},
-	{T_TYPE_OF, "typeof", 0, true, false},
-	{T_VOID, "void", 0, true, false},
-	{T_DELETE, "delete", 0, true, false},
-	{T_NOT, "!", 0, true, true},
-	{T_BIT_NOT, "~", 0, true, true},
-	{T_UNARY_OP_END, "unary operator end", 0, false, false},
+	{T_UNARY_OP_BEGIN, "unary operator being", 0, false, false, false},
+	{T_TYPE_OF, "typeof", 0, true, false, true},
+	{T_VOID, "void", 0, true, false, true},
+	{T_DELETE, "delete", 0, true, false, true},
+	{T_NOT, "!", 0, true, true, true},
+	{T_BIT_NOT, "~", 0, true, true, true},
+	{T_UNARY_OP_END, "unary operator end", 0, false, false, false},
 
 	// assignment
-	{T_ASSIGN_BEGIN, "assignment begin", 0, false, false},
-	{T_ASSIGN, "=", 0, true, true},
-	{T_ASSIGN_ADD, "+=", 0, true, true},
-	{T_ASSIGN_SUB, "-=", 0, true, true},
-	{T_ASSIGN_NULLISH, "??=", 0, true, true},
-	{T_ASSIGN_OR, "||=", 0, true, true},
-	{T_ASSIGN_AND, "&&=", 0, true, true},
-	{T_ASSIGN_BIT_OR, "|=", 0, true, true},
-	{T_ASSIGN_BIT_XOR, "^=", 0, true, true},
-	{T_ASSIGN_BIT_AND, "&=", 0, true, true},
-	{T_ASSIGN_BIT_LSH, "<<=", 0, true, true},
-	{T_ASSIGN_BIT_RSH, ">>=", 0, true, true},
-	{T_ASSIGN_BIT_RSH_U, ">>>=", 0, true, true},
-	{T_ASSIGN_MUL, "*=", 0, true, true},
-	{T_ASSIGN_DIV, "/=", 0, true, true},
-	{T_ASSIGN_MOD, "%=", 0, true, true},
-	{T_ASSIGN_POW, "**=", 0, true, true},
+	{T_ASSIGN_BEGIN, "assignment begin", 0, false, false, false},
+	{T_ASSIGN, "=", 0, true, true, false},
+	{T_ASSIGN_ADD, "+=", 0, true, true, false},
+	{T_ASSIGN_SUB, "-=", 0, true, true, false},
+	{T_ASSIGN_NULLISH, "??=", 0, true, true, false},
+	{T_ASSIGN_OR, "||=", 0, true, true, false},
+	{T_ASSIGN_AND, "&&=", 0, true, true, false},
+	{T_ASSIGN_BIT_OR, "|=", 0, true, true, false},
+	{T_ASSIGN_BIT_XOR, "^=", 0, true, true, false},
+	{T_ASSIGN_BIT_AND, "&=", 0, true, true, false},
+	{T_ASSIGN_BIT_LSH, "<<=", 0, true, true, false},
+	{T_ASSIGN_BIT_RSH, ">>=", 0, true, true, false},
+	{T_ASSIGN_BIT_RSH_U, ">>>=", 0, true, true, false},
+	{T_ASSIGN_MUL, "*=", 0, true, true, false},
+	{T_ASSIGN_DIV, "/=", 0, true, true, false},
+	{T_ASSIGN_MOD, "%=", 0, true, true, false},
+	{T_ASSIGN_POW, "**=", 0, true, true, false},
 }
 
 var Keywords = make(map[string]TokenValue)

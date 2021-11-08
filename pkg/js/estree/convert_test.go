@@ -10,8 +10,12 @@ import (
 )
 
 func compile(code string) (string, error) {
+	return compileWithOpts(code, parser.NewParserOpts())
+}
+
+func compileWithOpts(code string, opts *parser.ParserOpts) (string, error) {
 	s := parser.NewSource("", code)
-	p := parser.NewParser(s, parser.NewParserOpts())
+	p := parser.NewParser(s, opts)
 	ast, err := p.Prog()
 	if err != nil {
 		return "", err
@@ -7221,7 +7225,9 @@ func Test84(t *testing.T) {
 }
 
 func Test85(t *testing.T) {
-	ast, err := compile("\"\\n\\r\\t\\v\\b\\f\\\\\\'\\\"\\0\"")
+	opts := parser.NewParserOpts()
+	opts.Feature = opts.Feature.Off(parser.FEAT_STRICT)
+	ast, err := compileWithOpts("\"\\n\\r\\t\\v\\b\\f\\\\\\'\\\"\\0\"", opts)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	assert.EqualJson(t, `
@@ -7571,7 +7577,9 @@ func Test91(t *testing.T) {
 }
 
 func Test92(t *testing.T) {
-	ast, err := compile("\"Hello\\02World\"")
+	opts := parser.NewParserOpts()
+	opts.Feature = opts.Feature.Off(parser.FEAT_STRICT)
+	ast, err := compileWithOpts("\"Hello\\02World\"", opts)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	assert.EqualJson(t, `
@@ -7621,7 +7629,9 @@ func Test92(t *testing.T) {
 }
 
 func Test93(t *testing.T) {
-	ast, err := compile("\"Hello\\012World\"")
+	opts := parser.NewParserOpts()
+	opts.Feature = opts.Feature.Off(parser.FEAT_STRICT)
+	ast, err := compileWithOpts("\"Hello\\012World\"", opts)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	assert.EqualJson(t, `
@@ -7671,7 +7681,9 @@ func Test93(t *testing.T) {
 }
 
 func Test94(t *testing.T) {
-	ast, err := compile("\"Hello\\122World\"")
+	opts := parser.NewParserOpts()
+	opts.Feature = opts.Feature.Off(parser.FEAT_STRICT)
+	ast, err := compileWithOpts("\"Hello\\122World\"", opts)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	assert.EqualJson(t, `
@@ -7721,7 +7733,9 @@ func Test94(t *testing.T) {
 }
 
 func Test95(t *testing.T) {
-	ast, err := compile("\"Hello\\0122World\"")
+	opts := parser.NewParserOpts()
+	opts.Feature = opts.Feature.Off(parser.FEAT_STRICT)
+	ast, err := compileWithOpts("\"Hello\\0122World\"", opts)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	assert.EqualJson(t, `
@@ -7771,7 +7785,9 @@ func Test95(t *testing.T) {
 }
 
 func Test96(t *testing.T) {
-	ast, err := compile("\"Hello\\312World\"")
+	opts := parser.NewParserOpts()
+	opts.Feature = opts.Feature.Off(parser.FEAT_STRICT)
+	ast, err := compileWithOpts("\"Hello\\312World\"", opts)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	assert.EqualJson(t, `
@@ -7821,7 +7837,9 @@ func Test96(t *testing.T) {
 }
 
 func Test97(t *testing.T) {
-	ast, err := compile("\"Hello\\412World\"")
+	opts := parser.NewParserOpts()
+	opts.Feature = opts.Feature.Off(parser.FEAT_STRICT)
+	ast, err := compileWithOpts("\"Hello\\412World\"", opts)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	assert.EqualJson(t, `
@@ -7921,7 +7939,9 @@ func Test98(t *testing.T) {
 }
 
 func Test99(t *testing.T) {
-	ast, err := compile("\"Hello\\712World\"")
+	opts := parser.NewParserOpts()
+	opts.Feature = opts.Feature.Off(parser.FEAT_STRICT)
+	ast, err := compileWithOpts("\"Hello\\712World\"", opts)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	assert.EqualJson(t, `
@@ -7971,7 +7991,9 @@ func Test99(t *testing.T) {
 }
 
 func Test100(t *testing.T) {
-	ast, err := compile("\"Hello\\0World\"")
+	opts := parser.NewParserOpts()
+	opts.Feature = opts.Feature.Off(parser.FEAT_STRICT)
+	ast, err := compileWithOpts("\"Hello\\0World\"", opts)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	assert.EqualJson(t, `
@@ -8071,7 +8093,9 @@ func Test101(t *testing.T) {
 }
 
 func Test102(t *testing.T) {
-	ast, err := compile("\"Hello\\1World\"")
+	opts := parser.NewParserOpts()
+	opts.Feature = opts.Feature.Off(parser.FEAT_STRICT)
+	ast, err := compileWithOpts("\"Hello\\1World\"", opts)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	assert.EqualJson(t, `
@@ -11068,7 +11092,9 @@ func Test134(t *testing.T) {
 }
 
 func Test135(t *testing.T) {
-	ast, err := compile("eval++")
+	opts := parser.NewParserOpts()
+	opts.Feature = opts.Feature.Off(parser.FEAT_STRICT)
+	ast, err := compileWithOpts("eval++", opts)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	assert.EqualJson(t, `
@@ -11133,7 +11159,9 @@ func Test135(t *testing.T) {
 }
 
 func Test136(t *testing.T) {
-	ast, err := compile("eval--")
+	opts := parser.NewParserOpts()
+	opts.Feature = opts.Feature.Off(parser.FEAT_STRICT)
+	ast, err := compileWithOpts("eval--", opts)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	assert.EqualJson(t, `
@@ -11198,7 +11226,9 @@ func Test136(t *testing.T) {
 }
 
 func Test137(t *testing.T) {
-	ast, err := compile("arguments++")
+	opts := parser.NewParserOpts()
+	opts.Feature = opts.Feature.Off(parser.FEAT_STRICT)
+	ast, err := compileWithOpts("arguments++", opts)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	assert.EqualJson(t, `
@@ -11263,7 +11293,9 @@ func Test137(t *testing.T) {
 }
 
 func Test138(t *testing.T) {
-	ast, err := compile("arguments--")
+	opts := parser.NewParserOpts()
+	opts.Feature = opts.Feature.Off(parser.FEAT_STRICT)
+	ast, err := compileWithOpts("arguments--", opts)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	assert.EqualJson(t, `
@@ -11458,7 +11490,9 @@ func Test140(t *testing.T) {
 }
 
 func Test141(t *testing.T) {
-	ast, err := compile("++eval")
+	opts := parser.NewParserOpts()
+	opts.Feature = opts.Feature.Off(parser.FEAT_STRICT)
+	ast, err := compileWithOpts("++eval", opts)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	assert.EqualJson(t, `
@@ -11523,7 +11557,9 @@ func Test141(t *testing.T) {
 }
 
 func Test142(t *testing.T) {
-	ast, err := compile("--eval")
+	opts := parser.NewParserOpts()
+	opts.Feature = opts.Feature.Off(parser.FEAT_STRICT)
+	ast, err := compileWithOpts("--eval", opts)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	assert.EqualJson(t, `
@@ -11588,7 +11624,9 @@ func Test142(t *testing.T) {
 }
 
 func Test143(t *testing.T) {
-	ast, err := compile("++arguments")
+	opts := parser.NewParserOpts()
+	opts.Feature = opts.Feature.Off(parser.FEAT_STRICT)
+	ast, err := compileWithOpts("++arguments", opts)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	assert.EqualJson(t, `
@@ -11653,7 +11691,9 @@ func Test143(t *testing.T) {
 }
 
 func Test144(t *testing.T) {
-	ast, err := compile("--arguments")
+	opts := parser.NewParserOpts()
+	opts.Feature = opts.Feature.Off(parser.FEAT_STRICT)
+	ast, err := compileWithOpts("--arguments", opts)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	assert.EqualJson(t, `
@@ -12043,7 +12083,9 @@ func Test149(t *testing.T) {
 }
 
 func Test150(t *testing.T) {
-	ast, err := compile("delete x")
+	opts := parser.NewParserOpts()
+	opts.Feature = opts.Feature.Off(parser.FEAT_STRICT)
+	ast, err := compileWithOpts("delete x", opts)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	assert.EqualJson(t, `
@@ -16693,7 +16735,9 @@ func Test200(t *testing.T) {
 }
 
 func Test201(t *testing.T) {
-	ast, err := compile("eval = 42")
+	opts := parser.NewParserOpts()
+	opts.Feature = opts.Feature.Off(parser.FEAT_STRICT)
+	ast, err := compileWithOpts("eval = 42", opts)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	assert.EqualJson(t, `
@@ -16771,7 +16815,9 @@ func Test201(t *testing.T) {
 }
 
 func Test202(t *testing.T) {
-	ast, err := compile("arguments = 42")
+	opts := parser.NewParserOpts()
+	opts.Feature = opts.Feature.Off(parser.FEAT_STRICT)
+	ast, err := compileWithOpts("arguments = 42", opts)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	assert.EqualJson(t, `
@@ -17996,7 +18042,10 @@ func Test217(t *testing.T) {
 }
 
 func Test218(t *testing.T) {
-	ast, err := compile("var await")
+	opts := parser.NewParserOpts()
+	opts.Feature = opts.Feature.Off(parser.FEAT_GLOBAL_ASYNC)
+	opts.Feature = opts.Feature.Off(parser.FEAT_STRICT)
+	ast, err := compileWithOpts("var await", opts)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	assert.EqualJson(t, `
@@ -18238,7 +18287,9 @@ func Test220(t *testing.T) {
 }
 
 func Test221(t *testing.T) {
-	ast, err := compile("var eval = 42, arguments = 42")
+	opts := parser.NewParserOpts()
+	opts.Feature = opts.Feature.Off(parser.FEAT_STRICT)
+	ast, err := compileWithOpts("var eval = 42, arguments = 42", opts)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	assert.EqualJson(t, `
@@ -18521,7 +18572,9 @@ func Test222(t *testing.T) {
 }
 
 func Test223(t *testing.T) {
-	ast, err := compile("var implements, interface, package")
+	opts := parser.NewParserOpts()
+	opts.Feature = opts.Feature.Off(parser.FEAT_STRICT)
+	ast, err := compileWithOpts("var implements, interface, package", opts)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	assert.EqualJson(t, `
@@ -18644,7 +18697,9 @@ func Test223(t *testing.T) {
 }
 
 func Test224(t *testing.T) {
-	ast, err := compile("var private, protected, public, static")
+	opts := parser.NewParserOpts()
+	opts.Feature = opts.Feature.Off(parser.FEAT_STRICT)
+	ast, err := compileWithOpts("var private, protected, public, static", opts)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	assert.EqualJson(t, `
@@ -19353,7 +19408,9 @@ func Test232(t *testing.T) {
 }
 
 func Test233(t *testing.T) {
-	ast, err := compile("if (morning) function a(){}")
+	opts := parser.NewParserOpts()
+	opts.Feature = opts.Feature.Off(parser.FEAT_STRICT)
+	ast, err := compileWithOpts("if (morning) function a(){}", opts)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	assert.EqualJson(t, `
@@ -22800,7 +22857,9 @@ func Test262(t *testing.T) {
 }
 
 func Test263(t *testing.T) {
-	ast, err := compile("with (x) foo = bar")
+	opts := parser.NewParserOpts()
+	opts.Feature = opts.Feature.Off(parser.FEAT_STRICT)
+	ast, err := compileWithOpts("with (x) foo = bar", opts)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	assert.EqualJson(t, `
@@ -22905,7 +22964,9 @@ func Test263(t *testing.T) {
 }
 
 func Test264(t *testing.T) {
-	ast, err := compile("with (x) foo = bar;")
+	opts := parser.NewParserOpts()
+	opts.Feature = opts.Feature.Off(parser.FEAT_STRICT)
+	ast, err := compileWithOpts("with (x) foo = bar;", opts)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	assert.EqualJson(t, `
@@ -23010,7 +23071,9 @@ func Test264(t *testing.T) {
 }
 
 func Test265(t *testing.T) {
-	ast, err := compile("with (x) { foo = bar }")
+	opts := parser.NewParserOpts()
+	opts.Feature = opts.Feature.Off(parser.FEAT_STRICT)
+	ast, err := compileWithOpts("with (x) { foo = bar }", opts)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	assert.EqualJson(t, `
@@ -23983,7 +24046,9 @@ func Test274(t *testing.T) {
 }
 
 func Test275(t *testing.T) {
-	ast, err := compile("try { } catch (eval) { }")
+	opts := parser.NewParserOpts()
+	opts.Feature = opts.Feature.Off(parser.FEAT_STRICT)
+	ast, err := compileWithOpts("try { } catch (eval) { }", opts)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	assert.EqualJson(t, `
@@ -24075,7 +24140,9 @@ func Test275(t *testing.T) {
 }
 
 func Test276(t *testing.T) {
-	ast, err := compile("try { } catch (arguments) { }")
+	opts := parser.NewParserOpts()
+	opts.Feature = opts.Feature.Off(parser.FEAT_STRICT)
+	ast, err := compileWithOpts("try { } catch (arguments) { }", opts)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	assert.EqualJson(t, `
@@ -25033,7 +25100,9 @@ func Test282(t *testing.T) {
 }
 
 func Test283(t *testing.T) {
-	ast, err := compile("function eval() { }")
+	opts := parser.NewParserOpts()
+	opts.Feature = opts.Feature.Off(parser.FEAT_STRICT)
+	ast, err := compileWithOpts("function eval() { }", opts)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	assert.EqualJson(t, `
@@ -25098,7 +25167,9 @@ func Test283(t *testing.T) {
 }
 
 func Test284(t *testing.T) {
-	ast, err := compile("function arguments() { }")
+	opts := parser.NewParserOpts()
+	opts.Feature = opts.Feature.Off(parser.FEAT_STRICT)
+	ast, err := compileWithOpts("function arguments() { }", opts)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	assert.EqualJson(t, `
@@ -25163,7 +25234,9 @@ func Test284(t *testing.T) {
 }
 
 func Test285(t *testing.T) {
-	ast, err := compile("function test(t, t) { }")
+	opts := parser.NewParserOpts()
+	opts.Feature = opts.Feature.Off(parser.FEAT_STRICT)
+	ast, err := compileWithOpts("function test(t, t) { }", opts)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	assert.EqualJson(t, `
@@ -25257,7 +25330,9 @@ func Test285(t *testing.T) {
 }
 
 func Test286(t *testing.T) {
-	ast, err := compile("(function test(t, t) { })")
+	opts := parser.NewParserOpts()
+	opts.Feature = opts.Feature.Off(parser.FEAT_STRICT)
+	ast, err := compileWithOpts("(function test(t, t) { })", opts)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	assert.EqualJson(t, `
@@ -25364,7 +25439,9 @@ func Test286(t *testing.T) {
 }
 
 func Test287(t *testing.T) {
-	ast, err := compile("function eval() { function inner() { \"use strict\" } }")
+	opts := parser.NewParserOpts()
+	opts.Feature = opts.Feature.Off(parser.FEAT_STRICT)
+	ast, err := compileWithOpts("function eval() { function inner() { \"use strict\" } }", opts)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	assert.EqualJson(t, `
@@ -26230,7 +26307,9 @@ func Test293(t *testing.T) {
 }
 
 func Test294(t *testing.T) {
-	ast, err := compile("var hi = function eval() { };")
+	opts := parser.NewParserOpts()
+	opts.Feature = opts.Feature.Off(parser.FEAT_STRICT)
+	ast, err := compileWithOpts("var hi = function eval() { };", opts)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	assert.EqualJson(t, `
@@ -26338,7 +26417,9 @@ func Test294(t *testing.T) {
 }
 
 func Test295(t *testing.T) {
-	ast, err := compile("var hi = function arguments() { };")
+	opts := parser.NewParserOpts()
+	opts.Feature = opts.Feature.Off(parser.FEAT_STRICT)
+	ast, err := compileWithOpts("var hi = function arguments() { };", opts)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	assert.EqualJson(t, `

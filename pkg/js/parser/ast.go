@@ -503,6 +503,14 @@ type Ident struct {
 	pvt            bool
 	containsEscape bool
 	extra          *ExprExtra
+	// consider below statements:
+	// `export { if } from "a"` is legal
+	// `export { if } ` is illegal
+	// for reporting `if` is a keyword, firstly produce a
+	// Ident with conent `if` and flag it's a keyword by
+	// setting this field to true, later report the `unexpected token`
+	// error if the coming token is not `from`
+	kw bool
 }
 
 func (n *Ident) Type() NodeType {
