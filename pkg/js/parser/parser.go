@@ -3319,8 +3319,8 @@ func (p *Parser) propData() (Node, error) {
 	return &Prop{N_PROP, p.finLoc(loc), key, opLoc, value, compute, shorthand, assign, PK_INIT}, nil
 }
 
-// TODO: use bitwist to minify the params
-func (p *Parser) method(loc *Loc, key Node, compute bool, shorthand bool, kind PropKind, gen bool, async bool, allowNamePVT bool, inClass bool, static bool) (Node, error) {
+func (p *Parser) method(loc *Loc, key Node, compute bool, shorthand bool, kind PropKind,
+	gen bool, async bool, allowNamePVT bool, inClass bool, static bool) (Node, error) {
 	if loc == nil {
 		loc = p.loc()
 	}
