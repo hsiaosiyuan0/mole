@@ -6,6 +6,8 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"os/exec"
+	"path"
 	"strings"
 
 	"github.com/hsiaosiyuan0/mole/pkg/js/estree"
@@ -27,14 +29,17 @@ func main() {
 		panic(err)
 	}
 
-	// js.TestLexer()
 	if *ast && strings.HasSuffix(*file, ".js") {
-		ast, err := printJsAst(string(src), *file)
-		if err != nil {
-			panic(err)
-		}
-		fmt.Println(ast)
+		printJsAst(string(src), *file)
 	}
+}
+
+func assembleOutFile(file string, tag string) string {
+	dir, f := path.Split(file)
+	ext := path.Ext(f)
+	fileNoExt := f[0:strings.LastIndex(f, ext)]
+	nf := fileNoExt + tag + ext
+	return path.Join(dir, nf)
 }
 
 func printJsAst(src, file string) (string, error) {
@@ -53,5 +58,27 @@ func printJsAst(src, file string) (string, error) {
 	var out bytes.Buffer
 	json.Indent(&out, b, "", "  ")
 
-	return out.String(), nil
+	output := out.String()
+	fmt.Println(output)
+
+	outpath := assembleOutFile(file, "_ast")
+	ioutil.WriteFile(outpath, out.Bytes(), 0644)
+	fmt.Printf("Result is also saved in: %s\n", outpath)
+
+	if ok := copyToClipboard(outpath); ok {
+		fmt.Println("Result is also saved in clipboard")
+	}
+
+	return output, nil
+}
+
+func copyToClipboard(file string) bool {
+	path, err := exec.LookPath("pbcopy")
+	if err != nil {
+		return false
+	}
+
+	cmd := exec.Command("bash", "-c", path+" < "+file)
+	err = cmd.Run()
+	return err == nil
 }
