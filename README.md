@@ -1,6 +1,6 @@
 # mole
 
-Tools to do deep processing of the frontend projects
+Tools to deeply process the frontend projects.
 
 ## Development
 
