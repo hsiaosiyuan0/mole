@@ -1,7 +1,7 @@
-dep: cmd/mole/*.go internal/*/*.go pkg/*/*.go go.mod
+dep: cmd/mole/*.go pkg/*/*.go go.mod
 	go get -v ./...
 
-mole: cmd/mole/*.go internal/*/*.go pkg/*/*.go go.mod
+mole: cmd/mole/*.go pkg/*/*.go go.mod
 	go build ./cmd/mole
 
 install: ./mole
@@ -10,14 +10,14 @@ install: ./mole
 clean:
 	go run scripts/clean/mod.go
 
-test: cmd/mole/*.go internal/*/*.go pkg/*/*.go go.mod
+test: cmd/mole/*.go pkg/*/*.go go.mod
 	go test ./...
 
-test-harmony: cmd/mole/*.go internal/*/*.go pkg/*/*.go go.mod
+test-harmony: cmd/mole/*.go pkg/*/*.go go.mod
 	go test ./pkg/js/estree
 
-test-parser: cmd/mole/*.go internal/*/*.go pkg/*/*.go go.mod
+test-parser: cmd/mole/*.go pkg/*/*.go go.mod
 	go test ./pkg/js/parser
 
-bench-1: cmd/mole/*.go internal/*/*.go pkg/*/*.go go.mod
+bench-1: cmd/mole/*.go pkg/*/*.go go.mod
 	go test -cpu 1 -benchmem -bench=. ./...
