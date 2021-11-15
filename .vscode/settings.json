@@ -3,6 +3,7 @@
         "elems",
         "GOARCH",
         "jquery",
+        "pbcopy",
         "REDEF"
     ]
 }
