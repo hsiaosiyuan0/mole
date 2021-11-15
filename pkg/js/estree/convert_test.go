@@ -7025,7 +7025,9 @@ func Test80(t *testing.T) {
 }
 
 func Test81(t *testing.T) {
-	ast, err := compile("02")
+	opts := parser.NewParserOpts()
+	opts.Feature = opts.Feature.Off(parser.FEAT_STRICT)
+	ast, err := compileWithOpts("02", opts)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	assert.EqualJson(t, `
@@ -7075,7 +7077,9 @@ func Test81(t *testing.T) {
 }
 
 func Test82(t *testing.T) {
-	ast, err := compile("012")
+	opts := parser.NewParserOpts()
+	opts.Feature = opts.Feature.Off(parser.FEAT_STRICT)
+	ast, err := compileWithOpts("012", opts)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	assert.EqualJson(t, `
@@ -7125,7 +7129,9 @@ func Test82(t *testing.T) {
 }
 
 func Test83(t *testing.T) {
-	ast, err := compile("0012")
+	opts := parser.NewParserOpts()
+	opts.Feature = opts.Feature.Off(parser.FEAT_STRICT)
+	ast, err := compileWithOpts("0012", opts)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	assert.EqualJson(t, `
@@ -21326,7 +21332,9 @@ func Test248(t *testing.T) {
 }
 
 func Test249(t *testing.T) {
-	ast, err := compile("for (var x = 42 in list) process(x);")
+	opts := parser.NewParserOpts()
+	opts.Feature = opts.Feature.Off(parser.FEAT_STRICT)
+	ast, err := compileWithOpts("for (var x = 42 in list) process(x);", opts)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	assert.EqualJson(t, `
@@ -21489,7 +21497,9 @@ func Test249(t *testing.T) {
 }
 
 func Test250(t *testing.T) {
-	ast, err := compile("for (var i = function() { return 10 in [] } in list) process(x);")
+	opts := parser.NewParserOpts()
+	opts.Feature = opts.Feature.Off(parser.FEAT_STRICT)
+	ast, err := compileWithOpts("for (var i = function() { return 10 in [] } in list) process(x);", opts)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	assert.EqualJson(t, `
@@ -34265,7 +34275,7 @@ func Test383(t *testing.T) {
         "start": 0,
         "end": 16,
         "id": null,
-        "expression": true,
+        "expression": false,
         "generator": false,
         "async": false,
         "params": [
@@ -34320,7 +34330,7 @@ func Test384(t *testing.T) {
         "start": 0,
         "end": 21,
         "id": null,
-        "expression": true,
+        "expression": false,
         "generator": false,
         "async": false,
         "params": [
@@ -34386,7 +34396,7 @@ func Test385(t *testing.T) {
         "start": 0,
         "end": 18,
         "id": null,
-        "expression": true,
+        "expression": false,
         "generator": false,
         "async": false,
         "params": [
@@ -34462,7 +34472,7 @@ func Test386(t *testing.T) {
         "start": 0,
         "end": 20,
         "id": null,
-        "expression": true,
+        "expression": false,
         "generator": false,
         "async": false,
         "params": [

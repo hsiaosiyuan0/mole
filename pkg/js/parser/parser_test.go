@@ -994,7 +994,9 @@ func TestFail11(t *testing.T) {
 }
 
 func TestFail12(t *testing.T) {
-	testFail(t, "01a", "Identifier directly after number at (1:2)", nil)
+	opts := NewParserOpts()
+	opts.Feature = opts.Feature.Off(FEAT_STRICT)
+	testFail(t, "01a", "Identifier directly after number at (1:2)", opts)
 }
 
 func TestFail13(t *testing.T) {
@@ -1309,8 +1311,10 @@ func TestFail83(t *testing.T) {
 }
 
 func TestFail84(t *testing.T) {
+	opts := NewParserOpts()
+	opts.Feature = opts.Feature.Off(FEAT_STRICT)
 	testFail(t, "if(true) let a = 1;",
-		"Illegal lexical declaration at (1:9)", nil)
+		"Unexpected token `identifier` at (1:9)", opts)
 }
 
 func TestFail85(t *testing.T) {
@@ -1447,7 +1451,7 @@ func TestFail110(t *testing.T) {
 
 func TestFail111(t *testing.T) {
 	testFail(t, "\"\\u",
-		"Bad character escape sequence at (1:0)", nil)
+		"Bad character escape sequence at (1:2)", nil)
 }
 
 func TestFail112(t *testing.T) {
@@ -1637,22 +1641,22 @@ func TestFail148(t *testing.T) {
 
 func TestFail149(t *testing.T) {
 	testFail(t, "(function package() {'use strict'; })()",
-		"Unexpected strict mode reserved word at (1:10)", nil)
+		"Unexpected token `package` at (1:10)", nil)
 }
 
 func TestFail150(t *testing.T) {
 	testFail(t, "function hello() {'use strict'; ({ i: 10, set s(eval) { } }); }",
-		"Unexpected strict mode reserved word at (1:48)", nil)
+		"Binding `eval` in strict mode at (1:48)", nil)
 }
 
 func TestFail151(t *testing.T) {
 	testFail(t, "function hello() {'use strict'; ({ set s(eval) { } }); }",
-		"Unexpected strict mode reserved word at (1:41)", nil)
+		"Binding `eval` in strict mode at (1:41)", nil)
 }
 
 func TestFail152(t *testing.T) {
 	testFail(t, "function hello() {'use strict'; ({ s: function s(eval) { } }); }",
-		"Unexpected strict mode reserved word at (1:49)", nil)
+		"Binding `eval` in strict mode at (1:49)", nil)
 }
 
 func TestFail153(t *testing.T) {
@@ -1748,12 +1752,12 @@ func TestFail170(t *testing.T) {
 
 func TestFail171(t *testing.T) {
 	testFail(t, "function hello(static) { \"use strict\"; }",
-		"Unexpected strict mode reserved word at (1:15)", nil)
+		"Unexpected token `static` at (1:15)", nil)
 }
 
 func TestFail172(t *testing.T) {
 	testFail(t, "function static() { \"use strict\"; }",
-		"Unexpected strict mode reserved word at (1:9)", nil)
+		"Unexpected token `static` at (1:9)", nil)
 }
 
 func TestFail173(t *testing.T) {
@@ -1773,7 +1777,7 @@ func TestFail175(t *testing.T) {
 
 func TestFail176(t *testing.T) {
 	testFail(t, "function a(package) { \"use strict\"; }",
-		"Unexpected strict mode reserved word at (1:11)", nil)
+		"Unexpected token `package` at (1:11)", nil)
 }
 
 func TestFail177(t *testing.T) {
@@ -1793,12 +1797,12 @@ func TestFail179(t *testing.T) {
 
 func TestFail180(t *testing.T) {
 	testFail(t, "(function a(eval) { \"use strict\"; })",
-		"Unexpected strict mode reserved word at (1:12)", nil)
+		"Binding `eval` in strict mode at (1:12)", nil)
 }
 
 func TestFail181(t *testing.T) {
 	testFail(t, "(function a(package) { \"use strict\"; })",
-		"Unexpected strict mode reserved word at (1:12)", nil)
+		"Unexpected token `package` at (1:12)", nil)
 }
 
 func TestFail182(t *testing.T) {
@@ -1839,7 +1843,9 @@ func TestFail189(t *testing.T) {
 }
 
 func TestFail190(t *testing.T) {
-	testFail(t, "07.5", "Unexpected token at (1:2)", nil)
+	opts := NewParserOpts()
+	opts.Feature = opts.Feature.Off(FEAT_STRICT)
+	testFail(t, "07.5", "Unexpected token at (1:2)", opts)
 }
 
 func TestFail191(t *testing.T) {
@@ -2120,7 +2126,7 @@ func TestFail248(t *testing.T) {
 }
 
 func TestFail249(t *testing.T) {
-	testFail(t, "({...(a,b)} = foo)", "Invalid parenthesized assignment pattern at (1:5)", nil)
+	testFail(t, "({...(a,b)} = foo)", "Assigning to rvalue at (1:6)", nil)
 }
 
 func TestFail250(t *testing.T) {
@@ -2153,7 +2159,7 @@ func TestFail256(t *testing.T) {
 
 func TestFail257(t *testing.T) {
 	testFail(t, "({get x() {}}) => {}",
-		"Object pattern can't contain getter or setter at (1:6)", nil)
+		"Object pattern can't contain getter or setter at (1:2)", nil)
 }
 
 func TestFail258(t *testing.T) {

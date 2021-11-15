@@ -42,7 +42,6 @@ type Lexer struct {
 	pw     int
 
 	beginStmt bool
-	notIn     bool
 
 	prtVal   TokenValue  // the value of prev read token
 	prtRng   SourceRange // the source range of prev read token
@@ -54,6 +53,8 @@ type Lexer struct {
 
 	lastCommentLine int
 	comments        map[int][]Token
+
+	feature Feature
 }
 
 func NewLexer(src *Source) *Lexer {
@@ -63,24 +64,20 @@ func NewLexer(src *Source) *Lexer {
 	return lexer
 }
 
-func (l *Lexer) extMode(mode LexerModeValue, inherit bool) {
+func (l *Lexer) pushMode(mode LexerModeValue, inherit bool) {
 	if inherit {
 		// only inherit the inheritable modes
 		v := LM_NONE
-		v |= l.curMode().value & LM_ASYNC
 		v |= l.curMode().value & LM_STRICT
 		mode |= v
 	}
 	l.mode = append(l.mode, &LexerMode{mode, 0, 0, 0})
 }
 
-func (l *Lexer) pushMode(mode LexerModeValue) {
-	l.extMode(mode, true)
-}
-
 func (l *Lexer) popMode() *LexerMode {
 	mLen := len(l.mode)
 	if mLen == 1 {
+		l.mode[0] = &LexerMode{LM_NONE, 0, 0, 0}
 		return l.mode[0]
 	}
 	m, last := l.mode[:mLen-1], l.mode[mLen-1]
@@ -252,13 +249,27 @@ func (l *Lexer) Next() *Token {
 	return tok
 }
 
+// for tokens like `in` and `of`, they are firstly read
+// as names and then switched to keywords by the parser
+// according to its context, so it's necessary to revise
+// the `prtVal` of lexer to the corresponding of that
+// keywords for satisfying the further lookheads
+func (l *Lexer) NextRevise(v TokenValue) *Token {
+	tok := l.nextTok()
+	l.prtVal = v
+	l.prtRng = tok.raw
+	l.prtBegin = tok.begin
+	l.prtEnd = tok.end
+	return tok
+}
+
 // https://tc39.es/ecma262/multipage/ecmascript-language-lexical-grammar.html#prod-Template
 func (l *Lexer) ReadTplSpan() *Token {
 	span := l.newToken()
 	c := l.src.Read() // consume `\`` or `}`
 	head := c == '`'
 	if head {
-		l.pushMode(LM_TEMPLATE)
+		l.pushMode(LM_TEMPLATE, true)
 	} else {
 		l.popMode()
 	}
@@ -327,7 +338,7 @@ func (l *Lexer) readTplChs() (text []rune, fin bool, line, col, ofst, pos int,
 			l.src.Read()
 			if l.src.AheadIsCh('{') {
 				l.src.Read()
-				l.pushMode(LM_TEMPLATE)
+				l.pushMode(LM_TEMPLATE, true)
 				break
 			}
 			text = append(text, c)
@@ -414,8 +425,6 @@ func (l *Lexer) ReadName() *Token {
 		return l.finToken(tok, Keywords[text])
 	} else if l.isMode(LM_STRICT) && IsStrictKeyword(text) {
 		return l.finToken(tok, StrictKeywords[text])
-	} else if l.isMode(LM_ASYNC) && text == "await" {
-		return l.finToken(tok, T_AWAIT)
 	}
 	tok.text = text
 	return l.finToken(tok, T_NAME)
@@ -425,17 +434,18 @@ func (l *Lexer) aheadIsRegexp(afterLineTerminator bool) bool {
 	if l.beginStmt {
 		return true
 	}
+
+	// base on prev read firstly
 	prev := l.prtVal
 	if prev == T_ILLEGAL {
 		prev = l.pptVal
 	}
+
+	// then try to base on prev peeked
 	if prev == T_ILLEGAL {
 		return true
 	}
 
-	if l.notIn && prev == T_IN {
-		prev = T_NAME
-	}
 	be := TokenKinds[prev].BeforeExpr
 	return be || afterLineTerminator
 }
@@ -447,13 +457,7 @@ func (l *Lexer) ReadSymbol() *Token {
 	switch c {
 	case '{':
 		val = T_BRACE_L
-		if l.isMode(LM_ASYNC) && l.curMode().paren == 0 {
-			// this branch means the brace_l of the function body is met,
-			// skip push mode here to balance the pop of the brace_r of the
-			// function body
-		} else {
-			l.pushMode(LM_NONE)
-		}
+		l.pushMode(LM_NONE, true)
 	case '}':
 		val = T_BRACE_R
 		l.popMode()
@@ -712,7 +716,15 @@ func (l *Lexer) readRegexp(tok *Token) *Token {
 		if c == '\\' {
 			l.src.Read()
 			nc := l.src.Peek()
-			if !IsLineTerminator(nc) {
+			if nc == 'u' {
+				l.src.Read()
+				col := l.src.col
+				_, errMsg := l.readUnicodeEscapeSeq(false)
+				if errMsg != "" {
+					tok.begin.col = col
+					return l.errToken(tok, errMsg)
+				}
+			} else if !IsLineTerminator(nc) {
 				l.src.Read()
 			}
 			continue
@@ -730,19 +742,26 @@ func (l *Lexer) readRegexp(tok *Token) *Token {
 
 	flags := l.src.NewOpenRange()
 	i := 0
-	for {
-		if l.aheadIsIdPart(false) {
-			col := l.src.col
-			_, _, err := l.readIdPart()
-			if err != "" {
-				tok.begin.col = col
-				return l.errToken(nil, err)
+	var err string
+	var fs []rune
+	if l.aheadIsIdPart(false) {
+		col := l.src.col
+		fs, _, err = l.readIdPart()
+		if err != "" {
+			tok.begin.col = col
+			return l.errToken(nil, err)
+		}
+		i = len(fs)
+	}
+
+	if l.feature&FEAT_CHK_REGEXP_FLAGS != 0 {
+		for _, f := range fs {
+			if !l.isLegalFlag(f) {
+				return l.errToken(tok, ERR_INVALID_REGEXP_FLAG)
 			}
-			i += 1
-		} else {
-			break
 		}
 	}
+
 	if i == 0 {
 		flags = nil
 	} else {
@@ -753,12 +772,29 @@ func (l *Lexer) readRegexp(tok *Token) *Token {
 	return l.finToken(tok, T_REGEXP)
 }
 
+func (l *Lexer) isLegalFlag(f rune) bool {
+	switch f {
+	case 'g', 'i', 'm':
+		return true
+	case 'd':
+		return l.feature&FEAT_REGEXP_HAS_INDICES != 0
+	case 'u':
+		return l.feature&FEAT_REGEXP_UNICODE != 0
+	case 'y':
+		return l.feature&FEAT_REGEXP_STICKY != 0
+	case 's':
+		return l.feature&FEAT_REGEXP_DOT_ALL != 0
+	}
+	return false
+}
+
 // https://tc39.es/ecma262/multipage/ecmascript-language-lexical-grammar.html#sec-literals-string-literals
 func (l *Lexer) ReadStr() *Token {
 	tok := l.newToken()
 	open := l.src.Read()
 	text := make([]rune, 0, 10)
 	legacyOctalEscapeSeq := false
+
 	for {
 		c := l.src.Read()
 		if c == utf8.RuneError || c == EOF {
@@ -768,11 +804,15 @@ func (l *Lexer) ReadStr() *Token {
 			if IsLineTerminator(nc) {
 				l.readLineTerminator() // LineContinuation
 			} else {
+				line := l.src.line
+				col := l.src.col
 				r, err, lo := l.readEscapeSeq()
 				if !legacyOctalEscapeSeq && lo {
 					legacyOctalEscapeSeq = lo
 				}
 				if err != "" {
+					tok.begin.line = line
+					tok.begin.col = col
 					return l.errToken(tok, err)
 				}
 				// allow `utf8.RuneError` to represent "Unicode replacement character"
@@ -838,7 +878,7 @@ func (l *Lexer) readOctalEscapeSeq(first rune) (rune, string) {
 	zeroToThree := first >= '0' && first <= '3'
 	i := 1
 	if l.isMode(LM_TEMPLATE) {
-		return utf8.RuneError, ERR_LEGACY_OCTAL_ESCAPE_IN_TPL
+		return utf8.RuneError, ERR_TPL_LEGACY_OCTAL_ESCAPE_IN
 	}
 	for {
 		if !zeroToThree && i == 2 || zeroToThree && i == 3 {
@@ -993,7 +1033,9 @@ func (l *Lexer) readBinaryNum(tok *Token) *Token {
 		}
 	}
 	if i == 0 {
-		return l.errToken(tok, ERR_INVALID_NUMBER)
+		tok.begin.line = l.src.line
+		tok.begin.col = l.src.col
+		return l.errToken(tok, fmt.Sprintf(ERR_TPL_EXPECT_NUM_RADIX, "2"))
 	}
 	l.src.ReadIfNextIs('n')
 	return l.finToken(tok, T_NUM)
@@ -1013,7 +1055,9 @@ func (l *Lexer) readOctalNum(tok *Token, i int) *Token {
 		}
 	}
 	if i == 0 {
-		return l.errToken(tok, ERR_INVALID_NUMBER)
+		tok.begin.line = l.src.line
+		tok.begin.col = l.src.col
+		return l.errToken(tok, fmt.Sprintf(ERR_TPL_EXPECT_NUM_RADIX, "8"))
 	}
 	l.src.ReadIfNextIs('n')
 	return l.finToken(tok, T_NUM)
@@ -1105,6 +1149,9 @@ func (l *Lexer) readCodepoint() (rune, string) {
 		}
 	}
 	r, err := strconv.ParseInt(string(hex), 16, 32)
+	if r > unicode.MaxRune {
+		return utf8.RuneError, ERR_CODEPOINT_OUT_OF_BOUNDS
+	}
 	if err != nil {
 		return utf8.RuneError, ERR_BAD_ESCAPE_SEQ
 	}
@@ -1208,16 +1255,26 @@ func (l *Lexer) errToken(tok *Token, msg string) *Token {
 }
 
 func IsIdStart(c rune) bool {
-	return c >= 'a' && c <= 'z' ||
+	if c >= 'a' && c <= 'z' ||
 		c >= 'A' && c <= 'Z' ||
 		c == '$' || c == '_' ||
-		unicode.In(c, unicode.Upper, unicode.Lower,
-			unicode.Title, unicode.Modi,
-			unicode.Lo,
-			unicode.Other_Lowercase,
-			unicode.Other_Uppercase,
-			unicode.Other_ID_Start) ||
-		c == '\\'
+		c == '\\' {
+		return true
+	}
+	if unicode.In(c, unicode.Upper, unicode.Lower,
+		unicode.Title, unicode.Modi,
+		unicode.Other_Lowercase,
+		unicode.Other_Uppercase,
+		unicode.Other_ID_Start) {
+		return true
+	}
+
+	// CJK Unified Ideographs Extension D(U+2B740 to U+2B81F) is in `Lo`
+	// but not permitted as the id start
+	if unicode.In(c, unicode.Lo) && c <= 0x2B81D {
+		return true
+	}
+	return false
 }
 
 func IsIdPart(c rune) bool {
@@ -1225,6 +1282,7 @@ func IsIdPart(c rune) bool {
 		unicode.In(c,
 			unicode.Pc,
 			unicode.Mark,
+			unicode.Nd,
 			unicode.Other_ID_Continue)
 }
 

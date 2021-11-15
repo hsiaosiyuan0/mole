@@ -1,26 +1,31 @@
 package parser
 
-type ScopeKind int
+type ScopeKind uint64
 
 const (
 	SPK_NONE            ScopeKind = 0
-	SPK_LOOP_DIRECT               = 1 << 0
-	SPK_LOOP_INDIRECT             = 1 << 1
-	SPK_SWITCH                    = 1 << 2
-	SPK_STRICT                    = 1 << 3
-	SPK_STRICT_DIR                = 1 << 4
-	SPK_CATCH                     = 1 << 5
-	SPK_BLOCK                     = 1 << 6
-	SPK_GLOBAL                    = 1 << 7
-	SPK_FUNC                      = 1 << 8
-	SPK_FUNC_INDIRECT             = 1 << 9
-	SPK_ARROW                     = 1 << 10
-	SPK_ASYNC                     = 1 << 11
-	SPK_GENERATOR                 = 1 << 12
-	SPK_PAREN                     = 1 << 13
-	SPK_CLASS                     = 1 << 14
-	SPK_CLASS_HAS_SUPER           = 1 << 15
-	SPK_CTOR                      = 1 << 16
+	SPK_LOOP_DIRECT     ScopeKind = 1 << 0
+	SPK_LOOP_INDIRECT   ScopeKind = 1 << 1
+	SPK_SWITCH          ScopeKind = 1 << 2
+	SPK_STRICT          ScopeKind = 1 << 3
+	SPK_STRICT_DIR      ScopeKind = 1 << 4
+	SPK_CATCH           ScopeKind = 1 << 5
+	SPK_BLOCK           ScopeKind = 1 << 6
+	SPK_GLOBAL          ScopeKind = 1 << 7
+	SPK_INTERIM         ScopeKind = 1 << 8
+	SPK_FUNC            ScopeKind = 1 << 9
+	SPK_FUNC_INDIRECT   ScopeKind = 1 << 10
+	SPK_ARROW           ScopeKind = 1 << 11
+	SPK_ASYNC           ScopeKind = 1 << 12
+	SPK_GENERATOR       ScopeKind = 1 << 13
+	SPK_PAREN           ScopeKind = 1 << 14
+	SPK_CLASS           ScopeKind = 1 << 15
+	SPK_CLASS_INDIRECT  ScopeKind = 1 << 16
+	SPK_CLASS_HAS_SUPER ScopeKind = 1 << 17
+	SPK_CTOR            ScopeKind = 1 << 18
+	SPK_LEXICAL_DEC     ScopeKind = 1 << 19
+	SPK_SHORTHAND_PROP  ScopeKind = 1 << 20
+	SPK_METHOD          ScopeKind = 1 << 21
 )
 
 type BindKind uint8
@@ -33,13 +38,21 @@ const (
 	BK_CONST BindKind = 4
 )
 
+type TargetType int
+
+const (
+	TT_NONE TargetType = 0
+	TT_FN   TargetType = 1
+)
+
 type Ref struct {
-	Node     *Ident
-	Scope    *Scope
-	Orig     *Ref
-	BindKind BindKind
-	Props    map[string][]*Ref
-	Refs     []*Ref
+	Node       *Ident
+	TargetType TargetType
+	Scope      *Scope
+	Orig       *Ref
+	BindKind   BindKind
+	Props      map[string][]*Ref
+	Refs       []*Ref
 }
 
 func NewRef() *Ref {
@@ -95,6 +108,11 @@ func (s *Scope) AddKind(kind ScopeKind) *Scope {
 	return s
 }
 
+func (s *Scope) EraseKind(kind ScopeKind) *Scope {
+	s.Kind &= ^kind
+	return s
+}
+
 func (s *Scope) Local(name string) *Ref {
 	return s.Refs[name]
 }
@@ -120,23 +138,29 @@ func (s *Scope) AddLocal(ref *Ref, checkDup bool) bool {
 		return false
 	}
 
+	// register binding to parent fn scope if it's `BK_VAR`
 	if ref.BindKind == BK_VAR {
-		s = s.UpperFn()
+		ps := s.UpperFn()
+		localInPs := ps.Refs[name]
+		if localInPs != nil && localInPs.BindKind != BK_VAR {
+			return false
+		}
+		ps.Refs[name] = ref
 	}
 
 	if !checkDup {
 		ref.Scope = s
-		s.Refs[ref.Node.Text()] = ref
+		s.Refs[name] = ref
 		return true
 	}
 
 	bindKind := ref.BindKind
-	if local != nil && bindKind != BK_VAR {
+	if local != nil && (local.BindKind != BK_VAR || bindKind != BK_VAR) {
 		return false
 	}
 
 	ref.Scope = s
-	s.Refs[ref.Node.Text()] = ref
+	s.Refs[name] = ref
 	return true
 }
 
@@ -204,11 +228,14 @@ func (s *SymTab) EnterScope(fn bool, arrow bool) *Scope {
 		scope.Kind = SPK_BLOCK
 	}
 	// inherit scope kind
-	if s.Cur.IsKind(SPK_LOOP_DIRECT) {
+	if s.Cur.IsKind(SPK_LOOP_DIRECT) || s.Cur.IsKind(SPK_LOOP_INDIRECT) && !fn {
 		scope.Kind |= SPK_LOOP_INDIRECT
 	}
-	if s.Cur.IsKind(SPK_FUNC) {
+	if s.Cur.IsKind(SPK_FUNC) || s.Cur.IsKind(SPK_FUNC_INDIRECT) {
 		scope.Kind |= SPK_FUNC_INDIRECT
+	}
+	if s.Cur.IsKind(SPK_CLASS) || s.Cur.IsKind(SPK_CLASS_INDIRECT) {
+		scope.Kind |= SPK_CLASS_INDIRECT
 	}
 	if s.Cur.IsKind(SPK_STRICT) {
 		scope.Kind |= SPK_STRICT

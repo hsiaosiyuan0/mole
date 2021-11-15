@@ -1204,10 +1204,9 @@ type Prop struct {
 	opLoc    *Loc
 	value    Node
 	computed bool
+	method   bool
 
-	// for keeping compatible with the output of acorn.js, `shorthand`
-	// is `true` if the prop value is assign pattern, so a semantic
-	// `shorthand` is: `semantic shorthand = shorthand && !assign`
+	// it's `true` if the prop value is in assign pattern
 	shorthand bool
 	assign    bool
 
@@ -1219,7 +1218,7 @@ func (n *Prop) Kind() string {
 }
 
 func (n *Prop) Method() bool {
-	return n.value.Type() == N_EXPR_FN
+	return n.kind == PK_INIT && n.method
 }
 
 func (n *Prop) Key() Node {
@@ -1306,6 +1305,7 @@ type ArrowFn struct {
 	async  bool
 	params []Node
 	body   Node
+	expr   bool
 	extra  *ExprExtra
 }
 
@@ -1337,11 +1337,16 @@ func (n *ArrowFn) setExtra(ext interface{}) {
 	n.extra = ext.(*ExprExtra)
 }
 
+func (n *ArrowFn) Expr() bool {
+	return n.expr
+}
+
 type VarDecStmt struct {
 	typ     NodeType
 	loc     *Loc
 	kind    TokenValue
 	decList []*VarDec
+	names   []Node
 }
 
 func (n *VarDecStmt) Kind() string {
@@ -2170,7 +2175,7 @@ type ExportDec struct {
 	typ   NodeType
 	loc   *Loc
 	all   bool
-	def   bool
+	def   *Loc
 	dec   Node
 	specs []Node
 	src   Node
@@ -2181,7 +2186,7 @@ func (n *ExportDec) All() bool {
 }
 
 func (n *ExportDec) Default() bool {
-	return n.def
+	return n.def != nil
 }
 
 func (n *ExportDec) Dec() Node {

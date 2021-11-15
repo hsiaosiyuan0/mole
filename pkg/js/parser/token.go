@@ -55,18 +55,18 @@ func (t *Token) IsKw() bool {
 		v == T_DELETE || v == T_IN || v == T_INSTANCE_OF
 }
 
-func (t *Token) CanBePropKey() (string, bool) {
+func (t *Token) CanBePropKey() (string, bool, bool) {
 	v := t.value
 	if v == T_NAME {
-		return t.text, true
+		return t.text, false, true
 	}
 	if v == T_NUM {
-		return t.raw.Text(), true
+		return t.raw.Text(), false, true
 	}
 	if t.IsKw() {
-		return TokenKinds[v].Name, true
+		return TokenKinds[v].Name, true, true
 	}
-	return "", false
+	return "", false, false
 }
 
 func (t *Token) IsLegal() bool {
@@ -82,10 +82,10 @@ func (t *Token) RawText() string {
 }
 
 func (t *Token) Text() string {
-	if t.text != "" {
+	if t.text != "" || t.value == T_STRING {
 		return t.text
 	}
-	if name, ok := t.CanBePropKey(); ok {
+	if name, _, ok := t.CanBePropKey(); ok {
 		return name
 	}
 	return t.RawText()
@@ -251,6 +251,7 @@ const (
 
 	// contextual keywords
 	T_CTX_KEYWORD_BEGIN
+	// token treated as keyword in strict mode
 	T_CTX_KEYWORD_STRICT_BEGIN
 	T_LET
 	T_CONST
@@ -261,6 +262,8 @@ const (
 	T_PRIVATE
 	T_PROTECTED
 	T_PUBLIC
+	T_AWAIT
+	T_YIELD
 	T_CTX_KEYWORD_STRICT_END
 	T_AS
 	T_ASYNC
@@ -270,8 +273,6 @@ const (
 	T_OF
 	T_SET
 	T_TARGET
-	T_AWAIT
-	T_YIELD
 	T_CTX_KEYWORD_END
 
 	T_REGEXP
@@ -442,17 +443,17 @@ var TokenKinds = [T_TOKEN_DEF_END - 1]*TokenKind{
 	{T_PRIVATE, "private", 0, false, false, false},
 	{T_PROTECTED, "protected", 0, false, false, false},
 	{T_PUBLIC, "public", 0, false, false, false},
+	{T_AWAIT, "await", 0, true, false, false},
+	{T_YIELD, "yield", 0, true, true, true},
 	{T_CTX_KEYWORD_STRICT_END, "contextual keyword strict end", 0, false, false, false},
 	{T_AS, "as", 0, false, false, false},
 	{T_ASYNC, "async", 0, false, false, false},
 	{T_FROM, "from", 0, false, false, false},
 	{T_GET, "get", 0, false, false, false},
 	{T_META, "meta", 0, false, false, false},
-	{T_OF, "of", 0, false, false, false},
+	{T_OF, "of", 0, false, true, false},
 	{T_SET, "set", 0, false, false, false},
 	{T_TARGET, "target", 0, false, false, false},
-	{T_AWAIT, "await", 0, true, false, false},
-	{T_YIELD, "yield", 0, true, true, true},
 	{T_CTX_KEYWORD_END, "contextual keyword end", 0, false, false, false},
 
 	{T_REGEXP, "regexp", 0, false, false, true},

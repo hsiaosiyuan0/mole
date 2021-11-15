@@ -458,7 +458,7 @@ func convert(node parser.Node) Node {
 			Body:       convert(fn.Body()),
 			Generator:  false,
 			Async:      fn.Async(),
-			Expression: true,
+			Expression: fn.Expr(),
 		}
 	case parser.N_STMT_FN:
 		fn := node.(*parser.FnDec)
