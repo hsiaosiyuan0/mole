@@ -21,7 +21,7 @@ func compileWithOpts(code string, opts *parser.ParserOpts) (string, error) {
 		return "", err
 	}
 
-	b, err := json.Marshal(program(ast.(*parser.Prog)))
+	b, err := json.Marshal(ConvertProg(ast.(*parser.Prog)))
 	if err != nil {
 		return "", err
 	}

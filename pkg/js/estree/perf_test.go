@@ -18,7 +18,7 @@ func compileToESTree(code string, estree bool) error {
 	}
 
 	if estree {
-		program(ast.(*parser.Prog))
+		ConvertProg(ast.(*parser.Prog))
 	}
 	return nil
 }

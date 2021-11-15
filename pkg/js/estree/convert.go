@@ -24,7 +24,7 @@ func end(s *parser.Loc) int {
 	return s.Range().End()
 }
 
-func program(n *parser.Prog) *Program {
+func ConvertProg(n *parser.Prog) *Program {
 	stmts := n.Body()
 	body := make([]Node, len(stmts))
 	for i, s := range stmts {

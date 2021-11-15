@@ -1,23 +1,23 @@
-dep: cmd/lint/*.go internal/*/*.go pkg/*/*.go go.mod
+dep: cmd/mole/*.go internal/*/*.go pkg/*/*.go go.mod
 	go get -v ./...
 
-lint: cmd/lint/*.go internal/*/*.go pkg/*/*.go go.mod
-	go build ./cmd/lint
+mole: cmd/mole/*.go internal/*/*.go pkg/*/*.go go.mod
+	go build ./cmd/mole
 
-install: ./lint
-	cp ./lint /usr/local/bin/lint
+install: ./mole
+	cp ./mole /usr/local/bin/mole
 
 clean:
 	go run scripts/clean/mod.go
 
-test: cmd/lint/*.go internal/*/*.go pkg/*/*.go go.mod
+test: cmd/mole/*.go internal/*/*.go pkg/*/*.go go.mod
 	go test ./...
 
-test-harmony: cmd/lint/*.go internal/*/*.go pkg/*/*.go go.mod
+test-harmony: cmd/mole/*.go internal/*/*.go pkg/*/*.go go.mod
 	go test ./pkg/js/estree
 
-test-parser: cmd/lint/*.go internal/*/*.go pkg/*/*.go go.mod
+test-parser: cmd/mole/*.go internal/*/*.go pkg/*/*.go go.mod
 	go test ./pkg/js/parser
 
-bench-1: cmd/lint/*.go internal/*/*.go pkg/*/*.go go.mod
+bench-1: cmd/mole/*.go internal/*/*.go pkg/*/*.go go.mod
 	go test -cpu 1 -benchmem -bench=. ./...
