@@ -13,7 +13,7 @@ brew install mole
 
 For user on the other platforms just get the executable binary on [Releases](https://github.com/hsiaosiyuan0/mole/releases)
 
-Run below command to test the javascript shipped in mole binary:
+Run below command to test the javascript parser shipped within mole binary:
 
 ```bash
 mole -ast -file path_to_your_test_file.js
