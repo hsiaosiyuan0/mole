@@ -13,8 +13,20 @@ clean:
 test: cmd/mole/*.go pkg/*/*.go go.mod
 	go test ./...
 
-test-harmony: cmd/mole/*.go pkg/*/*.go go.mod
+test-estree: cmd/mole/*.go pkg/*/*.go go.mod
 	go test ./pkg/js/estree
+
+test-harmony:	cmd/mole/*.go pkg/*/*.go go.mod
+	go test ./pkg/js/estree -run "^TestHarmony\d"
+
+test-harmony-fail:	cmd/mole/*.go pkg/*/*.go go.mod
+	go test ./pkg/js/estree -run "^TestHarmonyFail\d"
+
+test-async-iteration:	cmd/mole/*.go pkg/*/*.go go.mod
+	go test ./pkg/js/estree -run "^TestAsyncIteration\d"
+
+test-async-iteration-fail:	cmd/mole/*.go pkg/*/*.go go.mod
+	go test ./pkg/js/estree -run "^TestAsyncIterationFail\d"
 
 test-parser: cmd/mole/*.go pkg/*/*.go go.mod
 	go test ./pkg/js/parser

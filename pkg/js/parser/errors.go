@@ -135,4 +135,5 @@ const (
 	ERR_COMPUTE_PROP_MISSING_INIT                  = "A computed property name must have property initialization"
 	ERR_IMPORT_EXPORT_SHOULD_AT_TOP_LEVEL          = "'import' and 'export' may only appear at the top level"
 	ERR_COMPLEX_BINDING_MISSING_INIT               = "Complex binding patterns require an initialization value"
+	ERR_LHS_OF_FOR_OF_CANNOT_ASYNC                 = "The left-hand side of a for-of loop may not be 'async'"
 )

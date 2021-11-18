@@ -26,6 +26,7 @@ const (
 	SPK_LEXICAL_DEC     ScopeKind = 1 << 19
 	SPK_SHORTHAND_PROP  ScopeKind = 1 << 20
 	SPK_METHOD          ScopeKind = 1 << 21
+	SPK_NOT_IN          ScopeKind = 1 << 22
 )
 
 type BindKind uint8

@@ -18,6 +18,8 @@ const (
 	FEAT_REGEXP_HAS_INDICES               = 1 << 12
 	FEAT_REGEXP_UNICODE                   = 1 << 13 // from es6
 	FEAT_REGEXP_STICKY                    = 1 << 14 // from es6
+	FEAT_ASYNC_ITERATION                  = 1 << 15 // from es9
+	FEAT_ASYNC_AWAIT                      = 1 << 16 // from es9
 )
 
 func (f Feature) On(flag Feature) Feature {

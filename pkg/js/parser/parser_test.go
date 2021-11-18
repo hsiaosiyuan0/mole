@@ -1895,7 +1895,7 @@ func TestFail198(t *testing.T) {
 
 func TestFail199(t *testing.T) {
 	testFail(t, "\\u0061sync x => { await x }",
-		"Unexpected token at (1:11)", nil)
+		"Keyword must not contain escaped characters at (1:0)", nil)
 }
 
 func TestFail200(t *testing.T) {

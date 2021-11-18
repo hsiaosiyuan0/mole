@@ -613,8 +613,12 @@ func convert(node parser.Node) Node {
 		}
 	case parser.N_EXPR_UNARY:
 		un := node.(*parser.UnaryExpr)
+		typ := "UnaryExpression"
+		if un.Op() == parser.T_AWAIT {
+			typ = "AwaitExpression"
+		}
 		return &UnaryExpression{
-			Type:     "UnaryExpression",
+			Type:     typ,
 			Start:    start(un.Loc()),
 			End:      end(un.Loc()),
 			Loc:      loc(un.Loc()),

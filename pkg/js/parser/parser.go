@@ -24,7 +24,8 @@ type ParserOpts struct {
 }
 
 const defaultFeatures Feature = FEAT_GLOBAL_ASYNC | FEAT_STRICT | FEAT_LET_CONST |
-	FEAT_BINDING_PATTERN | FEAT_BINDING_REST_ELEM | FEAT_BINDING_REST_ELEM_NESTED | FEAT_SPREAD | FEAT_MODULE | FEAT_META_PROPERTY
+	FEAT_BINDING_PATTERN | FEAT_BINDING_REST_ELEM | FEAT_BINDING_REST_ELEM_NESTED |
+	FEAT_SPREAD | FEAT_MODULE | FEAT_META_PROPERTY | FEAT_ASYNC_AWAIT | FEAT_ASYNC_ITERATION
 
 func NewParserOpts() *ParserOpts {
 	return &ParserOpts{
@@ -165,7 +166,7 @@ func (p *Parser) stmt() (node Node, err error) {
 	if tok.value > T_KEYWORD_BEGIN && tok.value < T_KEYWORD_END {
 		switch tok.value {
 		case T_VAR:
-			node, err = p.varDecStmt(false, T_VAR, false)
+			node, err = p.varDecStmt(T_VAR, false)
 		case T_FUNC:
 			node, err = p.fnDec(false, false, false)
 		case T_IF:
@@ -207,7 +208,7 @@ func (p *Parser) stmt() (node Node, err error) {
 		node, err = p.blockStmt(true)
 	} else if ok, kind := p.aheadIsVarDec(tok); ok {
 		if allowDec {
-			node, err = p.varDecStmt(false, kind, false)
+			node, err = p.varDecStmt(kind, false)
 		}
 	} else if p.aheadIsAsync(tok, false, false) {
 		if tok.ContainsEscape() {
@@ -267,7 +268,7 @@ func (p *Parser) exportDec() (Node, error) {
 			return nil, err
 		}
 	} else if ok, kind := p.aheadIsVarDec(tok); ok {
-		node.dec, err = p.varDecStmt(false, kind, false)
+		node.dec, err = p.varDecStmt(kind, false)
 		if err != nil {
 			return nil, err
 		}
@@ -299,11 +300,11 @@ func (p *Parser) exportDec() (Node, error) {
 			if tok.ContainsEscape() {
 				return nil, p.errorAt(tok.value, &tok.begin, ERR_ESCAPE_IN_KEYWORD)
 			}
-			node.dec, err = p.fnDec(false, true, false)
+			node.dec, err = p.fnDec(false, true, true)
 		} else if tok.value == T_CLASS {
 			node.dec, err = p.classDec(false, true)
 		} else {
-			node.dec, err = p.assignExpr(false, true)
+			node.dec, err = p.assignExpr(true)
 			if err := p.advanceIfSemi(false); err != nil {
 				return nil, err
 			}
@@ -789,7 +790,7 @@ func (p *Parser) field(key Node, static *Loc) (Node, error) {
 	tok := p.lexer.Peek()
 	if tok.value == T_ASSIGN {
 		p.lexer.Next()
-		value, err = p.assignExpr(false, true)
+		value, err = p.assignExpr(true)
 		if err != nil {
 			return nil, err
 		}
@@ -836,7 +837,7 @@ func (p *Parser) withStmt() (Node, error) {
 	if _, err := p.nextMustTok(T_PAREN_L); err != nil {
 		return nil, err
 	}
-	expr, err := p.expr(false)
+	expr, err := p.expr()
 	if err != nil {
 		return nil, err
 	}
@@ -946,7 +947,7 @@ func (p *Parser) throwStmt() (Node, error) {
 	var arg Node
 	var err error
 	if tok.value != T_ILLEGAL && tok.value != T_EOF && !tok.afterLineTerminator {
-		arg, err = p.expr(false)
+		arg, err = p.expr()
 		if err != nil {
 			return nil, err
 		}
@@ -980,7 +981,7 @@ func (p *Parser) retStmt() (Node, error) {
 		tok.value != T_BRACKET_R &&
 		// tok.value != T_COMMENT &&
 		tok.value != T_EOF && !tok.afterLineTerminator {
-		arg, err = p.expr(false)
+		arg, err = p.expr()
 		if err != nil {
 			return nil, err
 		}
@@ -1118,7 +1119,7 @@ func (p *Parser) switchStmt() (Node, error) {
 	if _, err := p.nextMustTok(T_PAREN_L); err != nil {
 		return nil, err
 	}
-	test, err := p.expr(false)
+	test, err := p.expr()
 	if err != nil {
 		return nil, err
 	}
@@ -1175,7 +1176,7 @@ func (p *Parser) switchCase(tok *Token) (*SwitchCase, error) {
 	var test Node
 	var err error
 	if tok.value == T_CASE {
-		test, err = p.expr(false)
+		test, err = p.expr()
 		if err != nil {
 			return nil, err
 		}
@@ -1212,7 +1213,7 @@ func (p *Parser) ifStmt() (Node, error) {
 	if _, err := p.nextMustTok(T_PAREN_L); err != nil {
 		return nil, err
 	}
-	test, err := p.expr(false)
+	test, err := p.expr()
 	if err != nil {
 		return nil, err
 	}
@@ -1278,7 +1279,7 @@ func (p *Parser) doWhileStmt() (Node, error) {
 	if _, err := p.nextMustTok(T_PAREN_L); err != nil {
 		return nil, err
 	}
-	test, err := p.expr(false)
+	test, err := p.expr()
 	if err != nil {
 		return nil, err
 	}
@@ -1300,7 +1301,7 @@ func (p *Parser) whileStmt() (Node, error) {
 	if _, err := p.nextMustTok(T_PAREN_L); err != nil {
 		return nil, err
 	}
-	test, err := p.expr(false)
+	test, err := p.expr()
 	if err != nil {
 		return nil, err
 	}
@@ -1333,7 +1334,12 @@ func (p *Parser) forStmt() (Node, error) {
 	p.lexer.Next()
 
 	await := false
-	if p.lexer.Peek().value == T_AWAIT {
+	ps := p.scope()
+	tok := p.lexer.Peek()
+	if ps.IsKind(SPK_ASYNC) && tok.value == T_AWAIT {
+		if p.feat&FEAT_ASYNC_ITERATION == 0 {
+			return nil, p.errorTok(tok)
+		}
 		await = true
 		p.lexer.Next()
 	}
@@ -1343,25 +1349,38 @@ func (p *Parser) forStmt() (Node, error) {
 	}
 
 	scope := p.symtab.EnterScope(false, false)
-	tok := p.lexer.Peek()
+	tok = p.lexer.Peek()
 
 	var init Node
 	var err error
+	scope.AddKind(SPK_NOT_IN)
 	if ok, kind := p.aheadIsVarDec(tok); ok {
-		init, err = p.varDecStmt(true, kind, true)
+		init, err = p.varDecStmt(kind, true)
 		if err != nil {
 			return nil, err
 		}
 	} else if tok.value != T_SEMI {
-		init, err = p.expr(true)
+		init, err = p.expr()
 		if err != nil {
 			return nil, err
 		}
 	}
+	scope.EraseKind(SPK_NOT_IN)
 
 	tok = p.lexer.Peek()
 	isIn := IsName(tok, "in", false)
-	if isIn || IsName(tok, "of", false) {
+	isOf := IsName(tok, "of", false)
+
+	if await && !isOf {
+		if isIn {
+			return nil, p.errorAt(T_IN, &tok.begin, "")
+		}
+		return nil, p.errorTok(tok)
+	} else if isOf && !await && init.Type() == N_NAME && init.(*Ident).val == "async" {
+		return nil, p.errorAtLoc(init.Loc(), ERR_LHS_OF_FOR_OF_CANNOT_ASYNC)
+	}
+
+	if isIn || isOf {
 		if init == nil {
 			return nil, p.errorTok(tok)
 		}
@@ -1405,7 +1424,7 @@ func (p *Parser) forStmt() (Node, error) {
 		}
 		p.lexer.NextRevise(revise)
 
-		right, err := p.assignExpr(false, true)
+		right, err := p.assignExpr(true)
 		if err != nil {
 			return nil, err
 		}
@@ -1435,7 +1454,7 @@ func (p *Parser) forStmt() (Node, error) {
 	if p.lexer.Peek().value == T_SEMI {
 		p.lexer.Next()
 	} else {
-		test, err = p.expr(false)
+		test, err = p.expr()
 		if err != nil {
 			return nil, err
 		}
@@ -1446,7 +1465,7 @@ func (p *Parser) forStmt() (Node, error) {
 
 	var update Node
 	if p.lexer.Peek().value != T_PAREN_R {
-		update, err = p.expr(false)
+		update, err = p.expr()
 		if err != nil {
 			return nil, err
 		}
@@ -1474,11 +1493,28 @@ func (p *Parser) forStmt() (Node, error) {
 }
 
 func (p *Parser) aheadIsAsync(tok *Token, prop bool, pvt bool) bool {
-	if IsName(tok, "async", true) {
+	if p.feat&FEAT_ASYNC_AWAIT != 0 && IsName(tok, "async", true) {
 		ahead := p.lexer.PeekGrow()
-		return !ahead.afterLineTerminator &&
-			(ahead.value == T_FUNC || ahead.value == T_PAREN_L || ahead.value == T_MUL ||
-				(prop && (ahead.value == T_BRACKET_L || ahead.value == T_NAME) || pvt && ahead.value == T_NAME_PVT))
+		if ahead.afterLineTerminator {
+			return false
+		}
+		if ahead.value == T_FUNC ||
+			(ahead.value == T_PAREN_L && !prop) ||
+			ahead.value == T_MUL {
+			return true
+		}
+		if prop && (ahead.value == T_BRACKET_L || ahead.value == T_NAME) {
+			return true
+		}
+		if pvt && ahead.value == T_NAME_PVT {
+			return true
+		}
+		if ahead.value == T_NAME {
+			if p.scope().IsKind(SPK_NOT_IN) && (IsName(ahead, "in", false) || IsName(ahead, "of", false)) {
+				return false
+			}
+			return true
+		}
 	}
 	return false
 }
@@ -1488,6 +1524,7 @@ func (p *Parser) fnDec(expr bool, async bool, canNameOmitted bool) (Node, error)
 	loc := p.loc()
 	if async {
 		p.lexer.Next()
+		p.lexer.addMode(LM_ASYNC)
 	}
 	tok := p.lexer.Peek()
 	fn := false
@@ -1498,6 +1535,10 @@ func (p *Parser) fnDec(expr bool, async bool, canNameOmitted bool) (Node, error)
 
 	ps := p.scope()
 	scope := p.symtab.EnterScope(true, false)
+	if async {
+		scope.AddKind(SPK_ASYNC)
+	}
+
 	generator := p.lexer.Peek().value == T_MUL
 	if generator {
 		p.lexer.Next()
@@ -1535,11 +1576,18 @@ func (p *Parser) fnDec(expr bool, async bool, canNameOmitted bool) (Node, error)
 		p.scope().AddKind(SPK_GENERATOR)
 	}
 
-	// the arg check is skipped here, its correctness is guaranteed by
-	// below `argsToFormalParams`
-	args, _, err := p.argList(false, false)
-	if err != nil {
-		return nil, err
+	var args []Node
+	// async a => {}
+	if id != nil && p.lexer.Peek().value == T_ARROW {
+		args = make([]Node, 1)
+		args[0] = id
+	} else {
+		// the arg check is skipped here, the correctness of args is guaranteed by
+		// below `argsToFormalParams`
+		args, _, err = p.argList(false, false)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	params, err := p.argsToParams(args, false)
@@ -1581,7 +1629,7 @@ func (p *Parser) fnDec(expr bool, async bool, canNameOmitted bool) (Node, error)
 	if tok.value == T_BRACE_L {
 		body, err = p.fnBody()
 	} else if expr || arrow {
-		body, err = p.expr(false)
+		body, err = p.expr()
 	} else {
 		return nil, p.errorTok(tok)
 	}
@@ -1886,7 +1934,7 @@ func (p *Parser) addLocalBinding(s *Scope, ref *Ref, checkDup bool) error {
 }
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-statements-and-declarations.html#prod-VariableStatement
-func (p *Parser) varDecStmt(notIn bool, kind TokenValue, asExpr bool) (Node, error) {
+func (p *Parser) varDecStmt(kind TokenValue, asExpr bool) (Node, error) {
 	loc := p.loc()
 	p.lexer.Next()
 
@@ -1904,13 +1952,13 @@ func (p *Parser) varDecStmt(notIn bool, kind TokenValue, asExpr bool) (Node, err
 
 	lvs := make([]Node, 0)
 	for {
-		dec, err := p.varDec(notIn, bindKind != BK_VAR)
+		dec, err := p.varDec(bindKind != BK_VAR)
 		if err != nil {
 			return nil, err
 		}
 		lvs = append(lvs, dec.id)
 
-		if isConst && dec.init == nil && !notIn {
+		if isConst && dec.init == nil && !p.scope().IsKind(SPK_NOT_IN) {
 			return nil, p.errorAtLoc(dec.loc, ERR_CONST_DEC_INIT_REQUIRED)
 		}
 
@@ -1947,7 +1995,7 @@ func (p *Parser) varDecStmt(notIn bool, kind TokenValue, asExpr bool) (Node, err
 	return node, nil
 }
 
-func (p *Parser) varDec(notIn, lexical bool) (*VarDec, error) {
+func (p *Parser) varDec(lexical bool) (*VarDec, error) {
 	scope := p.scope()
 	if lexical {
 		scope.AddKind(SPK_LEXICAL_DEC)
@@ -1963,13 +2011,13 @@ func (p *Parser) varDec(notIn, lexical bool) (*VarDec, error) {
 	var init Node
 	if p.lexer.Peek().value == T_ASSIGN {
 		p.lexer.Next()
-		init, err = p.assignExpr(notIn, true)
+		init, err = p.assignExpr(true)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	if binding.Type() != N_NAME && init == nil && !notIn {
+	if binding.Type() != N_NAME && init == nil && !p.scope().IsKind(SPK_NOT_IN) {
 		return nil, p.errorAtLoc(p.loc(), ERR_COMPLEX_BINDING_MISSING_INIT)
 	}
 
@@ -2161,7 +2209,7 @@ func (p *Parser) propName(allowNamePVT bool, maybeMethod bool) (Node, *Loc, erro
 		key = &NumLit{N_LIT_NUM, p.finLoc(loc), nil}
 	} else if tok.value == T_BRACKET_L {
 		computeLoc = p.locFromTok(tok)
-		name, err := p.assignExpr(false, true)
+		name, err := p.assignExpr(true)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -2287,7 +2335,7 @@ func (p *Parser) patternAssign(ident Node, asProp bool) (Node, error) {
 	if p.lexer.Peek().value == T_ASSIGN {
 		tok := p.lexer.Next()
 		opLoc = p.locFromTok(tok)
-		init, err = p.assignExpr(false, true)
+		init, err = p.assignExpr(true)
 		if err != nil {
 			return nil, err
 		}
@@ -2334,7 +2382,7 @@ func (p *Parser) patternRest(arrPat bool) (Node, error) {
 func (p *Parser) exprStmt() (Node, error) {
 	loc := p.loc()
 	stmt := &ExprStmt{N_STMT_EXPR, &Loc{}, nil}
-	expr, err := p.expr(false)
+	expr, err := p.expr()
 	if err != nil {
 		return nil, err
 	}
@@ -2349,13 +2397,13 @@ func (p *Parser) exprStmt() (Node, error) {
 }
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-expressions.html#prod-Expression
-func (p *Parser) expr(notIn bool) (Node, error) {
-	return p.seqExpr(notIn)
+func (p *Parser) expr() (Node, error) {
+	return p.seqExpr()
 }
 
-func (p *Parser) seqExpr(notIn bool) (Node, error) {
+func (p *Parser) seqExpr() (Node, error) {
 	loc := p.loc()
-	expr, err := p.assignExpr(notIn, true)
+	expr, err := p.assignExpr(true)
 	if err != nil {
 		return nil, err
 	}
@@ -2369,7 +2417,7 @@ func (p *Parser) seqExpr(notIn bool) (Node, error) {
 		tok := p.lexer.Peek()
 		if tok.value == T_COMMA {
 			p.lexer.Next()
-			expr, err = p.assignExpr(notIn, true)
+			expr, err = p.assignExpr(true)
 			if err != nil {
 				return nil, err
 			}
@@ -2392,7 +2440,7 @@ func (p *Parser) aheadIsYield() bool {
 }
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-functions-and-classes.html#prod-YieldExpression
-func (p *Parser) yieldExpr(notIn bool) (Node, error) {
+func (p *Parser) yieldExpr() (Node, error) {
 	loc := p.loc()
 	p.lexer.Next()
 
@@ -2408,7 +2456,7 @@ func (p *Parser) yieldExpr(notIn bool) (Node, error) {
 		delegate = true
 	}
 
-	arg, err := p.assignExpr(notIn, true)
+	arg, err := p.assignExpr(true)
 	if err != nil {
 		return nil, err
 	}
@@ -2416,12 +2464,12 @@ func (p *Parser) yieldExpr(notIn bool) (Node, error) {
 }
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-expressions.html#prod-AssignmentExpression
-func (p *Parser) assignExpr(notIn bool, checkLhs bool) (Node, error) {
+func (p *Parser) assignExpr(checkLhs bool) (Node, error) {
 	if p.aheadIsYield() {
-		return p.yieldExpr(notIn)
+		return p.yieldExpr()
 	}
 
-	lhs, err := p.condExpr(notIn)
+	lhs, err := p.condExpr()
 	if err != nil {
 		return nil, err
 	}
@@ -2429,7 +2477,7 @@ func (p *Parser) assignExpr(notIn bool, checkLhs bool) (Node, error) {
 
 	tok := p.lexer.Peek()
 	if lhs.Type() == N_NAME && tok.value == T_ARROW {
-		fn, err := p.arrowFn(loc, []Node{lhs}, notIn)
+		fn, err := p.arrowFn(loc, []Node{lhs})
 		if err != nil {
 			return nil, err
 		}
@@ -2443,7 +2491,7 @@ func (p *Parser) assignExpr(notIn bool, checkLhs bool) (Node, error) {
 	op := assign.value
 	opLoc := p.locFromTok(assign)
 
-	rhs, err := p.assignExpr(notIn, checkLhs)
+	rhs, err := p.assignExpr(checkLhs)
 	if err != nil {
 		return nil, err
 	}
@@ -2498,9 +2546,9 @@ func (p *Parser) isSimpleLVal(expr Node, pat bool, inParen bool, member bool, op
 }
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-expressions.html#prod-ConditionalExpression
-func (p *Parser) condExpr(notIn bool) (Node, error) {
+func (p *Parser) condExpr() (Node, error) {
 	loc := p.loc()
-	test, err := p.binExpr(nil, 0, notIn)
+	test, err := p.binExpr(nil, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -2509,7 +2557,7 @@ func (p *Parser) condExpr(notIn bool) (Node, error) {
 		return test, nil
 	}
 
-	cons, err := p.assignExpr(notIn, true)
+	cons, err := p.assignExpr(true)
 	if err != nil {
 		return nil, err
 	}
@@ -2519,7 +2567,7 @@ func (p *Parser) condExpr(notIn bool) (Node, error) {
 		return nil, err
 	}
 
-	alt, err := p.assignExpr(notIn, true)
+	alt, err := p.assignExpr(true)
 	if err != nil {
 		return nil, err
 	}
@@ -2563,7 +2611,7 @@ func (p *Parser) unaryExpr() (Node, error) {
 		}
 
 		return &UnaryExpr{N_EXPR_UNARY, p.finLoc(loc), op, arg, nil}, nil
-	} else if IsName(tok, "await", false) {
+	} else if tok.value == T_AWAIT {
 		if !p.scope().IsKind(SPK_ASYNC) {
 			return nil, p.errorAt(tok.value, &tok.begin, ERR_AWAIT_OUTSIDE_ASYNC)
 		}
@@ -2761,7 +2809,7 @@ func (p *Parser) importCall() (Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	src, err := p.assignExpr(false, true)
+	src, err := p.assignExpr(true)
 	if err != nil {
 		return nil, err
 	}
@@ -2809,7 +2857,7 @@ func (p *Parser) tplExpr(tag Node) (Node, error) {
 				break
 			}
 
-			expr, err := p.expr(false)
+			expr, err := p.expr()
 			if err != nil {
 				return nil, err
 			}
@@ -3262,10 +3310,10 @@ func (p *Parser) arg() (Node, error) {
 	if p.lexer.Peek().value == T_DOT_TRI {
 		return p.spread()
 	}
-	return p.assignExpr(false, false)
+	return p.assignExpr(false)
 }
 
-func (p *Parser) binExpr(lhs Node, minPcd int, notIn bool) (Node, error) {
+func (p *Parser) binExpr(lhs Node, minPcd int) (Node, error) {
 	var err error
 	if lhs == nil {
 		if lhs, err = p.unaryExpr(); err != nil {
@@ -3276,6 +3324,7 @@ func (p *Parser) binExpr(lhs Node, minPcd int, notIn bool) (Node, error) {
 	ahead := p.lexer.Peek()
 	kind := ahead.Kind()
 	pcd := kind.Pcd
+	notIn := p.scope().IsKind(SPK_NOT_IN)
 	for {
 		op := ahead.IsBin(notIn)
 		if op == T_ILLEGAL || pcd < minPcd {
@@ -3291,7 +3340,7 @@ func (p *Parser) binExpr(lhs Node, minPcd int, notIn bool) (Node, error) {
 		ahead = p.lexer.Peek()
 		kind = ahead.Kind()
 		for ahead.IsBin(notIn) != T_ILLEGAL && (kind.Pcd > pcd || kind.Pcd == pcd && kind.RightAssoc) {
-			rhs, err = p.binExpr(rhs, pcd, notIn)
+			rhs, err = p.binExpr(rhs, pcd)
 			if err != nil {
 				return nil, err
 			}
@@ -3355,7 +3404,7 @@ func (p *Parser) memberExprObj() (Node, error) {
 
 func (p *Parser) memberExprPropSubscript(obj Node) (Node, error) {
 	p.lexer.Next()
-	prop, err := p.expr(false)
+	prop, err := p.expr()
 	if err != nil {
 		return nil, err
 	}
@@ -3464,13 +3513,14 @@ func (p *Parser) primaryExpr() (Node, error) {
 	return nil, p.errorTok(tok)
 }
 
-func (p *Parser) arrowFn(loc *Loc, args []Node, notIn bool) (Node, error) {
+func (p *Parser) arrowFn(loc *Loc, args []Node) (Node, error) {
 	params, err := p.argsToParams(args, false)
 	if err != nil {
 		return nil, err
 	}
 
 	p.lexer.Next()
+	ps := p.scope()
 	scope := p.symtab.EnterScope(true, true)
 
 	paramNames, firstComplicated, err := p.collectNames(params)
@@ -3499,7 +3549,10 @@ func (p *Parser) arrowFn(loc *Loc, args []Node, notIn bool) (Node, error) {
 			return nil, err
 		}
 	} else {
-		body, err = p.expr(notIn)
+		if ps.IsKind(SPK_NOT_IN) {
+			scope.AddKind(SPK_NOT_IN)
+		}
+		body, err = p.expr()
 		if err != nil {
 			return nil, err
 		}
@@ -3541,7 +3594,7 @@ func (p *Parser) parenExpr() (Node, error) {
 
 	// next is arrow-expression
 	if p.lexer.Peek().value == T_ARROW {
-		return p.arrowFn(loc, args, false)
+		return p.arrowFn(loc, args)
 	}
 
 	// for report expr like: `(a,)`
@@ -3626,7 +3679,7 @@ func (p *Parser) arrElem() (Node, error) {
 	if p.lexer.Peek().value == T_DOT_TRI {
 		return p.spread()
 	}
-	return p.assignExpr(false, true)
+	return p.assignExpr(true)
 }
 
 func (p *Parser) spread() (Node, error) {
@@ -3637,7 +3690,7 @@ func (p *Parser) spread() (Node, error) {
 		return nil, p.errorTok(tok)
 	}
 
-	node, err := p.assignExpr(false, true)
+	node, err := p.assignExpr(true)
 	if err != nil {
 		return nil, err
 	}
@@ -3735,7 +3788,7 @@ func (p *Parser) propData() (Node, error) {
 	assign := tok.value == T_ASSIGN
 	if tok.value == T_COLON || assign {
 		p.lexer.Next()
-		value, err = p.assignExpr(false, true)
+		value, err = p.assignExpr(true)
 		if err != nil {
 			return nil, err
 		}
@@ -3778,6 +3831,7 @@ func (p *Parser) method(loc *Loc, key Node, compute *Loc, shorthand bool, kind P
 	// `class a{ async *a() {} }`
 	if async {
 		p.lexer.Next()
+		scope.AddKind(SPK_ASYNC)
 		gen = p.lexer.Peek().value == T_MUL
 	}
 	if gen {
