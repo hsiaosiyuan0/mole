@@ -659,13 +659,11 @@ func TestHarmonyFail144(t *testing.T) {
 }
 
 func TestHarmonyFail145(t *testing.T) {
-	// FIXME:
-	// testFail(t, "`hello ${10 `test`", "Unexpected token (1:18)", nil)
+	testFail(t, "`hello ${10 `test`", "Unexpected token `EOF` at (1:18)", nil)
 }
 
 func TestHarmonyFail146(t *testing.T) {
-	// FIXME:
-	// testFail(t, "`hello ${10;test`", "Unexpected token (1:11)", nil)
+	testFail(t, "`hello ${10;test`", "Unexpected token `;` at (1:11)", nil)
 }
 
 func TestHarmonyFail147(t *testing.T) {

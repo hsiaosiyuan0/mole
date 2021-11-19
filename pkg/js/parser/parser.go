@@ -2912,7 +2912,7 @@ func (p *Parser) tplExpr(tag Node) (Node, error) {
 	elems := make([]Node, 0)
 	for {
 		tok := p.lexer.Peek()
-		if tok.value >= T_TPL_HEAD || tok.value <= T_TPL_TAIL {
+		if tok.value >= T_TPL_HEAD && tok.value <= T_TPL_TAIL {
 			cooked := ""
 			ext := tok.ext.(*TokExtTplSpan)
 			if ext.IllegalEscape != nil {
