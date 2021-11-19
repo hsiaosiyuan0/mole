@@ -153,6 +153,15 @@ func (l *Lexer) readTok() *Token {
 	}
 }
 
+// guard the peeked buffer has at least N tokens and
+// return the Nth one
+func (l *Lexer) PeekN(n int) *Token {
+	for i := n - l.pl; i > 0; i-- {
+		l.PeekGrow()
+	}
+	return &l.peeked[(l.pr+n-1)%sizeOfPeekedTok]
+}
+
 func (l *Lexer) PeekGrow() *Token {
 	if l.pl == sizeOfPeekedTok {
 		panic(l.error(fmt.Sprintf("peek buffer of lexer is full, max len is %d\n", l.pl)))

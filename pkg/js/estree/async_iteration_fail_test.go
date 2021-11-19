@@ -142,8 +142,10 @@ func TestAsyncIterationFail29(t *testing.T) {
 }
 
 func TestAsyncIterationFail30(t *testing.T) {
+	opts := parser.NewParserOpts()
+	opts.Feature = opts.Feature.Off(parser.FEAT_STRICT).Off(parser.FEAT_GLOBAL_ASYNC)
 	testFail(t, "for ( ; false; ) async function* g() {}",
-		"In strict mode code, functions can only be declared at top level or inside a block at (1:17)", nil)
+		"function declarations can't appear in single-statement context at (1:17)", opts)
 }
 
 func TestAsyncIterationFail31(t *testing.T) {

@@ -89,7 +89,8 @@ func TestHarmonyFail15(t *testing.T) {
 }
 
 func TestHarmonyFail16(t *testing.T) {
-	testFail(t, "export { encrypt }; if (true) function encrypt() {}", "In strict mode code, functions can only be declared at top level or inside a block at (1:30)", nil)
+	testFail(t, "export { encrypt }; if (true) function encrypt() {}",
+		"function declarations can't appear in single-statement context at (1:30)", nil)
 }
 
 func TestHarmonyFail17(t *testing.T) {
@@ -362,7 +363,8 @@ func TestHarmonyFail78(t *testing.T) {
 }
 
 func TestHarmonyFail79(t *testing.T) {
-	testFail(t, "function hello() {'use strict'; ({ i: 10, s(eval) { } }); }", "Binding `eval` in strict mode at (1:44)", nil)
+	testFail(t, "function hello() {'use strict'; ({ i: 10, s(eval) { } }); }",
+		"Invalid binding `eval` at (1:44)", nil)
 }
 
 func TestHarmonyFail80(t *testing.T) {
@@ -455,28 +457,33 @@ func TestHarmonyFail99(t *testing.T) {
 }
 
 func TestHarmonyFail100(t *testing.T) {
-	testFail(t, "\"use strict\"; (eval = 10) => 42", "Binding `eval` in strict mode at (1:15)", nil)
+	testFail(t, "\"use strict\"; (eval = 10) => 42",
+		"Invalid binding `eval` at (1:15)", nil)
 }
 
 func TestHarmonyFail101(t *testing.T) {
-	testFail(t, "\"use strict\"; eval => 42", "Binding `eval` in strict mode at (1:14)", nil)
+	testFail(t, "\"use strict\"; eval => 42",
+		"Invalid binding `eval` at (1:14)", nil)
 }
 
 func TestHarmonyFail102(t *testing.T) {
-	testFail(t, "\"use strict\"; arguments => 42", "Binding `arguments` in strict mode at (1:14)", nil)
+	testFail(t, "\"use strict\"; arguments => 42",
+		"Invalid binding `arguments` at (1:14)", nil)
 }
 
 func TestHarmonyFail103(t *testing.T) {
-	testFail(t, "\"use strict\"; (eval, a) => 42", "Binding `eval` in strict mode at (1:15)", nil)
+	testFail(t, "\"use strict\"; (eval, a) => 42",
+		"Invalid binding `eval` at (1:15)", nil)
 }
 
 func TestHarmonyFail104(t *testing.T) {
 	testFail(t, "\"use strict\"; (arguments, a) => 42",
-		"Binding `arguments` in strict mode at (1:15)", nil)
+		"Invalid binding `arguments` at (1:15)", nil)
 }
 
 func TestHarmonyFail105(t *testing.T) {
-	testFail(t, "\"use strict\"; (eval, a = 10) => 42", "Binding `eval` in strict mode at (1:15)", nil)
+	testFail(t, "\"use strict\"; (eval, a = 10) => 42",
+		"Invalid binding `eval` at (1:15)", nil)
 }
 
 func TestHarmonyFail106(t *testing.T) {
@@ -734,7 +741,8 @@ func TestHarmonyFail162(t *testing.T) {
 }
 
 func TestHarmonyFail163(t *testing.T) {
-	testFail(t, "({ t(eval) { \"use strict\"; } });", "Binding `eval` in strict mode at (1:5)", nil)
+	testFail(t, "({ t(eval) { \"use strict\"; } });",
+		"Invalid binding `eval` at (1:5)", nil)
 }
 
 func TestHarmonyFail164(t *testing.T) {
@@ -764,11 +772,11 @@ func TestHarmonyFail169(t *testing.T) {
 }
 
 func TestHarmonyFail170(t *testing.T) {
-	testFail(t, "\"use strict\"; (eval) => 42", "Binding `eval` in strict mode at (1:15)", nil)
+	testFail(t, "\"use strict\"; (eval) => 42", "Invalid binding `eval` at (1:15)", nil)
 }
 
 func TestHarmonyFail171(t *testing.T) {
-	testFail(t, "(eval) => { \"use strict\"; 42 }", "Binding `eval` in strict mode at (1:1)", nil)
+	testFail(t, "(eval) => { \"use strict\"; 42 }", "Invalid binding `eval` at (1:1)", nil)
 }
 
 func TestHarmonyFail172(t *testing.T) {
@@ -818,7 +826,8 @@ func TestHarmonyFail182(t *testing.T) {
 }
 
 func TestHarmonyFail183(t *testing.T) {
-	testFail(t, "while (1) function foo(){}", "In strict mode code, functions can only be declared at top level or inside a block at (1:10)", nil)
+	testFail(t, "while (1) function foo(){}",
+		"function declarations can't appear in single-statement context at (1:10)", nil)
 }
 
 func TestHarmonyFail184(t *testing.T) {
@@ -945,7 +954,7 @@ func TestHarmonyFail211(t *testing.T) {
 
 func TestHarmonyFail212(t *testing.T) {
 	testFail(t, "function foo() { 'use strict'; var {eval} = {} }",
-		"Binding `eval` in strict mode at (1:36)", nil)
+		"Invalid binding `eval` at (1:36)", nil)
 }
 
 func TestHarmonyFail213(t *testing.T) {
@@ -955,7 +964,7 @@ func TestHarmonyFail213(t *testing.T) {
 
 func TestHarmonyFail214(t *testing.T) {
 	testFail(t, "function foo() { 'use strict'; var {eval = 1} = {} }",
-		"Binding `eval` in strict mode at (1:36)", nil)
+		"Invalid binding `eval` at (1:36)", nil)
 }
 
 func TestHarmonyFail215(t *testing.T) {
@@ -1044,17 +1053,17 @@ func TestHarmonyFail232(t *testing.T) {
 
 func TestHarmonyFail233(t *testing.T) {
 	testFail(t, "'use strict'; bar: function x() {}",
-		"In strict mode code, functions can only be declared at top level or inside a block at (1:19)", nil)
+		"function declarations can't appear in single-statement context at (1:19)", nil)
 }
 
 func TestHarmonyFail234(t *testing.T) {
 	testFail(t, "'use strict'; bar: function* x() {}",
-		"In strict mode code, functions can only be declared at top level or inside a block at (1:19)", nil)
+		"function declarations can't appear in single-statement context at (1:19)", nil)
 }
 
 func TestHarmonyFail235(t *testing.T) {
 	testFail(t, "bar: function* x() {}",
-		"In strict mode code, functions can only be declared at top level or inside a block at (1:5)", nil)
+		"function declarations can't appear in single-statement context at (1:5)", nil)
 }
 
 func TestHarmonyFail236(t *testing.T) {

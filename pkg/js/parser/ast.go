@@ -1300,13 +1300,14 @@ func (n *FnDec) setExtra(ext interface{}) {
 }
 
 type ArrowFn struct {
-	typ    NodeType
-	loc    *Loc
-	async  bool
-	params []Node
-	body   Node
-	expr   bool
-	extra  *ExprExtra
+	typ      NodeType
+	loc      *Loc
+	arrowLoc *Loc
+	async    bool
+	params   []Node
+	body     Node
+	expr     bool
+	extra    *ExprExtra
 }
 
 func (n *ArrowFn) Async() bool {

@@ -129,6 +129,24 @@ func (s *Scope) UpperFn() *Scope {
 	return nil
 }
 
+func (s *Scope) OuterFn() *Scope {
+	scope := s.UpperScope()
+	for scope != nil {
+		if scope.IsKind(SPK_FUNC) || scope.IsKind(SPK_GLOBAL) {
+			return scope
+		}
+		scope = scope.Up
+	}
+	return nil
+}
+
+func (s *Scope) UpperScope() *Scope {
+	if s.IsKind(SPK_GLOBAL) {
+		return s
+	}
+	return s.Up
+}
+
 func (s *Scope) AddLocal(ref *Ref, checkDup bool) bool {
 	cur := s
 	name := ref.Node.Text()

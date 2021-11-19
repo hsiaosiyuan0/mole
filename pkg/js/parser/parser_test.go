@@ -1646,37 +1646,37 @@ func TestFail149(t *testing.T) {
 
 func TestFail150(t *testing.T) {
 	testFail(t, "function hello() {'use strict'; ({ i: 10, set s(eval) { } }); }",
-		"Binding `eval` in strict mode at (1:48)", nil)
+		"Invalid binding `eval` at (1:48)", nil)
 }
 
 func TestFail151(t *testing.T) {
 	testFail(t, "function hello() {'use strict'; ({ set s(eval) { } }); }",
-		"Binding `eval` in strict mode at (1:41)", nil)
+		"Invalid binding `eval` at (1:41)", nil)
 }
 
 func TestFail152(t *testing.T) {
 	testFail(t, "function hello() {'use strict'; ({ s: function s(eval) { } }); }",
-		"Binding `eval` in strict mode at (1:49)", nil)
+		"Invalid binding `eval` at (1:49)", nil)
 }
 
 func TestFail153(t *testing.T) {
 	testFail(t, "function hello(eval) {'use strict';}",
-		"Unexpected strict mode reserved word at (1:15)", nil)
+		"Invalid binding `eval` at (1:15)", nil)
 }
 
 func TestFail154(t *testing.T) {
 	testFail(t, "function hello(arguments) {'use strict';}",
-		"Unexpected strict mode reserved word at (1:15)", nil)
+		"Invalid binding `arguments` at (1:15)", nil)
 }
 
 func TestFail155(t *testing.T) {
 	testFail(t, "function hello() { 'use strict'; function inner(eval) {} }",
-		"Unexpected strict mode reserved word at (1:48)", nil)
+		"Invalid binding `eval` at (1:48)", nil)
 }
 
 func TestFail156(t *testing.T) {
 	testFail(t, "function hello() { 'use strict'; function inner(arguments) {} }",
-		"Unexpected strict mode reserved word at (1:48)", nil)
+		"Invalid binding `arguments` at (1:48)", nil)
 }
 
 func TestFail157(t *testing.T) {
@@ -1772,7 +1772,7 @@ func TestFail174(t *testing.T) {
 
 func TestFail175(t *testing.T) {
 	testFail(t, "function a(eval) { \"use strict\"; }",
-		"Unexpected strict mode reserved word at (1:11)", nil)
+		"Invalid binding `eval` at (1:11)", nil)
 }
 
 func TestFail176(t *testing.T) {
@@ -1797,7 +1797,7 @@ func TestFail179(t *testing.T) {
 
 func TestFail180(t *testing.T) {
 	testFail(t, "(function a(eval) { \"use strict\"; })",
-		"Binding `eval` in strict mode at (1:12)", nil)
+		"Invalid binding `eval` at (1:12)", nil)
 }
 
 func TestFail181(t *testing.T) {
@@ -1880,7 +1880,7 @@ func TestFail196(t *testing.T) {
 	opts := NewParserOpts()
 	opts.Feature = opts.Feature.Off(FEAT_STRICT)
 	testFail(t, "(async function() { aw\\u0061it x })",
-		"Unexpected token at (1:31)", opts)
+		"Keyword must not contain escaped characters at (1:20)", opts)
 }
 
 func TestFail197(t *testing.T) {

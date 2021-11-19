@@ -504,8 +504,8 @@ var TokenKinds = [T_TOKEN_DEF_END - 1]*TokenKind{
 	{T_INSTANCE_OF, "instanceof", 12, false, true, false},
 	{T_IN, "in", 12, false, true, false},
 
-	{T_ADD, "+", 14, false, true, false},
-	{T_SUB, "-", 14, false, true, false},
+	{T_ADD, "+", 14, false, true, true},
+	{T_SUB, "-", 14, false, true, true},
 	{T_MUL, "*", 18, false, true, false},
 	{T_DIV, "/", 18, false, true, false},
 	{T_MOD, "%", 18, false, true, false},

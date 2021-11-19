@@ -7,7 +7,7 @@ import (
 )
 
 // below are tests referred from:
-// https://github.com/acornjs/acorn/blob/134ede4084a6611f2e0d60e676983443d2426405/test/tests-async-iteration.js#L62
+// https://github.com/acornjs/acorn/blob/134ede4084a6611f2e0d60e676983443d2426405/test/tests-async-iteration.js
 
 // for-await-of
 
