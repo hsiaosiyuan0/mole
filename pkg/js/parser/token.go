@@ -262,11 +262,11 @@ const (
 	T_PRIVATE
 	T_PROTECTED
 	T_PUBLIC
-	T_AWAIT
 	T_YIELD
 	T_CTX_KEYWORD_STRICT_END
 	T_AS
 	T_ASYNC
+	T_AWAIT
 	T_FROM
 	T_GET
 	T_META
@@ -443,11 +443,11 @@ var TokenKinds = [T_TOKEN_DEF_END - 1]*TokenKind{
 	{T_PRIVATE, "private", 0, false, false, false},
 	{T_PROTECTED, "protected", 0, false, false, false},
 	{T_PUBLIC, "public", 0, false, false, false},
-	{T_AWAIT, "await", 0, true, false, false},
 	{T_YIELD, "yield", 0, true, true, true},
 	{T_CTX_KEYWORD_STRICT_END, "contextual keyword strict end", 0, false, false, false},
 	{T_AS, "as", 0, false, false, false},
 	{T_ASYNC, "async", 0, false, false, false},
+	{T_AWAIT, "await", 0, true, false, false},
 	{T_FROM, "from", 0, false, false, false},
 	{T_GET, "get", 0, false, false, false},
 	{T_META, "meta", 0, false, false, false},

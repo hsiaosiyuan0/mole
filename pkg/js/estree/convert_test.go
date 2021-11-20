@@ -18049,8 +18049,7 @@ func Test217(t *testing.T) {
 
 func Test218(t *testing.T) {
 	opts := parser.NewParserOpts()
-	opts.Feature = opts.Feature.Off(parser.FEAT_GLOBAL_ASYNC)
-	opts.Feature = opts.Feature.Off(parser.FEAT_STRICT)
+	opts.Feature = opts.Feature.Off(parser.FEAT_GLOBAL_ASYNC).Off(parser.FEAT_MODULE)
 	ast, err := compileWithOpts("var await", opts)
 	assert.Equal(t, nil, err, "should be prog ok")
 

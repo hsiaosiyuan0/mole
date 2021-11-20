@@ -24619,7 +24619,7 @@ func TestHarmony231(t *testing.T) {
 
 func TestHarmony232(t *testing.T) {
 	opts := parser.NewParserOpts()
-	opts.Feature = opts.Feature.Off(parser.FEAT_STRICT).Off(parser.FEAT_GLOBAL_ASYNC)
+	opts.Feature = opts.Feature.Off(parser.FEAT_MODULE).Off(parser.FEAT_GLOBAL_ASYNC)
 	ast, err := compileWithOpts("var await = 0", opts)
 	assert.Equal(t, nil, err, "should be prog ok")
 

@@ -14,9 +14,9 @@ func TestAsyncAwaitFail1(t *testing.T) {
 
 func TestAsyncAwaitFail2(t *testing.T) {
 	opts := parser.NewParserOpts()
-	opts.Feature = opts.Feature.Off(parser.FEAT_STRICT)
+	opts.Feature = opts.Feature.Off(parser.FEAT_MODULE)
 	testFail(t, "async function wrap() {\nasync function await() { }\n}",
-		"Unexpected strict mode reserved word at (2:15)", opts)
+		"Unexpected token `await` at (2:15)", opts)
 }
 
 func TestAsyncAwaitFail3(t *testing.T) {
@@ -108,14 +108,14 @@ func TestAsyncAwaitFail19(t *testing.T) {
 
 func TestAsyncAwaitFail20(t *testing.T) {
 	opts := parser.NewParserOpts()
-	opts.Feature = opts.Feature.Off(parser.FEAT_STRICT)
+	opts.Feature = opts.Feature.Off(parser.FEAT_MODULE)
 	testFail(t, "async ({a: await}) => 1",
 		"Invalid binding `await` at (1:11)", opts)
 }
 
 func TestAsyncAwaitFail21(t *testing.T) {
 	opts := parser.NewParserOpts()
-	opts.Feature = opts.Feature.Off(parser.FEAT_STRICT).Off(parser.FEAT_GLOBAL_ASYNC)
+	opts.Feature = opts.Feature.Off(parser.FEAT_MODULE).Off(parser.FEAT_GLOBAL_ASYNC)
 	testFail(t, "async ([await]) => 1",
 		"Invalid binding `await` at (1:8)", opts)
 }
@@ -274,7 +274,7 @@ func TestAsyncAwaitFail51(t *testing.T) {
 
 func TestAsyncAwaitFail52(t *testing.T) {
 	opts := parser.NewParserOpts()
-	opts.Feature = opts.Feature.Off(parser.FEAT_STRICT).Off(parser.FEAT_GLOBAL_ASYNC)
+	opts.Feature = opts.Feature.Off(parser.FEAT_MODULE).Off(parser.FEAT_GLOBAL_ASYNC)
 	testFail(t, "await a", "Unexpected token at (1:6)", opts)
 }
 

@@ -54,7 +54,7 @@ type Lexer struct {
 	lastCommentLine int
 	comments        map[int][]Token
 
-	feature Feature
+	feat Feature
 }
 
 func NewLexer(src *Source) *Lexer {
@@ -69,6 +69,7 @@ func (l *Lexer) pushMode(mode LexerModeValue, inherit bool) {
 		// only inherit the inheritable modes
 		v := LM_NONE
 		v |= l.curMode().value & LM_STRICT
+		v |= l.curMode().value & LM_ASYNC
 		mode |= v
 	}
 	l.mode = append(l.mode, &LexerMode{mode, 0, 0, 0})
@@ -434,6 +435,13 @@ func (l *Lexer) ReadName() *Token {
 		return l.finToken(tok, Keywords[text])
 	} else if l.isMode(LM_STRICT) && IsStrictKeyword(text) {
 		return l.finToken(tok, StrictKeywords[text])
+	} else if text == "await" {
+		if l.feat&FEAT_MODULE != 0 || (l.feat&FEAT_ASYNC_AWAIT != 0 && l.isMode(LM_ASYNC)) {
+			if containsEscape {
+				return l.errToken(tok, ERR_ESCAPE_IN_KEYWORD)
+			}
+			return l.finToken(tok, T_AWAIT)
+		}
 	}
 
 	tok.text = text
@@ -764,7 +772,7 @@ func (l *Lexer) readRegexp(tok *Token) *Token {
 		i = len(fs)
 	}
 
-	if l.feature&FEAT_CHK_REGEXP_FLAGS != 0 {
+	if l.feat&FEAT_CHK_REGEXP_FLAGS != 0 {
 		for _, f := range fs {
 			if !l.isLegalFlag(f) {
 				return l.errToken(tok, ERR_INVALID_REGEXP_FLAG)
@@ -787,13 +795,13 @@ func (l *Lexer) isLegalFlag(f rune) bool {
 	case 'g', 'i', 'm':
 		return true
 	case 'd':
-		return l.feature&FEAT_REGEXP_HAS_INDICES != 0
+		return l.feat&FEAT_REGEXP_HAS_INDICES != 0
 	case 'u':
-		return l.feature&FEAT_REGEXP_UNICODE != 0
+		return l.feat&FEAT_REGEXP_UNICODE != 0
 	case 'y':
-		return l.feature&FEAT_REGEXP_STICKY != 0
+		return l.feat&FEAT_REGEXP_STICKY != 0
 	case 's':
-		return l.feature&FEAT_REGEXP_DOT_ALL != 0
+		return l.feat&FEAT_REGEXP_DOT_ALL != 0
 	}
 	return false
 }

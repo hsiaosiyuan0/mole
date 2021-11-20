@@ -851,7 +851,7 @@ func TestAsyncAwait18(t *testing.T) {
 
 func TestAsyncAwait19(t *testing.T) {
 	opts := parser.NewParserOpts()
-	opts.Feature = opts.Feature.Off(parser.FEAT_STRICT).Off(parser.FEAT_GLOBAL_ASYNC)
+	opts.Feature = opts.Feature.Off(parser.FEAT_MODULE).Off(parser.FEAT_STRICT).Off(parser.FEAT_GLOBAL_ASYNC)
 	ast, err := compileWithOpts("async (await)", opts)
 	assert.Equal(t, nil, err, "should be prog ok")
 
@@ -2125,7 +2125,7 @@ func TestAsyncAwait38(t *testing.T) {
 
 func TestAsyncAwait39(t *testing.T) {
 	opts := parser.NewParserOpts()
-	opts.Feature = opts.Feature.Off(parser.FEAT_STRICT).Off(parser.FEAT_GLOBAL_ASYNC)
+	opts.Feature = opts.Feature.Off(parser.FEAT_MODULE).Off(parser.FEAT_GLOBAL_ASYNC)
 	ast, err := compileWithOpts("await", opts)
 	assert.Equal(t, nil, err, "should be prog ok")
 
@@ -2495,7 +2495,7 @@ func TestAsyncAwait44(t *testing.T) {
 
 func TestAsyncAwait45(t *testing.T) {
 	opts := parser.NewParserOpts()
-	opts.Feature = opts.Feature.Off(parser.FEAT_STRICT)
+	opts.Feature = opts.Feature.Off(parser.FEAT_MODULE)
 	ast, err := compileWithOpts("function foo() { await + 1 }", opts)
 	assert.Equal(t, nil, err, "should be prog ok")
 

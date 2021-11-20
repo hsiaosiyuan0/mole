@@ -23,7 +23,7 @@ type ParserOpts struct {
 	Feature    Feature
 }
 
-const defaultFeatures Feature = FEAT_GLOBAL_ASYNC | FEAT_STRICT | FEAT_LET_CONST |
+const defaultFeatures Feature = FEAT_MODULE | FEAT_GLOBAL_ASYNC | FEAT_STRICT | FEAT_LET_CONST |
 	FEAT_BINDING_PATTERN | FEAT_BINDING_REST_ELEM | FEAT_BINDING_REST_ELEM_NESTED |
 	FEAT_SPREAD | FEAT_MODULE | FEAT_META_PROPERTY | FEAT_ASYNC_AWAIT | FEAT_ASYNC_ITERATION | FEAT_ASYNC_GENERATOR |
 	FEAT_POW
@@ -38,6 +38,10 @@ func NewParserOpts() *ParserOpts {
 }
 
 func NewParser(src *Source, opts *ParserOpts) *Parser {
+	if opts.Feature&FEAT_ASYNC_AWAIT == 0 {
+		opts.Feature = opts.Feature.Off(FEAT_GLOBAL_ASYNC)
+	}
+
 	parser := &Parser{}
 	parser.ver = opts.Version
 	parser.srcTyp = opts.SourceType
@@ -50,7 +54,7 @@ func NewParser(src *Source, opts *ParserOpts) *Parser {
 
 	parser.lexer = NewLexer(src)
 	parser.lexer.ver = opts.Version
-	parser.lexer.feature = opts.Feature
+	parser.lexer.feat = opts.Feature
 	return parser
 }
 
@@ -1543,7 +1547,6 @@ func (p *Parser) fnDec(expr bool, async *Token, canNameOmitted bool) (Node, erro
 
 		p.lexer.Next()
 		p.finLoc(asyncLoc)
-		p.lexer.addMode(LM_ASYNC)
 	}
 	tok := p.lexer.Peek()
 	fn := false
@@ -1597,6 +1600,7 @@ func (p *Parser) fnDec(expr bool, async *Token, canNameOmitted bool) (Node, erro
 	scope := p.symtab.EnterScope(true, false)
 	if async != nil {
 		scope.AddKind(SPK_ASYNC)
+		p.lexer.addMode(LM_ASYNC)
 	}
 	// 'yield' as function names
 	if generator {
@@ -1708,8 +1712,11 @@ func (p *Parser) fnDec(expr bool, async *Token, canNameOmitted bool) (Node, erro
 
 	isStrict := scope.IsKind(SPK_STRICT)
 	directStrict := scope.IsKind(SPK_STRICT_DIR)
-	if id != nil && p.isProhibitedName(idScope, id.(*Ident).Text(), isStrict) {
-		return nil, p.errorAtLoc(id.Loc(), ERR_RESERVED_WORD_IN_STRICT_MODE)
+	if id != nil {
+		name := id.(*Ident).Text()
+		if p.isProhibitedName(idScope, name, isStrict) {
+			return nil, p.errorAtLoc(id.Loc(), fmt.Sprintf(ERR_TPL_UNEXPECTED_TOKEN_TYPE, name))
+		}
 	}
 
 	if err := p.checkParams(paramNames, firstComplicated, isStrict, directStrict); err != nil {
@@ -2093,10 +2100,10 @@ var prohibitedNames = map[string]bool{
 	"arguments":  true,
 	"eval":       true,
 	"yield":      true,
-	"await":      true,
 	"implements": true,
 	"interface":  true,
 	"let":        true,
+	"const":      true,
 	"package":    true,
 	"protected":  true,
 	"public":     true,
@@ -2121,18 +2128,19 @@ func (p *Parser) ident(scope *Scope) (*Ident, error) {
 		scope = p.scope()
 	}
 
-	tok, err := p.nextMustTok(T_NAME)
-	if err != nil {
-		return nil, err
+	tok := p.lexer.Next()
+	tv := tok.value
+	if tv != T_NAME && !(tv > T_CTX_KEYWORD_BEGIN && tv < T_CTX_KEYWORD_END) {
+		return nil, p.errorTok(tok)
 	}
 
 	name := tok.Text()
-	ident := &Ident{N_NAME, nil, "", false, tok.ContainsEscape(), nil, false}
+	ident := &Ident{N_NAME, nil, "", false, tok.ContainsEscape(), nil, tok.IsKw()}
 	ident.loc = p.finLoc(p.locFromTok(tok))
 	ident.val = name
 
 	if p.isProhibitedName(scope, ident.val, true) {
-		return nil, p.errorAtLoc(ident.loc, ERR_RESERVED_WORD_IN_STRICT_MODE)
+		return nil, p.errorAtLoc(ident.loc, fmt.Sprintf(ERR_TPL_UNEXPECTED_TOKEN_TYPE, name))
 	}
 
 	// for resporting `'let' is disallowed as a lexically bound name` for stmt like `let let`
@@ -2654,11 +2662,14 @@ func (p *Parser) awaitExpr(tok *Token) (Node, error) {
 	loc := p.locFromTok(tok)
 	ahead := p.lexer.Peek()
 	if !TokenKinds[ahead.value].StartExpr {
-		// report friendly message for expr like: `async function foo(await) {}`
-		if ahead.value == T_PAREN_R || ahead.value == T_COMMA {
-			return nil, p.errorAtLoc(loc, fmt.Sprintf(ERR_TPL_BINDING_RESERVED_WORD, "await"))
+		if p.feat&FEAT_MODULE != 0 {
+			// report friendly message for expr like: `async function foo(await) {}`
+			if ahead.value == T_PAREN_R || ahead.value == T_COMMA {
+				return nil, p.errorAtLoc(loc, fmt.Sprintf(ERR_TPL_BINDING_RESERVED_WORD, "await"))
+			}
+			return nil, p.errorTok(ahead)
 		}
-		return nil, p.errorTok(ahead)
+		return &Ident{N_NAME, p.finLoc(loc), "await", false, tok.ContainsEscape(), nil, true}, nil
 	}
 	arg, err := p.unaryExpr()
 	if err != nil {
@@ -2693,6 +2704,9 @@ func (p *Parser) unaryExpr() (Node, error) {
 
 		return &UnaryExpr{N_EXPR_UNARY, p.finLoc(loc), op, arg, nil}, nil
 	} else if tok.value == T_AWAIT {
+		if p.feat&FEAT_ASYNC_AWAIT == 0 {
+			return nil, p.errorTok(tok)
+		}
 		if !p.scope().IsKind(SPK_ASYNC) {
 			return nil, p.errorAt(tok.value, &tok.begin, ERR_AWAIT_OUTSIDE_ASYNC)
 		}
@@ -3030,7 +3044,7 @@ func (p *Parser) checkDefaultVal(val Node, yield bool, destruct bool) error {
 		id := val.(*Ident)
 		name := val.(*Ident).Text()
 		if p.checkName && p.isProhibitedName(nil, name, true) {
-			return p.errorAtLoc(id.loc, ERR_RESERVED_WORD_IN_STRICT_MODE)
+			return p.errorAtLoc(id.loc, fmt.Sprintf(ERR_TPL_UNEXPECTED_TOKEN_TYPE, name))
 		}
 	}
 	return nil
@@ -3600,7 +3614,7 @@ func (p *Parser) primaryExpr() (Node, error) {
 			if tok.ContainsEscape() {
 				return nil, p.errorAtLoc(p.finLoc(loc), ERR_ESCAPE_IN_KEYWORD)
 			}
-			return nil, p.errorAtLoc(p.finLoc(loc), ERR_RESERVED_WORD_IN_STRICT_MODE)
+			return nil, p.errorAtLoc(p.finLoc(loc), fmt.Sprintf(ERR_TPL_UNEXPECTED_TOKEN_TYPE, name))
 		}
 		return &Ident{N_NAME, p.finLoc(loc), name, false, tok.ContainsEscape(), nil, p.isProhibitedName(nil, name, true)}, nil
 	case T_THIS:

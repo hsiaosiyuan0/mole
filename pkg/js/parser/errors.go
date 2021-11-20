@@ -90,7 +90,6 @@ const (
 	ERR_INVALID_META_PROP                          = "The only valid meta property for new is 'new.target'"
 	ERR_META_PROP_OUTSIDE_FN                       = "'new.target' can only be used in functions"
 	ERR_DUP_BINDING                                = "Must have a single binding"
-	ERR_RESERVED_WORD_IN_STRICT_MODE               = "Unexpected strict mode reserved word"
 	ERR_TPL_BINDING_RESERVED_WORD                  = "Invalid binding `%s`"
 	ERR_AWAIT_AS_DEFAULT_VALUE                     = "Await expression cannot be a default value"
 	ERR_TPL_ASSIGN_TO_RESERVED_WORD_IN_STRICT_MODE = "Assigning to `%s` in strict mode"

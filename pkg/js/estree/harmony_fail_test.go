@@ -833,7 +833,8 @@ func TestHarmonyFail184(t *testing.T) {
 }
 
 func TestHarmonyFail185(t *testing.T) {
-	testFail(t, "'use strict'; [...eval] = arr", "Unexpected strict mode reserved word at (1:18)", nil)
+	testFail(t, "'use strict'; [...eval] = arr",
+		"Unexpected token `eval` at (1:18)", nil)
 }
 
 func TestHarmonyFail186(t *testing.T) {
@@ -841,7 +842,8 @@ func TestHarmonyFail186(t *testing.T) {
 }
 
 func TestHarmonyFail187(t *testing.T) {
-	testFail(t, "[...eval] = arr", "Unexpected strict mode reserved word at (1:4)", nil)
+	testFail(t, "[...eval] = arr",
+		"Unexpected token `eval` at (1:4)", nil)
 }
 
 func TestHarmonyFail188(t *testing.T) {
