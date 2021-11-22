@@ -22,6 +22,11 @@ const (
 	FEAT_ASYNC_AWAIT              Feature = 1 << 16 // from es8
 	FEAT_ASYNC_GENERATOR          Feature = 1 << 17 // from es9
 	FEAT_POW                      Feature = 1 << 18 // from es7
+	FEAT_CLASS_PRV                Feature = 1 << 19
+	FEAT_CLASS_PUB_FIELD          Feature = 1 << 20
+	FEAT_CLASS_PRIV_FIELD         Feature = 1 << 21
+	FEAT_OPT_EXPR                 Feature = 1 << 22 // from es11
+	FEAT_OPT_CATCH_PARAM          Feature = 1 << 23 // from es10
 )
 
 func (f Feature) On(flag Feature) Feature {

@@ -27,40 +27,51 @@ const (
 	SPK_SHORTHAND_PROP  ScopeKind = 1 << 20
 	SPK_METHOD          ScopeKind = 1 << 21
 	SPK_NOT_IN          ScopeKind = 1 << 22
+	SPK_PROP_NAME       ScopeKind = 1 << 23
+	SPK_FORMAL_PARAMS   ScopeKind = 1 << 24
 )
 
 type BindKind uint8
 
 const (
-	BK_NONE  BindKind = 0
-	BK_VAR   BindKind = 1
-	BK_PARAM BindKind = 2
-	BK_LET   BindKind = 3
-	BK_CONST BindKind = 4
+	BK_NONE BindKind = iota
+	BK_VAR
+	BK_PARAM
+	BK_LET
+	BK_CONST
+	BK_PVT_FIELD
 )
 
 type TargetType int
 
 const (
-	TT_NONE TargetType = 0
-	TT_FN   TargetType = 1
+	TT_NONE      TargetType = 0
+	TT_FN        TargetType = 1 << 1
+	TT_PVT_FIELD TargetType = 1 << 2
 )
 
 type Ref struct {
-	Node       *Ident
+	Node  *Ident
+	Scope *Scope
+	// points to the ref referenced by this one
+	Target     *Ref
 	TargetType TargetType
-	Scope      *Scope
-	Orig       *Ref
-	BindKind   BindKind
-	Props      map[string][]*Ref
-	Refs       []*Ref
+	// ref with bind kind not none means it's a variable binding
+	BindKind BindKind
+	Props    map[string][]*Ref
+	Refs     []*Ref
+}
+
+func (r *Ref) RetainBy(ref *Ref) {
+	ref.Target = r
+	r.Refs = append(r.Refs, ref)
 }
 
 func NewRef() *Ref {
 	return &Ref{
 		Node:     nil,
 		Scope:    nil,
-		Orig:     nil,
+		Target:   nil,
 		BindKind: BK_NONE,
 		Props:    make(map[string][]*Ref),
 		Refs:     make([]*Ref, 0),
@@ -129,8 +140,19 @@ func (s *Scope) UpperFn() *Scope {
 	return nil
 }
 
+func (s *Scope) UpperCls() *Scope {
+	scope := s
+	for scope != nil {
+		if scope.IsKind(SPK_CLASS) {
+			return scope
+		}
+		scope = scope.Up
+	}
+	return nil
+}
+
 func (s *Scope) OuterFn() *Scope {
-	scope := s.UpperScope()
+	scope := s.OuterScope()
 	for scope != nil {
 		if scope.IsKind(SPK_FUNC) || scope.IsKind(SPK_GLOBAL) {
 			return scope
@@ -140,16 +162,15 @@ func (s *Scope) OuterFn() *Scope {
 	return nil
 }
 
-func (s *Scope) UpperScope() *Scope {
+func (s *Scope) OuterScope() *Scope {
 	if s.IsKind(SPK_GLOBAL) {
 		return s
 	}
 	return s.Up
 }
 
-func (s *Scope) AddLocal(ref *Ref, checkDup bool) bool {
+func (s *Scope) AddLocal(ref *Ref, name string, checkDup bool) bool {
 	cur := s
-	name := ref.Node.Text()
 	local := s.Local(name)
 
 	// `try {} catch (foo) { let foo; }` is illegal
@@ -183,29 +204,21 @@ func (s *Scope) AddLocal(ref *Ref, checkDup bool) bool {
 	return true
 }
 
-func (s *Scope) RetainRef(ref *Ref) {
-	n := ref.Node.Text()
+func (s *Scope) BindingOf(name string) *Ref {
 	scope := s
 	for scope != nil {
-		if orig, ok := scope.Refs[n]; ok {
-			ref.Scope = scope
-			ref.Orig = orig
-			orig.Refs = append(ref.Refs, ref)
-			return
+		ref := scope.Local(name)
+		if ref != nil {
+			return ref
 		}
 		scope = scope.Up
 	}
+	return nil
 }
 
 func (s *Scope) HasName(name string) bool {
-	scope := s
-	for scope != nil {
-		if scope.Local(name) != nil {
-			return true
-		}
-		scope = scope.Up
-	}
-	return false
+	ref := s.BindingOf(name)
+	return ref != nil
 }
 
 func (s *Scope) HasLabel(name string) bool {
@@ -261,6 +274,9 @@ func (s *SymTab) EnterScope(fn bool, arrow bool) *Scope {
 	}
 	if s.Cur.IsKind(SPK_CLASS_HAS_SUPER) {
 		scope.Kind |= SPK_CLASS_HAS_SUPER
+	}
+	if s.Cur.IsKind(SPK_FORMAL_PARAMS) && !fn {
+		scope.Kind |= SPK_FORMAL_PARAMS
 	}
 
 	// `(class A extends B { constructor() { (() => { super() }); } })` is legal

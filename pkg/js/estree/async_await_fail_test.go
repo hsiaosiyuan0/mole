@@ -309,17 +309,17 @@ func TestAsyncAwaitFail58(t *testing.T) {
 
 func TestAsyncAwaitFail59(t *testing.T) {
 	testFail(t, "async function foo(a = await b) {}",
-		"Await expression cannot be a default value at (1:23)", nil)
+		"Await expression can't be used in parameter at (1:23)", nil)
 }
 
 func TestAsyncAwaitFail60(t *testing.T) {
 	testFail(t, "(async function foo(a = await b) {})",
-		"Await expression cannot be a default value at (1:24)", nil)
+		"Await expression can't be used in parameter at (1:24)", nil)
 }
 
 func TestAsyncAwaitFail61(t *testing.T) {
 	testFail(t, "async (a = await b) => {}",
-		"Await expression cannot be a default value at (1:11)", nil)
+		"Await expression can't be used in parameter at (1:11)", nil)
 }
 
 func TestAsyncAwaitFail62(t *testing.T) {
@@ -329,7 +329,7 @@ func TestAsyncAwaitFail62(t *testing.T) {
 
 func TestAsyncAwaitFail63(t *testing.T) {
 	testFail(t, "async function wrapper() {\nasync (a = await b) => {}\n}",
-		"Await expression cannot be a default value at (2:11)", nil)
+		"Await expression can't be used in parameter at (2:11)", nil)
 }
 
 func TestAsyncAwaitFail64(t *testing.T) {
@@ -344,7 +344,7 @@ func TestAsyncAwaitFail65(t *testing.T) {
 
 func TestAsyncAwaitFail66(t *testing.T) {
 	testFail(t, "async function foo(a = class extends (await b) {}) {}",
-		"Await expression cannot be a default value at (1:38)", nil)
+		"Await expression can't be used in parameter at (1:38)", nil)
 }
 
 func TestAsyncAwaitFail67(t *testing.T) {

@@ -138,6 +138,7 @@ const (
 	N_EXPR_CLASS
 	N_EXPR_TPL
 	N_EXPR_YIELD
+	N_EXPR_CHAIN
 	N_NAME
 
 	N_VAR_DEC
@@ -2069,6 +2070,10 @@ func (n *StaticBlock) Extra() interface{} {
 	return nil
 }
 
+func (n *StaticBlock) Body() []Node {
+	return n.body
+}
+
 func (n *StaticBlock) setExtra(_ interface{}) {
 }
 
@@ -2250,4 +2255,30 @@ func (n *ExportSpec) Extra() interface{} {
 }
 
 func (n *ExportSpec) setExtra(_ interface{}) {
+}
+
+type ChainExpr struct {
+	typ  NodeType
+	loc  *Loc
+	expr Node
+}
+
+func (n *ChainExpr) Type() NodeType {
+	return n.typ
+}
+
+func (n *ChainExpr) Loc() *Loc {
+	return n.loc
+}
+
+func (n *ChainExpr) Expr() Node {
+	return n.expr
+}
+
+func (n *ChainExpr) Extra() interface{} {
+	return nil
+}
+
+func (n *ChainExpr) setExtra(ext interface{}) {
+
 }

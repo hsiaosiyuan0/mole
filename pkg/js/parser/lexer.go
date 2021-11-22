@@ -678,7 +678,9 @@ func (l *Lexer) ReadSymbol() *Token {
 
 	}
 
-	if val == T_DOT_TRI && l.ver < ES6 {
+	if val == T_DOT_TRI && (l.feat&FEAT_SPREAD == 0 || l.feat&FEAT_BINDING_REST_ELEM == 0) {
+		return l.errToken(tok, ERR_UNEXPECTED_TOKEN)
+	} else if val == T_OPT_CHAIN && l.feat&FEAT_OPT_EXPR == 0 {
 		return l.errToken(tok, ERR_UNEXPECTED_TOKEN)
 	}
 
@@ -939,12 +941,20 @@ func (l *Lexer) readLineTerminator() {
 
 func (l *Lexer) ReadNumPvt() *Token {
 	l.src.Read()
+	if !l.aheadIsIdStart() {
+		return l.errToken(l.newToken(), ERR_UNEXPECTED_CHAR)
+	}
 	tok := l.ReadName()
 	tok.raw.lo -= 1
+	tok.begin.col -= 1
 	if tok.value != T_NAME {
 		return tok
 	}
 	tok.value = T_NAME_PVT
+	if l.feat&FEAT_CLASS_PRV == 0 {
+		tok.value = T_ILLEGAL
+		return l.errToken(tok, ERR_UNEXPECTED_CHAR)
+	}
 	return tok
 }
 

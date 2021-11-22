@@ -129,7 +129,7 @@ func TestAsyncIterationFail26(t *testing.T) {
 func TestAsyncIterationFail27(t *testing.T) {
 	opts := parser.NewParserOpts()
 	opts.Feature = opts.Feature.Off(parser.FEAT_ASYNC_AWAIT)
-	testFail(t, "class A { async* f() { await a; yield b; } }", "Unexpected token `identifier` at (1:10)", opts)
+	testFail(t, "class A { async* f() { await a; yield b; } }", "Unexpected token `*` at (1:15)", opts)
 }
 
 func TestAsyncIterationFail28(t *testing.T) {

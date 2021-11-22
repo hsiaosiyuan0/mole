@@ -897,6 +897,24 @@ func convert(node parser.Node) Node {
 			return exportDefault(stmt)
 		}
 		return exportNamed(stmt)
+	case parser.N_STATIC_BLOCK:
+		stmt := node.(*parser.StaticBlock)
+		return &StaticBlock{
+			Type:  "StaticBlock",
+			Start: start(stmt.Loc()),
+			End:   end(stmt.Loc()),
+			Loc:   loc(stmt.Loc()),
+			Body:  statements(stmt.Body()),
+		}
+	case parser.N_EXPR_CHAIN:
+		stmt := node.(*parser.ChainExpr)
+		return &ChainExpression{
+			Type:       "ChainExpression",
+			Start:      start(stmt.Loc()),
+			End:        end(stmt.Loc()),
+			Loc:        loc(stmt.Loc()),
+			Expression: convert(stmt.Expr()),
+		}
 	}
 	return nil
 }

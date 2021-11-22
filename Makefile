@@ -34,6 +34,12 @@ test-async-await:	cmd/mole/*.go pkg/*/*.go go.mod
 test-async-await-fail:	cmd/mole/*.go pkg/*/*.go go.mod
 	go test ./pkg/js/estree -run "^TestAsyncAwaitFail\d"
 
+test-class:	cmd/mole/*.go pkg/*/*.go go.mod
+	go test ./pkg/js/estree -run "^TestClassFeature\d"
+
+test-class-fail:	cmd/mole/*.go pkg/*/*.go go.mod
+	go test ./pkg/js/estree -run "^TestClassFeatureFail\d"
+
 test-parser: cmd/mole/*.go pkg/*/*.go go.mod
 	go test ./pkg/js/parser
 

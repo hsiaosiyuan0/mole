@@ -146,15 +146,18 @@ func TestHarmonyFail29(t *testing.T) {
 }
 
 func TestHarmonyFail30(t *testing.T) {
-	testFail(t, "() => { class a extends b { static get prototype(){} } }", "Classes may not have a static property named `prototype` at (1:39)", nil)
+	testFail(t, "() => { class a extends b { static get prototype(){} } }",
+		"Classes can't have a static field named `prototype` at (1:39)", nil)
 }
 
 func TestHarmonyFail31(t *testing.T) {
-	testFail(t, "class a extends b { static set prototype(a){} }", "Classes may not have a static property named `prototype` at (1:31)", nil)
+	testFail(t, "class a extends b { static set prototype(a){} }",
+		"Classes can't have a static field named `prototype` at (1:31)", nil)
 }
 
 func TestHarmonyFail32(t *testing.T) {
-	testFail(t, "class a { static prototype(a){} }", "Classes may not have a static property named `prototype` at (1:17)", nil)
+	testFail(t, "class a { static prototype(a){} }",
+		"Classes can't have a static field named `prototype` at (1:17)", nil)
 }
 
 func TestHarmonyFail33(t *testing.T) {
@@ -834,7 +837,7 @@ func TestHarmonyFail184(t *testing.T) {
 
 func TestHarmonyFail185(t *testing.T) {
 	testFail(t, "'use strict'; [...eval] = arr",
-		"Unexpected token `eval` at (1:18)", nil)
+		"Assigning to `eval` in strict mode at (1:18)", nil)
 }
 
 func TestHarmonyFail186(t *testing.T) {
@@ -843,7 +846,7 @@ func TestHarmonyFail186(t *testing.T) {
 
 func TestHarmonyFail187(t *testing.T) {
 	testFail(t, "[...eval] = arr",
-		"Unexpected token `eval` at (1:4)", nil)
+		"Assigning to `eval` in strict mode at (1:4)", nil)
 }
 
 func TestHarmonyFail188(t *testing.T) {
@@ -954,7 +957,7 @@ func TestHarmonyFail211(t *testing.T) {
 
 func TestHarmonyFail212(t *testing.T) {
 	testFail(t, "function foo() { 'use strict'; var {eval} = {} }",
-		"Invalid binding `eval` at (1:36)", nil)
+		"Unexpected token `eval` at (1:36)", nil)
 }
 
 func TestHarmonyFail213(t *testing.T) {
@@ -964,12 +967,12 @@ func TestHarmonyFail213(t *testing.T) {
 
 func TestHarmonyFail214(t *testing.T) {
 	testFail(t, "function foo() { 'use strict'; var {eval = 1} = {} }",
-		"Invalid binding `eval` at (1:36)", nil)
+		"Unexpected token `eval` at (1:36)", nil)
 }
 
 func TestHarmonyFail215(t *testing.T) {
 	testFail(t, "function* wrap() { function* foo(a = 1 + (yield)) {} }",
-		"Yield expression cannot be a default value at (1:42)", nil)
+		"Yield expression can't be used in parameter at (1:42)", nil)
 }
 
 func TestHarmonyFail216(t *testing.T) {
@@ -994,12 +997,12 @@ func TestHarmonyFail219(t *testing.T) {
 
 func TestHarmonyFail220(t *testing.T) {
 	testFail(t, "function* foo(a = yield b) {}",
-		"Yield expression cannot be a default value at (1:18)", nil)
+		"Yield expression can't be used in parameter at (1:18)", nil)
 }
 
 func TestHarmonyFail221(t *testing.T) {
 	testFail(t, "(function* foo(a = yield b) {})",
-		"Yield expression cannot be a default value at (1:19)", nil)
+		"Yield expression can't be used in parameter at (1:19)", nil)
 }
 
 func TestHarmonyFail222(t *testing.T) {
@@ -1012,7 +1015,7 @@ func TestHarmonyFail223(t *testing.T) {
 
 func TestHarmonyFail224(t *testing.T) {
 	testFail(t, "function* foo(a = class extends (yield b) {}) {}",
-		"Yield expression cannot be a default value at (1:33)", nil)
+		"Yield expression can't be used in parameter at (1:33)", nil)
 }
 
 func TestHarmonyFail225(t *testing.T) {

@@ -1546,52 +1546,52 @@ func TestFail129(t *testing.T) {
 
 func TestFail130(t *testing.T) {
 	testFail(t, "function hello() {'use strict'; eval = 10; }",
-		"Unexpected token `eval` at (1:32)", nil)
+		"Assigning to `eval` in strict mode at (1:32)", nil)
 }
 
 func TestFail131(t *testing.T) {
 	testFail(t, "function hello() {'use strict'; arguments = 10; }",
-		"Unexpected token `arguments` at (1:32)", nil)
+		"Assigning to `arguments` in strict mode at (1:32)", nil)
 }
 
 func TestFail132(t *testing.T) {
 	testFail(t, "function hello() {'use strict'; ++eval; }",
-		"Unexpected token `eval` at (1:34)", nil)
+		"Assigning to rvalue at (1:34)", nil)
 }
 
 func TestFail133(t *testing.T) {
 	testFail(t, "function hello() {'use strict'; --eval; }",
-		"Unexpected token `eval` at (1:34)", nil)
+		"Assigning to rvalue at (1:34)", nil)
 }
 
 func TestFail134(t *testing.T) {
 	testFail(t, "function hello() {'use strict'; ++arguments; }",
-		"Unexpected token `arguments` at (1:34)", nil)
+		"Assigning to rvalue at (1:34)", nil)
 }
 
 func TestFail135(t *testing.T) {
 	testFail(t, "function hello() {'use strict'; --arguments; }",
-		"Unexpected token `arguments` at (1:34)", nil)
+		"Assigning to rvalue at (1:34)", nil)
 }
 
 func TestFail136(t *testing.T) {
 	testFail(t, "function hello() {'use strict'; eval++; }",
-		"Unexpected token `eval` at (1:32)", nil)
+		"Assigning to rvalue at (1:32)", nil)
 }
 
 func TestFail137(t *testing.T) {
 	testFail(t, "function hello() {'use strict'; eval--; }",
-		"Unexpected token `eval` at (1:32)", nil)
+		"Assigning to rvalue at (1:32)", nil)
 }
 
 func TestFail138(t *testing.T) {
 	testFail(t, "function hello() {'use strict'; arguments++; }",
-		"Unexpected token `arguments` at (1:32)", nil)
+		"Assigning to rvalue at (1:32)", nil)
 }
 
 func TestFail139(t *testing.T) {
 	testFail(t, "function hello() {'use strict'; arguments--; }",
-		"Unexpected token `arguments` at (1:32)", nil)
+		"Assigning to rvalue at (1:32)", nil)
 }
 
 func TestFail140(t *testing.T) {
