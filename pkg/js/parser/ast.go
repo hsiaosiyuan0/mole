@@ -617,11 +617,12 @@ func (n *MemberExpr) setExtra(ext interface{}) {
 }
 
 type CallExpr struct {
-	typ    NodeType
-	loc    *Loc
-	callee Node
-	args   []Node
-	extra  *ExprExtra
+	typ      NodeType
+	loc      *Loc
+	callee   Node
+	args     []Node
+	optional bool
+	extra    *ExprExtra
 }
 
 func (n *CallExpr) Callee() Node {
@@ -630,6 +631,10 @@ func (n *CallExpr) Callee() Node {
 
 func (n *CallExpr) Args() []Node {
 	return n.args
+}
+
+func (n *CallExpr) Optional() bool {
+	return n.optional
 }
 
 func (n *CallExpr) Type() NodeType {

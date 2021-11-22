@@ -124,17 +124,22 @@ func (s *Source) AheadIsEOF() bool {
 	return s.ofst == len(s.code) && s.pl == 0
 }
 
+func (s *Source) Ahead2() rune {
+	if s.pl < 2 {
+		s.peekGrow()
+	}
+	if s.pl < 2 {
+		s.peekGrow()
+	}
+	if s.pl < 2 {
+		return utf8.RuneError
+	}
+	return s.peeked[s.prInc()]
+}
+
 func (s *Source) AheadIsChs2(c1 rune, c2 rune) bool {
-	if s.pl < 2 {
-		s.peekGrow()
-	}
-	if s.pl < 2 {
-		s.peekGrow()
-	}
-	if s.pl < 2 {
-		return false
-	}
-	return s.peeked[s.pr] == c1 && s.peeked[s.prInc()] == c2
+	a2 := s.Ahead2()
+	return s.peeked[s.pr] == c1 && a2 == c2
 }
 
 func (s *Source) AheadIsChOr(c1 rune, c2 rune) bool {

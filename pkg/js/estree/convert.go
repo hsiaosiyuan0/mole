@@ -558,6 +558,7 @@ func convert(node parser.Node) Node {
 			Loc:       loc(call.Loc()),
 			Callee:    convert(call.Callee()),
 			Arguments: expressions(call.Args()),
+			Optional:  call.Optional(),
 		}
 	case parser.N_STMT_SWITCH:
 		swc := node.(*parser.SwitchStmt)

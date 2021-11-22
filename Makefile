@@ -40,6 +40,12 @@ test-class:	cmd/mole/*.go pkg/*/*.go go.mod
 test-class-fail:	cmd/mole/*.go pkg/*/*.go go.mod
 	go test ./pkg/js/estree -run "^TestClassFeatureFail\d"
 
+test-optional-chain:	cmd/mole/*.go pkg/*/*.go go.mod
+	go test ./pkg/js/estree -run "^TestOptionalChain\d"
+
+test-optional-chain-fail:	cmd/mole/*.go pkg/*/*.go go.mod
+	go test ./pkg/js/estree -run "^TestOptionalChainFail\d"
+
 test-parser: cmd/mole/*.go pkg/*/*.go go.mod
 	go test ./pkg/js/parser
 

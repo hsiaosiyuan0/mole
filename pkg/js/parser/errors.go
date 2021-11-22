@@ -145,4 +145,6 @@ const (
 	ERR_UNEXPECTED_PVT_FIELD                       = "Unexpected private field"
 	ERR_DELETE_PVT_FIELD                           = "Private fields can not be deleted"
 	ERR_TPL_ALONE_PVT_FIELD                        = "Private field `%s` must be declared in an enclosing class"
+	ERR_OPT_EXPR_IN_NEW                            = "Invalid optional chain from new expression"
+	ERR_OPT_EXPR_IN_TAG                            = "Invalid tagged template on optional chain"
 )

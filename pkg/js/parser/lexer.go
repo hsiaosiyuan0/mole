@@ -504,7 +504,8 @@ func (l *Lexer) ReadSymbol() *Token {
 			val = T_DOT
 		}
 	case '?':
-		if l.src.AheadIsCh('.') {
+		// a?.1:.0
+		if l.src.AheadIsCh('.') && !IsDecimalDigit(l.src.Ahead2()) {
 			l.src.Read()
 			val = T_OPT_CHAIN
 		} else if l.src.AheadIsCh('?') {
@@ -1234,7 +1235,7 @@ func (l *Lexer) aheadIsNumStart() bool {
 	if IsDecimalDigit(v) {
 		return true
 	}
-	return v == '.' && IsDecimalDigit(l.src.peekGrow())
+	return v == '.' && IsDecimalDigit(l.src.Ahead2())
 }
 
 func (l *Lexer) aheadIsStrStart() bool {
