@@ -4154,7 +4154,6 @@ func (p *Parser) objLit() (Node, error) {
 	p.lexer.Next()
 
 	props := make([]Node, 0, 1)
-	// hasProto := false
 	p.checkName = false
 	for {
 		tok := p.lexer.Peek()

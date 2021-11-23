@@ -506,9 +506,9 @@ var TokenKinds = [T_TOKEN_DEF_END - 1]*TokenKind{
 
 	{T_ADD, "+", 14, false, true, true},
 	{T_SUB, "-", 14, false, true, true},
-	{T_MUL, "*", 18, false, true, false},
-	{T_DIV, "/", 18, false, true, false},
-	{T_MOD, "%", 18, false, true, false},
+	{T_MUL, "*", 15, false, true, false},
+	{T_DIV, "/", 15, false, true, false},
+	{T_MOD, "%", 15, false, true, false},
 	{T_POW, "**", 16, true, true, false},
 	{T_BIN_OP_END, "binary operator end", 0, false, false, false},
 

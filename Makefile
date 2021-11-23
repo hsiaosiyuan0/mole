@@ -46,6 +46,12 @@ test-optional-chain:	cmd/mole/*.go pkg/*/*.go go.mod
 test-optional-chain-fail:	cmd/mole/*.go pkg/*/*.go go.mod
 	go test ./pkg/js/estree -run "^TestOptionalChainFail\d"
 
+test-es7:	cmd/mole/*.go pkg/*/*.go go.mod
+	go test ./pkg/js/estree -run "^TestEs7th\d"
+
+test-es7-fail:	cmd/mole/*.go pkg/*/*.go go.mod
+	go test ./pkg/js/estree -run "^TestEs7thFail\d"
+
 test-parser: cmd/mole/*.go pkg/*/*.go go.mod
 	go test ./pkg/js/parser
 

@@ -595,9 +595,13 @@ func (l *Lexer) ReadSymbol() *Token {
 		if l.src.AheadIsCh('*') {
 			l.src.Read()
 			if l.src.AheadIsCh('=') {
+				l.src.Read()
 				val = T_ASSIGN_POW
 			} else {
 				val = T_POW
+			}
+			if l.feat&FEAT_POW == 0 {
+				return l.errToken(tok, ERR_UNEXPECTED_TOKEN)
 			}
 		} else if l.src.AheadIsCh('=') {
 			l.src.Read()
