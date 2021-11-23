@@ -28,7 +28,7 @@ const defaultFeatures Feature = FEAT_MODULE | FEAT_GLOBAL_ASYNC | FEAT_STRICT | 
 	FEAT_BINDING_PATTERN | FEAT_BINDING_REST_ELEM | FEAT_BINDING_REST_ELEM_NESTED |
 	FEAT_SPREAD | FEAT_MODULE | FEAT_META_PROPERTY | FEAT_ASYNC_AWAIT | FEAT_ASYNC_ITERATION | FEAT_ASYNC_GENERATOR |
 	FEAT_POW | FEAT_CLASS_PRV | FEAT_CLASS_PUB_FIELD | FEAT_CLASS_PRIV_FIELD | FEAT_OPT_EXPR | FEAT_OPT_CATCH_PARAM |
-	FEAT_NULLISH
+	FEAT_NULLISH | FEAT_BAD_ESCAPE_IN_TAGGED_TPL
 
 func NewParserOpts() *ParserOpts {
 	return &ParserOpts{
@@ -3151,7 +3151,7 @@ func (p *Parser) tplExpr(tag Node) (Node, error) {
 			ext := tok.ext.(*TokExtTplSpan)
 			if ext.IllegalEscape != nil {
 				// raise error for bad escape sequence if the template is not tagged
-				if tag == nil {
+				if tag == nil || p.feat&FEAT_BAD_ESCAPE_IN_TAGGED_TPL == 0 {
 					return nil, p.errorAt(tok.value, ext.IllegalEscape.Loc.begin, ext.IllegalEscape.Err)
 				}
 			} else {

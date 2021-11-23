@@ -2359,9 +2359,15 @@ func TestFail304(t *testing.T) {
 }
 
 func TestFail305(t *testing.T) {
+	opts := NewParserOpts()
+	opts.Feature = opts.Feature.Off(FEAT_BAD_ESCAPE_IN_TAGGED_TPL)
+	testFail(t, "foo`\\unicode`", "Bad character escape sequence at (1:4)", opts)
 }
 
 func TestFail306(t *testing.T) {
+	opts := NewParserOpts()
+	opts.Feature = opts.Feature.Off(FEAT_BAD_ESCAPE_IN_TAGGED_TPL)
+	testFail(t, "foo`\\xylophone`", "Bad character escape sequence at (1:4)", opts)
 }
 
 func TestFail307(t *testing.T) {
