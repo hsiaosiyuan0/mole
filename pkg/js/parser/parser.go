@@ -1792,7 +1792,7 @@ func (p *Parser) fnDec(expr bool, async *Token, canNameOmitted bool) (Node, erro
 			expr = &CallExpr{N_EXPR_CALL, p.finLoc(loc), lhs, args, false, nil}
 		}
 
-		return &ExprStmt{N_STMT_EXPR, p.finLoc(loc.Clone()), expr}, nil
+		return &ExprStmt{N_STMT_EXPR, p.finLoc(loc.Clone()), expr, false}, nil
 	} else {
 		return nil, p.errorTok(tok)
 	}
@@ -1821,7 +1821,7 @@ func (p *Parser) fnDec(expr bool, async *Token, canNameOmitted bool) (Node, erro
 		if expr {
 			return fn, nil
 		}
-		return &ExprStmt{N_STMT_EXPR, p.finLoc(loc.Clone()), fn}, nil
+		return &ExprStmt{N_STMT_EXPR, p.finLoc(loc.Clone()), fn, false}, nil
 	}
 
 	typ := N_STMT_FN
@@ -1950,15 +1950,19 @@ func (p *Parser) scope() *Scope {
 	return p.symtab.Cur
 }
 
-func (p *Parser) isStrictDirective(exprStmt Node) bool {
-	expr := exprStmt.(*ExprStmt).expr
+func (p *Parser) isDirective(stmt Node) (bool, bool) {
+	if stmt.Type() != N_STMT_EXPR {
+		return false, false
+	}
+	expr := stmt.(*ExprStmt).expr
 	if expr.Type() == N_LIT_STR {
 		str := expr.(*StrLit).Raw()
 		if str == "\"use strict\"" || str == "'use strict'" {
-			return true
+			return true, true
 		}
+		return false, true
 	}
-	return false
+	return false, false
 }
 
 func (p *Parser) enterStrict(lex bool) *Scope {
@@ -1995,24 +1999,40 @@ func (p *Parser) stmts(terminal TokenValue) ([]Node, error) {
 		ahead := p.lexer.PeekStmtBegin()
 		if stmt != nil {
 			// StrictDirective processing
-			if (scope.IsKind(SPK_FUNC) || scope.IsKind(SPK_GLOBAL)) && stmt.Type() == N_STMT_EXPR {
-				if p.isStrictDirective(stmt) {
+			if prologue != -1 && (scope.IsKind(SPK_FUNC) || scope.IsKind(SPK_GLOBAL)) {
+				strict, dir := p.isDirective(stmt)
+				if !dir {
+					if prologue == 0 {
+						prologue = -1
+					}
+				} else {
+					stmt.(*ExprStmt).dir = true
+				}
+
+				if strict {
 					// lexer will automatically pop it's mode when the `T_BRACE_R` is met
 					// here we use `ahead.value != T_BRACE_R` to prevent accidentally change
 					// the upper lexer mode
 					p.enterStrict(ahead.value != T_BRACE_R)
 
+					// lookbehind to check that exprs before the 'use strcit' directive
 					if prologue > 0 {
 						for i := 0; i < prologue; i++ {
-							expr := stmts[i].(*ExprStmt).expr
-							if expr.Type() == N_LIT_STR && expr.(*StrLit).legacyOctalEscapeSeq {
-								return nil, p.errorAtLoc(expr.Loc(), ERR_LEGACY_OCTAL_ESCAPE_IN_STRICT_MODE)
+							stmt := stmts[i]
+							if stmt.Type() == N_STMT_EXPR {
+								expr := stmts[i].(*ExprStmt).expr
+								if expr.Type() == N_LIT_STR && expr.(*StrLit).legacyOctalEscapeSeq {
+									return nil, p.errorAtLoc(expr.Loc(), ERR_LEGACY_OCTAL_ESCAPE_IN_STRICT_MODE)
+								}
 							}
 						}
+						prologue = -1
 					}
 				}
+				if dir {
+					prologue += 1
+				}
 			}
-			prologue += 1
 			stmts = append(stmts, stmt)
 		}
 	}
@@ -2589,7 +2609,7 @@ func (p *Parser) patternRest(arrPat bool) (Node, error) {
 
 func (p *Parser) exprStmt() (Node, error) {
 	loc := p.loc()
-	stmt := &ExprStmt{N_STMT_EXPR, &Loc{}, nil}
+	stmt := &ExprStmt{N_STMT_EXPR, &Loc{}, nil, false}
 	expr, err := p.expr()
 	if err != nil {
 		return nil, err

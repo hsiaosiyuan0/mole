@@ -84,11 +84,12 @@ type ExpressionStatement struct {
 
 // https://github.com/estree/estree/blob/master/es5.md#directive
 type Directive struct {
-	Type      string  `json:"type"`
-	Start     int     `json:"start"`
-	End       int     `json:"end"`
-	Loc       *SrcLoc `json:"loc"`
-	Directive string  `json:"directive"`
+	Type       string     `json:"type"`
+	Start      int        `json:"start"`
+	End        int        `json:"end"`
+	Loc        *SrcLoc    `json:"loc"`
+	Expression Expression `json:"expression"`
+	Directive  string     `json:"directive"`
 }
 
 type EmptyStatement struct {

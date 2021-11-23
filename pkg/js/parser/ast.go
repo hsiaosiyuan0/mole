@@ -196,6 +196,7 @@ type ExprStmt struct {
 	typ  NodeType
 	loc  *Loc
 	expr Node
+	dir  bool
 }
 
 func (n *ExprStmt) Type() NodeType {
@@ -204,6 +205,16 @@ func (n *ExprStmt) Type() NodeType {
 
 func (n *ExprStmt) Loc() *Loc {
 	return n.loc
+}
+
+func (n *ExprStmt) Dir() bool {
+	return n.dir
+}
+
+func (n *ExprStmt) DirStr() string {
+	s := n.expr.(*StrLit)
+	raw := s.Raw()
+	return s.Raw()[1 : len(raw)-1]
 }
 
 func (n *ExprStmt) Expr() Node {

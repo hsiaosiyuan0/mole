@@ -58,6 +58,9 @@ test-nullish:	cmd/mole/*.go pkg/*/*.go go.mod
 test-nullish-fail:	cmd/mole/*.go pkg/*/*.go go.mod
 	go test ./pkg/js/estree -run "^TestNullishFail\d"
 
+test-directive:	cmd/mole/*.go pkg/*/*.go go.mod
+	go test ./pkg/js/estree -run "^TestDirective\d"
+
 test-parser: cmd/mole/*.go pkg/*/*.go go.mod
 	go test ./pkg/js/parser
 

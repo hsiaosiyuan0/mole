@@ -291,7 +291,18 @@ func convert(node parser.Node) Node {
 	case parser.N_EXPR_PAREN:
 		return convert(node.(*parser.ParenExpr).Expr())
 	case parser.N_STMT_EXPR:
-		expr := convert(node.(*parser.ExprStmt).Expr())
+		exprStmt := node.(*parser.ExprStmt)
+		expr := convert(exprStmt.Expr())
+		if exprStmt.Dir() {
+			return &Directive{
+				Type:       "ExpressionStatement",
+				Start:      start(node.Loc()),
+				End:        end(node.Loc()),
+				Loc:        loc(node.Loc()),
+				Expression: expr,
+				Directive:  exprStmt.DirStr(),
+			}
+		}
 		return &ExpressionStatement{
 			Type:       "ExpressionStatement",
 			Start:      start(node.Loc()),
