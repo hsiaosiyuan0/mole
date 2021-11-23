@@ -52,6 +52,12 @@ test-es7:	cmd/mole/*.go pkg/*/*.go go.mod
 test-es7-fail:	cmd/mole/*.go pkg/*/*.go go.mod
 	go test ./pkg/js/estree -run "^TestEs7thFail\d"
 
+test-nullish:	cmd/mole/*.go pkg/*/*.go go.mod
+	go test ./pkg/js/estree -run "^TestNullish\d"
+
+test-nullish-fail:	cmd/mole/*.go pkg/*/*.go go.mod
+	go test ./pkg/js/estree -run "^TestNullishFail\d"
+
 test-parser: cmd/mole/*.go pkg/*/*.go go.mod
 	go test ./pkg/js/parser
 

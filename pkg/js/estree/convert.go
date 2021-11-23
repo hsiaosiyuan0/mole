@@ -378,7 +378,7 @@ func convert(node parser.Node) Node {
 		op := bin.OpText()
 		opv := bin.Op()
 
-		if opv == parser.T_AND || opv == parser.T_OR {
+		if opv == parser.T_AND || opv == parser.T_OR || opv == parser.T_NULLISH {
 			return &LogicalExpression{
 				Type:     "LogicalExpression",
 				Start:    start(node.Loc()),

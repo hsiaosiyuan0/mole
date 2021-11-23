@@ -4,6 +4,7 @@
         "GOARCH",
         "jquery",
         "pbcopy",
-        "REDEF"
+        "REDEF",
+        "unparenthesized"
     ]
 }

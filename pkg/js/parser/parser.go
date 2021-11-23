@@ -27,7 +27,8 @@ type ParserOpts struct {
 const defaultFeatures Feature = FEAT_MODULE | FEAT_GLOBAL_ASYNC | FEAT_STRICT | FEAT_LET_CONST |
 	FEAT_BINDING_PATTERN | FEAT_BINDING_REST_ELEM | FEAT_BINDING_REST_ELEM_NESTED |
 	FEAT_SPREAD | FEAT_MODULE | FEAT_META_PROPERTY | FEAT_ASYNC_AWAIT | FEAT_ASYNC_ITERATION | FEAT_ASYNC_GENERATOR |
-	FEAT_POW | FEAT_CLASS_PRV | FEAT_CLASS_PUB_FIELD | FEAT_CLASS_PRIV_FIELD | FEAT_OPT_EXPR | FEAT_OPT_CATCH_PARAM
+	FEAT_POW | FEAT_CLASS_PRV | FEAT_CLASS_PUB_FIELD | FEAT_CLASS_PRIV_FIELD | FEAT_OPT_EXPR | FEAT_OPT_CATCH_PARAM |
+	FEAT_NULLISH
 
 func NewParserOpts() *ParserOpts {
 	return &ParserOpts{
@@ -2762,7 +2763,7 @@ func (p *Parser) isSimpleLVal(expr Node, pat bool, inParen bool, member bool, op
 // https://tc39.es/ecma262/multipage/ecmascript-language-expressions.html#prod-ConditionalExpression
 func (p *Parser) condExpr() (Node, error) {
 	loc := p.loc()
-	test, err := p.binExpr(nil, 0)
+	test, err := p.binExpr(nil, 0, false, false)
 	if err != nil {
 		return nil, err
 	}
@@ -3675,7 +3676,11 @@ func (p *Parser) checkOp(tok *Token) error {
 	return nil
 }
 
-func (p *Parser) binExpr(lhs Node, minPcd int) (Node, error) {
+// `logic` indicates that there is at least one logic expr in previous lhs group
+// `nullish` indicates that there is at least one nullish expr in previous lhs group
+// bypassing above two params to do the `nullish-can-not-along-with-logic` syntax check as
+// well as in one parse - avoiding to traverse the sub-tree later
+func (p *Parser) binExpr(lhs Node, minPcd int, logic bool, nullish bool) (Node, error) {
 	var err error
 	if lhs == nil {
 		if lhs, err = p.unaryExpr(); err != nil {
@@ -3692,6 +3697,20 @@ func (p *Parser) binExpr(lhs Node, minPcd int) (Node, error) {
 		if op == T_ILLEGAL || pcd < minPcd {
 			break
 		}
+
+		if logic && op == T_NULLISH || nullish && (op == T_AND || op == T_OR) {
+			return nil, p.errorAtLoc(p.locFromTok(ahead), ERR_NULLISH_MIXED_WITH_LOGIC)
+		}
+		if op == T_AND || op == T_OR {
+			if !logic {
+				logic = true
+			}
+		} else if op == T_NULLISH {
+			if !nullish {
+				nullish = true
+			}
+		}
+
 		if err = p.checkOp(ahead); err != nil {
 			return nil, err
 		}
@@ -3705,7 +3724,7 @@ func (p *Parser) binExpr(lhs Node, minPcd int) (Node, error) {
 		ahead = p.lexer.Peek()
 		kind = ahead.Kind()
 		for ahead.IsBin(notIn) != T_ILLEGAL && (kind.Pcd > pcd || kind.Pcd == pcd && kind.RightAssoc) {
-			rhs, err = p.binExpr(rhs, pcd)
+			rhs, err = p.binExpr(rhs, pcd, logic, nullish)
 			if err != nil {
 				return nil, err
 			}
