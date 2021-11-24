@@ -41,7 +41,7 @@ func TestReadId(t *testing.T) {
 func TestReadNum(t *testing.T) {
 	s := NewSource("", "1 23 1e1 .1e1 .1_1 1n 0b01 0B01 0o01 0O01 0x01 0X01 0x0_1")
 	l := NewLexer(s)
-	l.feat = FEAT_BIGINT
+	l.feat = FEAT_BIGINT | FEAT_NUM_SEP
 	tok := l.Next()
 	assert.Equal(t, true, tok.IsLegal(), "should be ok 1")
 	assert.Equal(t, "1", tok.Text(), "should be 1")

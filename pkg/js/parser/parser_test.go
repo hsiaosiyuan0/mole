@@ -958,7 +958,7 @@ func TestFail2(t *testing.T) {
 }
 
 func TestFail3(t *testing.T) {
-	testFail(t, "3ea", "Invalid number at (1:0)", nil)
+	testFail(t, "3ea", "Identifier directly after number at (1:2)", nil)
 }
 
 func TestFail4(t *testing.T) {
@@ -966,15 +966,15 @@ func TestFail4(t *testing.T) {
 }
 
 func TestFail5(t *testing.T) {
-	testFail(t, "3e", "Invalid number at (1:0)", nil)
+	testFail(t, "3e", "Invalid number at (1:2)", nil)
 }
 
 func TestFail6(t *testing.T) {
-	testFail(t, "3e+", "Invalid number at (1:0)", nil)
+	testFail(t, "3e+", "Invalid number at (1:3)", nil)
 }
 
 func TestFail7(t *testing.T) {
-	testFail(t, "3e-", "Invalid number at (1:0)", nil)
+	testFail(t, "3e-", "Invalid number at (1:3)", nil)
 }
 
 func TestFail8(t *testing.T) {

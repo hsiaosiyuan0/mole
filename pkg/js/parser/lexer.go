@@ -998,10 +998,16 @@ func (l *Lexer) readDecimalNum(tok *Token, first rune) *Token {
 	if first != '.' && first != '0' {
 		c := l.src.Peek()
 		if c != 'e' && c != 'E' && c != 'n' && IsIdStart(c) {
-			tok = l.newToken()
-			return l.errToken(tok, ERR_IDENT_AFTER_NUMBER)
+			return l.errToken(nil, ERR_IDENT_AFTER_NUMBER)
 		}
-		l.readDecimalDigits(true)
+		if err := l.readDecimalDigits(true); err != "" {
+			if err == ERR_NUM_SEP_END {
+				tok := l.newToken()
+				tok.begin.col -= 1
+				return l.errToken(tok, err)
+			}
+			return l.errToken(nil, err)
+		}
 	}
 
 	if first != '.' && l.src.AheadIsCh('.') || first == '.' {
@@ -1009,22 +1015,24 @@ func (l *Lexer) readDecimalNum(tok *Token, first rune) *Token {
 			l.src.Read()
 		}
 		// read the fraction part
-		if err := l.readDecimalDigits(true); err != nil {
-			if IsIdStart(l.src.Peek()) {
-				return l.errToken(nil, ERR_IDENT_AFTER_NUMBER)
+		if err := l.readDecimalDigits(true); err != "" {
+			if err == ERR_NUM_SEP_END {
+				tok := l.newToken()
+				tok.begin.col -= 1
+				return l.errToken(tok, err)
 			}
-			return l.errToken(tok, ERR_INVALID_NUMBER)
+			return l.errToken(nil, err)
 		}
 	}
 
 	if l.src.AheadIsChOr('e', 'E') {
-		if err := l.readExpPart(); err != nil {
-			return l.errToken(tok, ERR_INVALID_NUMBER)
+		if err := l.readExpPart(); err != "" {
+			return l.errToken(nil, err)
 		}
 	}
 
 	if ok := l.bigintSuffix(); !ok {
-		return l.errToken(tok, ERR_IDENT_AFTER_NUMBER)
+		return l.errToken(nil, ERR_IDENT_AFTER_NUMBER)
 	}
 	return l.finToken(tok, T_NUM)
 }
@@ -1036,7 +1044,7 @@ func (l *Lexer) bigintSuffix() bool {
 	return true
 }
 
-func (l *Lexer) readExpPart() error {
+func (l *Lexer) readExpPart() string {
 	l.src.Read() // consume `e` or `E`
 	if l.src.AheadIsChOr('+', '-') {
 		l.src.Read()
@@ -1044,30 +1052,60 @@ func (l *Lexer) readExpPart() error {
 	return l.readDecimalDigits(false)
 }
 
-func (l *Lexer) readDecimalDigits(opt bool) error {
-	err := l.errCharError()
+func (l *Lexer) readDecimalDigits(opt bool) string {
 	i := 0
+
+	var last rune
 	for {
 		c := l.src.Peek()
-		if IsDecimalDigit(c) || i != 0 && c == '_' {
+		if IsDecimalDigit(c) || c == '_' {
+			if c == '_' && l.feat&FEAT_NUM_SEP == 0 {
+				return ERR_INVALID_NUMBER
+			}
+			if i == 0 && c == '_' {
+				return ERR_NUM_SEP_BEGIN
+			} else {
+				if last == '_' && c == '_' {
+					return ERR_NUM_SEP_DUP
+				}
+				last = c
+			}
 			l.src.Read()
 			i += 1
 		} else {
 			break
 		}
 	}
-	if i == 0 && !opt {
-		return err
+	if last == '_' {
+		return ERR_NUM_SEP_END
 	}
-	return nil
+	if i == 0 && !opt {
+		if IsIdStart(l.src.Peek()) {
+			return ERR_IDENT_AFTER_NUMBER
+		}
+		return ERR_INVALID_NUMBER
+	}
+	return ""
 }
 
 func (l *Lexer) readBinaryNum(tok *Token) *Token {
 	l.src.Read()
 	i := 0
+	var last rune
 	for {
 		c := l.src.Peek()
 		if c == '0' || c == '1' || c == '_' {
+			if c == '_' {
+				if l.feat&FEAT_NUM_SEP == 0 {
+					return l.errToken(nil, ERR_IDENT_AFTER_NUMBER)
+				}
+				if i == 0 {
+					return l.errToken(nil, ERR_NUM_SEP_BEGIN)
+				} else if last == '_' && c == '_' {
+					return l.errToken(nil, ERR_NUM_SEP_DUP)
+				}
+			}
+			last = c
 			l.src.Read()
 			i += 1
 		} else if IsIdStart(c) {
@@ -1075,6 +1113,11 @@ func (l *Lexer) readBinaryNum(tok *Token) *Token {
 		} else {
 			break
 		}
+	}
+	if last == '_' {
+		tok := l.newToken()
+		tok.begin.col -= 1
+		return l.errToken(tok, ERR_NUM_SEP_END)
 	}
 	if i == 0 {
 		tok.begin.line = l.src.line
@@ -1089,17 +1132,37 @@ func (l *Lexer) readBinaryNum(tok *Token) *Token {
 }
 
 func (l *Lexer) readOctalNum(tok *Token, i int) *Token {
+	legacy := i == 1
 	l.src.Read()
+	var last rune
 	for {
 		c := l.src.Peek()
 		if c >= '0' && c <= '7' || c == '_' {
+			if c == '_' {
+				if l.feat&FEAT_NUM_SEP == 0 {
+					return l.errToken(nil, ERR_IDENT_AFTER_NUMBER)
+				}
+				if i == 0 {
+					return l.errToken(nil, ERR_NUM_SEP_BEGIN)
+				} else if legacy {
+					return l.errToken(nil, ERR_NUM_SEP_IN_LEGACY_OCTAL)
+				} else if last == '_' && c == '_' {
+					return l.errToken(nil, ERR_NUM_SEP_DUP)
+				}
+			}
+			last = c
 			l.src.Read()
 			i += 1
-		} else if IsIdStart(c) {
-			return l.errToken(nil, ERR_IDENT_AFTER_NUMBER)
 		} else {
 			break
 		}
+	}
+	if last == '_' {
+		tok := l.newToken()
+		tok.begin.col -= 1
+		return l.errToken(tok, ERR_NUM_SEP_END)
+	} else if IsIdStart(l.src.Peek()) {
+		return l.errToken(nil, ERR_IDENT_AFTER_NUMBER)
 	}
 	if i == 0 {
 		tok.begin.line = l.src.line
@@ -1116,19 +1179,36 @@ func (l *Lexer) readOctalNum(tok *Token, i int) *Token {
 func (l *Lexer) readHexNum(tok *Token) *Token {
 	l.src.Read()
 	i := 0
+	var last rune
 	for {
 		c := l.src.Peek()
 		if IsHexDigit(c) || c == '_' {
+			if c == '_' {
+				if l.feat&FEAT_NUM_SEP == 0 {
+					return l.errToken(nil, ERR_IDENT_AFTER_NUMBER)
+				}
+				if i == 0 {
+					return l.errToken(nil, ERR_NUM_SEP_BEGIN)
+				} else if last == '_' && c == '_' {
+					return l.errToken(nil, ERR_NUM_SEP_DUP)
+				}
+			}
+			last = c
 			l.src.Read()
 			i += 1
-		} else if IsIdStart(c) {
-			return l.errToken(nil, ERR_IDENT_AFTER_NUMBER)
 		} else {
 			break
 		}
 	}
 	if i == 0 {
 		return l.errToken(nil, "Expected number in radix 16")
+	}
+	if last == '_' {
+		tok := l.newToken()
+		tok.begin.col -= 1
+		return l.errToken(tok, ERR_NUM_SEP_BEGIN)
+	} else if IsIdStart(l.src.Peek()) {
+		return l.errToken(nil, ERR_IDENT_AFTER_NUMBER)
 	}
 
 	if ok := l.bigintSuffix(); !ok {
@@ -1238,7 +1318,7 @@ func (l *Lexer) error(msg string) *LexerError {
 }
 
 func (l *Lexer) errCharError() *LexerError {
-	return l.error("unexpected character")
+	return l.error(ERR_UNEXPECTED_CHAR)
 }
 
 func (l *Lexer) aheadIsIdStart() bool {

@@ -148,4 +148,8 @@ const (
 	ERR_OPT_EXPR_IN_NEW                            = "Invalid optional chain from new expression"
 	ERR_OPT_EXPR_IN_TAG                            = "Invalid tagged template on optional chain"
 	ERR_NULLISH_MIXED_WITH_LOGIC                   = "Cannot use unparenthesized `??` within logic expressions"
+	ERR_NUM_SEP_BEGIN                              = "Numeric separator is not allowed at the first of digits"
+	ERR_NUM_SEP_END                                = "Numeric separator is not allowed at the last of digits"
+	ERR_NUM_SEP_DUP                                = "Only one underscore is allowed as numeric separator"
+	ERR_NUM_SEP_IN_LEGACY_OCTAL                    = "Numeric separator is not allowed in legacy octal numeric literals"
 )
