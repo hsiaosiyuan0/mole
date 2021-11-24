@@ -28,7 +28,8 @@ const defaultFeatures Feature = FEAT_MODULE | FEAT_GLOBAL_ASYNC | FEAT_STRICT | 
 	FEAT_BINDING_PATTERN | FEAT_BINDING_REST_ELEM | FEAT_BINDING_REST_ELEM_NESTED |
 	FEAT_SPREAD | FEAT_MODULE | FEAT_META_PROPERTY | FEAT_ASYNC_AWAIT | FEAT_ASYNC_ITERATION | FEAT_ASYNC_GENERATOR |
 	FEAT_POW | FEAT_CLASS_PRV | FEAT_CLASS_PUB_FIELD | FEAT_CLASS_PRIV_FIELD | FEAT_OPT_EXPR | FEAT_OPT_CATCH_PARAM |
-	FEAT_NULLISH | FEAT_BAD_ESCAPE_IN_TAGGED_TPL | FEAT_BIGINT | FEAT_NUM_SEP | FEAT_LOGIC_ASSIGN
+	FEAT_NULLISH | FEAT_BAD_ESCAPE_IN_TAGGED_TPL | FEAT_BIGINT | FEAT_NUM_SEP | FEAT_LOGIC_ASSIGN |
+	FEAT_DYNAMIC_IMPORT
 
 func NewParserOpts() *ParserOpts {
 	return &ParserOpts{
@@ -465,13 +466,13 @@ func (p *Parser) exportSpec() (Node, error) {
 // https://tc39.es/ecma262/multipage/ecmascript-language-scripts-and-modules.html#prod-ImportDeclaration
 func (p *Parser) importDec() (Node, error) {
 	loc := p.loc()
-	tok := p.lexer.Next()
-	if p.feat&FEAT_MODULE == 0 {
-		return nil, p.errorTok(tok)
+	ipt := p.lexer.Next()
+	if p.feat&FEAT_MODULE == 0 && p.feat&FEAT_DYNAMIC_IMPORT == 0 {
+		return nil, p.errorTok(ipt)
 	}
 
 	specs := make([]Node, 0)
-	tok = p.lexer.Peek()
+	tok := p.lexer.Peek()
 	if tok.value != T_STRING {
 		if tok.value == T_NAME {
 			id, err := p.ident(nil)
@@ -480,6 +481,12 @@ func (p *Parser) importDec() (Node, error) {
 			}
 			spec := &ImportSpec{N_IMPORT_SPEC, p.finLoc(p.locFromTok(tok)), true, false, id, id}
 			specs = append(specs, spec)
+		} else if tok.value == T_PAREN_L {
+			expr, err := p.importCall(ipt)
+			if err != nil {
+				return nil, err
+			}
+			return &ExprStmt{N_STMT_EXPR, expr.Loc().Clone(), expr, false}, nil
 		} else {
 			ss, err := p.importNamedOrNS()
 			if err != nil {
@@ -2220,6 +2227,7 @@ var prohibitedNames = map[string]bool{
 	"protected":  true,
 	"public":     true,
 	"static":     true,
+	"import":     true,
 }
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-expressions.html#sec-identifiers-static-semantics-early-errors
@@ -2984,6 +2992,9 @@ func (p *Parser) newExpr() (Node, error) {
 	if optLoc != nil {
 		return nil, p.errorAtLoc(optLoc, ERR_OPT_EXPR_IN_NEW)
 	}
+	if expr.Type() == N_IMPORT_CALL {
+		return nil, p.errorAtLoc(expr.Loc(), ERR_DYNAMIC_IMPORT_CANNOT_NEW)
+	}
 
 	var args []Node
 	if p.lexer.Peek().value == T_PAREN_L {
@@ -3099,36 +3110,40 @@ func (p *Parser) callExpr(callee Node, root bool, directOpt bool, opt *Loc) (Nod
 }
 
 // https://262.ecma-international.org/12.0/#prod-ImportCall
-func (p *Parser) importCall() (Node, error) {
-	loc := p.loc()
-	tok := p.lexer.Next()
+func (p *Parser) importCall(tok *Token) (Node, error) {
+	if tok == nil {
+		tok = p.lexer.Next()
+	}
+	loc := p.locFromTok(tok)
+
 	meta := &Ident{N_NAME, p.finLoc(p.locFromTok(tok)), tok.Text(), false, tok.ContainsEscape(), nil, false}
 
-	if p.lexer.Peek().value == T_DOT {
+	ahead := p.lexer.Peek()
+	if ahead.value == T_DOT && p.feat&FEAT_META_PROPERTY != 0 {
 		p.lexer.Next()
 		prop, err := p.ident(nil)
 		if err != nil {
 			return nil, err
 		}
 		if prop.Text() != "meta" {
-			return nil, p.errorAt(p.lexer.prtVal, &p.lexer.prtBegin, "")
+			return nil, p.errorAtLoc(prop.loc, ERR_ILLEGAL_IMPORT_PROP)
 		}
 		return &MetaProp{N_META_PROP, p.finLoc(loc), meta, prop}, nil
 	}
 
-	_, err := p.nextMustTok(T_PAREN_L)
-	if err != nil {
-		return nil, err
+	if ahead.value == T_PAREN_L && p.feat&FEAT_DYNAMIC_IMPORT != 0 {
+		p.lexer.Next()
+		src, err := p.assignExpr(true)
+		if err != nil {
+			return nil, err
+		}
+		_, err = p.nextMustTok(T_PAREN_R)
+		if err != nil {
+			return nil, err
+		}
+		return &ImportCall{N_IMPORT_CALL, p.finLoc(loc), src, nil}, nil
 	}
-	src, err := p.assignExpr(true)
-	if err != nil {
-		return nil, err
-	}
-	_, err = p.nextMustTok(T_PAREN_R)
-	if err != nil {
-		return nil, err
-	}
-	return &ImportCall{N_IMPORT_CALL, p.finLoc(loc), src, nil}, nil
+	return nil, p.errorTok(ahead)
 }
 
 func (p *Parser) tplExpr(tag Node) (Node, error) {
@@ -3978,7 +3993,7 @@ func (p *Parser) primaryExpr() (Node, error) {
 		}
 		return &Super{N_SUPER, p.finLoc(loc), nil}, nil
 	case T_IMPORT:
-		return p.importCall()
+		return p.importCall(nil)
 	case T_TPL_HEAD:
 		return p.tplExpr(nil)
 	}

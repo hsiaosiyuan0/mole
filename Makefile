@@ -73,6 +73,12 @@ test-logic-assign:	cmd/mole/*.go pkg/*/*.go go.mod
 test-logic-assign-fail:	cmd/mole/*.go pkg/*/*.go go.mod
 	go test ./pkg/js/estree -run "^TestLogicAssignFail\d"
 
+test-dynamic-import:	cmd/mole/*.go pkg/*/*.go go.mod
+	go test ./pkg/js/estree -run "^TestDynamicImport\d"
+
+test-dynamic-import-fail:	cmd/mole/*.go pkg/*/*.go go.mod
+	go test ./pkg/js/estree -run "^TestDynamicImportFail\d"
+
 test-parser: cmd/mole/*.go pkg/*/*.go go.mod
 	go test ./pkg/js/parser
 

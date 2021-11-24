@@ -152,4 +152,6 @@ const (
 	ERR_NUM_SEP_END                                = "Numeric separator is not allowed at the last of digits"
 	ERR_NUM_SEP_DUP                                = "Only one underscore is allowed as numeric separator"
 	ERR_NUM_SEP_IN_LEGACY_OCTAL                    = "Numeric separator is not allowed in legacy octal numeric literals"
+	ERR_ILLEGAL_IMPORT_PROP                        = "The only valid meta property for import is `import.meta`"
+	ERR_DYNAMIC_IMPORT_CANNOT_NEW                  = "Cannot use new with `import()`"
 )
