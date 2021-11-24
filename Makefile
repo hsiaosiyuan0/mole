@@ -61,6 +61,12 @@ test-nullish-fail:	cmd/mole/*.go pkg/*/*.go go.mod
 test-directive:	cmd/mole/*.go pkg/*/*.go go.mod
 	go test ./pkg/js/estree -run "^TestDirective\d"
 
+test-num-sep:	cmd/mole/*.go pkg/*/*.go go.mod
+	go test ./pkg/js/estree -run "^TestNumSep\d"
+
+test-num-sep-fail:	cmd/mole/*.go pkg/*/*.go go.mod
+	go test ./pkg/js/estree -run "^TestNumSepFail\d"
+
 test-parser: cmd/mole/*.go pkg/*/*.go go.mod
 	go test ./pkg/js/parser
 

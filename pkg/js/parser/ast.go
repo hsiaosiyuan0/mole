@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"math"
+	"math/big"
 	"strconv"
 	"strings"
 )
@@ -330,27 +332,80 @@ func (n *NumLit) Text() string {
 	return n.loc.Text()
 }
 
-func (n *NumLit) ToFloat() float64 {
+func (n *NumLit) IsBigint() bool {
 	t := n.loc.Text()
+	return t[len(t)-1] == 'n'
+}
+
+// unsafe method, use `IsBigint` before this method
+func (n *NumLit) ToBigFloat() *big.Float {
+	t := n.loc.Text()
+	t = t[:len(t)-1]
+
 	if strings.HasPrefix(t, "0x") || strings.HasPrefix(t, "0X") {
-		s, _ := strconv.ParseUint(t[2:], 16, 32)
-		return float64(s)
+		r := strings.ReplaceAll(t[2:], "_", "")
+		i := big.NewInt(0)
+		i.SetString(r, 16)
+		return big.NewFloat(0).SetInt(i)
 	}
 	if strings.HasPrefix(t, "0o") || strings.HasPrefix(t, "0O") {
-		s, _ := strconv.ParseUint(t[2:], 8, 32)
-		return float64(s)
+		r := strings.ReplaceAll(t[2:], "_", "")
+		i := big.NewInt(0)
+		i.SetString(r, 8)
+		return big.NewFloat(0).SetInt(i)
 	}
 	if strings.HasPrefix(t, "0b") || strings.HasPrefix(t, "0B") {
-		s, _ := strconv.ParseUint(t[2:], 2, 32)
-		return float64(s)
+		r := strings.ReplaceAll(t[2:], "_", "")
+		i := big.NewInt(0)
+		i.SetString(r, 2)
+		return big.NewFloat(0).SetInt(i)
 	}
 	if strings.HasPrefix(t, "0") && len(t) > 1 {
 		t = strings.TrimLeft(t, "0")
-		s, _ := strconv.ParseUint(t, 8, 32)
-		return float64(s)
+		i := big.NewInt(0)
+		i.SetString(t, 8)
+		return big.NewFloat(0).SetInt(i)
 	}
-	s, _ := strconv.ParseFloat(t, 64)
-	return s
+	f := big.NewFloat(0)
+	f.SetString(t)
+	return f
+}
+
+// unsafe method, use `IsBigint` before this method
+func (n *NumLit) ToFloat() float64 {
+	t := n.loc.Text()
+	if strings.HasPrefix(t, "0x") || strings.HasPrefix(t, "0X") {
+		r := strings.ReplaceAll(t[2:], "_", "")
+		f, _ := strconv.ParseUint(r, 16, 32)
+		return float64(f)
+	}
+	if strings.HasPrefix(t, "0o") || strings.HasPrefix(t, "0O") {
+		r := strings.ReplaceAll(t[2:], "_", "")
+		f, _ := strconv.ParseUint(r, 8, 32)
+		return float64(f)
+	}
+	if strings.HasPrefix(t, "0b") || strings.HasPrefix(t, "0B") {
+		r := strings.ReplaceAll(t[2:], "_", "")
+		f, _ := strconv.ParseUint(r, 2, 32)
+		return float64(f)
+	}
+	if strings.HasPrefix(t, "0") && len(t) > 1 {
+		t = strings.TrimLeft(t, "0")
+		f, _ := strconv.ParseUint(t, 8, 32)
+		return float64(f)
+	}
+	f, _ := strconv.ParseFloat(t, 64)
+	return f
+}
+
+func (n *NumLit) ToBigOrFloat() (*big.Float, float64, bool) {
+	if n.IsBigint() {
+		b := n.ToBigFloat()
+		c := b.Cmp(big.NewFloat(math.MaxFloat64))
+		return b, 0, c == -1 || c == 0
+	}
+	f := n.ToFloat()
+	return nil, n.ToFloat(), f <= math.MaxFloat64
 }
 
 func (n *NumLit) Extra() interface{} {

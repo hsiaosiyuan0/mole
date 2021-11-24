@@ -1023,8 +1023,17 @@ func (l *Lexer) readDecimalNum(tok *Token, first rune) *Token {
 		}
 	}
 
-	l.src.ReadIfNextIs('n')
+	if ok := l.bigintSuffix(); !ok {
+		return l.errToken(tok, ERR_IDENT_AFTER_NUMBER)
+	}
 	return l.finToken(tok, T_NUM)
+}
+
+func (l *Lexer) bigintSuffix() bool {
+	if l.src.ReadIfNextIs('n') && l.feat&FEAT_BIGINT == 0 {
+		return false
+	}
+	return true
 }
 
 func (l *Lexer) readExpPart() error {
@@ -1072,7 +1081,10 @@ func (l *Lexer) readBinaryNum(tok *Token) *Token {
 		tok.begin.col = l.src.col
 		return l.errToken(tok, fmt.Sprintf(ERR_TPL_EXPECT_NUM_RADIX, "2"))
 	}
-	l.src.ReadIfNextIs('n')
+
+	if ok := l.bigintSuffix(); !ok {
+		return l.errToken(tok, ERR_INVALID_NUMBER)
+	}
 	return l.finToken(tok, T_NUM)
 }
 
@@ -1094,7 +1106,10 @@ func (l *Lexer) readOctalNum(tok *Token, i int) *Token {
 		tok.begin.col = l.src.col
 		return l.errToken(tok, fmt.Sprintf(ERR_TPL_EXPECT_NUM_RADIX, "8"))
 	}
-	l.src.ReadIfNextIs('n')
+
+	if ok := l.bigintSuffix(); !ok {
+		return l.errToken(tok, ERR_INVALID_NUMBER)
+	}
 	return l.finToken(tok, T_NUM)
 }
 
@@ -1115,7 +1130,10 @@ func (l *Lexer) readHexNum(tok *Token) *Token {
 	if i == 0 {
 		return l.errToken(nil, "Expected number in radix 16")
 	}
-	l.src.ReadIfNextIs('n')
+
+	if ok := l.bigintSuffix(); !ok {
+		return l.errToken(tok, ERR_INVALID_NUMBER)
+	}
 	return l.finToken(tok, T_NUM)
 }
 
