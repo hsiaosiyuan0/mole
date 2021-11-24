@@ -687,7 +687,9 @@ func (l *Lexer) ReadSymbol() *Token {
 		return l.errToken(tok, ERR_UNEXPECTED_TOKEN)
 	} else if val == T_OPT_CHAIN && l.feat&FEAT_OPT_EXPR == 0 {
 		return l.errToken(tok, ERR_UNEXPECTED_TOKEN)
-	} else if (val == T_NULLISH || val == T_ASSIGN_NULLISH) && l.feat&FEAT_NULLISH == 0 {
+	} else if val == T_NULLISH && l.feat&FEAT_NULLISH == 0 {
+		return l.errToken(tok, ERR_UNEXPECTED_TOKEN)
+	} else if (val == T_ASSIGN_NULLISH || val == T_ASSIGN_AND || val == T_ASSIGN_OR) && l.feat&FEAT_LOGIC_ASSIGN == 0 {
 		return l.errToken(tok, ERR_UNEXPECTED_TOKEN)
 	}
 

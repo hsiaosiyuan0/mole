@@ -36,6 +36,7 @@ const (
 	FEAT_NULLISH          Feature = 1 << 25 // from es11
 	FEAT_BIGINT           Feature = 1 << 26 // from es11
 	FEAT_NUM_SEP          Feature = 1 << 27 // from es12
+	FEAT_LOGIC_ASSIGN     Feature = 1 << 28 // from es12
 )
 
 func (f Feature) On(flag Feature) Feature {

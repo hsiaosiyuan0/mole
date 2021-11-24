@@ -67,6 +67,12 @@ test-num-sep:	cmd/mole/*.go pkg/*/*.go go.mod
 test-num-sep-fail:	cmd/mole/*.go pkg/*/*.go go.mod
 	go test ./pkg/js/estree -run "^TestNumSepFail\d"
 
+test-logic-assign:	cmd/mole/*.go pkg/*/*.go go.mod
+	go test ./pkg/js/estree -run "^TestLogicAssign\d"
+
+test-logic-assign-fail:	cmd/mole/*.go pkg/*/*.go go.mod
+	go test ./pkg/js/estree -run "^TestLogicAssignFail\d"
+
 test-parser: cmd/mole/*.go pkg/*/*.go go.mod
 	go test ./pkg/js/parser
 
