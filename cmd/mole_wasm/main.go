@@ -8,11 +8,6 @@ import (
 	"github.com/hsiaosiyuan0/mole/pkg/js/parser"
 )
 
-type Result struct {
-	Data  interface{} `json:"data"`
-	Error interface{} `json:"error"`
-}
-
 func compileToJson(src string) (string, error) {
 	opts := parser.NewParserOpts()
 	s := parser.NewSource("", src)
