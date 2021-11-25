@@ -338,55 +338,51 @@ func (n *NumLit) IsBigint() bool {
 }
 
 // unsafe method, use `IsBigint` before this method
-func (n *NumLit) ToBigFloat() *big.Float {
+func (n *NumLit) ToBigint() *big.Int {
 	t := n.loc.Text()
-	t = t[:len(t)-1]
+	t = strings.ReplaceAll(t[:len(t)-1], "_", "")
 
 	if strings.HasPrefix(t, "0x") || strings.HasPrefix(t, "0X") {
-		r := strings.ReplaceAll(t[2:], "_", "")
 		i := big.NewInt(0)
-		i.SetString(r, 16)
-		return big.NewFloat(0).SetInt(i)
+		i.SetString(t[2:], 16)
+		return i
 	}
 	if strings.HasPrefix(t, "0o") || strings.HasPrefix(t, "0O") {
-		r := strings.ReplaceAll(t[2:], "_", "")
 		i := big.NewInt(0)
-		i.SetString(r, 8)
-		return big.NewFloat(0).SetInt(i)
+		i.SetString(t[2:], 8)
+		return i
 	}
 	if strings.HasPrefix(t, "0b") || strings.HasPrefix(t, "0B") {
-		r := strings.ReplaceAll(t[2:], "_", "")
 		i := big.NewInt(0)
-		i.SetString(r, 2)
-		return big.NewFloat(0).SetInt(i)
+		i.SetString(t[2:], 2)
+		return i
 	}
 	if strings.HasPrefix(t, "0") && len(t) > 1 {
 		t = strings.TrimLeft(t, "0")
 		i := big.NewInt(0)
 		i.SetString(t, 8)
-		return big.NewFloat(0).SetInt(i)
+		return i
 	}
-	f := big.NewFloat(0)
-	f.SetString(t)
-	return f
+	i := big.NewInt(0)
+	i.SetString(t, 10)
+	return i
 }
 
 // unsafe method, use `IsBigint` before this method
 func (n *NumLit) ToFloat() float64 {
 	t := n.loc.Text()
+	t = strings.ReplaceAll(t, "_", "")
+
 	if strings.HasPrefix(t, "0x") || strings.HasPrefix(t, "0X") {
-		r := strings.ReplaceAll(t[2:], "_", "")
-		f, _ := strconv.ParseUint(r, 16, 32)
+		f, _ := strconv.ParseUint(t[2:], 16, 32)
 		return float64(f)
 	}
 	if strings.HasPrefix(t, "0o") || strings.HasPrefix(t, "0O") {
-		r := strings.ReplaceAll(t[2:], "_", "")
-		f, _ := strconv.ParseUint(r, 8, 32)
+		f, _ := strconv.ParseUint(t[2:], 8, 32)
 		return float64(f)
 	}
 	if strings.HasPrefix(t, "0b") || strings.HasPrefix(t, "0B") {
-		r := strings.ReplaceAll(t[2:], "_", "")
-		f, _ := strconv.ParseUint(r, 2, 32)
+		f, _ := strconv.ParseUint(t[2:], 2, 32)
 		return float64(f)
 	}
 	if strings.HasPrefix(t, "0") && len(t) > 1 {
@@ -398,14 +394,30 @@ func (n *NumLit) ToFloat() float64 {
 	return f
 }
 
-func (n *NumLit) ToBigOrFloat() (*big.Float, float64, bool) {
+const maxSafeInt = (uint64(1) << 53) - 1
+
+// unsafe method, use `IsBigint` before this method
+// return the numerical value if it's safe to be represented in JSON as number
+// otherwise zero is returned
+func (n *NumLit) Float() float64 {
 	if n.IsBigint() {
-		b := n.ToBigFloat()
-		c := b.Cmp(big.NewFloat(math.MaxFloat64))
-		return b, 0, c == -1 || c == 0
+		i := n.ToBigint()
+		f := big.NewFloat(0)
+		f.SetInt(i)
+		max := big.NewFloat(0)
+		max.SetUint64(maxSafeInt)
+		c := f.Cmp(max)
+		if c == -1 || c == 0 {
+			ff, _ := f.Float64()
+			return ff
+		}
+		return 0
 	}
 	f := n.ToFloat()
-	return nil, n.ToFloat(), f <= math.MaxFloat64
+	if f > math.MaxFloat64 {
+		return 0
+	}
+	return f
 }
 
 func (n *NumLit) Extra() interface{} {

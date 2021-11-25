@@ -44,6 +44,16 @@ type Literal struct {
 	Raw   string      `json:"raw"`
 }
 
+type Bigint struct {
+	Type   string      `json:"type"`
+	Start  int         `json:"start"`
+	End    int         `json:"end"`
+	Loc    *SrcLoc     `json:"loc"`
+	Value  interface{} `json:"value"` // string | boolean | null | number | RegExp | bigint(es2020)
+	Raw    string      `json:"raw"`
+	Bigint string      `json:"bigint"`
+}
+
 type Regexp struct {
 	Pattern string `json:"pattern"`
 	Flags   string `json:"flags"`

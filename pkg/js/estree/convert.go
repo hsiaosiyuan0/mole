@@ -355,13 +355,15 @@ func convert(node parser.Node) Node {
 		}
 	case parser.N_LIT_NUM:
 		num := node.(*parser.NumLit)
-		b, f, safe := num.ToBigOrFloat()
-		var v float64
-		if safe {
-			if b == nil {
-				v = f
-			} else {
-				v, _ = b.Float64()
+		if num.IsBigint() {
+			return &Bigint{
+				Type:   "Literal",
+				Start:  start(node.Loc()),
+				End:    end(node.Loc()),
+				Loc:    loc(node.Loc()),
+				Value:  num.Float(),
+				Raw:    num.Text(),
+				Bigint: num.ToBigint().String(),
 			}
 		}
 		return &Literal{
@@ -369,7 +371,7 @@ func convert(node parser.Node) Node {
 			Start: start(node.Loc()),
 			End:   end(node.Loc()),
 			Loc:   loc(node.Loc()),
-			Value: v,
+			Value: num.Float(),
 			Raw:   num.Text(),
 		}
 	case parser.N_LIT_STR:

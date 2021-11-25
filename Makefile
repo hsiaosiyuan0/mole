@@ -79,6 +79,12 @@ test-dynamic-import:	cmd/mole/*.go pkg/*/*.go go.mod
 test-dynamic-import-fail:	cmd/mole/*.go pkg/*/*.go go.mod
 	go test ./pkg/js/estree -run "^TestDynamicImportFail\d"
 
+test-bigint:	cmd/mole/*.go pkg/*/*.go go.mod
+	go test ./pkg/js/estree -run "^TestBigint\d"
+
+test-bigint-fail:	cmd/mole/*.go pkg/*/*.go go.mod
+	go test ./pkg/js/estree -run "^TestBigintFail\d"
+
 test-parser: cmd/mole/*.go pkg/*/*.go go.mod
 	go test ./pkg/js/parser
 
