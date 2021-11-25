@@ -30691,12 +30691,42 @@ func TestHarmony316(t *testing.T) {
 }
 
 func TestHarmony317(t *testing.T) {
-	// ast, err := compile("x = { false: 42 }")
-	// assert.Equal(t, nil, err, "should be prog ok")
+	ast, err := compile("try {} catch {}")
+	assert.Equal(t, nil, err, "should be prog ok")
 
-	// assert.EqualJson(t, `
-
-	// `, ast)
+	assert.EqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 15,
+  "body": [
+    {
+      "type": "TryStatement",
+      "start": 0,
+      "end": 15,
+      "block": {
+        "type": "BlockStatement",
+        "start": 4,
+        "end": 6,
+        "body": []
+      },
+      "handler": {
+        "type": "CatchClause",
+        "start": 7,
+        "end": 15,
+        "param": null,
+        "body": {
+          "type": "BlockStatement",
+          "start": 13,
+          "end": 15,
+          "body": []
+        }
+      },
+      "finalizer": null
+    }
+  ]
+}
+	`, ast)
 }
 
 func TestHarmony318(t *testing.T) {

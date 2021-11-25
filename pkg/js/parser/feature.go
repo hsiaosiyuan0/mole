@@ -25,7 +25,7 @@ const (
 	FEAT_ASYNC_ITERATION          Feature = 1 << 13 // from es9
 
 	FEAT_OPT_CATCH_PARAM Feature = 1 << 14 // from es10
-	FEAT_JSON_SUPER_SET  Feature = 1 << 15
+	FEAT_JSON_SUPER_SET  Feature = 1 << 15 // from es10
 
 	FEAT_CLASS_PRV      Feature = 1 << 16 // from es11
 	FEAT_OPT_EXPR       Feature = 1 << 17 // from es11

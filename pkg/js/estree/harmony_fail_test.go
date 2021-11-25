@@ -1348,7 +1348,11 @@ func TestHarmonyFail293(t *testing.T) {
 	testFail(t, "for (x => y => y in z;;);", "Assigning to rvalue at (1:5)", nil)
 }
 
-func TestHarmonyFail294(t *testing.T) {}
+func TestHarmonyFail294(t *testing.T) {
+	opts := parser.NewParserOpts()
+	opts.Feature = opts.Feature.Off(parser.FEAT_OPT_CATCH_PARAM)
+	testFail(t, "try {} catch {}", "Unexpected token `{` at (1:13)", opts)
+}
 
 func TestHarmonyFail295(t *testing.T) {}
 
