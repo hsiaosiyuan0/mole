@@ -85,6 +85,9 @@ test-bigint:	cmd/mole/*.go pkg/*/*.go go.mod
 test-bigint-fail:	cmd/mole/*.go pkg/*/*.go go.mod
 	go test ./pkg/js/estree -run "^TestBigintFail\d"
 
+test-export-all-as-ns:	cmd/mole/*.go pkg/*/*.go go.mod
+	go test ./pkg/js/estree -run "^TestExportAllAsNS"
+
 test-parser: cmd/mole/*.go pkg/*/*.go go.mod
 	go test ./pkg/js/parser
 

@@ -29,7 +29,7 @@ const defaultFeatures Feature = FEAT_MODULE | FEAT_GLOBAL_ASYNC | FEAT_STRICT | 
 	FEAT_SPREAD | FEAT_META_PROPERTY | FEAT_ASYNC_AWAIT | FEAT_ASYNC_ITERATION | FEAT_ASYNC_GENERATOR |
 	FEAT_POW | FEAT_CLASS_PRV | FEAT_CLASS_PUB_FIELD | FEAT_CLASS_PRIV_FIELD | FEAT_OPT_EXPR | FEAT_OPT_CATCH_PARAM |
 	FEAT_NULLISH | FEAT_BAD_ESCAPE_IN_TAGGED_TPL | FEAT_BIGINT | FEAT_NUM_SEP | FEAT_LOGIC_ASSIGN |
-	FEAT_DYNAMIC_IMPORT | FEAT_JSON_SUPER_SET
+	FEAT_DYNAMIC_IMPORT | FEAT_JSON_SUPER_SET | FEAT_EXPORT_ALL_AS_NS
 
 func NewParserOpts() *ParserOpts {
 	return &ParserOpts{
@@ -364,7 +364,7 @@ func (p *Parser) exportFrom() ([]Node, bool, Node, error) {
 	if tok.value == T_MUL {
 		ns = true
 		ahead := p.lexer.Peek()
-		if ahead.value == T_NAME && ahead.Text() == "as" {
+		if ahead.value == T_NAME && ahead.Text() == "as" && p.feat&FEAT_EXPORT_ALL_AS_NS != 0 {
 			p.lexer.Next()
 
 			id, err := p.ident(nil)
