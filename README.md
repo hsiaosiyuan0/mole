@@ -4,14 +4,14 @@ Tools to deeply process the frontend projects.
 
 ## Preview
 
-For OSX users, [brew](https://brew.sh/) is ready to install:
+It's easy for OSX users to get a preview binary via [brew](https://brew.sh/):
 
 ```bash
 brew tap hsiaosiyuan0/mole
 brew install mole
 ```
 
-For user on the other platforms just get the executable binary on [Releases](https://github.com/hsiaosiyuan0/mole/releases)
+For users on the other platforms could download the executable binary on [Releases](https://github.com/hsiaosiyuan0/mole/releases)
 
 Run below command to test the javascript parser shipped within mole binary:
 
