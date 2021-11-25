@@ -1,10 +1,14 @@
 {
-    "cSpell.words": [
-        "elems",
-        "GOARCH",
-        "jquery",
-        "pbcopy",
-        "REDEF",
-        "unparenthesized"
-    ]
+  "cSpell.words": [
+    "elems",
+    "GOARCH",
+    "jquery",
+    "pbcopy",
+    "REDEF",
+    "unparenthesized"
+  ],
+  "go.toolsEnvVars": {
+    "GOOS": "js",
+    "GOARCH": "wasm"
+  }
 }

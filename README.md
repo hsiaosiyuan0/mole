@@ -21,7 +21,7 @@ mole -ast -file path_to_your_test_file.js
 
 ## Features
 
-- [x] JavaScript Parser
+- [x] JavaScript Parser, [demo](http://blog.thehardways.me/mole-is-more/#/)
 - [ ] JSX
 
 ## Development

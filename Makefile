@@ -4,6 +4,9 @@ dep: cmd/mole/*.go pkg/*/*.go go.mod
 mole: cmd/mole/*.go pkg/*/*.go go.mod
 	go build ./cmd/mole
 
+mole_wasm: cmd/mole_wasm/*.go pkg/*/*.go go.mod
+	GOOS=js GOARCH=wasm go build -o mole.wasm ./cmd/mole_wasm
+
 install: ./mole
 	cp ./mole /usr/local/bin/mole
 
@@ -11,7 +14,7 @@ clean:
 	go run scripts/clean/mod.go
 
 test: cmd/mole/*.go pkg/*/*.go go.mod
-	go test ./...
+	go test ./pkg/...
 
 test-estree-convert: cmd/mole/*.go pkg/*/*.go go.mod
 	go test ./pkg/js/estree  -run "^Test\d"

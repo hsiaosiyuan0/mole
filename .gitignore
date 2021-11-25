@@ -4,3 +4,5 @@ bin
 lint.exe
 *.log
 /mole
+/mole.wasm
+/test.mjs
