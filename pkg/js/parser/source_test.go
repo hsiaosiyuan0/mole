@@ -7,10 +7,13 @@ import (
 )
 
 func TestEOL(t *testing.T) {
-	s := NewSource("", "\u2028\u000a\u000d\u000a")
+	s := NewSource("", "\u2028\u2029\u000a\u000d\u000a")
 	assert.Equal(t, 1, s.line, "line should begin from 1")
 
-	assert.Equal(t, EOL, s.Read(), "\\u2028 should be EOL")
+	assert.Equal(t, '\u2028', s.Read(), "\\u2028 should be EOL")
+	assert.Equal(t, 1, s.line, "\\u2028 should step line")
+
+	assert.Equal(t, '\u2029', s.Read(), "\\u2029 should be EOL")
 	assert.Equal(t, 1, s.line, "\\u2028 should step line")
 
 	assert.Equal(t, EOL, s.Read(), "\\u000a should be EOL")

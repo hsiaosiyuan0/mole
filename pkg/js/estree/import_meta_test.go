@@ -1,7 +1,6 @@
 package estree
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/hsiaosiyuan0/mole/pkg/assert"
@@ -149,7 +148,6 @@ func TestImportMeta4(t *testing.T) {
 	ast, err := compile("import.meta?.(a)[b]")
 	assert.Equal(t, nil, err, "should be prog ok")
 
-	fmt.Println(ast)
 	assert.EqualJson(t, `
 {
   "type": "Program",

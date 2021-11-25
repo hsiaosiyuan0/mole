@@ -168,8 +168,10 @@ func (s *Source) Read() rune {
 			if s.Peek() == '\n' {
 				s.NextRune()
 			}
+			r = EOL
+		} else {
+			r = c
 		}
-		r = EOL
 	}
 	if c == '\r' || c == '\n' {
 		s.line += 1

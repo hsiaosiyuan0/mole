@@ -740,7 +740,7 @@ func (l *Lexer) readRegexp(tok *Token) *Token {
 		if c == utf8.RuneError {
 			return l.errToken(tok, "")
 		} else if IsLineTerminator(c) {
-			return l.errToken(tok, ERR_UNTERMINATED_REGEXP)
+			return l.errToken(nil, ERR_UNTERMINATED_REGEXP)
 		}
 		if c == '\\' {
 			l.src.Read()
@@ -817,6 +817,10 @@ func (l *Lexer) isLegalFlag(f rune) bool {
 	return false
 }
 
+func (l *Lexer) IsLineTerminator(c rune) bool {
+	return c == 0x0a || c == 0x0d || ((c == 0x2028 || c == 0x2029) && l.feat&FEAT_JSON_SUPER_SET == 0)
+}
+
 // https://tc39.es/ecma262/multipage/ecmascript-language-lexical-grammar.html#sec-literals-string-literals
 func (l *Lexer) ReadStr() *Token {
 	tok := l.newToken()
@@ -851,7 +855,7 @@ func (l *Lexer) ReadStr() *Token {
 				}
 				text = append(text, r)
 			}
-		} else if IsLineTerminator(c) {
+		} else if l.IsLineTerminator(c) {
 			return l.errToken(tok, ERR_UNTERMINATED_STR)
 		} else if c == open {
 			break

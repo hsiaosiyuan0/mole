@@ -25,27 +25,28 @@ const (
 	FEAT_ASYNC_ITERATION          Feature = 1 << 13 // from es9
 
 	FEAT_OPT_CATCH_PARAM Feature = 1 << 14 // from es10
+	FEAT_JSON_SUPER_SET  Feature = 1 << 15
 
-	FEAT_CLASS_PRV      Feature = 1 << 15 // from es11
-	FEAT_OPT_EXPR       Feature = 1 << 16 // from es11
-	FEAT_NULLISH        Feature = 1 << 17 // from es11
-	FEAT_BIGINT         Feature = 1 << 18 // from es11
-	FEAT_DYNAMIC_IMPORT Feature = 1 << 19 // from es11
+	FEAT_CLASS_PRV      Feature = 1 << 16 // from es11
+	FEAT_OPT_EXPR       Feature = 1 << 17 // from es11
+	FEAT_NULLISH        Feature = 1 << 18 // from es11
+	FEAT_BIGINT         Feature = 1 << 19 // from es11
+	FEAT_DYNAMIC_IMPORT Feature = 1 << 20 // from es11
 
-	FEAT_NUM_SEP      Feature = 1 << 20 // from es12
-	FEAT_LOGIC_ASSIGN Feature = 1 << 21 // from es12
+	FEAT_NUM_SEP      Feature = 1 << 21 // from es12
+	FEAT_LOGIC_ASSIGN Feature = 1 << 22 // from es12
 
-	FEAT_CLASS_PUB_FIELD  Feature = 1 << 22 // from es13
-	FEAT_CLASS_PRIV_FIELD Feature = 1 << 23 // from es13
+	FEAT_CLASS_PUB_FIELD  Feature = 1 << 23 // from es13
+	FEAT_CLASS_PRIV_FIELD Feature = 1 << 24 // from es13
 
 	// not found where in the spec says that the flags of regexp is neened to check
 	// even though it's implemented in some other parsers, so flag `FEAT_CHK_REGEXP_FLAGS`
 	// is opt-in in mole
-	FEAT_CHK_REGEXP_FLAGS   Feature = 1 << 24
-	FEAT_REGEXP_UNICODE     Feature = 1 << 25 // from es6
-	FEAT_REGEXP_STICKY      Feature = 1 << 26 // from es6
-	FEAT_REGEXP_DOT_ALL     Feature = 1 << 27 // from es8
-	FEAT_REGEXP_HAS_INDICES Feature = 1 << 28 // from es10
+	FEAT_CHK_REGEXP_FLAGS   Feature = 1 << 25
+	FEAT_REGEXP_UNICODE     Feature = 1 << 26 // from es6
+	FEAT_REGEXP_STICKY      Feature = 1 << 27 // from es6
+	FEAT_REGEXP_DOT_ALL     Feature = 1 << 28 // from es8
+	FEAT_REGEXP_HAS_INDICES Feature = 1 << 29 // from es10
 
 )
 

@@ -1084,7 +1084,7 @@ func TestFail33(t *testing.T) {
 }
 
 func TestFail34(t *testing.T) {
-	testFail(t, "var x = /\n/", "Unterminated regular expression at (1:8)", nil)
+	testFail(t, "var x = /\n/", "Unterminated regular expression at (1:9)", nil)
 }
 
 func TestFail35(t *testing.T) {
@@ -1389,7 +1389,7 @@ func TestFail98(t *testing.T) {
 
 func TestFail99(t *testing.T) {
 	testFail(t, "/a\\\n/",
-		"Unterminated regular expression at (1:0)", nil)
+		"Unterminated regular expression at (1:3)", nil)
 }
 
 func TestFail100(t *testing.T) {
@@ -2351,11 +2351,11 @@ func TestFail302(t *testing.T) {
 }
 
 func TestFail303(t *testing.T) {
-	testFail(t, "/\u2029/", "Unterminated regular expression at (1:0)", nil)
+	testFail(t, "/\u2029/", "Unterminated regular expression at (1:1)", nil)
 }
 
 func TestFail304(t *testing.T) {
-	testFail(t, "/\u2028/", "Unterminated regular expression at (1:0)", nil)
+	testFail(t, "/\u2028/", "Unterminated regular expression at (1:1)", nil)
 }
 
 func TestFail305(t *testing.T) {

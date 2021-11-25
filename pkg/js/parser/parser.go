@@ -26,10 +26,10 @@ type ParserOpts struct {
 
 const defaultFeatures Feature = FEAT_MODULE | FEAT_GLOBAL_ASYNC | FEAT_STRICT | FEAT_LET_CONST |
 	FEAT_BINDING_PATTERN | FEAT_BINDING_REST_ELEM | FEAT_BINDING_REST_ELEM_NESTED |
-	FEAT_SPREAD | FEAT_MODULE | FEAT_META_PROPERTY | FEAT_ASYNC_AWAIT | FEAT_ASYNC_ITERATION | FEAT_ASYNC_GENERATOR |
+	FEAT_SPREAD | FEAT_META_PROPERTY | FEAT_ASYNC_AWAIT | FEAT_ASYNC_ITERATION | FEAT_ASYNC_GENERATOR |
 	FEAT_POW | FEAT_CLASS_PRV | FEAT_CLASS_PUB_FIELD | FEAT_CLASS_PRIV_FIELD | FEAT_OPT_EXPR | FEAT_OPT_CATCH_PARAM |
 	FEAT_NULLISH | FEAT_BAD_ESCAPE_IN_TAGGED_TPL | FEAT_BIGINT | FEAT_NUM_SEP | FEAT_LOGIC_ASSIGN |
-	FEAT_DYNAMIC_IMPORT
+	FEAT_DYNAMIC_IMPORT | FEAT_JSON_SUPER_SET
 
 func NewParserOpts() *ParserOpts {
 	return &ParserOpts{
@@ -43,6 +43,9 @@ func NewParserOpts() *ParserOpts {
 func NewParser(src *Source, opts *ParserOpts) *Parser {
 	if opts.Feature&FEAT_ASYNC_AWAIT == 0 {
 		opts.Feature = opts.Feature.Off(FEAT_GLOBAL_ASYNC)
+	}
+	if opts.Feature&FEAT_MODULE != 0 {
+		opts.Feature = opts.Feature.On(FEAT_IMPORT_DEC).On(FEAT_EXPORT_DEC)
 	}
 
 	parser := &Parser{}
@@ -278,7 +281,7 @@ func (p *Parser) stmt() (node Node, err error) {
 func (p *Parser) exportDec() (Node, error) {
 	loc := p.loc()
 	tok := p.lexer.Next()
-	if p.feat&FEAT_MODULE == 0 {
+	if p.feat&FEAT_EXPORT_DEC == 0 {
 		return nil, p.errorTok(tok)
 	}
 
@@ -467,7 +470,7 @@ func (p *Parser) exportSpec() (Node, error) {
 func (p *Parser) importDec() (Node, error) {
 	loc := p.loc()
 	ipt := p.lexer.Next()
-	if p.feat&FEAT_MODULE == 0 && p.feat&FEAT_DYNAMIC_IMPORT == 0 {
+	if p.feat&FEAT_IMPORT_DEC == 0 && p.feat&FEAT_DYNAMIC_IMPORT == 0 {
 		return nil, p.errorTok(ipt)
 	}
 
