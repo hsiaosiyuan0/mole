@@ -11,6 +11,8 @@ const (
 	FEAT_BINDING_PATTERN   Feature = 1 << 5 // from es6
 	FEAT_BINDING_REST_ELEM Feature = 1 << 6 // from es6
 	FEAT_MODULE            Feature = 1 << 7 // from es6
+	FEAT_IMPORT_DEC        Feature = 1 << 7 // from es6
+	FEAT_EXPORT_DEC        Feature = 1 << 7 // from es6
 	FEAT_META_PROPERTY     Feature = 1 << 8 // from es6
 
 	FEAT_POW                      Feature = 1 << 9  // from es7

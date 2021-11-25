@@ -88,8 +88,8 @@ const (
 	ERR_ILLEGAL_CONTINUE                           = "Illegal continue"
 	ERR_MULTI_DEFAULT                              = "Multiple default clauses"
 	ERR_ASSIGN_TO_RVALUE                           = "Assigning to rvalue"
-	ERR_INVALID_META_PROP                          = "The only valid meta property for new is 'new.target'"
-	ERR_META_PROP_OUTSIDE_FN                       = "'new.target' can only be used in functions"
+	ERR_INVALID_META_PROP                          = "The only valid meta property for new is `new.target`"
+	ERR_META_PROP_OUTSIDE_FN                       = "`new.target` can only be used in functions"
 	ERR_DUP_BINDING                                = "Must have a single binding"
 	ERR_TPL_BINDING_RESERVED_WORD                  = "Invalid binding `%s`"
 	ERR_AWAIT_AS_DEFAULT_VALUE                     = "Await expression cannot be a default value"
@@ -153,5 +153,6 @@ const (
 	ERR_NUM_SEP_DUP                                = "Only one underscore is allowed as numeric separator"
 	ERR_NUM_SEP_IN_LEGACY_OCTAL                    = "Numeric separator is not allowed in legacy octal numeric literals"
 	ERR_ILLEGAL_IMPORT_PROP                        = "The only valid meta property for import is `import.meta`"
+	ERR_META_PROP_CONTAINS_ESCAPE                  = "Meta property can not contain escaped characters"
 	ERR_DYNAMIC_IMPORT_CANNOT_NEW                  = "Cannot use new with `import()`"
 )

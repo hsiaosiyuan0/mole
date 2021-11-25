@@ -481,7 +481,7 @@ func (p *Parser) importDec() (Node, error) {
 			}
 			spec := &ImportSpec{N_IMPORT_SPEC, p.finLoc(p.locFromTok(tok)), true, false, id, id}
 			specs = append(specs, spec)
-		} else if tok.value == T_PAREN_L {
+		} else if tok.value == T_PAREN_L || tok.value == T_DOT {
 			expr, err := p.importCall(ipt)
 			if err != nil {
 				return nil, err
@@ -3127,6 +3127,19 @@ func (p *Parser) importCall(tok *Token) (Node, error) {
 		}
 		if prop.Text() != "meta" {
 			return nil, p.errorAtLoc(prop.loc, ERR_ILLEGAL_IMPORT_PROP)
+		} else if prop.ContainsEscape() {
+			return nil, p.errorAtLoc(prop.loc, ERR_META_PROP_CONTAINS_ESCAPE)
+		}
+
+		mp := &MetaProp{N_META_PROP, p.finLoc(loc), meta, prop}
+		ahead = p.lexer.Peek()
+		av := ahead.value
+		if av == T_PAREN_L {
+			node, _, err := p.callExpr(mp, true, false, nil)
+			return node, err
+		} else if av == T_BRACKET_L || av == T_DOT || av == T_OPT_CHAIN {
+			node, _, err := p.memberExpr(mp, true, true, nil)
+			return node, err
 		}
 		return &MetaProp{N_META_PROP, p.finLoc(loc), meta, prop}, nil
 	}

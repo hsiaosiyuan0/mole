@@ -854,16 +854,16 @@ func TestHarmonyFail188(t *testing.T) {
 }
 
 func TestHarmonyFail189(t *testing.T) {
-	testFail(t, "new.prop", "The only valid meta property for new is 'new.target' at (1:4)", nil)
+	testFail(t, "new.prop", "The only valid meta property for new is `new.target` at (1:4)", nil)
 }
 
 func TestHarmonyFail190(t *testing.T) {
-	testFail(t, "new.target", "'new.target' can only be used in functions at (1:0)", nil)
+	testFail(t, "new.target", "`new.target` can only be used in functions at (1:0)", nil)
 }
 
 func TestHarmonyFail191(t *testing.T) {
 	testFail(t, "let y = () => new.target",
-		"'new.target' can only be used in functions at (1:14)", nil)
+		"`new.target` can only be used in functions at (1:14)", nil)
 }
 
 func TestHarmonyFail192(t *testing.T) {
