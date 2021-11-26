@@ -8,8 +8,6 @@ import (
 type Parser struct {
 	lexer           *Lexer
 	symtab          *SymTab
-	ver             ESVersion
-	srcTyp          SourceType
 	feat            Feature
 	imp             map[string]*Ident
 	exp             []*ExportDec
@@ -18,10 +16,9 @@ type Parser struct {
 }
 
 type ParserOpts struct {
-	Externals  []string
-	Version    ESVersion
-	SourceType SourceType
-	Feature    Feature
+	Externals []string
+	Version   ESVersion
+	Feature   Feature
 }
 
 const defaultFeatures Feature = FEAT_MODULE | FEAT_GLOBAL_ASYNC | FEAT_STRICT | FEAT_LET_CONST |
@@ -33,10 +30,8 @@ const defaultFeatures Feature = FEAT_MODULE | FEAT_GLOBAL_ASYNC | FEAT_STRICT | 
 
 func NewParserOpts() *ParserOpts {
 	return &ParserOpts{
-		Externals:  make([]string, 0),
-		Version:    ES12,
-		SourceType: ST_MODULE,
-		Feature:    defaultFeatures,
+		Externals: make([]string, 0),
+		Feature:   defaultFeatures,
 	}
 }
 
@@ -49,8 +44,6 @@ func NewParser(src *Source, opts *ParserOpts) *Parser {
 	}
 
 	parser := &Parser{}
-	parser.ver = opts.Version
-	parser.srcTyp = opts.SourceType
 	parser.feat = opts.Feature
 	parser.imp = map[string]*Ident{}
 	parser.exp = []*ExportDec{}
