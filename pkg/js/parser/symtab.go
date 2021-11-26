@@ -4,31 +4,31 @@ type ScopeKind uint64
 
 const (
 	SPK_NONE            ScopeKind = 0
-	SPK_LOOP_DIRECT     ScopeKind = 1 << 0
-	SPK_LOOP_INDIRECT   ScopeKind = 1 << 1
-	SPK_SWITCH          ScopeKind = 1 << 2
-	SPK_STRICT          ScopeKind = 1 << 3
-	SPK_STRICT_DIR      ScopeKind = 1 << 4
-	SPK_CATCH           ScopeKind = 1 << 5
-	SPK_BLOCK           ScopeKind = 1 << 6
-	SPK_GLOBAL          ScopeKind = 1 << 7
-	SPK_INTERIM         ScopeKind = 1 << 8
-	SPK_FUNC            ScopeKind = 1 << 9
-	SPK_FUNC_INDIRECT   ScopeKind = 1 << 10
-	SPK_ARROW           ScopeKind = 1 << 11
-	SPK_ASYNC           ScopeKind = 1 << 12
-	SPK_GENERATOR       ScopeKind = 1 << 13
-	SPK_PAREN           ScopeKind = 1 << 14
-	SPK_CLASS           ScopeKind = 1 << 15
-	SPK_CLASS_INDIRECT  ScopeKind = 1 << 16
-	SPK_CLASS_HAS_SUPER ScopeKind = 1 << 17
-	SPK_CTOR            ScopeKind = 1 << 18
-	SPK_LEXICAL_DEC     ScopeKind = 1 << 19
-	SPK_SHORTHAND_PROP  ScopeKind = 1 << 20
-	SPK_METHOD          ScopeKind = 1 << 21
-	SPK_NOT_IN          ScopeKind = 1 << 22
-	SPK_PROP_NAME       ScopeKind = 1 << 23
-	SPK_FORMAL_PARAMS   ScopeKind = 1 << 24
+	SPK_LOOP_DIRECT     ScopeKind = 1 << iota
+	SPK_LOOP_INDIRECT   ScopeKind = 1 << iota
+	SPK_SWITCH          ScopeKind = 1 << iota
+	SPK_STRICT          ScopeKind = 1 << iota
+	SPK_STRICT_DIR      ScopeKind = 1 << iota
+	SPK_CATCH           ScopeKind = 1 << iota
+	SPK_BLOCK           ScopeKind = 1 << iota
+	SPK_GLOBAL          ScopeKind = 1 << iota
+	SPK_INTERIM         ScopeKind = 1 << iota
+	SPK_FUNC            ScopeKind = 1 << iota
+	SPK_FUNC_INDIRECT   ScopeKind = 1 << iota
+	SPK_ARROW           ScopeKind = 1 << iota
+	SPK_ASYNC           ScopeKind = 1 << iota
+	SPK_GENERATOR       ScopeKind = 1 << iota
+	SPK_PAREN           ScopeKind = 1 << iota
+	SPK_CLASS           ScopeKind = 1 << iota
+	SPK_CLASS_INDIRECT  ScopeKind = 1 << iota
+	SPK_CLASS_HAS_SUPER ScopeKind = 1 << iota
+	SPK_CTOR            ScopeKind = 1 << iota
+	SPK_LEXICAL_DEC     ScopeKind = 1 << iota
+	SPK_SHORTHAND_PROP  ScopeKind = 1 << iota
+	SPK_METHOD          ScopeKind = 1 << iota
+	SPK_NOT_IN          ScopeKind = 1 << iota
+	SPK_PROP_NAME       ScopeKind = 1 << iota
+	SPK_FORMAL_PARAMS   ScopeKind = 1 << iota
 )
 
 type BindKind uint8
@@ -46,8 +46,8 @@ type TargetType int
 
 const (
 	TT_NONE      TargetType = 0
-	TT_FN        TargetType = 1 << 1
-	TT_PVT_FIELD TargetType = 1 << 2
+	TT_FN        TargetType = 1 << iota
+	TT_PVT_FIELD TargetType = 1 << iota
 )
 
 type Ref struct {

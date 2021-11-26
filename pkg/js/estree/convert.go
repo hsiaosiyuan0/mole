@@ -356,7 +356,7 @@ func convert(node parser.Node) Node {
 	case parser.N_LIT_NUM:
 		num := node.(*parser.NumLit)
 		if num.IsBigint() {
-			return &Bigint{
+			return &BigIntLiteral{
 				Type:   "Literal",
 				Start:  start(node.Loc()),
 				End:    end(node.Loc()),

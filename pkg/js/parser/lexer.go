@@ -11,14 +11,14 @@ type LexerModeValue int
 
 const (
 	LM_NONE            LexerModeValue = 0
-	LM_STRICT          LexerModeValue = 1 << 0
-	LM_TEMPLATE        LexerModeValue = 1 << 1 // for inline spans can tell they are in template string
-	LM_TEMPLATE_TAGGED LexerModeValue = 1 << 2
-	LM_ASYNC           LexerModeValue = 1 << 3
-	LM_GENERATOR       LexerModeValue = 1 << 4
-	LM_CLASS_BODY      LexerModeValue = 1 << 5
-	LM_CLASS_CTOR      LexerModeValue = 1 << 6
-	LM_NEW             LexerModeValue = 1 << 7
+	LM_STRICT          LexerModeValue = 1 << iota
+	LM_TEMPLATE        LexerModeValue = 1 << iota // for inline spans can tell they are in template string
+	LM_TEMPLATE_TAGGED LexerModeValue = 1 << iota
+	LM_ASYNC           LexerModeValue = 1 << iota
+	LM_GENERATOR       LexerModeValue = 1 << iota
+	LM_CLASS_BODY      LexerModeValue = 1 << iota
+	LM_CLASS_CTOR      LexerModeValue = 1 << iota
+	LM_NEW             LexerModeValue = 1 << iota
 )
 
 type LexerMode struct {
