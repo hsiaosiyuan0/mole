@@ -19,6 +19,7 @@ const (
 	LM_CLASS_BODY      LexerModeValue = 1 << iota
 	LM_CLASS_CTOR      LexerModeValue = 1 << iota
 	LM_NEW             LexerModeValue = 1 << iota
+	LM_JSX             LexerModeValue = 1 << iota
 )
 
 type LexerMode struct {
@@ -449,6 +450,10 @@ func (l *Lexer) ReadName() *Token {
 }
 
 func (l *Lexer) aheadIsRegexp(afterLineTerminator bool) bool {
+	if l.isMode(LM_JSX) {
+		return false
+	}
+
 	if l.beginStmt {
 		return true
 	}
