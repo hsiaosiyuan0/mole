@@ -1,6 +1,16 @@
-# mole
+# Mole
 
-Tools to deeply process the frontend projects.
+Go is the future of Frontend infrastructure.
+
+Mole is a toolkit written in Golang provides various functionalities to process source code of the frontend projects.
+
+## Features
+
+- [x] JavaScript Parser, [AST explorer](http://blog.thehardways.me/mole-is-more/#/)
+- [ ] JSX
+- [ ] Indenter(like prettier)
+- [ ] CSS/Less/Scss
+- [ ] TypeScript Parser
 
 ## Preview
 
@@ -19,14 +29,8 @@ Run below command to test the javascript parser shipped within mole binary:
 mole -ast -file path_to_your_test_file.js
 ```
 
-## Features
-
-- [x] JavaScript Parser, [demo](http://blog.thehardways.me/mole-is-more/#/)
-- [ ] JSX
-
 ## Development
 
-
-### Project structure 
+### Project structure
 
 Project structure is complied with [Standard Go Project Layout](https://github.com/golang-standards/project-layout)
