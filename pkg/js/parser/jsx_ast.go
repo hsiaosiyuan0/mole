@@ -1,13 +1,37 @@
 package parser
 
+type JSXMemberExpr struct {
+	typ  NodeType
+	loc  *Loc
+	obj  Node
+	prop Node
+}
+
+func (n *JSXMemberExpr) Type() NodeType {
+	return n.typ
+}
+
+func (n *JSXMemberExpr) Loc() *Loc {
+	return n.loc
+}
+
+func (n *JSXMemberExpr) Extra() interface{} {
+	return nil
+}
+
+func (n *JSXMemberExpr) setExtra(ext interface{}) {
+}
+
 type JSXOpen struct {
 	typ NodeType
 	loc *Loc
 	// JSXIdentifier | JSXMemberExpression | JSXNamespacedName
 	// `JSXNamespacedName` is a part of the JSX spec though it's
 	// not used in the React implementation: https://github.com/facebook/jsx/issues/13
-	name  Node
-	attrs []Node
+	name    Node
+	nameStr string
+	attrs   []Node
+	closed  bool
 }
 
 func (n *JSXOpen) Type() NodeType {
@@ -34,9 +58,10 @@ func (n *JSXOpen) Attrs() []Node {
 }
 
 type JSXClose struct {
-	typ  NodeType
-	loc  *Loc
-	name Node
+	typ     NodeType
+	loc     *Loc
+	name    Node
+	nameStr string
 }
 
 func (n *JSXClose) Type() NodeType {
@@ -84,10 +109,11 @@ func (n *JSXText) Value() string {
 }
 
 type JSXAttr struct {
-	typ  NodeType
-	loc  *Loc
-	name Node
-	val  Node
+	typ     NodeType
+	loc     *Loc
+	name    Node
+	nameStr string
+	val     Node
 }
 
 func (n *JSXAttr) Type() NodeType {
@@ -160,6 +186,51 @@ func (n *JSXSpreadChild) setExtra(ext interface{}) {
 }
 
 func (n *JSXSpreadChild) Expr() Node {
+	return n.expr
+}
+
+type JSXEmpty struct {
+	typ NodeType
+	loc *Loc
+}
+
+func (n *JSXEmpty) Type() NodeType {
+	return n.typ
+}
+
+func (n *JSXEmpty) Loc() *Loc {
+	return n.loc
+}
+
+func (n *JSXEmpty) Extra() interface{} {
+	return nil
+}
+
+func (n *JSXEmpty) setExtra(ext interface{}) {
+}
+
+type JSXExprContainer struct {
+	typ  NodeType
+	loc  *Loc
+	expr Node
+}
+
+func (n *JSXExprContainer) Type() NodeType {
+	return n.typ
+}
+
+func (n *JSXExprContainer) Loc() *Loc {
+	return n.loc
+}
+
+func (n *JSXExprContainer) Extra() interface{} {
+	return nil
+}
+
+func (n *JSXExprContainer) setExtra(ext interface{}) {
+}
+
+func (n *JSXExprContainer) Expr() Node {
 	return n.expr
 }
 

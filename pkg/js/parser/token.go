@@ -360,6 +360,8 @@ const (
 	T_ASSIGN_POW
 	T_ASSIGN_END
 
+	T_JSX_TXT
+
 	T_TOKEN_DEF_END
 )
 

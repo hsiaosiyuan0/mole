@@ -96,3 +96,9 @@ test-parser: cmd/mole/*.go pkg/*/*.go go.mod
 
 bench-1: cmd/mole/*.go pkg/*/*.go go.mod
 	go test -cpu 1 -benchmem -bench=. ./...
+
+html-entities:
+	go run scripts/html_entities/mod.go
+
+gofmt:
+	gofmt -w .

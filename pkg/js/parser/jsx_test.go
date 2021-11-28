@@ -8,11 +8,19 @@ import (
 
 func TestJSX(t *testing.T) {
 	ast, err := compile(`
-  <div>test</div>
+  <div:a attr1 attr2={true}
+  attr3 = <b/>
+  >&CounterClockwiseContourIntegral;{<b>{a}</b>}t2</div:a>
   `, nil)
 	assert.Equal(t, nil, err, "should be prog ok")
 
-	fn := ast.(*Prog).stmts[0].(*FnDec)
-	id := fn.id.(*Ident)
-	assert.Equal(t, "a", id.Text(), "should be a")
+	elem := ast.(*Prog).stmts[0].(*ExprStmt).expr.(*JSXElem)
+	open := elem.open.(*JSXOpen)
+	assert.Equal(t, false, open.closed, "should not closed")
+
+	assert.Equal(t, 3, len(open.attrs), "should have 3 attrs")
+	attr2 := open.attrs[2].(*JSXAttr)
+
+	assert.Equal(t, "attr3", attr2.nameStr, "should be name attr3")
+	_ = attr2.val.(*JSXElem)
 }

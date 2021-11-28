@@ -20,6 +20,8 @@ const (
 	LM_CLASS_CTOR      LexerModeValue = 1 << iota
 	LM_NEW             LexerModeValue = 1 << iota
 	LM_JSX             LexerModeValue = 1 << iota
+	LM_JSX_CHILD       LexerModeValue = 1 << iota
+	LM_JSX_ATTR        LexerModeValue = 1 << iota
 )
 
 type LexerMode struct {
@@ -107,18 +109,62 @@ func (l *Lexer) readTokWithComment() *Token {
 		return tok
 	}
 
-	if l.aheadIsIdStart() {
-		return l.ReadName()
-	} else if l.aheadIsNumStart() {
-		return l.ReadNum()
-	} else if l.aheadIsStrStart() {
-		return l.ReadStr()
-	} else if l.aheadIsTplStart() {
-		return l.ReadTplSpan()
-	} else if l.aheadIsPvt() {
-		return l.ReadNumPvt()
+	if !l.isMode(LM_JSX) && !l.isMode(LM_JSX_CHILD) {
+		if l.aheadIsIdStart() {
+			return l.ReadName()
+		} else if l.aheadIsNumStart() {
+			return l.ReadNum()
+		} else if l.aheadIsStrStart() {
+			return l.ReadStr()
+		} else if l.aheadIsTplStart() {
+			return l.ReadTplSpan()
+		} else if l.aheadIsPvt() {
+			return l.ReadNumPvt()
+		}
+		return l.ReadSymbol()
 	}
-	return l.ReadSymbol()
+
+	tok := l.newToken()
+	c := l.src.Peek()
+	// `{` used to enter attribute value or child expr
+	if c == '{' {
+		l.src.Read()
+		l.pushMode(LM_NONE, true)
+		return l.finToken(tok, T_BRACE_L)
+	} else if c == '}' {
+		l.src.Read()
+		l.popMode()
+		return l.finToken(tok, T_BRACE_R)
+	} else if c == '<' {
+		l.src.Read()
+		return l.finToken(tok, T_LT)
+	}
+
+	// in pair of open and close tags
+	if l.isMode(LM_JSX) {
+		switch c {
+		case ':':
+			l.src.Read()
+			return l.finToken(tok, T_COLON)
+		case '/':
+			l.src.Read()
+			return l.finToken(tok, T_DIV)
+		case '>':
+			l.src.Read()
+			return l.finToken(tok, T_GT)
+		case '=':
+			l.src.Read()
+			return l.finToken(tok, T_ASSIGN)
+		case '"', '\'':
+			if l.isMode(LM_JSX_ATTR) {
+				return l.ReadStr()
+			}
+		}
+		return l.ReadName()
+	}
+
+	// in child
+	return l.ReadJSXTxt()
 }
 
 func (l *Lexer) lastComment() *Token {
@@ -1344,6 +1390,39 @@ func (l *Lexer) readHex4Digits(id bool) (rune, string) {
 		}
 	}
 	return rr, ""
+}
+
+func (l *Lexer) ReadJSXTxt() *Token {
+	rs := make([]rune, 0)
+
+	i := 0
+	entity := make([]rune, 0, MaxHTMLEntityName)
+	for {
+		c := l.src.Peek()
+		if c == '{' || c == '<' || c == EOF {
+			break
+		} else if c == '&' || i > 0 {
+			l.src.Read()
+
+			i += 1
+			entity = append(entity, c)
+			if c == ';' {
+				key := string(entity[0:i])
+				if ed, ok := HTMLEntities[key]; ok {
+					rs = append(rs, ed.CodePoints...)
+				} else {
+					rs = append(rs, entity[0:i]...)
+				}
+				i = 0
+			}
+		} else {
+			rs = append(rs, l.src.Read())
+		}
+	}
+	tok := l.newToken()
+	tok.value = T_JSX_TXT
+	tok.ext = string(rs)
+	return tok
 }
 
 func (l *Lexer) error(msg string) *LexerError {

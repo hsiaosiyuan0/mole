@@ -155,4 +155,6 @@ const (
 	ERR_ILLEGAL_IMPORT_PROP                        = "The only valid meta property for import is `import.meta`"
 	ERR_META_PROP_CONTAINS_ESCAPE                  = "Meta property can not contain escaped characters"
 	ERR_DYNAMIC_IMPORT_CANNOT_NEW                  = "Cannot use new with `import()`"
+	ERR_UNTERMINATED_JSX_CONTENTS                  = "Unterminated JSX contents."
+	ERR_TPL_UNBALANCED_JSX_TAG                     = "Expected corresponding JSX closing tag for <%s>."
 )
