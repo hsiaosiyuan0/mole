@@ -88,6 +88,12 @@ test-bigint:	cmd/mole/*.go pkg/*/*.go go.mod
 test-bigint-fail:	cmd/mole/*.go pkg/*/*.go go.mod
 	go test ./pkg/js/estree -run "^TestBigintFail\d"
 
+test-jsx:	cmd/mole/*.go pkg/*/*.go go.mod
+	go test ./pkg/js/estree -run "^TestJSX\d"
+
+test-jsx-fail:	cmd/mole/*.go pkg/*/*.go go.mod
+	go test ./pkg/js/estree -run "^TestJSXFail\d"
+
 test-export-all-as-ns:	cmd/mole/*.go pkg/*/*.go go.mod
 	go test ./pkg/js/estree -run "^TestExportAllAsNS"
 
@@ -95,7 +101,7 @@ test-parser: cmd/mole/*.go pkg/*/*.go go.mod
 	go test ./pkg/js/parser
 
 bench-1: cmd/mole/*.go pkg/*/*.go go.mod
-	go test -cpu 1 -benchmem -bench=. ./...
+	go test -cpu 1 -benchmem -bench=. ./pkg/...
 
 html-entities:
 	go run scripts/html_entities/mod.go

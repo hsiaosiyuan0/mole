@@ -40,7 +40,8 @@ const (
 	FEAT_CLASS_PUB_FIELD  Feature = 1 << iota // from es13
 	FEAT_CLASS_PRIV_FIELD Feature = 1 << iota // from es13
 
-	FEAT_JSX Feature = 1 << iota
+	FEAT_JSX    Feature = 1 << iota
+	FEAT_JSX_NS Feature = 1 << iota
 
 	// not found where in the spec says that the flags of regexp is neened to check
 	// even though it's implemented in some other parsers, so flag `FEAT_CHK_REGEXP_FLAGS`

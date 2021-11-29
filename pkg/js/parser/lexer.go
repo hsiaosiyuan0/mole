@@ -104,9 +104,7 @@ func (l *Lexer) isMode(mode LexerModeValue) bool {
 
 func (l *Lexer) readTokWithComment() *Token {
 	if l.src.SkipSpace().AheadIsEOF() {
-		tok := l.newToken()
-		tok.value = T_EOF
-		return tok
+		return l.finToken(l.newToken(), T_EOF)
 	}
 
 	if !l.isMode(LM_JSX) && !l.isMode(LM_JSX_CHILD) {
@@ -160,7 +158,10 @@ func (l *Lexer) readTokWithComment() *Token {
 				return l.ReadStr()
 			}
 		}
-		return l.ReadName()
+		if l.aheadIsIdStart() {
+			return l.ReadName()
+		}
+		return l.errToken(l.newToken(), ERR_UNEXPECTED_TOKEN)
 	}
 
 	// in child
@@ -1393,15 +1394,29 @@ func (l *Lexer) readHex4Digits(id bool) (rune, string) {
 }
 
 func (l *Lexer) ReadJSXTxt() *Token {
+	tok := l.newToken()
 	rs := make([]rune, 0)
 
 	i := 0
 	entity := make([]rune, 0, MaxHTMLEntityName)
+	ampLine := 0
+	ampCol := 0
 	for {
 		c := l.src.Peek()
+		line := l.src.line
+		col := l.src.col
 		if c == '{' || c == '<' || c == EOF {
+			if i == 0 && c == EOF {
+				l.src.Read()
+				return l.finToken(tok, T_EOF)
+			}
 			break
 		} else if c == '&' || i > 0 {
+			if c == '&' {
+				ampLine = line
+				ampCol = col
+			}
+
 			l.src.Read()
 
 			i += 1
@@ -1411,7 +1426,9 @@ func (l *Lexer) ReadJSXTxt() *Token {
 				if ed, ok := HTMLEntities[key]; ok {
 					rs = append(rs, ed.CodePoints...)
 				} else {
-					rs = append(rs, entity[0:i]...)
+					tok.begin.line = ampLine
+					tok.begin.col = ampCol
+					return l.errToken(tok, fmt.Sprintf(ERR_TPL_JSX_UNDEFINED_HTML_ENTITY, key))
 				}
 				i = 0
 			}
@@ -1419,10 +1436,9 @@ func (l *Lexer) ReadJSXTxt() *Token {
 			rs = append(rs, l.src.Read())
 		}
 	}
-	tok := l.newToken()
-	tok.value = T_JSX_TXT
+
 	tok.ext = string(rs)
-	return tok
+	return l.finToken(tok, T_JSX_TXT)
 }
 
 func (l *Lexer) error(msg string) *LexerError {

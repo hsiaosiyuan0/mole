@@ -7,6 +7,8 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"strconv"
+	"strings"
 	"text/template"
 
 	"github.com/hsiaosiyuan0/mole/scripts/utils"
@@ -15,6 +17,7 @@ import (
 type EntitiesData struct {
 	MaxKeyLen int
 	Entities  map[string]interface{}
+	Keys      map[string]bool
 }
 
 func main() {
@@ -29,18 +32,32 @@ func main() {
 	}
 	resp.Body.Close()
 
-	var entities map[string]interface{}
-	err = json.Unmarshal(body, &entities)
+	var rawEntities map[string]interface{}
+	err = json.Unmarshal(body, &rawEntities)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	maxKeyLen := 0
-	for key := range entities {
+	entities := make(map[string]interface{})
+	quotedKeys := make(map[string]bool)
+	for key := range rawEntities {
 		kl := len(key)
 		if kl > maxKeyLen {
 			maxKeyLen = kl
 		}
+		val := rawEntities[key].(map[string]interface{})
+		cs := val["characters"].(string)
+		if !strings.HasSuffix(key, ";") {
+			continue
+		}
+		if _, ok := entities[cs]; ok {
+			continue
+		}
+		entities[key] = val
+
+		qk := strconv.Quote(cs)
+		quotedKeys[qk] = true
 	}
 
 	tpl, err := template.New("html_entities").Parse(`
@@ -59,13 +76,20 @@ var HTMLEntities = map[string]HTMLEntity{
   "{{ $key }}": {"{{ $key }}", []rune{ {{ range $v := $value.codepoints }} {{ $v }}, {{ end }} }},
   {{- end }}
 }
+
+var HTMLEntityNames = map[string]bool{
+  {{- range $key, $value := .Keys }}
+  {{ $key }}: {{ $value }},
+  {{- end }}
+}
   `)
+
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	var gen bytes.Buffer
-	err = tpl.Execute(&gen, &EntitiesData{maxKeyLen, entities})
+	err = tpl.Execute(&gen, &EntitiesData{maxKeyLen, entities, quotedKeys})
 	if err != nil {
 		log.Fatal(err)
 	}

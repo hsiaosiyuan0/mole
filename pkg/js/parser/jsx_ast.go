@@ -1,5 +1,62 @@
 package parser
 
+type JSXIdent struct {
+	typ   NodeType
+	loc   *Loc
+	val   string
+	extra *ExprExtra
+}
+
+func (n *JSXIdent) Type() NodeType {
+	return n.typ
+}
+
+func (n *JSXIdent) Loc() *Loc {
+	return n.loc
+}
+
+func (n *JSXIdent) Extra() interface{} {
+	return n.extra
+}
+
+func (n *JSXIdent) setExtra(ext interface{}) {
+	n.extra = ext.(*ExprExtra)
+}
+
+func (n *JSXIdent) Text() string {
+	return n.val
+}
+
+type JSXNsName struct {
+	typ  NodeType
+	loc  *Loc
+	ns   Node
+	name Node
+}
+
+func (n *JSXNsName) Type() NodeType {
+	return n.typ
+}
+
+func (n *JSXNsName) Loc() *Loc {
+	return n.loc
+}
+
+func (n *JSXNsName) Extra() interface{} {
+	return nil
+}
+
+func (n *JSXNsName) setExtra(ext interface{}) {
+}
+
+func (n *JSXNsName) NS() string {
+	return n.ns.(*JSXIdent).Text()
+}
+
+func (n *JSXNsName) Name() string {
+	return n.name.(*JSXIdent).Text()
+}
+
 type JSXMemberExpr struct {
 	typ  NodeType
 	loc  *Loc
@@ -20,6 +77,14 @@ func (n *JSXMemberExpr) Extra() interface{} {
 }
 
 func (n *JSXMemberExpr) setExtra(ext interface{}) {
+}
+
+func (n *JSXMemberExpr) Obj() Node {
+	return n.obj
+}
+
+func (n *JSXMemberExpr) Prop() Node {
+	return n.prop
 }
 
 type JSXOpen struct {
@@ -55,6 +120,10 @@ func (n *JSXOpen) Name() Node {
 
 func (n *JSXOpen) Attrs() []Node {
 	return n.attrs
+}
+
+func (n *JSXOpen) Closed() bool {
+	return n.closed
 }
 
 type JSXClose struct {
@@ -106,6 +175,10 @@ func (n *JSXText) setExtra(ext interface{}) {
 
 func (n *JSXText) Value() string {
 	return n.val
+}
+
+func (n *JSXText) Raw() string {
+	return n.loc.Text()
 }
 
 type JSXAttr struct {
@@ -268,4 +341,33 @@ func (n *JSXElem) Close() Node {
 
 func (n *JSXElem) Children() []Node {
 	return n.children
+}
+
+func (n *JSXElem) IsFragment() bool {
+	return n.open.(*JSXOpen).name == nil
+}
+
+type JSXExprSpan struct {
+	typ  NodeType
+	loc  *Loc
+	expr Node
+}
+
+func (n *JSXExprSpan) Type() NodeType {
+	return n.typ
+}
+
+func (n *JSXExprSpan) Loc() *Loc {
+	return n.loc
+}
+
+func (n *JSXExprSpan) Extra() interface{} {
+	return nil
+}
+
+func (n *JSXExprSpan) setExtra(ext interface{}) {
+}
+
+func (n *JSXExprSpan) Expr() Node {
+	return n.expr
 }
