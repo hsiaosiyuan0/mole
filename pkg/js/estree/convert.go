@@ -930,13 +930,151 @@ func convert(node parser.Node) Node {
 			Body:  statements(stmt.Body()),
 		}
 	case parser.N_EXPR_CHAIN:
-		stmt := node.(*parser.ChainExpr)
+		node := node.(*parser.ChainExpr)
 		return &ChainExpression{
 			Type:       "ChainExpression",
-			Start:      start(stmt.Loc()),
-			End:        end(stmt.Loc()),
-			Loc:        loc(stmt.Loc()),
-			Expression: convert(stmt.Expr()),
+			Start:      start(node.Loc()),
+			End:        end(node.Loc()),
+			Loc:        loc(node.Loc()),
+			Expression: convert(node.Expr()),
+		}
+	case parser.N_JSX_ID:
+		node := node.(*parser.JSXIdent)
+		return &JSXIdentifier{
+			Type:  "JSXIdentifier",
+			Start: start(node.Loc()),
+			End:   end(node.Loc()),
+			Loc:   loc(node.Loc()),
+			Name:  node.Text(),
+		}
+	case parser.N_JSX_NS:
+		node := node.(*parser.JSXNsName)
+		return &JSXNamespacedName{
+			Type:      "JSXNamespacedName",
+			Start:     start(node.Loc()),
+			End:       end(node.Loc()),
+			Loc:       loc(node.Loc()),
+			Namespace: node.NS(),
+			Name:      node.Name(),
+		}
+	case parser.N_JSX_MEMBER:
+		node := node.(*parser.JSXMemberExpr)
+		return &JSXMemberExpression{
+			Type:     "JSXMemberExpression",
+			Start:    start(node.Loc()),
+			End:      end(node.Loc()),
+			Loc:      loc(node.Loc()),
+			Object:   convert(node.Obj()),
+			Property: convert(node.Prop()),
+		}
+	case parser.N_JSX_ELEM:
+		node := node.(*parser.JSXElem)
+		if node.IsFragment() {
+			open := node.Open().(*parser.JSXOpen)
+			close := node.Close().(*parser.JSXClose)
+			return &JSXFragment{
+				Type:  "JSXFragment",
+				Start: start(node.Loc()),
+				End:   end(node.Loc()),
+				Loc:   loc(node.Loc()),
+				OpeningElement: &JSXOpeningFragment{
+					Type:  "JSXOpeningFragment",
+					Start: start(open.Loc()),
+					End:   end(open.Loc()),
+					Loc:   loc(open.Loc()),
+				},
+				Children: elems(node.Children()),
+				ClosingElement: &JSXClosingFragment{
+					Type:  "JSXClosingFragment",
+					Start: start(close.Loc()),
+					End:   end(close.Loc()),
+					Loc:   loc(close.Loc()),
+				},
+			}
+		}
+		return &JSXElement{
+			Type:           "JSXElement",
+			Start:          start(node.Loc()),
+			End:            end(node.Loc()),
+			Loc:            loc(node.Loc()),
+			OpeningElement: convert(node.Open()),
+			Children:       elems(node.Children()),
+			ClosingElement: convert(node.Close()),
+		}
+	case parser.N_JSX_OPEN:
+		node := node.(*parser.JSXOpen)
+		return &JSXOpeningElement{
+			Type:        "JSXOpeningElement",
+			Start:       start(node.Loc()),
+			End:         end(node.Loc()),
+			Loc:         loc(node.Loc()),
+			Name:        convert(node.Name()),
+			Attributes:  elems(node.Attrs()),
+			SelfClosing: node.Closed(),
+		}
+	case parser.N_JSX_CLOSE:
+		node := node.(*parser.JSXClose)
+		return &JSXClosingElement{
+			Type:  "JSXClosingElement",
+			Start: start(node.Loc()),
+			End:   end(node.Loc()),
+			Loc:   loc(node.Loc()),
+			Name:  convert(node.Name()),
+		}
+	case parser.N_JSX_TXT:
+		node := node.(*parser.JSXText)
+		return &JSXText{
+			Type:  "JSXText",
+			Start: start(node.Loc()),
+			End:   end(node.Loc()),
+			Loc:   loc(node.Loc()),
+			Value: node.Value(),
+			Raw:   node.Raw(),
+		}
+	case parser.N_JSX_EXPR_SPAN:
+		node := node.(*parser.JSXExprSpan)
+		return &JSXExpressionContainer{
+			Type:       "JSXExpressionContainer",
+			Start:      start(node.Loc()),
+			End:        end(node.Loc()),
+			Loc:        loc(node.Loc()),
+			Expression: convert(node.Expr()),
+		}
+	case parser.N_JSX_ATTR:
+		node := node.(*parser.JSXAttr)
+		return &JSXAttribute{
+			Type:  "JSXAttribute",
+			Start: start(node.Loc()),
+			End:   end(node.Loc()),
+			Loc:   loc(node.Loc()),
+			Name:  convert(node.Name()),
+			Value: convert(node.Value()),
+		}
+	case parser.N_JSX_ATTR_SPREAD:
+		node := node.(*parser.JSXSpreadAttr)
+		return &JSXSpreadAttribute{
+			Type:     "JSXSpreadAttribute",
+			Start:    start(node.Loc()),
+			End:      end(node.Loc()),
+			Loc:      loc(node.Loc()),
+			Argument: convert(node.Arg()),
+		}
+	case parser.N_JSX_CHILD_SPREAD:
+		node := node.(*parser.JSXSpreadChild)
+		return &JSXSpreadChild{
+			Type:       "JSXSpreadChild",
+			Start:      start(node.Loc()),
+			End:        end(node.Loc()),
+			Loc:        loc(node.Loc()),
+			Expression: convert(node.Expr()),
+		}
+	case parser.N_JSX_EMPTY:
+		node := node.(*parser.JSXEmpty)
+		return &JSXEmptyExpression{
+			Type:  "JSXEmptyExpression",
+			Start: start(node.Loc()),
+			End:   end(node.Loc()),
+			Loc:   loc(node.Loc()),
 		}
 	}
 	return nil

@@ -360,6 +360,8 @@ const (
 	T_ASSIGN_POW
 	T_ASSIGN_END
 
+	T_JSX_TXT
+
 	T_TOKEN_DEF_END
 )
 
@@ -381,7 +383,7 @@ type TokenKind struct {
 }
 
 // order should be as same as `TokenValue`
-var TokenKinds = [T_TOKEN_DEF_END - 1]*TokenKind{
+var TokenKinds = [T_TOKEN_DEF_END + 1]*TokenKind{
 	{T_ILLEGAL, "T_ILLEGAL", 0, false, false, false},
 	{T_EOF, "EOF", 0, false, false, false},
 	{T_COMMENT, "comment", 0, false, false, false},
@@ -539,6 +541,10 @@ var TokenKinds = [T_TOKEN_DEF_END - 1]*TokenKind{
 	{T_ASSIGN_DIV, "/=", 0, true, true, false},
 	{T_ASSIGN_MOD, "%=", 0, true, true, false},
 	{T_ASSIGN_POW, "**=", 0, true, true, false},
+	{T_ASSIGN_END, "assignment end", 0, false, false, false},
+
+	{T_JSX_TXT, "jsx text", 0, false, false, false},
+	{T_TOKEN_DEF_END, "token end def", 0, false, false, false},
 }
 
 var Keywords = make(map[string]TokenValue)
