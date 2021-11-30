@@ -1116,3 +1116,202 @@ func TestJSX11(t *testing.T) {
 }
 	`, ast)
 }
+
+func TestJSX12(t *testing.T) {
+	ast, err := compile("<>{tips.map((tip, i) => <div key={i}>{`Tip ${i}:` + tip}</div>)}</>")
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	assert.EqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 67,
+  "body": [
+    {
+      "type": "ExpressionStatement",
+      "start": 0,
+      "end": 67,
+      "expression": {
+        "type": "JSXFragment",
+        "start": 0,
+        "end": 67,
+        "openingFragment": {
+          "type": "JSXOpeningFragment",
+          "start": 0,
+          "end": 2,
+          "attributes": []
+        },
+        "closingFragment": {
+          "type": "JSXClosingFragment",
+          "start": 64,
+          "end": 67
+        },
+        "children": [
+          {
+            "type": "JSXExpressionContainer",
+            "start": 2,
+            "end": 64,
+            "expression": {
+              "type": "CallExpression",
+              "start": 3,
+              "end": 63,
+              "callee": {
+                "type": "MemberExpression",
+                "start": 3,
+                "end": 11,
+                "object": {
+                  "type": "Identifier",
+                  "start": 3,
+                  "end": 7,
+                  "name": "tips"
+                },
+                "property": {
+                  "type": "Identifier",
+                  "start": 8,
+                  "end": 11,
+                  "name": "map"
+                },
+                "computed": false,
+                "optional": false
+              },
+              "arguments": [
+                {
+                  "type": "ArrowFunctionExpression",
+                  "start": 12,
+                  "end": 62,
+                  "id": null,
+                  "expression": true,
+                  "generator": false,
+                  "async": false,
+                  "params": [
+                    {
+                      "type": "Identifier",
+                      "start": 13,
+                      "end": 16,
+                      "name": "tip"
+                    },
+                    {
+                      "type": "Identifier",
+                      "start": 18,
+                      "end": 19,
+                      "name": "i"
+                    }
+                  ],
+                  "body": {
+                    "type": "JSXElement",
+                    "start": 24,
+                    "end": 62,
+                    "openingElement": {
+                      "type": "JSXOpeningElement",
+                      "start": 24,
+                      "end": 37,
+                      "attributes": [
+                        {
+                          "type": "JSXAttribute",
+                          "start": 29,
+                          "end": 36,
+                          "name": {
+                            "type": "JSXIdentifier",
+                            "start": 29,
+                            "end": 32,
+                            "name": "key"
+                          },
+                          "value": {
+                            "type": "JSXExpressionContainer",
+                            "start": 33,
+                            "end": 36,
+                            "expression": {
+                              "type": "Identifier",
+                              "start": 34,
+                              "end": 35,
+                              "name": "i"
+                            }
+                          }
+                        }
+                      ],
+                      "name": {
+                        "type": "JSXIdentifier",
+                        "start": 25,
+                        "end": 28,
+                        "name": "div"
+                      },
+                      "selfClosing": false
+                    },
+                    "closingElement": {
+                      "type": "JSXClosingElement",
+                      "start": 56,
+                      "end": 62,
+                      "name": {
+                        "type": "JSXIdentifier",
+                        "start": 58,
+                        "end": 61,
+                        "name": "div"
+                      }
+                    },
+                    "children": [
+                      {
+                        "type": "JSXExpressionContainer",
+                        "start": 37,
+                        "end": 56,
+                        "expression": {
+                          "type": "BinaryExpression",
+                          "start": 38,
+                          "end": 55,
+                          "left": {
+                            "type": "TemplateLiteral",
+                            "start": 38,
+                            "end": 49,
+                            "expressions": [
+                              {
+                                "type": "Identifier",
+                                "start": 45,
+                                "end": 46,
+                                "name": "i"
+                              }
+                            ],
+                            "quasis": [
+                              {
+                                "type": "TemplateElement",
+                                "start": 39,
+                                "end": 43,
+                                "value": {
+                                  "raw": "Tip ",
+                                  "cooked": "Tip "
+                                },
+                                "tail": false
+                              },
+                              {
+                                "type": "TemplateElement",
+                                "start": 47,
+                                "end": 48,
+                                "value": {
+                                  "raw": ":",
+                                  "cooked": ":"
+                                },
+                                "tail": true
+                              }
+                            ]
+                          },
+                          "operator": "+",
+                          "right": {
+                            "type": "Identifier",
+                            "start": 52,
+                            "end": 55,
+                            "name": "tip"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              ],
+              "optional": false
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
+	`, ast)
+}

@@ -4493,6 +4493,20 @@ func (p *Parser) jsxName() (Node, string, error) {
 }
 
 func (p *Parser) jsxAttr() (Node, error) {
+	ahead := p.lexer.Peek()
+	if ahead.value == T_BRACE_L {
+		tok := p.lexer.Next()
+		loc := p.locFromTok(tok)
+		val, err := p.jsxExpr(loc.Clone())
+		if err != nil {
+			return nil, err
+		}
+		if val.Type() != N_SPREAD {
+			return nil, p.errorAtLoc(val.Loc(), ERR_UNEXPECTED_TOKEN)
+		}
+		return &JSXSpreadAttr{N_JSX_ATTR_SPREAD, p.finLoc(loc), val}, nil
+	}
+
 	id, name, err := p.jsxName()
 	if err != nil {
 		return nil, err
@@ -4505,7 +4519,7 @@ func (p *Parser) jsxAttr() (Node, error) {
 	}
 	p.lexer.Next()
 
-	ahead := p.lexer.Peek()
+	ahead = p.lexer.Peek()
 	av := ahead.value
 	var val Node
 	if av == T_BRACE_L {
@@ -4514,10 +4528,6 @@ func (p *Parser) jsxAttr() (Node, error) {
 		val, err = p.jsxExpr(loc)
 		if err != nil {
 			return nil, err
-		}
-		if val.Type() == N_SPREAD {
-			s := val.(*Spread)
-			val = &JSXSpreadAttr{N_JSX_ATTR_SPREAD, p.finLoc(loc), s.arg}
 		}
 	} else if av == T_STRING {
 		tok := p.lexer.Next()

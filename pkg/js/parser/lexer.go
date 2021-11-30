@@ -497,7 +497,7 @@ func (l *Lexer) ReadName() *Token {
 }
 
 func (l *Lexer) aheadIsRegexp(afterLineTerminator bool) bool {
-	if l.isMode(LM_JSX) {
+	if l.isMode(LM_JSX) || l.isMode(LM_JSX_ATTR) {
 		return false
 	}
 

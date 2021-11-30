@@ -11,7 +11,7 @@ func TestJSX(t *testing.T) {
 	opts.Feature = opts.Feature.On(FEAT_JSX_NS)
 	ast, err := compile(`
   <div:a attr0 attr1={true}
-  attr2 = <b/> attr3 = {...b}
+  attr2 = <b/> {...b}
   >&CounterClockwiseContourIntegral;{<i>{a}</i>}t2
   {...e}
   </div:a>
@@ -106,16 +106,4 @@ func TestJSXNoChild(t *testing.T) {
 	elem := prog.stmts[0].(*ExprStmt).expr.(*JSXElem)
 	children := elem.children
 	assert.Equal(t, 0, len(children), "should have 4 children")
-}
-
-func TestJSXSample(t *testing.T) {
-	ast, err := compile("<>{tips.map((tip, i) => <div key={i}>{`Tip ${i}:` + tip}</div>)}</>", nil)
-	assert.Equal(t, nil, err, "should be prog ok")
-
-	prog := ast.(*Prog)
-	assert.Equal(t, 1, len(prog.stmts), "should have 1 stmt")
-
-	elem := prog.stmts[0].(*ExprStmt).expr.(*JSXElem)
-	children := elem.children
-	assert.Equal(t, 1, len(children), "should have 1 children")
 }

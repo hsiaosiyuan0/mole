@@ -977,14 +977,14 @@ func convert(node parser.Node) Node {
 				Start: start(node.Loc()),
 				End:   end(node.Loc()),
 				Loc:   loc(node.Loc()),
-				OpeningElement: &JSXOpeningFragment{
+				OpeningFragment: &JSXOpeningFragment{
 					Type:  "JSXOpeningFragment",
 					Start: start(open.Loc()),
 					End:   end(open.Loc()),
 					Loc:   loc(open.Loc()),
 				},
 				Children: elems(node.Children()),
-				ClosingElement: &JSXClosingFragment{
+				ClosingFragment: &JSXClosingFragment{
 					Type:  "JSXClosingFragment",
 					Start: start(close.Loc()),
 					End:   end(close.Loc()),

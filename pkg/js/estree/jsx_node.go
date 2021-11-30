@@ -58,13 +58,13 @@ type JSXClosingElement struct {
 }
 
 type JSXFragment struct {
-	Type           string  `json:"type"`
-	Start          int     `json:"start"`
-	End            int     `json:"end"`
-	Loc            *SrcLoc `json:"loc"`
-	OpeningElement Node    `json:"openingElement"`
-	Children       []Node  `json:"children"`
-	ClosingElement Node    `json:"closingElement"`
+	Type            string  `json:"type"`
+	Start           int     `json:"start"`
+	End             int     `json:"end"`
+	Loc             *SrcLoc `json:"loc"`
+	OpeningFragment Node    `json:"openingFragment"`
+	Children        []Node  `json:"children"`
+	ClosingFragment Node    `json:"closingFragment"`
 }
 
 type JSXOpeningFragment struct {
