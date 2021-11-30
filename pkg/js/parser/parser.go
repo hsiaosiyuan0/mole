@@ -4517,12 +4517,12 @@ func (p *Parser) jsxAttr() (Node, error) {
 		}
 		if val.Type() == N_SPREAD {
 			s := val.(*Spread)
-			return &JSXSpreadAttr{N_JSX_ATTR_SPREAD, p.finLoc(loc), s.arg}, nil
+			val = &JSXSpreadAttr{N_JSX_ATTR_SPREAD, p.finLoc(loc), s.arg}
 		}
 	} else if av == T_STRING {
 		tok := p.lexer.Next()
 		loc := p.locFromTok(tok)
-		return &StrLit{N_LIT_STR, p.finLoc(loc), tok.Text(), tok.HasLegacyOctalEscapeSeq(), nil}, nil
+		val = &StrLit{N_LIT_STR, p.finLoc(loc), tok.Text(), tok.HasLegacyOctalEscapeSeq(), nil}
 	} else if av == T_LT {
 		val, err = p.jsx(true, false)
 		if err != nil {
@@ -4626,6 +4626,7 @@ func (p *Parser) jsxClose(loc *Loc) (Node, error) {
 	// fragment
 	if p.lexer.Peek().value == T_GT {
 		p.lexer.Next()
+		p.lexer.popMode()
 		return &JSXClose{N_JSX_CLOSE, p.finLoc(loc), nil, ""}, nil
 	}
 
@@ -4718,12 +4719,12 @@ func (p *Parser) jsx(root bool, opening bool) (Node, error) {
 		p.lexer.popMode()
 	}
 
+	// element is closed
+	p.lexer.popMode()
 	ahead = p.lexer.Peek()
 	if ahead.value == T_LT {
 		return nil, p.errorAt(ahead.value, &ahead.begin, ERR_JSX_ADJACENT_ELEM_SHOULD_BE_WRAPPED)
 	}
-
-	p.lexer.popMode()
 	return &JSXElem{N_JSX_ELEM, p.finLoc(open.Loc().Clone()), open, close, children}, nil
 }
 
