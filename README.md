@@ -7,8 +7,8 @@ Mole is a toolkit written in Golang provides various functionalities to process 
 ## Features
 
 - [x] JavaScript Parser
-  - JSX
   - Supports syntaxes up to [ES2021](https://262.ecma-international.org/12.0/)
+  - JSX
   - [ESTree](https://github.com/estree/estree) compatible output, [AST explorer on WASM](http://blog.thehardways.me/mole-is-more/#/)
 - [ ] Indenter(like prettier)
 - [ ] CSS/Less/Scss
