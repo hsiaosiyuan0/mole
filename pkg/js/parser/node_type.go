@@ -65,6 +65,7 @@ const (
 	N_IMPORT_CALL
 	N_META_PROP
 	N_SPREAD
+
 	N_EXPR_END
 
 	N_VAR_DEC
