@@ -2,7 +2,7 @@
 
 Go is the future of Frontend infrastructure.
 
-Mole is a toolkit written in Golang provides various functionalities to process source code of the frontend projects.
+Mole is a toolkit written in Golang to facilitate our frontend development experience and will provide various functionalities like lint, code-format, bundle, .etc.
 
 ## Features
 
