@@ -282,31 +282,6 @@ func (n *JSXEmpty) Extra() interface{} {
 func (n *JSXEmpty) setExtra(ext interface{}) {
 }
 
-type JSXExprContainer struct {
-	typ  NodeType
-	loc  *Loc
-	expr Node
-}
-
-func (n *JSXExprContainer) Type() NodeType {
-	return n.typ
-}
-
-func (n *JSXExprContainer) Loc() *Loc {
-	return n.loc
-}
-
-func (n *JSXExprContainer) Extra() interface{} {
-	return nil
-}
-
-func (n *JSXExprContainer) setExtra(ext interface{}) {
-}
-
-func (n *JSXExprContainer) Expr() Node {
-	return n.expr
-}
-
 // https://github.com/facebook/jsx/blob/main/AST.md#jsx-element
 type JSXElem struct {
 	typ      NodeType

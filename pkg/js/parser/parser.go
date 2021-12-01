@@ -1228,7 +1228,7 @@ func (p *Parser) switchStmt() (Node, error) {
 		return nil, err
 	}
 
-	cases := make([]*SwitchCase, 0)
+	cases := make([]Node, 0)
 	if _, err := p.nextMustTok(T_BRACE_L); err != nil {
 		return nil, err
 	}
@@ -1512,7 +1512,8 @@ func (p *Parser) forStmt() (Node, error) {
 			}
 			if p.scope().IsKind(SPK_STRICT) {
 				for _, dec := range varDec.decList {
-					if dec.init != nil {
+					d := dec.(*VarDec)
+					if d.init != nil {
 						et := ERR_FOR_OF_LOOP_HAS_INIT
 						if isIn {
 							et = ERR_FOR_IN_LOOP_HAS_INIT
@@ -2123,7 +2124,7 @@ func (p *Parser) varDecStmt(kind TokenValue, asExpr bool) (Node, error) {
 	loc := p.loc()
 	p.lexer.Next()
 
-	node := &VarDecStmt{N_STMT_VAR_DEC, nil, T_ILLEGAL, make([]*VarDec, 0, 1), nil}
+	node := &VarDecStmt{N_STMT_VAR_DEC, nil, T_ILLEGAL, make([]Node, 0, 1), nil}
 
 	isConst := false
 	node.kind = kind
@@ -3988,7 +3989,7 @@ func (p *Parser) primaryExpr() (Node, error) {
 	case T_REGEXP:
 		p.lexer.Next()
 		ext := tok.ext.(*TokExtRegexp)
-		return &RegexpLit{N_LIT_REGEXP, p.finLoc(loc), tok.Text(), ext.Pattern(), ext.Flags(), nil}, nil
+		return &RegLit{N_LIT_REGEXP, p.finLoc(loc), tok.Text(), ext.Pattern(), ext.Flags(), nil}, nil
 	case T_CLASS:
 		return p.classDec(true, false)
 	case T_SUPER:

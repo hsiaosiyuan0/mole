@@ -377,7 +377,7 @@ func (n *StrLit) setExtra(ext interface{}) {
 	n.extra = ext.(*ExprExtra)
 }
 
-type RegexpLit struct {
+type RegLit struct {
 	typ     NodeType
 	loc     *Loc
 	val     string
@@ -386,27 +386,27 @@ type RegexpLit struct {
 	extra   *ExprExtra
 }
 
-func (n *RegexpLit) Type() NodeType {
+func (n *RegLit) Type() NodeType {
 	return n.typ
 }
 
-func (n *RegexpLit) Loc() *Loc {
+func (n *RegLit) Loc() *Loc {
 	return n.loc
 }
 
-func (n *RegexpLit) Pattern() string {
+func (n *RegLit) Pattern() string {
 	return n.pattern
 }
 
-func (n *RegexpLit) Flags() string {
+func (n *RegLit) Flags() string {
 	return n.flags
 }
 
-func (n *RegexpLit) Extra() interface{} {
+func (n *RegLit) Extra() interface{} {
 	return nil
 }
 
-func (n *RegexpLit) setExtra(ext interface{}) {
+func (n *RegLit) setExtra(ext interface{}) {
 	n.extra = ext.(*ExprExtra)
 }
 
@@ -1347,7 +1347,7 @@ type VarDecStmt struct {
 	typ     NodeType
 	loc     *Loc
 	kind    TokenValue
-	decList []*VarDec
+	decList []Node
 	names   []Node
 }
 
@@ -1355,7 +1355,7 @@ func (n *VarDecStmt) Kind() string {
 	return TokenKinds[n.kind].Name
 }
 
-func (n *VarDecStmt) DecList() []*VarDec {
+func (n *VarDecStmt) DecList() []Node {
 	return n.decList
 }
 
@@ -1395,6 +1395,13 @@ func (n *VarDec) Type() NodeType {
 
 func (n *VarDec) Loc() *Loc {
 	return n.loc
+}
+
+func (n *VarDec) Extra() interface{} {
+	return nil
+}
+
+func (n *VarDec) setExtra(_ interface{}) {
 }
 
 type BlockStmt struct {
@@ -1606,10 +1613,10 @@ type SwitchStmt struct {
 	typ   NodeType
 	loc   *Loc
 	test  Node
-	cases []*SwitchCase
+	cases []Node
 }
 
-func (n *SwitchStmt) Cases() []*SwitchCase {
+func (n *SwitchStmt) Cases() []Node {
 	return n.cases
 }
 

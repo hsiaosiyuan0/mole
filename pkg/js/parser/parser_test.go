@@ -270,8 +270,8 @@ func TestVarDec(t *testing.T) {
 
 	varDecStmt := ast.(*Prog).stmts[0].(*VarDecStmt)
 	varDec := varDecStmt.decList[0]
-	id := varDec.id.(*Ident)
-	init := varDec.init.(*NumLit)
+	id := varDec.(*VarDec).id.(*Ident)
+	init := varDec.(*VarDec).init.(*NumLit)
 	assert.Equal(t, "a", id.Text(), "should be a")
 	assert.Equal(t, "1", init.Text(), "should be 1")
 }
@@ -283,10 +283,10 @@ func TestVarDecArrPattern(t *testing.T) {
 	varDecStmt := ast.(*Prog).stmts[0].(*VarDecStmt)
 	varDec := varDecStmt.decList[0]
 
-	init := varDec.init.(*Ident)
+	init := varDec.(*VarDec).init.(*Ident)
 	assert.Equal(t, "e", init.Text(), "should be e")
 
-	arr := varDec.id.(*ArrPat)
+	arr := varDec.(*VarDec).id.(*ArrPat)
 	elem0 := arr.elems[0].(*Ident)
 	assert.Equal(t, "a", elem0.Text(), "should be a")
 
@@ -315,10 +315,10 @@ func TestVarDecArrPatternElision(t *testing.T) {
 	varDecStmt := ast.(*Prog).stmts[0].(*VarDecStmt)
 	varDec := varDecStmt.decList[0]
 
-	init := varDec.init.(*Ident)
+	init := varDec.(*VarDec).init.(*Ident)
 	assert.Equal(t, "e", init.Text(), "should be e")
 
-	arr := varDec.id.(*ArrPat)
+	arr := varDec.(*VarDec).id.(*ArrPat)
 	assert.Equal(t, 7, len(arr.elems), "should be len 7")
 
 	elem0 := arr.elems[0].(*Ident)
@@ -379,10 +379,10 @@ func TestObjLit(t *testing.T) {
 	varDecStmt := ast.(*Prog).stmts[0].(*VarDecStmt)
 	varDec := varDecStmt.decList[0]
 
-	id := varDec.id.(*Ident)
+	id := varDec.(*VarDec).id.(*Ident)
 	assert.Equal(t, "a", id.Text(), "should be a")
 
-	objLit := varDec.init.(*ObjLit)
+	objLit := varDec.(*VarDec).init.(*ObjLit)
 	assert.Equal(t, 6, len(objLit.props), "should be len 6")
 
 	prop0 := objLit.props[0].(*Spread)
@@ -421,10 +421,10 @@ func TestObjLitMethod(t *testing.T) {
 	varDecStmt := ast.(*Prog).stmts[0].(*VarDecStmt)
 	varDec := varDecStmt.decList[0]
 
-	id := varDec.id.(*Ident)
+	id := varDec.(*VarDec).id.(*Ident)
 	assert.Equal(t, "o", id.Text(), "should be o")
 
-	objLit := varDec.init.(*ObjLit)
+	objLit := varDec.(*VarDec).init.(*ObjLit)
 	assert.Equal(t, 4, len(objLit.props), "should be len 6")
 
 	prop0 := objLit.props[0].(*Prop)
@@ -459,7 +459,7 @@ func TestFnExpr(t *testing.T) {
   `, nil)
 	assert.Equal(t, nil, err, "should be prog ok")
 
-	fn := ast.(*Prog).stmts[0].(*VarDecStmt).decList[0].init.(*FnDec)
+	fn := ast.(*Prog).stmts[0].(*VarDecStmt).decList[0].(*VarDec).init.(*FnDec)
 	id := fn.id.(*Ident)
 	assert.Equal(t, "a", id.Text(), "should be a")
 }
@@ -572,21 +572,21 @@ func TestSwitchStmt(t *testing.T) {
 	stmt := ast.(*Prog).stmts[0].(*SwitchStmt)
 
 	case0 := stmt.cases[0]
-	test0 := case0.test.(*BinExpr)
+	test0 := case0.(*SwitchCase).test.(*BinExpr)
 	assert.Equal(t, "b", test0.lhs.(*Ident).Text(), "should be prog b")
 	assert.Equal(t, "c", test0.rhs.(*Ident).Text(), "should be prog c")
 
-	cons00 := case0.cons[0].(*ExprStmt)
+	cons00 := case0.(*SwitchCase).cons[0].(*ExprStmt)
 	assert.Equal(t, "d", cons00.expr.(*Ident).Text(), "should be prog d")
 
-	cons01 := case0.cons[1].(*ExprStmt)
+	cons01 := case0.(*SwitchCase).cons[1].(*ExprStmt)
 	assert.Equal(t, "e", cons01.expr.(*Ident).Text(), "should be prog e")
 
 	case1 := stmt.cases[1]
-	assert.Equal(t, "f", case1.test.(*Ident).Text(), "should be prog f")
+	assert.Equal(t, "f", case1.(*SwitchCase).test.(*Ident).Text(), "should be prog f")
 
 	case2 := stmt.cases[2]
-	assert.Equal(t, nil, case2.test, "should be default")
+	assert.Equal(t, nil, case2.(*SwitchCase).test, "should be default")
 }
 
 func TestSwitchStmtDefaultMiddle(t *testing.T) {
@@ -603,21 +603,21 @@ func TestSwitchStmtDefaultMiddle(t *testing.T) {
 	stmt := ast.(*Prog).stmts[0].(*SwitchStmt)
 
 	case0 := stmt.cases[0]
-	test0 := case0.test.(*BinExpr)
+	test0 := case0.(*SwitchCase).test.(*BinExpr)
 	assert.Equal(t, "b", test0.lhs.(*Ident).Text(), "should be prog b")
 	assert.Equal(t, "c", test0.rhs.(*Ident).Text(), "should be prog c")
 
-	cons00 := case0.cons[0].(*ExprStmt)
+	cons00 := case0.(*SwitchCase).cons[0].(*ExprStmt)
 	assert.Equal(t, "d", cons00.expr.(*Ident).Text(), "should be prog d")
 
-	cons01 := case0.cons[1].(*ExprStmt)
+	cons01 := case0.(*SwitchCase).cons[1].(*ExprStmt)
 	assert.Equal(t, "e", cons01.expr.(*Ident).Text(), "should be prog e")
 
 	case1 := stmt.cases[1]
-	assert.Equal(t, nil, case1.test, "should be default")
+	assert.Equal(t, nil, case1.(*SwitchCase).test, "should be default")
 
 	case2 := stmt.cases[2]
-	assert.Equal(t, "f", case2.test.(*Ident).Text(), "should be prog f")
+	assert.Equal(t, "f", case2.(*SwitchCase).test.(*Ident).Text(), "should be prog f")
 }
 
 func TestBrkStmt(t *testing.T) {
@@ -853,7 +853,7 @@ func TestRegexpExpr(t *testing.T) {
   `, nil)
 	assert.Equal(t, nil, err, "should be prog ok")
 	stmt0 := ast.(*Prog).stmts[0].(*ExprStmt).expr.(*AssignExpr)
-	_ = stmt0.rhs.(*RegexpLit)
+	_ = stmt0.rhs.(*RegLit)
 }
 
 func TestParenExpr(t *testing.T) {

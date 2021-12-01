@@ -103,31 +103,33 @@ func blockStmt(n *parser.BlockStmt) *BlockStatement {
 	}
 }
 
-func cases(cs []*parser.SwitchCase) []*SwitchCase {
+func cases(cs []parser.Node) []*SwitchCase {
 	s := make([]*SwitchCase, len(cs))
 	for i, c := range cs {
+		sc := c.(*parser.SwitchCase)
 		s[i] = &SwitchCase{
 			Type:       "SwitchCase",
-			Start:      start(c.Loc()),
-			End:        end(c.Loc()),
-			Loc:        loc(c.Loc()),
-			Test:       convert(c.Test()),
-			Consequent: statements(c.Cons()),
+			Start:      start(sc.Loc()),
+			End:        end(sc.Loc()),
+			Loc:        loc(sc.Loc()),
+			Test:       convert(sc.Test()),
+			Consequent: statements(sc.Cons()),
 		}
 	}
 	return s
 }
 
-func declarations(decList []*parser.VarDec) []*VariableDeclarator {
+func declarations(decList []parser.Node) []*VariableDeclarator {
 	s := make([]*VariableDeclarator, len(decList))
 	for i, d := range decList {
+		dc := d.(*parser.VarDec)
 		s[i] = &VariableDeclarator{
 			Type:  "VariableDeclarator",
-			Start: start(d.Loc()),
-			End:   end(d.Loc()),
-			Loc:   loc(d.Loc()),
-			Id:    convert(d.Id()),
-			Init:  convert(d.Init()),
+			Start: start(dc.Loc()),
+			End:   end(dc.Loc()),
+			Loc:   loc(dc.Loc()),
+			Id:    convert(dc.Id()),
+			Init:  convert(dc.Init()),
 		}
 	}
 	return s
@@ -385,7 +387,7 @@ func convert(node parser.Node) Node {
 			Raw:   str.Raw(),
 		}
 	case parser.N_LIT_REGEXP:
-		regexp := node.(*parser.RegexpLit)
+		regexp := node.(*parser.RegLit)
 		return &RegExpLiteral{
 			Type:   "Literal",
 			Start:  start(node.Loc()),
