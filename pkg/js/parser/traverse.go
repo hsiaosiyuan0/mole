@@ -8,6 +8,8 @@ type TraverseCtx struct {
 
 	RecordPath ContOrStop
 	Path       []string
+
+	Extra interface{}
 }
 
 func NewTraverseCtx() *TraverseCtx {
