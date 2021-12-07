@@ -97,6 +97,9 @@ test-jsx-fail:	cmd/mole/*.go pkg/*/*.go go.mod
 test-export-all-as-ns:	cmd/mole/*.go pkg/*/*.go go.mod
 	go test ./pkg/js/estree -run "^TestExportAllAsNS"
 
+test-fixtures: cmd/mole/*.go pkg/*/*.go go.mod
+	go test ./pkg/js/estree -run "^TestFixtures_"
+
 test-parser: cmd/mole/*.go pkg/*/*.go go.mod
 	go test ./pkg/js/parser
 

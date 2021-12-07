@@ -2557,7 +2557,7 @@ func (p *Parser) bindingElem(asProp bool) (Node, error) {
 	} else if tok.value == T_BRACKET_L {
 		binding, err = p.patternArr()
 	} else if tok.value == T_DOT_TRI {
-		binding, err = p.patternRest(true)
+		binding, err = p.patternRest(!asProp)
 	} else {
 		binding, err = p.ident(nil)
 	}
@@ -2592,6 +2592,7 @@ func (p *Parser) patternAssign(ident Node, asProp bool) (Node, error) {
 	return &Prop{N_PROP, p.finLoc(loc.Clone()), val.lhs, opLoc, val, false, false, true, true, PK_INIT}, nil
 }
 
+// `arrPat` indicats whether `restExpr` is in array-pattern or not
 func (p *Parser) patternRest(arrPat bool) (Node, error) {
 	loc := p.loc()
 	tok := p.lexer.Next()
@@ -2601,7 +2602,8 @@ func (p *Parser) patternRest(arrPat bool) (Node, error) {
 	}
 
 	ahead := p.lexer.Peek()
-	if ahead.value != T_NAME && (!arrPat || ahead.value != T_BRACKET_L) {
+	av := ahead.value
+	if av != T_NAME && (!arrPat || av != T_BRACKET_L && av != T_BRACE_L) {
 		return nil, p.errorTok(ahead)
 	}
 
