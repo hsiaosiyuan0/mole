@@ -2209,7 +2209,7 @@ func (p *Parser) varDec(lexical bool) (*VarDec, error) {
 	var typAnnot Node
 	if p.ts() && p.lexer.Peek().value == T_COLON {
 		p.lexer.Next()
-		typAnnot, err = p.typ()
+		typAnnot, err = p.tsTyp()
 		if err != nil {
 			return nil, err
 		}
