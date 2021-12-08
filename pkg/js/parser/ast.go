@@ -507,6 +507,8 @@ type Ident struct {
 	// setting this field to true, later report the `unexpected token`
 	// error if the coming token is not `from`
 	kw bool
+
+	typAnnot Node
 }
 
 func (n *Ident) Type() NodeType {

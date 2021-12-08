@@ -52,6 +52,7 @@ const (
 	FEAT_REGEXP_DOT_ALL     Feature = 1 << iota // from es8
 	FEAT_REGEXP_HAS_INDICES Feature = 1 << iota // from es10
 
+	FEAT_TS Feature = 1 << iota
 )
 
 func (f Feature) On(flag Feature) Feature {
