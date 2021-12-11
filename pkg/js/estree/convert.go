@@ -941,7 +941,7 @@ func convert(node parser.Node) Node {
 			Expression: convert(node.Expr()),
 		}
 	case parser.N_JSX_ID:
-		node := node.(*parser.JSXIdent)
+		node := node.(*parser.JsxIdent)
 		return &JSXIdentifier{
 			Type:  "JSXIdentifier",
 			Start: start(node.Loc()),
@@ -950,7 +950,7 @@ func convert(node parser.Node) Node {
 			Name:  node.Text(),
 		}
 	case parser.N_JSX_NS:
-		node := node.(*parser.JSXNsName)
+		node := node.(*parser.JsxNsName)
 		return &JSXNamespacedName{
 			Type:      "JSXNamespacedName",
 			Start:     start(node.Loc()),
@@ -960,7 +960,7 @@ func convert(node parser.Node) Node {
 			Name:      node.Name(),
 		}
 	case parser.N_JSX_MEMBER:
-		node := node.(*parser.JSXMemberExpr)
+		node := node.(*parser.JsxMemberExpr)
 		return &JSXMemberExpression{
 			Type:     "JSXMemberExpression",
 			Start:    start(node.Loc()),
@@ -970,10 +970,10 @@ func convert(node parser.Node) Node {
 			Property: convert(node.Prop()),
 		}
 	case parser.N_JSX_ELEM:
-		node := node.(*parser.JSXElem)
+		node := node.(*parser.JsxElem)
 		if node.IsFragment() {
-			open := node.Open().(*parser.JSXOpen)
-			close := node.Close().(*parser.JSXClose)
+			open := node.Open().(*parser.JsxOpen)
+			close := node.Close().(*parser.JsxClose)
 			return &JSXFragment{
 				Type:  "JSXFragment",
 				Start: start(node.Loc()),
@@ -1004,7 +1004,7 @@ func convert(node parser.Node) Node {
 			ClosingElement: convert(node.Close()),
 		}
 	case parser.N_JSX_OPEN:
-		node := node.(*parser.JSXOpen)
+		node := node.(*parser.JsxOpen)
 		return &JSXOpeningElement{
 			Type:        "JSXOpeningElement",
 			Start:       start(node.Loc()),
@@ -1015,7 +1015,7 @@ func convert(node parser.Node) Node {
 			SelfClosing: node.Closed(),
 		}
 	case parser.N_JSX_CLOSE:
-		node := node.(*parser.JSXClose)
+		node := node.(*parser.JsxClose)
 		return &JSXClosingElement{
 			Type:  "JSXClosingElement",
 			Start: start(node.Loc()),
@@ -1024,7 +1024,7 @@ func convert(node parser.Node) Node {
 			Name:  convert(node.Name()),
 		}
 	case parser.N_JSX_TXT:
-		node := node.(*parser.JSXText)
+		node := node.(*parser.JsxText)
 		return &JSXText{
 			Type:  "JSXText",
 			Start: start(node.Loc()),
@@ -1034,7 +1034,7 @@ func convert(node parser.Node) Node {
 			Raw:   node.Raw(),
 		}
 	case parser.N_JSX_EXPR_SPAN:
-		node := node.(*parser.JSXExprSpan)
+		node := node.(*parser.JsxExprSpan)
 		return &JSXExpressionContainer{
 			Type:       "JSXExpressionContainer",
 			Start:      start(node.Loc()),
@@ -1043,7 +1043,7 @@ func convert(node parser.Node) Node {
 			Expression: convert(node.Expr()),
 		}
 	case parser.N_JSX_ATTR:
-		node := node.(*parser.JSXAttr)
+		node := node.(*parser.JsxAttr)
 		return &JSXAttribute{
 			Type:  "JSXAttribute",
 			Start: start(node.Loc()),
@@ -1053,7 +1053,7 @@ func convert(node parser.Node) Node {
 			Value: convert(node.Value()),
 		}
 	case parser.N_JSX_ATTR_SPREAD:
-		node := node.(*parser.JSXSpreadAttr)
+		node := node.(*parser.JsxSpreadAttr)
 		return &JSXSpreadAttribute{
 			Type:     "JSXSpreadAttribute",
 			Start:    start(node.Loc()),
@@ -1062,7 +1062,7 @@ func convert(node parser.Node) Node {
 			Argument: convert(node.Arg()),
 		}
 	case parser.N_JSX_CHILD_SPREAD:
-		node := node.(*parser.JSXSpreadChild)
+		node := node.(*parser.JsxSpreadChild)
 		return &JSXSpreadChild{
 			Type:       "JSXSpreadChild",
 			Start:      start(node.Loc()),
@@ -1071,7 +1071,7 @@ func convert(node parser.Node) Node {
 			Expression: convert(node.Expr()),
 		}
 	case parser.N_JSX_EMPTY:
-		node := node.(*parser.JSXEmpty)
+		node := node.(*parser.JsxEmpty)
 		return &JSXEmptyExpression{
 			Type:  "JSXEmptyExpression",
 			Start: start(node.Loc()),

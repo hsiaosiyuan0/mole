@@ -1,97 +1,97 @@
 package parser
 
-type JSXIdent struct {
+type JsxIdent struct {
 	typ   NodeType
 	loc   *Loc
 	val   string
 	extra *ExprExtra
 }
 
-func (n *JSXIdent) Type() NodeType {
+func (n *JsxIdent) Type() NodeType {
 	return n.typ
 }
 
-func (n *JSXIdent) Loc() *Loc {
+func (n *JsxIdent) Loc() *Loc {
 	return n.loc
 }
 
-func (n *JSXIdent) Extra() interface{} {
+func (n *JsxIdent) Extra() interface{} {
 	return n.extra
 }
 
-func (n *JSXIdent) setExtra(ext interface{}) {
+func (n *JsxIdent) setExtra(ext interface{}) {
 	n.extra = ext.(*ExprExtra)
 }
 
-func (n *JSXIdent) Text() string {
+func (n *JsxIdent) Text() string {
 	return n.val
 }
 
-type JSXNsName struct {
+type JsxNsName struct {
 	typ  NodeType
 	loc  *Loc
 	ns   Node
 	name Node
 }
 
-func (n *JSXNsName) Type() NodeType {
+func (n *JsxNsName) Type() NodeType {
 	return n.typ
 }
 
-func (n *JSXNsName) Loc() *Loc {
+func (n *JsxNsName) Loc() *Loc {
 	return n.loc
 }
 
-func (n *JSXNsName) Extra() interface{} {
+func (n *JsxNsName) Extra() interface{} {
 	return nil
 }
 
-func (n *JSXNsName) setExtra(ext interface{}) {
+func (n *JsxNsName) setExtra(ext interface{}) {
 }
 
-func (n *JSXNsName) NS() string {
-	return n.ns.(*JSXIdent).Text()
+func (n *JsxNsName) NS() string {
+	return n.ns.(*JsxIdent).Text()
 }
 
-func (n *JSXNsName) Name() string {
-	return n.name.(*JSXIdent).Text()
+func (n *JsxNsName) Name() string {
+	return n.name.(*JsxIdent).Text()
 }
 
-type JSXMemberExpr struct {
+type JsxMemberExpr struct {
 	typ  NodeType
 	loc  *Loc
 	obj  Node
 	prop Node
 }
 
-func (n *JSXMemberExpr) Type() NodeType {
+func (n *JsxMemberExpr) Type() NodeType {
 	return n.typ
 }
 
-func (n *JSXMemberExpr) Loc() *Loc {
+func (n *JsxMemberExpr) Loc() *Loc {
 	return n.loc
 }
 
-func (n *JSXMemberExpr) Extra() interface{} {
+func (n *JsxMemberExpr) Extra() interface{} {
 	return nil
 }
 
-func (n *JSXMemberExpr) setExtra(ext interface{}) {
+func (n *JsxMemberExpr) setExtra(ext interface{}) {
 }
 
-func (n *JSXMemberExpr) Obj() Node {
+func (n *JsxMemberExpr) Obj() Node {
 	return n.obj
 }
 
-func (n *JSXMemberExpr) Prop() Node {
+func (n *JsxMemberExpr) Prop() Node {
 	return n.prop
 }
 
-type JSXOpen struct {
+type JsxOpen struct {
 	typ NodeType
 	loc *Loc
-	// JSXIdentifier | JSXMemberExpression | JSXNamespacedName
-	// `JSXNamespacedName` is a part of the JSX spec though it's
+	// JsxIdentifier | JsxMemberExpression | JsxNamespacedName
+	// `JsxNamespacedName` is a part of the Jsx spec though it's
 	// not used in the React implementation: https://github.com/facebook/jsx/issues/13
 	name    Node
 	nameStr string
@@ -99,89 +99,89 @@ type JSXOpen struct {
 	closed  bool
 }
 
-func (n *JSXOpen) Type() NodeType {
+func (n *JsxOpen) Type() NodeType {
 	return n.typ
 }
 
-func (n *JSXOpen) Loc() *Loc {
+func (n *JsxOpen) Loc() *Loc {
 	return n.loc
 }
 
-func (n *JSXOpen) Extra() interface{} {
+func (n *JsxOpen) Extra() interface{} {
 	return nil
 }
 
-func (n *JSXOpen) setExtra(ext interface{}) {
+func (n *JsxOpen) setExtra(ext interface{}) {
 }
 
-func (n *JSXOpen) Name() Node {
+func (n *JsxOpen) Name() Node {
 	return n.name
 }
 
-func (n *JSXOpen) Attrs() []Node {
+func (n *JsxOpen) Attrs() []Node {
 	return n.attrs
 }
 
-func (n *JSXOpen) Closed() bool {
+func (n *JsxOpen) Closed() bool {
 	return n.closed
 }
 
-type JSXClose struct {
+type JsxClose struct {
 	typ     NodeType
 	loc     *Loc
 	name    Node
 	nameStr string
 }
 
-func (n *JSXClose) Type() NodeType {
+func (n *JsxClose) Type() NodeType {
 	return n.typ
 }
 
-func (n *JSXClose) Loc() *Loc {
+func (n *JsxClose) Loc() *Loc {
 	return n.loc
 }
 
-func (n *JSXClose) Extra() interface{} {
+func (n *JsxClose) Extra() interface{} {
 	return nil
 }
 
-func (n *JSXClose) setExtra(ext interface{}) {
+func (n *JsxClose) setExtra(ext interface{}) {
 }
 
-func (n *JSXClose) Name() Node {
+func (n *JsxClose) Name() Node {
 	return n.name
 }
 
-type JSXText struct {
+type JsxText struct {
 	typ NodeType
 	loc *Loc
 	val string
 }
 
-func (n *JSXText) Type() NodeType {
+func (n *JsxText) Type() NodeType {
 	return n.typ
 }
 
-func (n *JSXText) Loc() *Loc {
+func (n *JsxText) Loc() *Loc {
 	return n.loc
 }
 
-func (n *JSXText) Extra() interface{} {
+func (n *JsxText) Extra() interface{} {
 	return nil
 }
 
-func (n *JSXText) setExtra(ext interface{}) {
+func (n *JsxText) setExtra(ext interface{}) {
 }
 
-func (n *JSXText) Value() string {
+func (n *JsxText) Value() string {
 	return n.val
 }
 
-func (n *JSXText) Raw() string {
+func (n *JsxText) Raw() string {
 	return n.loc.Text()
 }
 
-type JSXAttr struct {
+type JsxAttr struct {
 	typ     NodeType
 	loc     *Loc
 	name    Node
@@ -189,160 +189,160 @@ type JSXAttr struct {
 	val     Node
 }
 
-func (n *JSXAttr) Type() NodeType {
+func (n *JsxAttr) Type() NodeType {
 	return n.typ
 }
 
-func (n *JSXAttr) Loc() *Loc {
+func (n *JsxAttr) Loc() *Loc {
 	return n.loc
 }
 
-func (n *JSXAttr) Extra() interface{} {
+func (n *JsxAttr) Extra() interface{} {
 	return nil
 }
 
-func (n *JSXAttr) setExtra(ext interface{}) {
+func (n *JsxAttr) setExtra(ext interface{}) {
 }
 
-func (n *JSXAttr) Name() Node {
+func (n *JsxAttr) Name() Node {
 	return n.name
 }
 
-func (n *JSXAttr) Value() Node {
+func (n *JsxAttr) Value() Node {
 	return n.val
 }
 
-type JSXSpreadAttr struct {
+type JsxSpreadAttr struct {
 	typ NodeType
 	loc *Loc
 	arg Node
 }
 
-func (n *JSXSpreadAttr) Type() NodeType {
+func (n *JsxSpreadAttr) Type() NodeType {
 	return n.typ
 }
 
-func (n *JSXSpreadAttr) Loc() *Loc {
+func (n *JsxSpreadAttr) Loc() *Loc {
 	return n.loc
 }
 
-func (n *JSXSpreadAttr) Extra() interface{} {
+func (n *JsxSpreadAttr) Extra() interface{} {
 	return nil
 }
 
-func (n *JSXSpreadAttr) setExtra(ext interface{}) {
+func (n *JsxSpreadAttr) setExtra(ext interface{}) {
 }
 
-func (n *JSXSpreadAttr) Arg() Node {
+func (n *JsxSpreadAttr) Arg() Node {
 	return n.arg
 }
 
-type JSXSpreadChild struct {
+type JsxSpreadChild struct {
 	typ  NodeType
 	loc  *Loc
 	expr Node
 }
 
-func (n *JSXSpreadChild) Type() NodeType {
+func (n *JsxSpreadChild) Type() NodeType {
 	return n.typ
 }
 
-func (n *JSXSpreadChild) Loc() *Loc {
+func (n *JsxSpreadChild) Loc() *Loc {
 	return n.loc
 }
 
-func (n *JSXSpreadChild) Extra() interface{} {
+func (n *JsxSpreadChild) Extra() interface{} {
 	return nil
 }
 
-func (n *JSXSpreadChild) setExtra(ext interface{}) {
+func (n *JsxSpreadChild) setExtra(ext interface{}) {
 }
 
-func (n *JSXSpreadChild) Expr() Node {
+func (n *JsxSpreadChild) Expr() Node {
 	return n.expr
 }
 
-type JSXEmpty struct {
+type JsxEmpty struct {
 	typ NodeType
 	loc *Loc
 }
 
-func (n *JSXEmpty) Type() NodeType {
+func (n *JsxEmpty) Type() NodeType {
 	return n.typ
 }
 
-func (n *JSXEmpty) Loc() *Loc {
+func (n *JsxEmpty) Loc() *Loc {
 	return n.loc
 }
 
-func (n *JSXEmpty) Extra() interface{} {
+func (n *JsxEmpty) Extra() interface{} {
 	return nil
 }
 
-func (n *JSXEmpty) setExtra(ext interface{}) {
+func (n *JsxEmpty) setExtra(ext interface{}) {
 }
 
 // https://github.com/facebook/jsx/blob/main/AST.md#jsx-element
-type JSXElem struct {
+type JsxElem struct {
 	typ      NodeType
 	loc      *Loc
 	open     Node
 	close    Node
-	children []Node // [ JSXText | JSXExpressionContainer | JSXSpreadChild | JSXElement | JSXFragment ]
+	children []Node // [ JsxText | JsxExpressionContainer | JsxSpreadChild | JsxElement | JsxFragment ]
 }
 
-func (n *JSXElem) Type() NodeType {
+func (n *JsxElem) Type() NodeType {
 	return n.typ
 }
 
-func (n *JSXElem) Loc() *Loc {
+func (n *JsxElem) Loc() *Loc {
 	return n.loc
 }
 
-func (n *JSXElem) Extra() interface{} {
+func (n *JsxElem) Extra() interface{} {
 	return nil
 }
 
-func (n *JSXElem) setExtra(_ interface{}) {
+func (n *JsxElem) setExtra(_ interface{}) {
 }
 
-func (n *JSXElem) Open() Node {
+func (n *JsxElem) Open() Node {
 	return n.open
 }
 
-func (n *JSXElem) Close() Node {
+func (n *JsxElem) Close() Node {
 	return n.close
 }
 
-func (n *JSXElem) Children() []Node {
+func (n *JsxElem) Children() []Node {
 	return n.children
 }
 
-func (n *JSXElem) IsFragment() bool {
-	return n.open.(*JSXOpen).name == nil
+func (n *JsxElem) IsFragment() bool {
+	return n.open.(*JsxOpen).name == nil
 }
 
-type JSXExprSpan struct {
+type JsxExprSpan struct {
 	typ  NodeType
 	loc  *Loc
 	expr Node
 }
 
-func (n *JSXExprSpan) Type() NodeType {
+func (n *JsxExprSpan) Type() NodeType {
 	return n.typ
 }
 
-func (n *JSXExprSpan) Loc() *Loc {
+func (n *JsxExprSpan) Loc() *Loc {
 	return n.loc
 }
 
-func (n *JSXExprSpan) Extra() interface{} {
+func (n *JsxExprSpan) Extra() interface{} {
 	return nil
 }
 
-func (n *JSXExprSpan) setExtra(ext interface{}) {
+func (n *JsxExprSpan) setExtra(ext interface{}) {
 }
 
-func (n *JSXExprSpan) Expr() Node {
+func (n *JsxExprSpan) Expr() Node {
 	return n.expr
 }

@@ -2206,16 +2206,12 @@ func (p *Parser) varDec(lexical bool) (*VarDec, error) {
 	loc := binding.Loc().Clone()
 	scope.EraseKind(SPK_LEXICAL_DEC)
 
-	var typAnnot Node
-	if p.ts() && p.lexer.Peek().value == T_COLON {
-		p.lexer.Next()
-		typAnnot, err = p.tsTyp()
-		if err != nil {
-			return nil, err
-		}
-		if binding.Type() == N_NAME {
-			binding.(*Ident).typAnnot = typAnnot
-		}
+	typAnnot, err := p.tsTypAnnot()
+	if err != nil {
+		return nil, err
+	}
+	if binding.Type() == N_NAME {
+		binding.(*Ident).typAnnot = typAnnot
 	}
 
 	var init Node
@@ -2292,7 +2288,7 @@ func (p *Parser) identStrict(scope *Scope, forceStrict bool, jsx bool) (Node, er
 		return &Ident{N_NAME, loc, name, false, tok.ContainsEscape(), nil, tok.IsKw(), nil}, nil
 	}
 
-	return &JSXIdent{N_JSX_ID, loc, name, nil}, nil
+	return &JsxIdent{N_JSX_ID, loc, name, nil}, nil
 }
 
 func (p *Parser) ident(scope *Scope) (*Ident, error) {
@@ -2357,7 +2353,7 @@ func (p *Parser) patternObj() (Node, error) {
 			return nil, p.errorTok(tok)
 		}
 	}
-	return &ObjPat{N_PAT_OBJ, p.finLoc(loc), props, nil}, nil
+	return &ObjPat{N_PAT_OBJ, p.finLoc(loc), props, nil, nil}, nil
 }
 
 func (p *Parser) patternProp() (Node, error) {
@@ -2552,7 +2548,7 @@ func (p *Parser) patternArr() (Node, error) {
 			return nil, p.errorTok(tok)
 		}
 	}
-	return &ArrPat{N_PAT_ARRAY, p.finLoc(loc), elems, nil}, nil
+	return &ArrPat{N_PAT_ARRAY, p.finLoc(loc), elems, nil, nil}, nil
 }
 
 func (p *Parser) elision() []Node {
@@ -2605,7 +2601,7 @@ func (p *Parser) patternAssign(ident Node, asProp bool) (Node, error) {
 	}
 
 	loc := ident.Loc()
-	val := &AssignPat{N_PAT_ASSIGN, p.finLoc(loc.Clone()), ident, init, nil}
+	val := &AssignPat{N_PAT_ASSIGN, p.finLoc(loc.Clone()), ident, init, nil, nil}
 	if !asProp {
 		return val, nil
 	}
@@ -2637,7 +2633,7 @@ func (p *Parser) patternRest(arrPat bool) (Node, error) {
 		return nil, p.errorAt(tok.value, &tok.begin, ERR_REST_TRAILING_COMMA)
 	}
 
-	return &RestPat{N_PAT_REST, p.finLoc(loc), arg, nil}, nil
+	return &RestPat{N_PAT_REST, p.finLoc(loc), arg, nil, nil}, nil
 }
 
 func (p *Parser) exprStmt() (Node, error) {
@@ -2741,6 +2737,23 @@ func (p *Parser) assignExpr(checkLhs bool) (Node, error) {
 		return nil, err
 	}
 	loc := lhs.Loc().Clone()
+
+	typAnnot, err := p.tsTypAnnot()
+	if err != nil {
+		return nil, err
+	}
+	if typAnnot != nil {
+		switch lhs.Type() {
+		case N_NAME:
+			lhs.(*Ident).typAnnot = typAnnot
+		case N_LIT_ARR:
+			lhs.(*ArrLit).typAnnot = typAnnot
+		case N_LIT_OBJ:
+			lhs.(*ObjLit).typAnnot = typAnnot
+		case N_SPREAD:
+			lhs.(*Spread).typAnnot = typAnnot
+		}
+	}
 
 	tok := p.lexer.Peek()
 	if lhs.Type() == N_NAME && tok.value == T_ARROW && !tok.afterLineTerminator {
@@ -3349,14 +3362,15 @@ func (p *Parser) isPrimitive(node Node) bool {
 func (p *Parser) argToParam(arg Node, depth int, prop bool, destruct bool, inParen bool, setter bool) (Node, error) {
 	switch arg.Type() {
 	case N_LIT_ARR:
-		arr := arg.(*ArrLit)
+		n := arg.(*ArrLit)
 		pat := &ArrPat{
-			typ:   N_PAT_ARRAY,
-			loc:   arr.loc,
-			elems: make([]Node, len(arr.elems)),
+			typ:      N_PAT_ARRAY,
+			loc:      n.loc,
+			elems:    make([]Node, len(n.elems)),
+			typAnnot: n.typAnnot,
 		}
 		var err error
-		for i, node := range arr.elems {
+		for i, node := range n.elems {
 			// elem maybe nil in expr like `([a, , b]) => 42`
 			if node != nil {
 				pat.elems[i], err = p.argToParam(node, depth+1, false, destruct, inParen, setter)
@@ -3369,9 +3383,10 @@ func (p *Parser) argToParam(arg Node, depth int, prop bool, destruct bool, inPar
 	case N_LIT_OBJ:
 		n := arg.(*ObjLit)
 		pat := &ObjPat{
-			typ:   N_PAT_OBJ,
-			loc:   n.loc,
-			props: make([]Node, len(n.props)),
+			typ:      N_PAT_OBJ,
+			loc:      n.loc,
+			props:    make([]Node, len(n.props)),
+			typAnnot: n.typAnnot,
 		}
 		for i, prop := range n.props {
 			pp, err := p.argToParam(prop, depth+1, true, destruct, inParen, setter)
@@ -3546,9 +3561,10 @@ func (p *Parser) argToParam(arg Node, depth int, prop bool, destruct bool, inPar
 		}
 
 		return &RestPat{
-			typ: N_PAT_REST,
-			loc: n.loc,
-			arg: n.arg,
+			typ:      N_PAT_REST,
+			loc:      n.loc,
+			arg:      n.arg,
+			typAnnot: n.typAnnot,
 		}, nil
 	case N_EXPR_PAREN:
 		sub := arg.(*ParenExpr).expr
@@ -3737,6 +3753,14 @@ func (p *Parser) argList(check bool, incall bool) ([]Node, *Loc, error) {
 	return args, tailingComma, nil
 }
 
+// consider below exprs:
+// `(a,b)`
+// `(a,b) =>`
+// we cannot judge `(a,b)` is a parenExpr or the formalParamsList of
+// an arrayExpr before we see the `=>` token, for avoding to rollback
+// the parsing state, we firstly parse `(a,b)` as parenExpr which children
+// is parsed by this method and then convert the parsed subtree to formalParamList
+// by using `argToParam` when required
 func (p *Parser) arg() (Node, error) {
 	if p.lexer.Peek().value == T_DOT_TRI {
 		return p.spread()
@@ -4205,7 +4229,7 @@ func (p *Parser) arrLit() (Node, error) {
 			return nil, p.errorTok(tok)
 		}
 	}
-	return &ArrLit{N_LIT_ARR, p.finLoc(loc), elems, nil}, nil
+	return &ArrLit{N_LIT_ARR, p.finLoc(loc), elems, nil, nil}, nil
 }
 
 func (p *Parser) arrElem() (Node, error) {
@@ -4244,7 +4268,7 @@ func (p *Parser) spread() (Node, error) {
 	if tok.value == T_COMMA {
 		trailingCommaLoc = p.locFromTok(tok)
 	}
-	return &Spread{N_SPREAD, p.finLoc(loc), node, trailingCommaLoc, nil}, nil
+	return &Spread{N_SPREAD, p.finLoc(loc), node, trailingCommaLoc, nil, nil}, nil
 }
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-expressions.html#prod-ObjectLiteral
@@ -4279,7 +4303,7 @@ func (p *Parser) objLit() (Node, error) {
 		}
 	}
 	p.checkName = true
-	return &ObjLit{N_LIT_OBJ, p.finLoc(loc), props, nil}, nil
+	return &ObjLit{N_LIT_OBJ, p.finLoc(loc), props, nil, nil}, nil
 }
 
 func (p *Parser) objProp() (Node, error) {
@@ -4478,7 +4502,7 @@ func (p *Parser) jsxMemberExpr(obj Node, path string) (Node, string, error) {
 				return nil, "", err
 			}
 			path = path + "." + prop.Text()
-			obj = &JSXMemberExpr{N_JSX_MEMBER, p.finLoc(obj.Loc().Clone()), obj, prop}
+			obj = &JsxMemberExpr{N_JSX_MEMBER, p.finLoc(obj.Loc().Clone()), obj, prop}
 		} else {
 			break
 		}
@@ -4494,8 +4518,8 @@ func (p *Parser) jsxNsExpr(ns Node, path string) (Node, string, error) {
 	if err != nil {
 		return nil, "", err
 	}
-	jsxName := name.(*JSXIdent).val
-	return &JSXNsName{N_JSX_NS, p.finLoc(ns.Loc().Clone()), ns, name}, path + ":" + jsxName, nil
+	jsxName := name.(*JsxIdent).val
+	return &JsxNsName{N_JSX_NS, p.finLoc(ns.Loc().Clone()), ns, name}, path + ":" + jsxName, nil
 }
 
 func (p *Parser) jsxName() (Node, string, error) {
@@ -4503,7 +4527,7 @@ func (p *Parser) jsxName() (Node, string, error) {
 	if err != nil {
 		return nil, "", err
 	}
-	jsxId := id.(*JSXIdent)
+	jsxId := id.(*JsxIdent)
 	jsxName := jsxId.Text()
 	ahead := p.lexer.Peek()
 	av := ahead.value
@@ -4527,7 +4551,7 @@ func (p *Parser) jsxAttr() (Node, error) {
 		if val.Type() != N_SPREAD {
 			return nil, p.errorAtLoc(val.Loc(), ERR_UNEXPECTED_TOKEN)
 		}
-		return &JSXSpreadAttr{N_JSX_ATTR_SPREAD, p.finLoc(loc), val}, nil
+		return &JsxSpreadAttr{N_JSX_ATTR_SPREAD, p.finLoc(loc), val}, nil
 	}
 
 	id, name, err := p.jsxName()
@@ -4535,7 +4559,7 @@ func (p *Parser) jsxAttr() (Node, error) {
 		return nil, err
 	}
 	p.lexer.pushMode(LM_JSX_ATTR, true)
-	attr := &JSXAttr{N_JSX_ATTR, p.finLoc(id.Loc().Clone()), id, name, nil}
+	attr := &JsxAttr{N_JSX_ATTR, p.finLoc(id.Loc().Clone()), id, name, nil}
 	if p.lexer.Peek().value != T_ASSIGN {
 		p.lexer.popMode()
 		return attr, nil
@@ -4591,7 +4615,7 @@ func (p *Parser) jsxOpen(tok *Token) (Node, error) {
 	// fragment
 	if p.lexer.Peek().value == T_GT {
 		p.lexer.Next()
-		return &JSXOpen{N_JSX_OPEN, p.finLoc(loc), nil, "", nil, false}, nil
+		return &JsxOpen{N_JSX_OPEN, p.finLoc(loc), nil, "", nil, false}, nil
 	}
 
 	id, name, err := p.jsxName()
@@ -4609,7 +4633,7 @@ func (p *Parser) jsxOpen(tok *Token) (Node, error) {
 	if _, err := p.nextMustTok(T_GT); err != nil {
 		return nil, err
 	}
-	return &JSXOpen{N_JSX_OPEN, p.finLoc(loc), id, name, attrs, closed}, nil
+	return &JsxOpen{N_JSX_OPEN, p.finLoc(loc), id, name, attrs, closed}, nil
 }
 
 func (p *Parser) jsxExpr(loc *Loc) (Node, error) {
@@ -4637,8 +4661,8 @@ func (p *Parser) jsxExpr(loc *Loc) (Node, error) {
 		locAfterBrace.end.line = tok.begin.line
 		locAfterBrace.end.col = tok.begin.col - 1
 		locAfterBrace.rng.end = tok.raw.lo
-		empty = &JSXEmpty{N_JSX_EMPTY, locAfterBrace}
-		expr = &JSXExprSpan{N_JSX_EXPR_SPAN, p.finLoc(loc), empty}
+		empty = &JsxEmpty{N_JSX_EMPTY, locAfterBrace}
+		expr = &JsxExprSpan{N_JSX_EXPR_SPAN, p.finLoc(loc), empty}
 	} else {
 		if expr, err = p.expr(); err != nil {
 			return nil, err
@@ -4646,7 +4670,7 @@ func (p *Parser) jsxExpr(loc *Loc) (Node, error) {
 		if _, err := p.nextMustTok(T_BRACE_R); err != nil {
 			return nil, err
 		}
-		expr = &JSXExprSpan{N_JSX_EXPR_SPAN, p.finLoc(loc), expr}
+		expr = &JsxExprSpan{N_JSX_EXPR_SPAN, p.finLoc(loc), expr}
 	}
 
 	p.lexer.popMode()
@@ -4660,7 +4684,7 @@ func (p *Parser) jsxClose(loc *Loc) (Node, error) {
 	if p.lexer.Peek().value == T_GT {
 		p.lexer.Next()
 		p.lexer.popMode()
-		return &JSXClose{N_JSX_CLOSE, p.finLoc(loc), nil, ""}, nil
+		return &JsxClose{N_JSX_CLOSE, p.finLoc(loc), nil, ""}, nil
 	}
 
 	id, name, err := p.jsxName()
@@ -4672,15 +4696,15 @@ func (p *Parser) jsxClose(loc *Loc) (Node, error) {
 	}
 	// balance the `pushMode` at the beginning of the `p.jsx()`
 	p.lexer.popMode()
-	return &JSXClose{N_JSX_CLOSE, p.finLoc(loc), id, name}, nil
+	return &JsxClose{N_JSX_CLOSE, p.finLoc(loc), id, name}, nil
 }
 
 func (p *Parser) isCloseTag(open Node, close Node) bool {
 	if close.Type() != N_JSX_CLOSE {
 		return false
 	}
-	on := open.(*JSXOpen)
-	cn := close.(*JSXClose)
+	on := open.(*JsxOpen)
+	cn := close.(*JsxClose)
 	return on.nameStr == cn.nameStr
 }
 
@@ -4705,7 +4729,7 @@ func (p *Parser) jsx(root bool, opening bool) (Node, error) {
 
 	var close Node
 	var children []Node
-	var openTag = open.(*JSXOpen)
+	var openTag = open.(*JsxOpen)
 	var child Node
 	if !openTag.closed {
 		p.lexer.pushMode(LM_JSX_CHILD, true)
@@ -4723,7 +4747,7 @@ func (p *Parser) jsx(root bool, opening bool) (Node, error) {
 				}
 				if child.Type() == N_SPREAD {
 					s := child.(*Spread)
-					child = &JSXSpreadChild{N_JSX_CHILD_SPREAD, p.finLoc(loc), s.arg}
+					child = &JsxSpreadChild{N_JSX_CHILD_SPREAD, p.finLoc(loc), s.arg}
 				}
 				children = append(children, child)
 			} else if av == T_LT {
@@ -4741,7 +4765,7 @@ func (p *Parser) jsx(root bool, opening bool) (Node, error) {
 				children = append(children, tag)
 			} else if av == T_JSX_TXT {
 				tok := p.lexer.Next()
-				child := &JSXText{N_JSX_TXT, p.finLoc(p.locFromTok(tok)), tok.ext.(string)}
+				child := &JsxText{N_JSX_TXT, p.finLoc(p.locFromTok(tok)), tok.ext.(string)}
 				children = append(children, child)
 			} else if av == T_EOF {
 				return nil, p.errorAtLoc(p.locFromTok(ahead), ERR_UNTERMINATED_JSX_CONTENTS)
@@ -4758,7 +4782,7 @@ func (p *Parser) jsx(root bool, opening bool) (Node, error) {
 	if ahead.value == T_LT {
 		return nil, p.errorAt(ahead.value, &ahead.begin, ERR_JSX_ADJACENT_ELEM_SHOULD_BE_WRAPPED)
 	}
-	return &JSXElem{N_JSX_ELEM, p.finLoc(open.Loc().Clone()), open, close, children}, nil
+	return &JsxElem{N_JSX_ELEM, p.finLoc(open.Loc().Clone()), open, close, children}, nil
 }
 
 func (p *Parser) isExprOpening(raise bool) (*Token, error) {

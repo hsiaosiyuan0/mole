@@ -1,10 +1,7 @@
 package parser
 
 import (
-	"fmt"
 	"testing"
-
-	"github.com/hsiaosiyuan0/mole/pkg/assert"
 )
 
 func compileTs(code string, opts *ParserOpts) (Node, error) {
@@ -17,7 +14,7 @@ func compileTs(code string, opts *ParserOpts) (Node, error) {
 }
 
 func TestTs(t *testing.T) {
-	ast, err := compileTs("var a: typeof a[] = 1", nil)
-	assert.Equal(t, nil, err, "should be prog ok")
-	fmt.Println(ast)
+	// ast, err := compileTs("var a: (string|number) = 1", nil)
+	// assert.Equal(t, nil, err, "should be prog ok")
+	// fmt.Println(ast)
 }

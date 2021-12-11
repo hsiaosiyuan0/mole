@@ -411,10 +411,11 @@ func (n *RegLit) setExtra(ext interface{}) {
 }
 
 type ArrLit struct {
-	typ   NodeType
-	loc   *Loc
-	elems []Node
-	extra *ExprExtra
+	typ      NodeType
+	loc      *Loc
+	elems    []Node
+	extra    *ExprExtra
+	typAnnot Node
 }
 
 func (n *ArrLit) Type() NodeType {
@@ -443,6 +444,7 @@ type Spread struct {
 	arg              Node
 	trailingCommaLoc *Loc
 	extra            *ExprExtra
+	typAnnot         Node
 }
 
 func (n *Spread) Arg() Node {
@@ -466,10 +468,11 @@ func (n *Spread) setExtra(ext interface{}) {
 }
 
 type ObjLit struct {
-	typ   NodeType
-	loc   *Loc
-	props []Node
-	extra *ExprExtra
+	typ      NodeType
+	loc      *Loc
+	props    []Node
+	extra    *ExprExtra
+	typAnnot Node
 }
 
 func (n *ObjLit) Props() []Node {
@@ -506,8 +509,7 @@ type Ident struct {
 	// Ident with conent `if` and flag it's a keyword by
 	// setting this field to true, later report the `unexpected token`
 	// error if the coming token is not `from`
-	kw bool
-
+	kw       bool
 	typAnnot Node
 }
 
@@ -1061,10 +1063,11 @@ func (n *YieldExpr) setExtra(ext interface{}) {
 }
 
 type ArrPat struct {
-	typ   NodeType
-	loc   *Loc
-	elems []Node
-	extra *ExprExtra
+	typ      NodeType
+	loc      *Loc
+	elems    []Node
+	extra    *ExprExtra
+	typAnnot Node
 }
 
 func (n *ArrPat) Type() NodeType {
@@ -1088,11 +1091,12 @@ func (n *ArrPat) setExtra(ext interface{}) {
 }
 
 type AssignPat struct {
-	typ   NodeType
-	loc   *Loc
-	lhs   Node
-	rhs   Node
-	extra *ExprExtra
+	typ      NodeType
+	loc      *Loc
+	lhs      Node
+	rhs      Node
+	extra    *ExprExtra
+	typAnnot Node
 }
 
 func (n *AssignPat) Left() Node {
@@ -1120,10 +1124,11 @@ func (n *AssignPat) setExtra(ext interface{}) {
 }
 
 type RestPat struct {
-	typ   NodeType
-	loc   *Loc
-	arg   Node
-	extra *ExprExtra
+	typ      NodeType
+	loc      *Loc
+	arg      Node
+	extra    *ExprExtra
+	typAnnot Node
 }
 
 func (n *RestPat) Arg() Node {
@@ -1147,10 +1152,11 @@ func (n *RestPat) setExtra(ext interface{}) {
 }
 
 type ObjPat struct {
-	typ   NodeType
-	loc   *Loc
-	props []Node
-	extra *ExprExtra
+	typ      NodeType
+	loc      *Loc
+	props    []Node
+	extra    *ExprExtra
+	typAnnot Node
 }
 
 func (n *ObjPat) Props() []Node {

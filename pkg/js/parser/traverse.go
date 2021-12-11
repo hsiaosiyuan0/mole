@@ -620,7 +620,7 @@ func VisitOptChainExpr(n Node, v interface{}, ctx *TraverseCtx) ContOrStop {
 	return VisitNode(an.expr, v, ctx, false)
 }
 func VisitJsxElem(n Node, v interface{}, ctx *TraverseCtx) ContOrStop {
-	an := n.(*JSXElem)
+	an := n.(*JsxElem)
 	if !VisitNode(an.open, v, ctx, false) {
 		return TRAVERSE_STOP
 	}
@@ -739,50 +739,50 @@ func VisitJsxIdent(n Node, v interface{}, ctx *TraverseCtx) ContOrStop {
 	return TRAVERSE_CONT
 }
 func VisitJsxMemberExpr(n Node, v interface{}, ctx *TraverseCtx) ContOrStop {
-	an := n.(*JSXMemberExpr)
+	an := n.(*JsxMemberExpr)
 	if !VisitNode(an.obj, v, ctx, false) {
 		return TRAVERSE_STOP
 	}
 	return VisitNode(an.prop, v, ctx, false)
 }
 func VisitJsxNsName(n Node, v interface{}, ctx *TraverseCtx) ContOrStop {
-	an := n.(*JSXNsName)
+	an := n.(*JsxNsName)
 	if !VisitNode(an.ns, v, ctx, false) {
 		return TRAVERSE_STOP
 	}
 	return VisitNode(an.name, v, ctx, false)
 }
 func VisitJsxAttrSpread(n Node, v interface{}, ctx *TraverseCtx) ContOrStop {
-	an := n.(*JSXSpreadAttr)
+	an := n.(*JsxSpreadAttr)
 	return VisitNode(an.arg, v, ctx, false)
 }
 func VisitJsxChildSpread(n Node, v interface{}, ctx *TraverseCtx) ContOrStop {
-	an := n.(*JSXSpreadChild)
+	an := n.(*JsxSpreadChild)
 	return VisitNode(an.expr, v, ctx, false)
 }
 func VisitJsxOpen(n Node, v interface{}, ctx *TraverseCtx) ContOrStop {
-	an := n.(*JSXOpen)
+	an := n.(*JsxOpen)
 	if !VisitNode(an.name, v, ctx, false) {
 		return TRAVERSE_STOP
 	}
 	return VisitNodes(an.attrs, v, ctx, false)
 }
 func VisitJsxClose(n Node, v interface{}, ctx *TraverseCtx) ContOrStop {
-	an := n.(*JSXClose)
+	an := n.(*JsxClose)
 	return VisitNode(an.name, v, ctx, false)
 }
 func VisitJsxEmpty(n Node, v interface{}, ctx *TraverseCtx) ContOrStop {
 	return TRAVERSE_CONT
 }
 func VisitJsxExprSpan(n Node, v interface{}, ctx *TraverseCtx) ContOrStop {
-	an := n.(*JSXExprSpan)
+	an := n.(*JsxExprSpan)
 	return VisitNode(an.expr, v, ctx, false)
 }
 func VisitJsxText(n Node, v interface{}, ctx *TraverseCtx) ContOrStop {
 	return TRAVERSE_CONT
 }
 func VisitJsxAttr(n Node, v interface{}, ctx *TraverseCtx) ContOrStop {
-	an := n.(*JSXAttr)
+	an := n.(*JsxAttr)
 	if !VisitNode(an.name, v, ctx, false) {
 		return TRAVERSE_STOP
 	}
@@ -1151,7 +1151,7 @@ func ListenOptChainExpr(n Node, v interface{}, ctx *TraverseCtx) ContOrStop {
 	return TRAVERSE_CONT
 }
 func ListenJsxElem(n Node, v interface{}, ctx *TraverseCtx) ContOrStop {
-	an := n.(*JSXElem)
+	an := n.(*JsxElem)
 	callNodeFn(n, N_JSX_ELEM_BEFORE, v, ctx)
 	VisitNode(an.open, v, ctx, true)
 	VisitNodes(an.children, v, ctx, true)
@@ -1306,7 +1306,7 @@ func ListenJsxIdent(n Node, v interface{}, ctx *TraverseCtx) ContOrStop {
 	return TRAVERSE_CONT
 }
 func ListenJsxMemberExpr(n Node, v interface{}, ctx *TraverseCtx) ContOrStop {
-	an := n.(*JSXMemberExpr)
+	an := n.(*JsxMemberExpr)
 	callNodeFn(n, N_JSX_MEMBER_BEFORE, v, ctx)
 	VisitNode(an.obj, v, ctx, true)
 	VisitNode(an.prop, v, ctx, true)
@@ -1314,7 +1314,7 @@ func ListenJsxMemberExpr(n Node, v interface{}, ctx *TraverseCtx) ContOrStop {
 	return TRAVERSE_CONT
 }
 func ListenJsxNsName(n Node, v interface{}, ctx *TraverseCtx) ContOrStop {
-	an := n.(*JSXNsName)
+	an := n.(*JsxNsName)
 	callNodeFn(n, N_JSX_NS_BEFORE, v, ctx)
 	VisitNode(an.ns, v, ctx, true)
 	VisitNode(an.name, v, ctx, true)
@@ -1322,21 +1322,21 @@ func ListenJsxNsName(n Node, v interface{}, ctx *TraverseCtx) ContOrStop {
 	return TRAVERSE_CONT
 }
 func ListenJsxAttrSpread(n Node, v interface{}, ctx *TraverseCtx) ContOrStop {
-	an := n.(*JSXSpreadAttr)
+	an := n.(*JsxSpreadAttr)
 	callNodeFn(n, N_JSX_ATTR_SPREAD_BEFORE, v, ctx)
 	VisitNode(an.arg, v, ctx, true)
 	callNodeFn(n, N_JSX_ATTR_SPREAD_AFTER, v, ctx)
 	return TRAVERSE_CONT
 }
 func ListenJsxChildSpread(n Node, v interface{}, ctx *TraverseCtx) ContOrStop {
-	an := n.(*JSXSpreadChild)
+	an := n.(*JsxSpreadChild)
 	callNodeFn(n, N_JSX_CHILD_SPREAD_BEFORE, v, ctx)
 	VisitNode(an.expr, v, ctx, true)
 	callNodeFn(n, N_JSX_CHILD_SPREAD_AFTER, v, ctx)
 	return TRAVERSE_CONT
 }
 func ListenJsxOpen(n Node, v interface{}, ctx *TraverseCtx) ContOrStop {
-	an := n.(*JSXOpen)
+	an := n.(*JsxOpen)
 	callNodeFn(n, N_JSX_OPEN_BEFORE, v, ctx)
 	VisitNode(an.name, v, ctx, true)
 	VisitNodes(an.attrs, v, ctx, true)
@@ -1344,7 +1344,7 @@ func ListenJsxOpen(n Node, v interface{}, ctx *TraverseCtx) ContOrStop {
 	return TRAVERSE_CONT
 }
 func ListenJsxClose(n Node, v interface{}, ctx *TraverseCtx) ContOrStop {
-	an := n.(*JSXClose)
+	an := n.(*JsxClose)
 	callNodeFn(n, N_JSX_CLOSE_BEFORE, v, ctx)
 	VisitNode(an.name, v, ctx, true)
 	callNodeFn(n, N_JSX_CLOSE_AFTER, v, ctx)
@@ -1356,7 +1356,7 @@ func ListenJsxEmpty(n Node, v interface{}, ctx *TraverseCtx) ContOrStop {
 	return TRAVERSE_CONT
 }
 func ListenJsxExprSpan(n Node, v interface{}, ctx *TraverseCtx) ContOrStop {
-	an := n.(*JSXExprSpan)
+	an := n.(*JsxExprSpan)
 	callNodeFn(n, N_JSX_EXPR_SPAN_BEFORE, v, ctx)
 	VisitNode(an.expr, v, ctx, true)
 	callNodeFn(n, N_JSX_EXPR_SPAN_AFTER, v, ctx)
@@ -1368,7 +1368,7 @@ func ListenJsxText(n Node, v interface{}, ctx *TraverseCtx) ContOrStop {
 	return TRAVERSE_CONT
 }
 func ListenJsxAttr(n Node, v interface{}, ctx *TraverseCtx) ContOrStop {
-	an := n.(*JSXAttr)
+	an := n.(*JsxAttr)
 	callNodeFn(n, N_JSX_ATTR_BEFORE, v, ctx)
 	VisitNode(an.name, v, ctx, true)
 	VisitNode(an.val, v, ctx, true)

@@ -21,13 +21,13 @@ func TestJSX(t *testing.T) {
 	prog := ast.(*Prog)
 	assert.Equal(t, 1, len(prog.stmts), "should have 1 stmt")
 
-	elem := prog.stmts[0].(*ExprStmt).expr.(*JSXElem)
-	open := elem.open.(*JSXOpen)
+	elem := prog.stmts[0].(*ExprStmt).expr.(*JsxElem)
+	open := elem.open.(*JsxOpen)
 	assert.Equal(t, false, open.closed, "should not closed")
 
 	assert.Equal(t, 4, len(open.attrs), "should have 3 attrs")
-	attr2 := open.attrs[2].(*JSXAttr)
-	_ = attr2.val.(*JSXElem)
+	attr2 := open.attrs[2].(*JsxAttr)
+	_ = attr2.val.(*JsxElem)
 
 	assert.Equal(t, "attr2", attr2.nameStr, "should be name attr2")
 
@@ -37,7 +37,7 @@ func TestJSX(t *testing.T) {
 	children := elem.children
 	assert.Equal(t, 4, len(children), "should have 4 children")
 
-	child1 := children[1].(*JSXExprSpan).expr.(*JSXElem)
+	child1 := children[1].(*JsxExprSpan).expr.(*JsxElem)
 	child1_0 := child1.children[0]
 	assert.Equal(t, N_JSX_EXPR_SPAN, child1_0.Type(), "should be jsx expr box")
 
@@ -56,8 +56,8 @@ func TestJSXFragment(t *testing.T) {
 	prog := ast.(*Prog)
 	assert.Equal(t, 1, len(prog.stmts), "should have 1 stmt")
 
-	elem := prog.stmts[0].(*ExprStmt).expr.(*JSXElem)
-	open := elem.open.(*JSXOpen)
+	elem := prog.stmts[0].(*ExprStmt).expr.(*JsxElem)
+	open := elem.open.(*JsxOpen)
 	assert.Equal(t, false, open.closed, "should not closed")
 
 	children := elem.children
@@ -79,8 +79,8 @@ func TestJSXEmpty(t *testing.T) {
 	prog := ast.(*Prog)
 	assert.Equal(t, 1, len(prog.stmts), "should have 1 stmt")
 
-	elem := prog.stmts[0].(*ExprStmt).expr.(*JSXElem)
-	open := elem.open.(*JSXOpen)
+	elem := prog.stmts[0].(*ExprStmt).expr.(*JsxElem)
+	open := elem.open.(*JsxOpen)
 	assert.Equal(t, false, open.closed, "should not closed")
 
 	children := elem.children
@@ -88,7 +88,7 @@ func TestJSXEmpty(t *testing.T) {
 
 	empty := children[3]
 	assert.Equal(t, N_JSX_EXPR_SPAN, empty.Type(), "should be span")
-	assert.Equal(t, N_JSX_EMPTY, empty.(*JSXExprSpan).expr.Type(), "should be empty")
+	assert.Equal(t, N_JSX_EMPTY, empty.(*JsxExprSpan).expr.Type(), "should be empty")
 
 	child3 := children[4]
 	assert.Equal(t, N_JSX_CHILD_SPREAD, child3.Type(), "should be spread")
@@ -103,7 +103,7 @@ func TestJSXNoChild(t *testing.T) {
 	prog := ast.(*Prog)
 	assert.Equal(t, 1, len(prog.stmts), "should have 1 stmt")
 
-	elem := prog.stmts[0].(*ExprStmt).expr.(*JSXElem)
+	elem := prog.stmts[0].(*ExprStmt).expr.(*JsxElem)
 	children := elem.children
 	assert.Equal(t, 0, len(children), "should have 4 children")
 }

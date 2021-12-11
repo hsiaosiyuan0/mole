@@ -1,43 +1,43 @@
 package parser
 
-type TsPredefType struct {
+type TsPredef struct {
 	typ NodeType
 	loc *Loc
 }
 
-func (n *TsPredefType) Type() NodeType {
+func (n *TsPredef) Type() NodeType {
 	return n.typ
 }
 
-func (n *TsPredefType) Loc() *Loc {
+func (n *TsPredef) Loc() *Loc {
 	return n.loc
 }
 
-func (n *TsPredefType) Extra() interface{} {
+func (n *TsPredef) Extra() interface{} {
 	return nil
 }
 
-func (n *TsPredefType) setExtra(ext interface{}) {
+func (n *TsPredef) setExtra(ext interface{}) {
 }
 
-type TsThisType struct {
+type TsThis struct {
 	typ NodeType
 	loc *Loc
 }
 
-func (n *TsThisType) Type() NodeType {
+func (n *TsThis) Type() NodeType {
 	return n.typ
 }
 
-func (n *TsThisType) Loc() *Loc {
+func (n *TsThis) Loc() *Loc {
 	return n.loc
 }
 
-func (n *TsThisType) Extra() interface{} {
+func (n *TsThis) Extra() interface{} {
 	return nil
 }
 
-func (n *TsThisType) setExtra(ext interface{}) {
+func (n *TsThis) setExtra(ext interface{}) {
 }
 
 type TsNsName struct {
@@ -62,87 +62,245 @@ func (n *TsNsName) Extra() interface{} {
 func (n *TsNsName) setExtra(ext interface{}) {
 }
 
-type TsTypeRef struct {
+type TsRef struct {
 	typ  NodeType
 	loc  *Loc
 	name Node
 	args []Node
 }
 
-func (n *TsTypeRef) Type() NodeType {
+func (n *TsRef) Type() NodeType {
 	return n.typ
 }
 
-func (n *TsTypeRef) Loc() *Loc {
+func (n *TsRef) Loc() *Loc {
 	return n.loc
 }
 
-func (n *TsTypeRef) Extra() interface{} {
+func (n *TsRef) Extra() interface{} {
 	return nil
 }
 
-func (n *TsTypeRef) setExtra(ext interface{}) {
+func (n *TsRef) setExtra(ext interface{}) {
 }
 
-type TsTypeQuery struct {
+type TsQuery struct {
 	typ NodeType
 	loc *Loc
 	arg Node // name or nsName
 }
 
-func (n *TsTypeQuery) Type() NodeType {
+func (n *TsQuery) Type() NodeType {
 	return n.typ
 }
 
-func (n *TsTypeQuery) Loc() *Loc {
+func (n *TsQuery) Loc() *Loc {
 	return n.loc
 }
 
-func (n *TsTypeQuery) Extra() interface{} {
+func (n *TsQuery) Extra() interface{} {
 	return nil
 }
 
-func (n *TsTypeQuery) setExtra(ext interface{}) {
+func (n *TsQuery) setExtra(ext interface{}) {
 }
 
-type TsArrType struct {
+type TsArr struct {
 	typ NodeType
 	loc *Loc
 	arg Node // name or nsName
 }
 
-func (n *TsArrType) Type() NodeType {
+func (n *TsArr) Type() NodeType {
 	return n.typ
 }
 
-func (n *TsArrType) Loc() *Loc {
+func (n *TsArr) Loc() *Loc {
 	return n.loc
 }
 
-func (n *TsArrType) Extra() interface{} {
+func (n *TsArr) Extra() interface{} {
 	return nil
 }
 
-func (n *TsArrType) setExtra(ext interface{}) {
+func (n *TsArr) setExtra(ext interface{}) {
 }
 
-type TsTupleType struct {
+type TsTuple struct {
 	typ  NodeType
 	loc  *Loc
 	args []Node
 }
 
-func (n *TsTupleType) Type() NodeType {
+func (n *TsTuple) Type() NodeType {
 	return n.typ
 }
 
-func (n *TsTupleType) Loc() *Loc {
+func (n *TsTuple) Loc() *Loc {
 	return n.loc
 }
 
-func (n *TsTupleType) Extra() interface{} {
+func (n *TsTuple) Extra() interface{} {
 	return nil
 }
 
-func (n *TsTupleType) setExtra(ext interface{}) {
+func (n *TsTuple) setExtra(ext interface{}) {
+}
+
+type TsObj struct {
+	typ   NodeType
+	loc   *Loc
+	props []Node
+}
+
+func (n *TsObj) Type() NodeType {
+	return n.typ
+}
+
+func (n *TsObj) Loc() *Loc {
+	return n.loc
+}
+
+func (n *TsObj) Extra() interface{} {
+	return nil
+}
+
+func (n *TsObj) setExtra(ext interface{}) {
+}
+
+type TsProp struct {
+	typ  NodeType
+	loc  *Loc
+	key  Node
+	val  Node
+	ques *Loc
+}
+
+func (n *TsProp) Type() NodeType {
+	return n.typ
+}
+
+func (n *TsProp) Loc() *Loc {
+	return n.loc
+}
+
+func (n *TsProp) Extra() interface{} {
+	return nil
+}
+
+func (n *TsProp) setExtra(ext interface{}) {
+}
+
+type TsCallSig struct {
+	typ       NodeType
+	loc       *Loc
+	typParams []Node
+	params    []Node
+	retTyp    Node
+}
+
+func (n *TsCallSig) Type() NodeType {
+	return n.typ
+}
+
+func (n *TsCallSig) Loc() *Loc {
+	return n.loc
+}
+
+func (n *TsCallSig) Extra() interface{} {
+	return nil
+}
+
+func (n *TsCallSig) setExtra(ext interface{}) {
+}
+
+type TsNewSig struct {
+	typ       NodeType
+	loc       *Loc
+	typParams []Node
+	params    []Node
+	retTyp    Node
+}
+
+func (n *TsNewSig) Type() NodeType {
+	return n.typ
+}
+
+func (n *TsNewSig) Loc() *Loc {
+	return n.loc
+}
+
+func (n *TsNewSig) Extra() interface{} {
+	return nil
+}
+
+func (n *TsNewSig) setExtra(ext interface{}) {
+}
+
+type TsIdxSig struct {
+	typ NodeType
+	loc *Loc
+	id  Node
+	key Node
+	val Node
+}
+
+func (n *TsIdxSig) Type() NodeType {
+	return n.typ
+}
+
+func (n *TsIdxSig) Loc() *Loc {
+	return n.loc
+}
+
+func (n *TsIdxSig) Extra() interface{} {
+	return nil
+}
+
+func (n *TsIdxSig) setExtra(ext interface{}) {
+}
+
+type TsParam struct {
+	typ  NodeType
+	loc  *Loc
+	name Node
+	cons Node
+}
+
+func (n *TsParam) Type() NodeType {
+	return n.typ
+}
+
+func (n *TsParam) Loc() *Loc {
+	return n.loc
+}
+
+func (n *TsParam) Extra() interface{} {
+	return nil
+}
+
+func (n *TsParam) setExtra(ext interface{}) {
+}
+
+type TsFnTyp struct {
+	typ       NodeType
+	loc       *Loc
+	typParams []Node
+	params    []Node
+	retTyp    Node
+}
+
+func (n *TsFnTyp) Type() NodeType {
+	return n.typ
+}
+
+func (n *TsFnTyp) Loc() *Loc {
+	return n.loc
+}
+
+func (n *TsFnTyp) Extra() interface{} {
+	return nil
+}
+
+func (n *TsFnTyp) setExtra(ext interface{}) {
 }
