@@ -9,8 +9,12 @@ var builtinTyp = map[string]NodeType{
 	"void":    N_TS_VOID,
 }
 
+func (p *Parser) ts() bool {
+	return p.feat&FEAT_TS != 0
+}
+
 func (p *Parser) tsTypAnnot() (Node, error) {
-	if p.feat&FEAT_TS != 0 && p.lexer.Peek().value == T_COLON {
+	if p.ts() && p.lexer.Peek().value == T_COLON {
 		p.lexer.Next()
 		return p.tsPrimary()
 	}
@@ -38,7 +42,7 @@ func (p *Parser) tsParen() (Node, error) {
 func (p *Parser) tsTypName(ns Node) (Node, error) {
 	if ns == nil {
 		var err error
-		ns, err = p.ident(nil)
+		ns, err = p.ident(nil, false)
 		if err != nil {
 			return nil, err
 		}
@@ -46,7 +50,7 @@ func (p *Parser) tsTypName(ns Node) (Node, error) {
 	for {
 		if p.lexer.Peek().value == T_DOT {
 			p.lexer.Next()
-			id, err := p.ident(nil)
+			id, err := p.ident(nil, false)
 			if err != nil {
 				return nil, err
 			}
@@ -164,7 +168,7 @@ func (p *Parser) tsPrimary() (Node, error) {
 	var err error
 	var node Node
 	if av == T_NAME {
-		id, err := p.ident(nil)
+		id, err := p.ident(nil, false)
 		if err != nil {
 			return nil, err
 		}
@@ -249,23 +253,23 @@ func (p *Parser) tsObj() (Node, error) {
 	return &TsObj{N_TS_OBJ, p.finLoc(loc), props}, nil
 }
 
-func (p *Parser) paramList() ([]Node, *Loc, error) {
-	scope := p.scope()
-	p.checkName = false
-	scope.AddKind(SPK_FORMAL_PARAMS)
-	args, loc, err := p.argList(false, false)
-	scope.EraseKind(SPK_FORMAL_PARAMS)
-	p.checkName = true
-	if err != nil {
-		return nil, nil, err
-	}
+// func (p *Parser) paramList() ([]Node, *Loc, error) {
+// 	scope := p.scope()
+// 	p.checkName = false
+// 	scope.AddKind(SPK_FORMAL_PARAMS)
+// 	args, loc, err := p.argList(false, false)
+// 	scope.EraseKind(SPK_FORMAL_PARAMS)
+// 	p.checkName = true
+// 	if err != nil {
+// 		return nil, nil, err
+// 	}
 
-	params, err := p.argsToParams(args, false)
-	if err != nil {
-		return nil, nil, err
-	}
-	return params, loc, nil
-}
+// 	params, err := p.argsToParams(args, false)
+// 	if err != nil {
+// 		return nil, nil, err
+// 	}
+// 	return params, loc, nil
+// }
 
 func (p *Parser) tsProp() (Node, error) {
 	ahead := p.lexer.Peek()
@@ -296,7 +300,7 @@ func (p *Parser) tsProp() (Node, error) {
 	} else if av == T_BRACKET_L {
 		// IndexSignature
 		p.lexer.Next()
-		id, err := p.ident(nil)
+		id, err := p.ident(nil, false)
 		if err != nil {
 			return nil, err
 		}
@@ -358,13 +362,13 @@ func (p *Parser) tsPropName() (Node, error) {
 		}
 		return &StrLit{N_LIT_STR, p.finLoc(loc), tok.Text(), legacyOctalEscapeSeq, nil}, nil
 	case T_NAME:
-		return p.ident(nil)
+		return p.ident(nil, false)
 	}
 	return nil, p.errorTok(tok)
 }
 
 func (p *Parser) tsTypParam() (Node, error) {
-	id, err := p.ident(nil)
+	id, err := p.ident(nil, false)
 	if err != nil {
 		return nil, err
 	}

@@ -16,7 +16,7 @@ func TestAsyncAwaitFail2(t *testing.T) {
 	opts := parser.NewParserOpts()
 	opts.Feature = opts.Feature.Off(parser.FEAT_MODULE)
 	testFail(t, "async function wrap() {\nasync function await() { }\n}",
-		"Unexpected token `await` at (2:15)", opts)
+		"Invalid binding `await` at (2:15)", opts)
 }
 
 func TestAsyncAwaitFail3(t *testing.T) {
@@ -49,7 +49,7 @@ func TestAsyncAwaitFail7(t *testing.T) {
 
 func TestAsyncAwaitFail8(t *testing.T) {
 	testFail(t, "(async function await() { })",
-		"Unexpected token `await` at (1:16)", nil)
+		"Invalid binding `await` at (1:16)", nil)
 }
 
 func TestAsyncAwaitFail9(t *testing.T) {
@@ -147,7 +147,7 @@ func TestAsyncAwaitFail26(t *testing.T) {
 
 func TestAsyncAwaitFail27(t *testing.T) {
 	testFail(t, "async (b = class await {}) => 1",
-		"Unexpected token `await` at (1:17)", nil)
+		"Invalid binding `await` at (1:17)", nil)
 }
 
 func TestAsyncAwaitFail28(t *testing.T) {
@@ -189,7 +189,7 @@ func TestAsyncAwaitFail34(t *testing.T) {
 
 func TestAsyncAwaitFail35(t *testing.T) {
 	testFail(t, "({async foo() { var await }})",
-		"Unexpected token `await` at (1:20)", nil)
+		"Invalid binding `await` at (1:20)", nil)
 }
 
 func TestAsyncAwaitFail36(t *testing.T) {
@@ -253,7 +253,7 @@ func TestAsyncAwaitFail47(t *testing.T) {
 
 func TestAsyncAwaitFail48(t *testing.T) {
 	testFail(t, "class A {async foo() { var await }}",
-		"Unexpected token `await` at (1:27)", nil)
+		"Invalid binding `await` at (1:27)", nil)
 }
 
 func TestAsyncAwaitFail49(t *testing.T) {

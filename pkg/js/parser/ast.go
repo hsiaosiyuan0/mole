@@ -1215,9 +1215,9 @@ type Prop struct {
 	computed bool
 	method   bool
 
-	// it's `true` if the prop value is in assign pattern
 	shorthand bool
-	assign    bool
+	// it's `true` if the prop value is in assign pattern
+	assign bool
 
 	kind PropKind
 }

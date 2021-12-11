@@ -1157,7 +1157,7 @@ func TestFail51(t *testing.T) {
 
 func TestFail52(t *testing.T) {
 	testFail(t, "function t(...rest,) { }",
-		"Unexpected trailing comma after rest element at (1:18)", nil)
+		"Rest element must be last element at (1:18)", nil)
 }
 
 func TestFail53(t *testing.T) {
@@ -1172,17 +1172,17 @@ func TestFail54(t *testing.T) {
 
 func TestFail56(t *testing.T) {
 	testFail(t, "function t(false) { }",
-		"Unexpected token at (1:11)", nil)
+		"Unexpected token `false` at (1:11)", nil)
 }
 
 func TestFail57(t *testing.T) {
 	testFail(t, "function t(true) { }",
-		"Unexpected token at (1:11)", nil)
+		"Unexpected token `true` at (1:11)", nil)
 }
 
 func TestFail58(t *testing.T) {
 	testFail(t, "function t(null) { }",
-		"Unexpected token at (1:11)", nil)
+		"Unexpected token `null` at (1:11)", nil)
 }
 
 func TestFail59(t *testing.T) {
@@ -1641,7 +1641,7 @@ func TestFail148(t *testing.T) {
 
 func TestFail149(t *testing.T) {
 	testFail(t, "(function package() {'use strict'; })()",
-		"Unexpected token `package` at (1:10)", nil)
+		"Invalid binding `package` at (1:10)", nil)
 }
 
 func TestFail150(t *testing.T) {
@@ -1717,17 +1717,17 @@ func TestFail163(t *testing.T) {
 
 func TestFail164(t *testing.T) {
 	testFail(t, "function hello() { \"use strict\"; var implements; }",
-		"Unexpected token `implements` at (1:37)", nil)
+		"Invalid binding `implements` at (1:37)", nil)
 }
 
 func TestFail165(t *testing.T) {
 	testFail(t, "function hello() { \"use strict\"; var interface; }",
-		"Unexpected token `interface` at (1:37)", nil)
+		"Invalid binding `interface` at (1:37)", nil)
 }
 
 func TestFail166(t *testing.T) {
 	testFail(t, "function hello() { \"use strict\"; var package; }",
-		"Unexpected token `package` at (1:37)", nil)
+		"Invalid binding `package` at (1:37)", nil)
 }
 
 func TestFail167(t *testing.T) {
@@ -1737,32 +1737,32 @@ func TestFail167(t *testing.T) {
 
 func TestFail168(t *testing.T) {
 	testFail(t, "function hello() { \"use strict\"; var protected; }",
-		"Unexpected token `protected` at (1:37)", nil)
+		"Invalid binding `protected` at (1:37)", nil)
 }
 
 func TestFail169(t *testing.T) {
 	testFail(t, "function hello() { \"use strict\"; var public; }",
-		"Unexpected token `public` at (1:37)", nil)
+		"Invalid binding `public` at (1:37)", nil)
 }
 
 func TestFail170(t *testing.T) {
 	testFail(t, "function hello() { \"use strict\"; var static; }",
-		"Unexpected token `static` at (1:37)", nil)
+		"Invalid binding `static` at (1:37)", nil)
 }
 
 func TestFail171(t *testing.T) {
 	testFail(t, "function hello(static) { \"use strict\"; }",
-		"Unexpected token `static` at (1:15)", nil)
+		"Invalid binding `static` at (1:15)", nil)
 }
 
 func TestFail172(t *testing.T) {
 	testFail(t, "function static() { \"use strict\"; }",
-		"Unexpected token `static` at (1:9)", nil)
+		"Invalid binding `static` at (1:9)", nil)
 }
 
 func TestFail173(t *testing.T) {
 	testFail(t, "\"use strict\"; function static() { }",
-		"Unexpected token `static` at (1:23)", nil)
+		"Invalid binding `static` at (1:23)", nil)
 }
 
 func TestFail174(t *testing.T) {
@@ -1777,7 +1777,7 @@ func TestFail175(t *testing.T) {
 
 func TestFail176(t *testing.T) {
 	testFail(t, "function a(package) { \"use strict\"; }",
-		"Unexpected token `package` at (1:11)", nil)
+		"Invalid binding `package` at (1:11)", nil)
 }
 
 func TestFail177(t *testing.T) {
@@ -1802,7 +1802,7 @@ func TestFail180(t *testing.T) {
 
 func TestFail181(t *testing.T) {
 	testFail(t, "(function a(package) { \"use strict\"; })",
-		"Unexpected token `package` at (1:12)", nil)
+		"Invalid binding `package` at (1:12)", nil)
 }
 
 func TestFail182(t *testing.T) {
@@ -2047,7 +2047,7 @@ func TestFail231(t *testing.T) {
 }
 
 func TestFail232(t *testing.T) {
-	testFail(t, "function a(1) {}", "Unexpected token at (1:11)", nil)
+	testFail(t, "function a(1) {}", "Unexpected token `number` at (1:11)", nil)
 }
 
 func TestFail233(t *testing.T) {
@@ -2081,17 +2081,17 @@ func TestFail238(t *testing.T) {
 
 func TestFail239(t *testing.T) {
 	testFail(t, "let {...obj1,} = foo",
-		"Unexpected trailing comma after rest element at (1:12)", nil)
+		"Rest element must be last element at (1:12)", nil)
 }
 
 func TestFail240(t *testing.T) {
 	testFail(t, "let {...obj1,a} = foo",
-		"Unexpected trailing comma after rest element at (1:12)", nil)
+		"Rest element must be last element at (1:12)", nil)
 }
 
 func TestFail241(t *testing.T) {
 	testFail(t, "let {...obj1,...obj2} = foo",
-		"Unexpected trailing comma after rest element at (1:12)", nil)
+		"Rest element must be last element at (1:12)", nil)
 }
 
 func TestFail242(t *testing.T) {
@@ -2103,26 +2103,28 @@ func TestFail243(t *testing.T) {
 }
 
 func TestFail244(t *testing.T) {
-	testFail(t, "let {...{a,b}} = foo", "Unexpected token `{` at (1:8)", nil)
+	testFail(t, "let {...{a,b}} = foo",
+		"Binding pattern is not permitted as rest operator's argument at (1:8)", nil)
 }
 
 func TestFail245(t *testing.T) {
-	testFail(t, "let {...[a,b]} = foo", "Unexpected token `[` at (1:8)", nil)
+	testFail(t, "let {...[a,b]} = foo",
+		"Binding pattern is not permitted as rest operator's argument at (1:8)", nil)
 }
 
 func TestFail246(t *testing.T) {
 	testFail(t, "({...obj1,} = foo)",
-		"Unexpected trailing comma after rest element at (1:9)", nil)
+		"Rest element must be last element at (1:9)", nil)
 }
 
 func TestFail247(t *testing.T) {
 	testFail(t, "({...obj1,a} = foo)",
-		"Unexpected trailing comma after rest element at (1:9)", nil)
+		"Rest element must be last element at (1:9)", nil)
 }
 
 func TestFail248(t *testing.T) {
 	testFail(t, "({...obj1,...obj2} = foo)",
-		"Unexpected trailing comma after rest element at (1:9)", nil)
+		"Rest element must be last element at (1:9)", nil)
 }
 
 func TestFail249(t *testing.T) {
@@ -2164,12 +2166,12 @@ func TestFail257(t *testing.T) {
 
 func TestFail258(t *testing.T) {
 	testFail(t, "let {...x, ...y} = {}",
-		"Unexpected trailing comma after rest element at (1:9)", nil)
+		"Rest element must be last element at (1:9)", nil)
 }
 
 func TestFail259(t *testing.T) {
 	testFail(t, "({...x,}) => z",
-		"Unexpected trailing comma after rest element at (1:6)", nil)
+		"Rest element must be last element at (1:6)", nil)
 }
 
 func TestFail260(t *testing.T) {
@@ -2177,16 +2179,18 @@ func TestFail260(t *testing.T) {
 }
 
 func TestFail261(t *testing.T) {
-	testFail(t, "let {...{x, y}} = {}", "Unexpected token `{` at (1:8)", nil)
+	testFail(t, "let {...{x, y}} = {}",
+		"Binding pattern is not permitted as rest operator's argument at (1:8)", nil)
 }
 
 func TestFail262(t *testing.T) {
-	testFail(t, "let {...{...{x, y}}} = {}", "Unexpected token `{` at (1:8)", nil)
+	testFail(t, "let {...{...{x, y}}} = {}",
+		"Binding pattern is not permitted as rest operator's argument at (1:8)", nil)
 }
 
 func TestFail263(t *testing.T) {
 	testFail(t, "0, {...rest, b} = {}",
-		"Unexpected trailing comma after rest element at (1:11)", nil)
+		"Rest element must be last element at (1:11)", nil)
 }
 
 func TestFail264(t *testing.T) {
@@ -2236,51 +2240,51 @@ func TestFail276(t *testing.T) {
 
 func TestFail277(t *testing.T) {
 	testFail(t, "(...a,) => a",
-		"Unexpected trailing comma after rest element at (1:5)", nil)
+		"Rest element must be last element at (1:5)", nil)
 }
 
 func TestFail278(t *testing.T) {
 	testFail(t, "function foo(...a,) { }",
-		"Unexpected trailing comma after rest element at (1:17)", nil)
+		"Rest element must be last element at (1:17)", nil)
 }
 
 func TestFail279(t *testing.T) {
 	testFail(t, "(function(...a,) { })",
-		"Unexpected trailing comma after rest element at (1:14)", nil)
+		"Rest element must be last element at (1:14)", nil)
 }
 
 func TestFail280(t *testing.T) {
 	testFail(t, "async (...a,) => a",
-		"Unexpected trailing comma after rest element at (1:11)", nil)
+		"Rest element must be last element at (1:11)", nil)
 }
 
 func TestFail281(t *testing.T) {
-	testFail(t, "({foo(...a,) {}})", "Unexpected trailing comma after rest element at (1:10)", nil)
+	testFail(t, "({foo(...a,) {}})", "Rest element must be last element at (1:10)", nil)
 }
 
 func TestFail282(t *testing.T) {
 	testFail(t, "class A {foo(...a,) {}}",
-		"Unexpected trailing comma after rest element at (1:17)", nil)
+		"Rest element must be last element at (1:17)", nil)
 }
 
 func TestFail283(t *testing.T) {
 	testFail(t, "class A {static foo(...a,) {}}",
-		"Unexpected trailing comma after rest element at (1:24)", nil)
+		"Rest element must be last element at (1:24)", nil)
 }
 
 func TestFail284(t *testing.T) {
 	testFail(t, "export default function foo(...a,) { }",
-		"Unexpected trailing comma after rest element at (1:32)", nil)
+		"Rest element must be last element at (1:32)", nil)
 }
 
 func TestFail285(t *testing.T) {
 	testFail(t, "export default (function foo(...a,) { })",
-		"Unexpected trailing comma after rest element at (1:33)", nil)
+		"Rest element must be last element at (1:33)", nil)
 }
 
 func TestFail286(t *testing.T) {
 	testFail(t, "export function foo(...a,) { }",
-		"Unexpected trailing comma after rest element at (1:24)", nil)
+		"Rest element must be last element at (1:24)", nil)
 }
 
 func TestFail287(t *testing.T) {

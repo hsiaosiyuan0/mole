@@ -1,3 +1,3 @@
 {
-  "throws": "Unexpected trailing comma after rest element at (1:5)"
+  "throws": "Rest element must be last element at (1:5)"
 }

@@ -53,7 +53,7 @@ func TestHarmonyFail6(t *testing.T) {
 }
 
 func TestHarmonyFail7(t *testing.T) {
-	testFail(t, "export var await", "Unexpected token `await` at (1:11)", nil)
+	testFail(t, "export var await", "Invalid binding `await` at (1:11)", nil)
 }
 
 func TestHarmonyFail8(t *testing.T) {
@@ -226,7 +226,7 @@ func TestHarmonyFail46(t *testing.T) {
 }
 
 func TestHarmonyFail47(t *testing.T) {
-	testFail(t, "(function ({ a(){} }) {})", "Object pattern can't contain getter or setter at (1:13)", nil)
+	testFail(t, "(function ({ a(){} }) {})", "Invalid destructuring assignment target at (1:13)", nil)
 }
 
 func TestHarmonyFail48(t *testing.T) {
@@ -568,7 +568,7 @@ func TestHarmonyFail124(t *testing.T) {
 }
 
 func TestHarmonyFail125(t *testing.T) {
-	testFail(t, "let let", "Unexpected token `let` at (1:4)", nil)
+	testFail(t, "let let", "Invalid binding `let` at (1:4)", nil)
 }
 
 func TestHarmonyFail126(t *testing.T) {
@@ -590,11 +590,11 @@ func TestHarmonyFail128(t *testing.T) {
 }
 
 func TestHarmonyFail129(t *testing.T) {
-	testFail(t, "let [let] = [];", "Unexpected token `let` at (1:5)", nil)
+	testFail(t, "let [let] = [];", "Invalid binding `let` at (1:5)", nil)
 }
 
 func TestHarmonyFail130(t *testing.T) {
-	testFail(t, "const [let] = [];", "Unexpected token `let` at (1:7)", nil)
+	testFail(t, "const [let] = [];", "Invalid binding `let` at (1:7)", nil)
 }
 
 func TestHarmonyFail131(t *testing.T) {
@@ -602,11 +602,11 @@ func TestHarmonyFail131(t *testing.T) {
 }
 
 func TestHarmonyFail132(t *testing.T) {
-	testFail(t, "'use strict'; let let", "Unexpected token `let` at (1:18)", nil)
+	testFail(t, "'use strict'; let let", "Invalid binding `let` at (1:18)", nil)
 }
 
 func TestHarmonyFail133(t *testing.T) {
-	testFail(t, "'use strict'; const let", "Unexpected token `let` at (1:20)", nil)
+	testFail(t, "'use strict'; const let", "Invalid binding `let` at (1:20)", nil)
 }
 
 func TestHarmonyFail134(t *testing.T) {
@@ -618,11 +618,11 @@ func TestHarmonyFail135(t *testing.T) {
 }
 
 func TestHarmonyFail136(t *testing.T) {
-	testFail(t, "'use strict'; let [let] = [];", "Unexpected token `let` at (1:19)", nil)
+	testFail(t, "'use strict'; let [let] = [];", "Invalid binding `let` at (1:19)", nil)
 }
 
 func TestHarmonyFail137(t *testing.T) {
-	testFail(t, "'use strict'; const [let] = [];", "Unexpected token `let` at (1:21)", nil)
+	testFail(t, "'use strict'; const [let] = [];", "Invalid binding `let` at (1:21)", nil)
 }
 
 func TestHarmonyFail138(t *testing.T) {
@@ -648,7 +648,7 @@ func TestHarmonyFail141(t *testing.T) {
 func TestHarmonyFail142(t *testing.T) {
 	opts := parser.NewParserOpts()
 	opts.Feature = opts.Feature.Off(parser.FEAT_STRICT)
-	testFail(t, "class let {}", "Unexpected token `let` at (1:6)", opts)
+	testFail(t, "class let {}", "Invalid binding `let` at (1:6)", opts)
 }
 
 func TestHarmonyFail143(t *testing.T) {
@@ -738,7 +738,7 @@ func TestHarmonyFail161(t *testing.T) {
 
 func TestHarmonyFail162(t *testing.T) {
 	testFail(t, "[...a, b] = c",
-		"Unexpected trailing comma after rest element at (1:5)", nil)
+		"Rest element must be last element at (1:5)", nil)
 }
 
 func TestHarmonyFail163(t *testing.T) {
@@ -756,7 +756,7 @@ func TestHarmonyFail165(t *testing.T) {
 }
 
 func TestHarmonyFail166(t *testing.T) {
-	testFail(t, "[...a, ] = b", "Unexpected trailing comma after rest element at (1:5)", nil)
+	testFail(t, "[...a, ] = b", "Rest element must be last element at (1:5)", nil)
 }
 
 func TestHarmonyFail167(t *testing.T) {
@@ -985,12 +985,12 @@ func TestHarmonyFail217(t *testing.T) {
 }
 
 func TestHarmonyFail218(t *testing.T) {
-	testFail(t, "(function* yield() {})", "Unexpected token `yield` at (1:11)", nil)
+	testFail(t, "(function* yield() {})", "Invalid binding `yield` at (1:11)", nil)
 }
 
 func TestHarmonyFail219(t *testing.T) {
 	testFail(t, "function* wrap() {\nfunction* yield() {}\n}",
-		"Unexpected token `yield` at (2:10)", nil)
+		"Invalid binding `yield` at (2:10)", nil)
 }
 
 // Forbid yield expressions in default parameters:
@@ -1302,12 +1302,12 @@ func TestHarmonyFail283(t *testing.T) {
 
 func TestHarmonyFail284(t *testing.T) {
 	testFail(t, "[...foo, bar] = b",
-		"Unexpected trailing comma after rest element at (1:7)", nil)
+		"Rest element must be last element at (1:7)", nil)
 }
 
 func TestHarmonyFail285(t *testing.T) {
 	testFail(t, "for (let [...foo, bar] in qux);",
-		"Unexpected trailing comma after rest element at (1:16)", nil)
+		"Rest element must be last element at (1:16)", nil)
 }
 
 func TestHarmonyFail286(t *testing.T) {
