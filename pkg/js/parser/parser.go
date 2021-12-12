@@ -1503,7 +1503,7 @@ func (p *Parser) forStmt() (Node, error) {
 			// do the `argToParam` check only if the type of init is LitObj or LitArr otherwise
 			// just check their simplicity
 			if it == N_LIT_OBJ || it == N_LIT_ARR {
-				if init, err = p.argToParam(init, 0, false, true, false, false); err != nil {
+				if init, err = p.argToParam(init, 0, false, true, false); err != nil {
 					return nil, err
 				}
 			} else if !p.isSimpleLVal(init, true, false, true, false) {
@@ -1755,7 +1755,7 @@ func (p *Parser) fnDec(expr bool, async *Token, canNameOmitted bool) (Node, erro
 		if fn {
 			params = args
 		} else {
-			params, err = p.argsToParams(args, false)
+			params, err = p.argsToParams(args)
 			if err != nil {
 				return nil, err
 			}
@@ -2421,7 +2421,7 @@ func (p *Parser) bindingPattern() (Node, error) {
 	} else if tv == T_BRACKET_L {
 		binding, err = p.patternArr()
 	} else if tv == T_DOT_TRI {
-		binding, err = p.patternRest(false)
+		binding, err = p.patternRest(p.feat&FEAT_BINDING_REST_ELEM_NESTED != 0)
 	} else {
 		binding, err = p.ident(nil, true)
 	}
@@ -2898,7 +2898,7 @@ func (p *Parser) assignExpr(checkLhs bool) (Node, error) {
 
 	// set `depth` to 1 to permit expr like `i + 2 = 42`
 	// and so just do the arg to param transform silently
-	lhs, err = p.argToParam(lhs, 1, false, true, false, false)
+	lhs, err = p.argToParam(lhs, 1, false, true, false)
 	if err != nil {
 		return nil, err
 	}
@@ -3374,12 +3374,12 @@ func (p *Parser) tplExpr(tag Node) (Node, error) {
 	return &TplExpr{N_EXPR_TPL, loc, tag, elems, nil}, nil
 }
 
-func (p *Parser) argsToParams(args []Node, setter bool) ([]Node, error) {
+func (p *Parser) argsToParams(args []Node) ([]Node, error) {
 	params := make([]Node, len(args))
 	var err error
 	for i, arg := range args {
 		if arg != nil {
-			params[i], err = p.argToParam(arg, 0, false, false, false, setter)
+			params[i], err = p.argToParam(arg, 0, false, false, false)
 			if err != nil {
 				return nil, err
 			}
@@ -3479,7 +3479,7 @@ func (p *Parser) isPrimitive(node Node) bool {
 }
 
 // `destruct` indicate whether the parsing state is in destructing assignment or not
-func (p *Parser) argToParam(arg Node, depth int, prop bool, destruct bool, inParen bool, setter bool) (Node, error) {
+func (p *Parser) argToParam(arg Node, depth int, prop bool, destruct bool, inParen bool) (Node, error) {
 	switch arg.Type() {
 	case N_LIT_ARR:
 		n := arg.(*ArrLit)
@@ -3493,7 +3493,7 @@ func (p *Parser) argToParam(arg Node, depth int, prop bool, destruct bool, inPar
 		for i, node := range n.elems {
 			// elem maybe nil in expr like `([a, , b]) => 42`
 			if node != nil {
-				pat.elems[i], err = p.argToParam(node, depth+1, false, destruct, inParen, setter)
+				pat.elems[i], err = p.argToParam(node, depth+1, false, destruct, inParen)
 				if err != nil {
 					return nil, err
 				}
@@ -3509,7 +3509,7 @@ func (p *Parser) argToParam(arg Node, depth int, prop bool, destruct bool, inPar
 			typAnnot: n.typAnnot,
 		}
 		for i, prop := range n.props {
-			pp, err := p.argToParam(prop, depth+1, true, destruct, inParen, setter)
+			pp, err := p.argToParam(prop, depth+1, true, destruct, inParen)
 			if err != nil {
 				return nil, err
 			}
@@ -3524,7 +3524,7 @@ func (p *Parser) argToParam(arg Node, depth int, prop bool, destruct bool, inPar
 		// it's the duty of second `argToParam` to raise that error after `=>` is consumed
 		n := arg.(*ObjPat)
 		for _, prop := range n.props {
-			_, err := p.argToParam(prop, depth+1, true, destruct, inParen, setter)
+			_, err := p.argToParam(prop, depth+1, true, destruct, inParen)
 			if err != nil {
 				return nil, err
 			}
@@ -3540,7 +3540,7 @@ func (p *Parser) argToParam(arg Node, depth int, prop bool, destruct bool, inPar
 
 			if n.assign {
 				// the key is needed to be checked as a legal binding name
-				if n.key, err = p.argToParam(n.key, depth+1, prop, destruct, inParen, setter); err != nil {
+				if n.key, err = p.argToParam(n.key, depth+1, prop, destruct, inParen); err != nil {
 					return nil, err
 				}
 				if err = p.checkDefaultVal(n.value, destruct, destruct, false); err != nil {
@@ -3549,7 +3549,7 @@ func (p *Parser) argToParam(arg Node, depth int, prop bool, destruct bool, inPar
 			} else {
 				// the correctness of the value should be checked account for
 				// using it as an alias
-				if n.value, err = p.argToParam(n.value, depth+1, prop, destruct, inParen, setter); err != nil {
+				if n.value, err = p.argToParam(n.value, depth+1, prop, destruct, inParen); err != nil {
 					return nil, err
 				}
 			}
@@ -3586,7 +3586,7 @@ func (p *Parser) argToParam(arg Node, depth int, prop bool, destruct bool, inPar
 			return nil, p.errorAtLoc(n.opLoc, ERR_UNEXPECTED_TOKEN)
 		}
 
-		lhs, err := p.argToParam(n.lhs, depth+1, false, destruct, inParen, setter)
+		lhs, err := p.argToParam(n.lhs, depth+1, false, destruct, inParen)
 		if err != nil {
 			return nil, err
 		}
@@ -3627,10 +3627,6 @@ func (p *Parser) argToParam(arg Node, depth int, prop bool, destruct bool, inPar
 			return nil, p.errorAtLoc(n.trailingCommaLoc, ERR_REST_ELEM_MUST_LAST)
 		}
 
-		if setter {
-			return nil, p.errorAtLoc(n.loc, ERR_REST_IN_SETTER)
-		}
-
 		at := n.arg.Type()
 		if at == N_NAME {
 			// `({...(obj)} = foo)` raises error`Parenthesized pattern` in acorn
@@ -3645,14 +3641,14 @@ func (p *Parser) argToParam(arg Node, depth int, prop bool, destruct bool, inPar
 					}
 				}
 			}
-			if _, err := p.argToParam(n.arg, depth, prop, destruct, inParen, setter); err != nil {
+			if _, err := p.argToParam(n.arg, depth, prop, destruct, inParen); err != nil {
 				return nil, err
 			}
 		} else if at == N_EXPR_ASSIGN {
 			return nil, p.errorAtLoc(n.arg.Loc(), ERR_REST_CANNOT_SET_DEFAULT)
 		} else if at == N_EXPR_PAREN {
 			if destruct {
-				arg, err := p.argToParam(n.arg, depth, prop, destruct, inParen, setter)
+				arg, err := p.argToParam(n.arg, depth, prop, destruct, inParen)
 				if err != nil {
 					return nil, err
 				}
@@ -3661,7 +3657,7 @@ func (p *Parser) argToParam(arg Node, depth int, prop bool, destruct bool, inPar
 				return nil, p.errorAtLoc(n.arg.Loc(), ERR_INVALID_PAREN_ASSIGN_PATTERN)
 			}
 		} else if p.feat&FEAT_BINDING_REST_ELEM_NESTED != 0 && (at == N_LIT_ARR || at == N_LIT_OBJ) {
-			arg, err := p.argToParam(n.arg, depth, prop, destruct, inParen, setter)
+			arg, err := p.argToParam(n.arg, depth, prop, destruct, inParen)
 			if err != nil {
 				return nil, err
 			}
@@ -3695,7 +3691,7 @@ func (p *Parser) argToParam(arg Node, depth int, prop bool, destruct bool, inPar
 			}
 			return nil, p.errorAtLoc(arg.Loc(), ERR_INVALID_PAREN_ASSIGN_PATTERN)
 		}
-		arg, err := p.argToParam(sub, depth, prop, destruct, true, setter)
+		arg, err := p.argToParam(sub, depth, prop, destruct, true)
 		if err != nil {
 			return nil, err
 		}
@@ -4191,7 +4187,7 @@ func (p *Parser) primaryExpr() (Node, error) {
 }
 
 func (p *Parser) arrowFn(loc *Loc, args []Node) (Node, error) {
-	params, err := p.argsToParams(args, false)
+	params, err := p.argsToParams(args)
 	if err != nil {
 		return nil, err
 	}
@@ -4547,14 +4543,7 @@ func (p *Parser) method(loc *Loc, key Node, compute *Loc, shorthand bool, kind P
 	}
 
 	fnLoc := p.loc()
-	p.checkName = false
-	args, _, err := p.argList(false, false)
-	p.checkName = true
-	if err != nil {
-		return nil, err
-	}
-
-	params, err := p.argsToParams(args, kind == PK_SETTER)
+	params, _, err := p.paramList()
 	if err != nil {
 		return nil, err
 	}
@@ -4575,8 +4564,13 @@ func (p *Parser) method(loc *Loc, key Node, compute *Loc, shorthand bool, kind P
 
 	if kind == PK_GETTER && len(params) > 0 {
 		return nil, p.errorAtLoc(params[0].Loc(), ERR_GETTER_SHOULD_NO_PARAM)
-	} else if kind == PK_SETTER && len(params) != 1 {
-		return nil, p.errorAtLoc(fnLoc, ERR_SETTER_SHOULD_ONE_PARAM)
+	} else if kind == PK_SETTER {
+		if len(params) != 1 {
+			return nil, p.errorAtLoc(fnLoc, ERR_SETTER_SHOULD_ONE_PARAM)
+		}
+		if params[0].Type() == N_PAT_REST {
+			return nil, p.errorAtLoc(params[0].Loc(), ERR_REST_IN_SETTER)
+		}
 	}
 
 	if gen {

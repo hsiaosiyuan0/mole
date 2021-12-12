@@ -334,12 +334,12 @@ func TestAsyncAwaitFail63(t *testing.T) {
 
 func TestAsyncAwaitFail64(t *testing.T) {
 	testFail(t, "({async foo(a = await b) {}})",
-		"Await expression cannot be a default value at (1:16)", nil)
+		"Await expression can't be used in parameter at (1:16)", nil)
 }
 
 func TestAsyncAwaitFail65(t *testing.T) {
 	testFail(t, "(class {async foo(a = await b) {}})",
-		"Await expression cannot be a default value at (1:22)", nil)
+		"Await expression can't be used in parameter at (1:22)", nil)
 }
 
 func TestAsyncAwaitFail66(t *testing.T) {

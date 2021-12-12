@@ -236,11 +236,13 @@ func TestHarmonyFail48(t *testing.T) {
 }
 
 func TestHarmonyFail49(t *testing.T) {
-	testFail(t, "var a = { set foo(...v) {} };", "Setter cannot use rest params at (1:18)", nil)
+	testFail(t, "var a = { set foo(...v) {} };",
+		"Setter cannot use rest params at (1:18)", nil)
 }
 
 func TestHarmonyFail50(t *testing.T) {
-	testFail(t, "class a { set foo(...v) {} };", "Setter cannot use rest params at (1:18)", nil)
+	testFail(t, "class a { set foo(...v) {} };",
+		"Setter cannot use rest params at (1:18)", nil)
 }
 
 func TestHarmonyFail51(t *testing.T) {
@@ -715,7 +717,8 @@ func TestHarmonyFail156(t *testing.T) {
 func TestHarmonyFail157(t *testing.T) {
 	opts := parser.NewParserOpts()
 	opts.Feature = opts.Feature.Off(parser.FEAT_BINDING_REST_ELEM_NESTED)
-	testFail(t, "\"use strict\"; function x(a, ...[a]){}", "Binding pattern is not permitted as rest operator's argument at (1:31)", opts)
+	testFail(t, "\"use strict\"; function x(a, ...[a]){}",
+		"Binding pattern is not permitted as rest operator's argument at (1:31)", opts)
 }
 
 func TestHarmonyFail158(t *testing.T) {
@@ -1006,11 +1009,13 @@ func TestHarmonyFail221(t *testing.T) {
 }
 
 func TestHarmonyFail222(t *testing.T) {
-	testFail(t, "({*foo(a = yield b) {}})", "Yield expression cannot be a default value at (1:11)", nil)
+	testFail(t, "({*foo(a = yield b) {}})",
+		"Yield expression can't be used in parameter at (1:11)", nil)
 }
 
 func TestHarmonyFail223(t *testing.T) {
-	testFail(t, "(class {*foo(a = yield b) {}})", "Yield expression cannot be a default value at (1:17)", nil)
+	testFail(t, "(class {*foo(a = yield b) {}})",
+		"Yield expression can't be used in parameter at (1:17)", nil)
 }
 
 func TestHarmonyFail224(t *testing.T) {

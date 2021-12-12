@@ -14,6 +14,7 @@ clean:
 	go run scripts/clean/mod.go
 
 test: cmd/mole/*.go pkg/*/*.go go.mod
+	go clean -testcache
 	go test ./pkg/...
 
 test-estree-convert: cmd/mole/*.go pkg/*/*.go go.mod
