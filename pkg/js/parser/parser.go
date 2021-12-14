@@ -1654,6 +1654,7 @@ func (p *Parser) fnDec(expr bool, async *Token, canNameOmitted bool) (Node, erro
 
 	tok = p.lexer.Peek()
 	generator := tok.value == T_MUL
+	genLoc := p.locFromTok(tok)
 	if generator {
 		if async != nil && p.feat&FEAT_ASYNC_GENERATOR == 0 {
 			return nil, p.errorTok(tok)
@@ -1801,7 +1802,7 @@ func (p *Parser) fnDec(expr bool, async *Token, canNameOmitted bool) (Node, erro
 			} else {
 				rhs = &SeqExpr{N_EXPR_SEQ, p.finLoc(loc), args, nil}
 			}
-			expr = &BinExpr{N_EXPR_BIN, p.finLoc(loc), T_MUL, lhs, rhs, nil}
+			expr = &BinExpr{N_EXPR_BIN, p.finLoc(loc), T_MUL, genLoc, lhs, rhs, nil}
 		} else {
 			if err := p.checkArgs(args, false, true); err != nil {
 				return nil, err
@@ -2211,7 +2212,7 @@ func (p *Parser) varDec(lexical bool) (*VarDec, error) {
 	loc := binding.Loc().Clone()
 	scope.EraseKind(SPK_LEXICAL_DEC)
 
-	typAnnot, err := p.tsTypAnnot()
+	typAnnot, _, err := p.tsTypAnnot()
 	if err != nil {
 		return nil, err
 	}
@@ -2315,7 +2316,7 @@ func (p *Parser) param() (Node, error) {
 	}
 	loc := binding.Loc().Clone()
 
-	typAnnot, err := p.tsTypAnnot()
+	typAnnot, _, err := p.tsTypAnnot()
 	if err != nil {
 		return nil, err
 	}
@@ -2365,6 +2366,8 @@ func (p *Parser) paramList() ([]Node, *Loc, error) {
 	loc := p.locFromTok(tok)
 
 	params := make([]Node, 0)
+	ts := p.ts()
+	i := 0
 	for {
 		tok := p.lexer.Peek()
 		if tok.value == T_PAREN_R {
@@ -2372,11 +2375,27 @@ func (p *Parser) paramList() ([]Node, *Loc, error) {
 		} else if tok.value == T_EOF {
 			return nil, nil, p.errorTok(tok)
 		}
-		param, err := p.param()
+
+		var param Node
+		var err error
+		if ts && i == 0 {
+			name, err := p.tsTyp(true)
+			if err != nil {
+				return nil, nil, err
+			}
+			typAnnot, loc, err := p.tsTypAnnot()
+			if err != nil {
+				return nil, nil, err
+			}
+			param = &TsRoughParam{N_TS_ROUGH_PARAM, p.finLoc(name.Loc().Clone()), name, loc, typAnnot}
+		} else {
+			param, err = p.param()
+		}
 		if err != nil {
 			return nil, nil, err
 		}
 		params = append(params, param)
+		i += 1
 
 		ahead := p.lexer.Peek()
 		av := ahead.value
@@ -2421,7 +2440,7 @@ func (p *Parser) bindingPattern() (Node, error) {
 	} else if tv == T_BRACKET_L {
 		binding, err = p.patternArr()
 	} else if tv == T_DOT_TRI {
-		binding, err = p.patternRest(p.feat&FEAT_BINDING_REST_ELEM_NESTED != 0)
+		binding, err = p.patternRest(p.feat&FEAT_BINDING_REST_ELEM_NESTED != 0, false)
 	} else {
 		binding, err = p.ident(nil, true)
 	}
@@ -2471,7 +2490,7 @@ func (p *Parser) patternObj() (Node, error) {
 
 func (p *Parser) patternProp() (Node, error) {
 	if p.lexer.Peek().value == T_DOT_TRI {
-		binding, err := p.patternRest(false)
+		binding, err := p.patternRest(false, false)
 		if err != nil {
 			return nil, err
 		}
@@ -2686,7 +2705,7 @@ func (p *Parser) bindingElem(asProp bool) (Node, error) {
 	} else if tok.value == T_BRACKET_L {
 		binding, err = p.patternArr()
 	} else if tok.value == T_DOT_TRI {
-		binding, err = p.patternRest(!asProp)
+		binding, err = p.patternRest(!asProp, false)
 	} else {
 		binding, err = p.ident(nil, true)
 	}
@@ -2726,7 +2745,7 @@ func (p *Parser) patternAssign(ident Node, asProp bool) (Node, error) {
 }
 
 // `arrPat` indicats whether `restExpr` is in array-pattern or not
-func (p *Parser) patternRest(arrPat bool) (Node, error) {
+func (p *Parser) patternRest(arrPat bool, allowNotLast bool) (Node, error) {
 	loc := p.loc()
 	tok := p.lexer.Next()
 
@@ -2748,9 +2767,11 @@ func (p *Parser) patternRest(arrPat bool) (Node, error) {
 		return nil, err
 	}
 
-	tok = p.lexer.Peek()
-	if tok.value == T_COMMA {
-		return nil, p.errorAt(tok.value, &tok.begin, ERR_REST_ELEM_MUST_LAST)
+	if !allowNotLast {
+		tok = p.lexer.Peek()
+		if tok.value == T_COMMA {
+			return nil, p.errorAt(tok.value, &tok.begin, ERR_REST_ELEM_MUST_LAST)
+		}
 	}
 
 	return &RestPat{N_PAT_REST, p.finLoc(loc), arg, nil, nil}, nil
@@ -2858,7 +2879,7 @@ func (p *Parser) assignExpr(checkLhs bool) (Node, error) {
 	}
 	loc := lhs.Loc().Clone()
 
-	typAnnot, err := p.tsTypAnnot()
+	typAnnot, _, err := p.tsTypAnnot()
 	if err != nil {
 		return nil, err
 	}
@@ -3930,7 +3951,7 @@ func (p *Parser) binExpr(lhs Node, minPcd int, logic bool, nullish bool) (Node, 
 		if err = p.checkOp(ahead); err != nil {
 			return nil, err
 		}
-		p.lexer.Next()
+		opLoc := p.locFromTok(p.lexer.Next())
 
 		rhs, err := p.unaryExpr()
 		if err != nil {
@@ -3959,9 +3980,10 @@ func (p *Parser) binExpr(lhs Node, minPcd int, logic bool, nullish bool) (Node, 
 			return nil, p.errorAtLoc(rhs.(*ArrowFn).arrowLoc, fmt.Sprintf(ERR_TPL_UNEXPECTED_TOKEN_TYPE, "=>"))
 		}
 
-		bin := &BinExpr{N_EXPR_BIN, nil, T_ILLEGAL, nil, nil, nil}
+		bin := &BinExpr{N_EXPR_BIN, nil, T_ILLEGAL, nil, nil, nil, nil}
 		bin.loc = p.finLoc(lhs.Loc().Clone())
 		bin.op = op
+		bin.opLoc = opLoc
 		bin.lhs = lhs
 		bin.rhs = rhs
 		lhs = bin

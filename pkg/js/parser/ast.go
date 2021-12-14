@@ -656,6 +656,7 @@ type BinExpr struct {
 	typ   NodeType
 	loc   *Loc
 	op    TokenValue
+	opLoc *Loc
 	lhs   Node
 	rhs   Node
 	extra *ExprExtra
