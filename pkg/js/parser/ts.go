@@ -688,7 +688,7 @@ func (p *Parser) tsProp(rough bool) (Node, error) {
 		}
 
 		// MethodSignature is deserved
-		callSig, err := p.tsCallSig(nil, nil)
+		callSig, err := p.tsCallSig(nil, p.locFromTok(p.lexer.Peek()))
 		if err != nil {
 			return nil, err
 		}

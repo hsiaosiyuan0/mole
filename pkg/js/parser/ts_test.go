@@ -186,3 +186,21 @@ func TestTs17(t *testing.T) {
 	p0 := tsFn.params[0].(*Ident).typAnnot.(*TsObj).props[0].(*TsProp)
 	assert.Equal(t, true, p0.ques != nil, "should be ok")
 }
+
+func TestTs18(t *testing.T) {
+	ast, err := compileTs("var a: (a: {m?()}) => number = 1", nil)
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	prog := ast.(*Prog)
+	dec := prog.stmts[0].(*VarDecStmt).decList[0].(*VarDec)
+	assert.Equal(t, "a", dec.id.(*Ident).Text(), "should be ok")
+	assert.Equal(t, N_TS_FN_TYP, dec.id.(*Ident).typAnnot.Type(), "should be ok")
+
+	tsFn := dec.id.(*Ident).typAnnot.(*TsFnTyp)
+	assert.Equal(t, true, tsFn.params[0].(*Ident).ques == nil, "should be ok")
+
+	p0 := tsFn.params[0].(*Ident).typAnnot.(*TsObj).props[0]
+	assert.Equal(t, N_TS_PROP, p0.Type(), "should be ok")
+	assert.Equal(t, true, p0.(*TsProp).ques != nil, "should be ok")
+	assert.Equal(t, "m", p0.(*TsProp).key.(*Ident).Text(), "should be ok")
+}
