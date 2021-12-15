@@ -904,7 +904,7 @@ func (p *Parser) field(key Node, static *Loc) (Node, error) {
 }
 
 func (p *Parser) classElemName() (Node, *Loc, error) {
-	return p.propName(true, false)
+	return p.propName(true, false, false)
 }
 
 func (p *Parser) staticBlock(static *Loc) (Node, error) {
@@ -1712,7 +1712,7 @@ func (p *Parser) fnDec(expr bool, async *Token, canNameOmitted bool) (Node, erro
 		args = make([]Node, 1)
 		args[0] = id
 	} else if fn {
-		args, _, err = p.paramList()
+		args, _, err = p.paramList(false)
 		if err != nil {
 			return nil, err
 		}
@@ -2216,10 +2216,7 @@ func (p *Parser) varDec(lexical bool) (*VarDec, error) {
 	if err != nil {
 		return nil, err
 	}
-	// TODO:
-	if binding.Type() == N_NAME {
-		binding.(*Ident).typAnnot = typAnnot
-	}
+	p.tsNodeTypAnnot(binding, typAnnot)
 
 	var init Node
 	if p.lexer.Peek().value == T_ASSIGN {
@@ -2320,10 +2317,7 @@ func (p *Parser) param() (Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	// TODO:
-	if binding.Type() == N_NAME {
-		binding.(*Ident).typAnnot = typAnnot
-	}
+	p.tsNodeTypAnnot(binding, typAnnot)
 
 	if p.lexer.Peek().value == T_ASSIGN {
 		p.lexer.Next()
@@ -2354,7 +2348,7 @@ func (p *Parser) param() (Node, error) {
 	return binding, nil
 }
 
-func (p *Parser) paramList() ([]Node, *Loc, error) {
+func (p *Parser) paramList(firstRough bool) ([]Node, *Loc, error) {
 	scope := p.scope()
 	p.checkName = false
 	scope.AddKind(SPK_FORMAL_PARAMS)
@@ -2366,7 +2360,6 @@ func (p *Parser) paramList() ([]Node, *Loc, error) {
 	loc := p.locFromTok(tok)
 
 	params := make([]Node, 0)
-	ts := p.ts()
 	i := 0
 	for {
 		tok := p.lexer.Peek()
@@ -2378,7 +2371,7 @@ func (p *Parser) paramList() ([]Node, *Loc, error) {
 
 		var param Node
 		var err error
-		if ts && i == 0 {
+		if firstRough && i == 0 {
 			name, err := p.tsTyp(true)
 			if err != nil {
 				return nil, nil, err
@@ -2497,7 +2490,7 @@ func (p *Parser) patternProp() (Node, error) {
 		return binding, nil
 	}
 
-	key, compute, err := p.propName(false, true)
+	key, compute, err := p.propName(false, true, false)
 	if err != nil {
 		return nil, err
 	}
@@ -2572,7 +2565,7 @@ func (p *Parser) isField(static bool, getter bool, priv bool) (bool, *Token) {
 	return ahead.afterLineTerminator, ahead
 }
 
-func (p *Parser) propName(allowNamePVT bool, maybeMethod bool) (Node, *Loc, error) {
+func (p *Parser) propName(allowNamePVT bool, maybeMethod bool, tsRough bool) (Node, *Loc, error) {
 	var key Node
 	tok := p.lexer.Next()
 	loc := p.locFromTok(tok)
@@ -2883,18 +2876,7 @@ func (p *Parser) assignExpr(checkLhs bool) (Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	if typAnnot != nil {
-		switch lhs.Type() {
-		case N_NAME:
-			lhs.(*Ident).typAnnot = typAnnot
-		case N_LIT_ARR:
-			lhs.(*ArrLit).typAnnot = typAnnot
-		case N_LIT_OBJ:
-			lhs.(*ObjLit).typAnnot = typAnnot
-		case N_SPREAD:
-			lhs.(*Spread).typAnnot = typAnnot
-		}
-	}
+	p.tsNodeTypAnnot(lhs, typAnnot)
 
 	tok := p.lexer.Peek()
 	if lhs.Type() == N_NAME && tok.value == T_ARROW && !tok.afterLineTerminator {
@@ -4466,7 +4448,7 @@ func (p *Parser) objProp() (Node, error) {
 }
 
 func (p *Parser) propData() (Node, error) {
-	key, compute, err := p.propName(false, true)
+	key, compute, err := p.propName(false, true, false)
 
 	if err != nil {
 		return nil, err
@@ -4547,7 +4529,7 @@ func (p *Parser) method(loc *Loc, key Node, compute *Loc, shorthand bool, kind P
 		if inclass {
 			key, compute, err = p.classElemName()
 		} else {
-			key, compute, err = p.propName(allowNamePVT, false)
+			key, compute, err = p.propName(allowNamePVT, false, false)
 		}
 		if err != nil {
 			return nil, err
@@ -4565,7 +4547,7 @@ func (p *Parser) method(loc *Loc, key Node, compute *Loc, shorthand bool, kind P
 	}
 
 	fnLoc := p.loc()
-	params, _, err := p.paramList()
+	params, _, err := p.paramList(false)
 	if err != nil {
 		return nil, err
 	}

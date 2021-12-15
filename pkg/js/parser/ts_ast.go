@@ -44,6 +44,7 @@ type TsNsName struct {
 	typ NodeType
 	loc *Loc
 	lhs Node
+	dot *Loc
 	rhs Node
 }
 
@@ -66,6 +67,7 @@ type TsRef struct {
 	typ  NodeType
 	loc  *Loc
 	name Node
+	lt   *Loc
 	args []Node
 }
 
@@ -82,6 +84,10 @@ func (n *TsRef) Extra() interface{} {
 }
 
 func (n *TsRef) setExtra(ext interface{}) {
+}
+
+func (n *TsRef) HasArgs() bool {
+	return n.args != nil && len(n.args) > 0
 }
 
 type TsQuery struct {
@@ -105,10 +111,32 @@ func (n *TsQuery) Extra() interface{} {
 func (n *TsQuery) setExtra(ext interface{}) {
 }
 
-type TsArr struct {
+type TsParen struct {
 	typ NodeType
 	loc *Loc
 	arg Node // name or nsName
+}
+
+func (n *TsParen) Type() NodeType {
+	return n.typ
+}
+
+func (n *TsParen) Loc() *Loc {
+	return n.loc
+}
+
+func (n *TsParen) Extra() interface{} {
+	return nil
+}
+
+func (n *TsParen) setExtra(ext interface{}) {
+}
+
+type TsArr struct {
+	typ     NodeType
+	loc     *Loc
+	bracket *Loc
+	arg     Node // name or nsName
 }
 
 func (n *TsArr) Type() NodeType {
@@ -333,6 +361,7 @@ type TsUnionTyp struct {
 	typ NodeType
 	loc *Loc
 	lhs Node
+	op  *Loc
 	rhs Node
 }
 
@@ -355,6 +384,7 @@ type TsIntersecTyp struct {
 	typ NodeType
 	loc *Loc
 	lhs Node
+	op  *Loc
 	rhs Node
 }
 
