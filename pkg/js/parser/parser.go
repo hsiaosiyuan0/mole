@@ -141,7 +141,7 @@ func (p *Parser) checkExp() error {
 	for _, exp := range p.exp {
 		var subnames []Node
 		if exp.def != nil {
-			subnames = []Node{&Ident{N_NAME, exp.def, "default", false, false, nil, true, nil}}
+			subnames = []Node{&Ident{N_NAME, exp.def, "default", false, false, nil, true, nil, nil}}
 		} else if exp.dec != nil {
 			subnames = p.namesInNode(exp.dec)
 		} else {
@@ -436,7 +436,7 @@ func (p *Parser) identWithKw(scope *Scope, binding bool) (Node, error) {
 	if ahead.IsKw() {
 		p.lexer.Next()
 		str := TokenKinds[ahead.value].Name
-		return &Ident{N_NAME, p.finLoc(p.locFromTok(ahead)), str, false, false, nil, true, nil}, nil
+		return &Ident{N_NAME, p.finLoc(p.locFromTok(ahead)), str, false, false, nil, true, nil, nil}, nil
 	}
 	return p.ident(scope, binding)
 }
@@ -761,12 +761,12 @@ func (p *Parser) classElem() (Node, error) {
 
 		isField, ahead = p.isField(true, false, false)
 		if isField {
-			key := &Ident{N_NAME, p.finLoc(p.locFromTok(tok)), "static", false, tok.ContainsEscape(), nil, true, nil}
+			key := &Ident{N_NAME, p.finLoc(p.locFromTok(tok)), "static", false, tok.ContainsEscape(), nil, true, nil, nil}
 			return p.field(key, nil)
 		} else if ahead.value == T_BRACE_L {
 			return p.staticBlock(staticLoc)
 		} else if ahead.value == T_PAREN_L {
-			key := &Ident{N_NAME, p.finLoc(p.locFromTok(tok)), "static", false, tok.ContainsEscape(), nil, true, nil}
+			key := &Ident{N_NAME, p.finLoc(p.locFromTok(tok)), "static", false, tok.ContainsEscape(), nil, true, nil, nil}
 			return p.method(staticLoc, key, nil, false, PK_METHOD, false, false, false, true, false)
 		}
 	}
@@ -794,7 +794,7 @@ func (p *Parser) classElem() (Node, error) {
 		if ahead.value == T_STRING {
 			key = &StrLit{N_LIT_STR, p.finLoc(propLoc.Clone()), name, ahead.HasLegacyOctalEscapeSeq(), nil}
 		} else {
-			key = &Ident{N_NAME, p.finLoc(propLoc.Clone()), name, false, ahead.ContainsEscape(), nil, kw, nil}
+			key = &Ident{N_NAME, p.finLoc(propLoc.Clone()), name, false, ahead.ContainsEscape(), nil, kw, nil, nil}
 		}
 
 		isField, ahead = p.isField(false, name == "get" || name == "set", false)
@@ -1789,7 +1789,7 @@ func (p *Parser) fnDec(expr bool, async *Token, canNameOmitted bool) (Node, erro
 		// this branch means the input is callExpr like:
 		// `async ({a: b = c})` callExpr
 		// `async* ({a: b = c})` binExpr
-		lhs := &Ident{N_NAME, asyncLoc, "async", false, asyncHasEscape, nil, true, nil}
+		lhs := &Ident{N_NAME, asyncLoc, "async", false, asyncHasEscape, nil, true, nil, nil}
 
 		var expr Node
 		if generator {
@@ -2292,7 +2292,7 @@ func (p *Parser) identStrict(scope *Scope, forceStrict bool, binding bool, jsx b
 	}
 
 	if !jsx {
-		return &Ident{N_NAME, loc, name, false, tok.ContainsEscape(), nil, tok.IsKw(), nil}, nil
+		return &Ident{N_NAME, loc, name, false, tok.ContainsEscape(), nil, tok.IsKw(), nil, nil}, nil
 	}
 
 	return &JsxIdent{N_JSX_ID, loc, name, nil}, nil
@@ -2312,6 +2312,14 @@ func (p *Parser) param() (Node, error) {
 		return nil, err
 	}
 	loc := binding.Loc().Clone()
+
+	if ques := p.tsAdvanceOp(); ques != nil {
+		if binding.Type() == N_NAME {
+			binding.(*Ident).ques = ques
+		} else {
+			return nil, p.errorAtLoc(ques, ERR_UNEXPECTED_TOKEN)
+		}
+	}
 
 	typAnnot, _, err := p.tsTypAnnot()
 	if err != nil {
@@ -2376,6 +2384,17 @@ func (p *Parser) paramList(firstRough bool) ([]Node, *Loc, error) {
 			if err != nil {
 				return nil, nil, err
 			}
+			if ques := p.tsAdvanceOp(); ques != nil {
+				if p.tsIsPrimitive(name.Type()) {
+					if name.Type() == N_TS_THIS {
+						return nil, nil, p.errorAtLoc(ques, ERR_THIS_CANNOT_BE_OPTIONAL)
+					}
+					name.(*TsPredef).ques = ques
+				} else {
+					return nil, nil, p.errorAtLoc(name.Loc(), ERR_UNEXPECTED_TOKEN)
+				}
+			}
+
 			typAnnot, loc, err := p.tsTypAnnot()
 			if err != nil {
 				return nil, nil, err
@@ -2575,7 +2594,7 @@ func (p *Parser) propName(allowNamePVT bool, maybeMethod bool, tsRough bool) (No
 	var computeLoc *Loc
 	tv := tok.value
 	if allowNamePVT && tv == T_NAME_PVT {
-		key = &Ident{N_NAME, p.finLoc(loc), tok.Text(), true, tok.ContainsEscape(), nil, false, nil}
+		key = &Ident{N_NAME, p.finLoc(loc), tok.Text(), true, tok.ContainsEscape(), nil, false, nil, nil}
 	} else if tv == T_STRING {
 		legacyOctalEscapeSeq := tok.HasLegacyOctalEscapeSeq()
 		if p.scope().IsKind(SPK_STRICT) && legacyOctalEscapeSeq {
@@ -2607,7 +2626,7 @@ func (p *Parser) propName(allowNamePVT bool, maybeMethod bool, tsRough bool) (No
 				return nil, nil, p.errorAtLoc(loc, fmt.Sprintf(ERR_TPL_FORBIDED_LEXICAL_NAME, keyName))
 			}
 		}
-		key = &Ident{N_NAME, p.finLoc(loc), keyName, false, tok.ContainsEscape(), nil, kw, nil}
+		key = &Ident{N_NAME, p.finLoc(loc), keyName, false, tok.ContainsEscape(), nil, kw, nil, nil}
 	} else {
 		return nil, nil, p.errorTok(tok)
 	}
@@ -2999,7 +3018,7 @@ func (p *Parser) awaitExpr(tok *Token) (Node, error) {
 			}
 			return nil, p.errorTok(ahead)
 		}
-		return &Ident{N_NAME, p.finLoc(loc), "await", false, tok.ContainsEscape(), nil, true, nil}, nil
+		return &Ident{N_NAME, p.finLoc(loc), "await", false, tok.ContainsEscape(), nil, true, nil, nil}, nil
 	}
 
 	if scope.IsKind(SPK_FORMAL_PARAMS) {
@@ -3128,7 +3147,7 @@ func (p *Parser) newExpr() (Node, error) {
 	scope := p.scope()
 	tok := p.lexer.Peek()
 	if tok.value == T_DOT && p.feat&FEAT_META_PROPERTY != 0 {
-		meta := &Ident{N_NAME, p.finLoc(p.locFromTok(new)), "new", false, new.ContainsEscape(), nil, true, nil}
+		meta := &Ident{N_NAME, p.finLoc(p.locFromTok(new)), "new", false, new.ContainsEscape(), nil, true, nil, nil}
 		p.lexer.Next() // consume dot
 
 		id, err := p.ident(nil, false)
@@ -3279,7 +3298,7 @@ func (p *Parser) importCall(tok *Token) (Node, error) {
 	}
 	loc := p.locFromTok(tok)
 
-	meta := &Ident{N_NAME, p.finLoc(p.locFromTok(tok)), tok.Text(), false, tok.ContainsEscape(), nil, false, nil}
+	meta := &Ident{N_NAME, p.finLoc(p.locFromTok(tok)), tok.Text(), false, tok.ContainsEscape(), nil, false, nil, nil}
 
 	ahead := p.lexer.Peek()
 	if ahead.value == T_DOT && p.feat&FEAT_META_PROPERTY != 0 {
@@ -4080,7 +4099,7 @@ func (p *Parser) memberExprPropDot(obj Node, opt bool) (Node, error) {
 	var prop Node
 	if (ok && tv != T_NUM) || tv == T_NAME_PVT {
 		pvt := tv == T_NAME_PVT
-		id := &Ident{N_NAME, p.finLoc(loc), tok.Text(), pvt, tok.ContainsEscape(), nil, kw, nil}
+		id := &Ident{N_NAME, p.finLoc(loc), tok.Text(), pvt, tok.ContainsEscape(), nil, kw, nil, nil}
 		if pvt {
 			scope := p.scope().UpperCls()
 			if scope == nil {
@@ -4141,7 +4160,8 @@ func (p *Parser) primaryExpr() (Node, error) {
 			}
 			return nil, p.errorAtLoc(p.finLoc(loc), fmt.Sprintf(ERR_TPL_UNEXPECTED_TOKEN_TYPE, name))
 		}
-		return &Ident{N_NAME, p.finLoc(loc), name, false, tok.ContainsEscape(), nil, p.isProhibitedName(nil, name, true, false, false, false), nil}, nil
+		kw := p.isProhibitedName(nil, name, true, false, false, false)
+		return &Ident{N_NAME, p.finLoc(loc), name, false, tok.ContainsEscape(), nil, kw, nil, nil}, nil
 	case T_THIS:
 		p.lexer.Next()
 		return &ThisExpr{N_EXPR_THIS, p.finLoc(loc), nil}, nil

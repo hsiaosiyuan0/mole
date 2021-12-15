@@ -510,6 +510,7 @@ type Ident struct {
 	// setting this field to true, later report the `unexpected token`
 	// error if the coming token is not `from`
 	kw       bool
+	ques     *Loc
 	typAnnot Node
 }
 

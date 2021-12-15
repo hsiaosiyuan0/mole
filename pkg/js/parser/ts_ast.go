@@ -1,8 +1,9 @@
 package parser
 
 type TsPredef struct {
-	typ NodeType
-	loc *Loc
+	typ  NodeType
+	loc  *Loc
+	ques *Loc
 }
 
 func (n *TsPredef) Type() NodeType {

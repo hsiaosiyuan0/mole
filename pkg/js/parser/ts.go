@@ -135,6 +135,14 @@ func (p *Parser) tsNodeTypAnnot(binding Node, typAnnot Node) bool {
 	return false
 }
 
+func (p *Parser) tsAdvanceOp() *Loc {
+	var loc *Loc
+	if p.lexer.Peek().value == T_HOOK {
+		loc = p.locFromTok(p.lexer.Next())
+	}
+	return loc
+}
+
 // `RoughParam` is something like `a:b` which `a` is a rough-type and `b` is typAnnot
 // convert rough param to formal param needs to process `a` in above example - in other
 // words convert ts-type-node to js-node
@@ -162,7 +170,7 @@ func (p *Parser) tsRoughParamToParam(node Node) (Node, error) {
 	switch n.Type() {
 	case N_TS_ANY, N_TS_NUM, N_TS_BOOL, N_TS_STR, N_TS_SYM:
 		d := n.(*TsPredef)
-		return &Ident{N_NAME, d.loc, d.loc.Text(), false, false, nil, false, nil}, nil
+		return &Ident{N_NAME, d.loc, d.loc.Text(), false, false, nil, false, d.ques, nil}, nil
 	case N_TS_VOID:
 		return nil, p.errorAtLoc(n.Loc(), ERR_UNEXPECTED_TOKEN)
 	case N_TS_REF:
@@ -217,7 +225,7 @@ func (p *Parser) tsRoughParamToParam(node Node) (Node, error) {
 		return nil, p.errorAtLoc(n.Loc(), ERR_UNEXPECTED_TOKEN)
 	case N_TS_THIS:
 		t := n.(*TsThis)
-		return &Ident{N_NAME, t.loc, t.loc.Text(), false, false, nil, true, nil}, nil
+		return &Ident{N_NAME, t.loc, t.loc.Text(), false, false, nil, true, nil, nil}, nil
 	case N_TS_NS_NAME:
 		s := n.(*TsNsName)
 		return nil, p.errorAtLoc(s.dot, ERR_UNEXPECTED_TOKEN)
@@ -297,8 +305,9 @@ func (p *Parser) tsRoughParamToTyp(node Node) (Node, error) {
 			if err != nil {
 				return nil, err
 			}
+			return prop, nil
 		}
-		return prop, nil
+		return pn, nil
 	case N_TS_TUPLE:
 		arr := n.(*TsTuple)
 		for i, arg := range arr.args {
@@ -511,7 +520,7 @@ func (p *Parser) tsPrimary(rough bool) (Node, error) {
 		name := id.Text()
 		if typ, ok := builtinTyp[name]; ok {
 			// predef
-			node = &TsPredef{typ, id.loc}
+			node = &TsPredef{typ, id.loc, nil}
 		} else {
 			node = id
 		}
