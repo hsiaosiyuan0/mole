@@ -271,3 +271,102 @@ func TestTs22(t *testing.T) {
 	ti = param1.ti
 	assert.Equal(t, N_TS_INTERSEC_TYP, ti.typAnnot.Type(), "should be ok")
 }
+
+func TestTs23(t *testing.T) {
+	// ReturnType
+	ast, err := compileTs(`let a = ({ b }: { b?: string }, c: Array<string> & number): void => { }`, nil)
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	prog := ast.(*Prog)
+	dec := prog.stmts[0].(*VarDecStmt).decList[0].(*VarDec)
+	assert.Equal(t, "a", dec.id.(*Ident).Text(), "should be ok")
+
+	fn := dec.init.(*ArrowFn)
+	assert.Equal(t, N_TS_VOID, fn.ti.typAnnot.Type(), "should be ok")
+}
+
+func TestTs24(t *testing.T) {
+	// ReturnType
+	ast, err := compileTs(`function fn(): void { }`, nil)
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	prog := ast.(*Prog)
+	fn := prog.stmts[0].(*FnDec)
+	assert.Equal(t, N_TS_VOID, fn.ti.typAnnot.Type(), "should be ok")
+}
+
+func TestTs25(t *testing.T) {
+	// ReturnType
+	ast, err := compileTs(`function fn(): { b?: string } { }`, nil)
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	prog := ast.(*Prog)
+	fn := prog.stmts[0].(*FnDec)
+	assert.Equal(t, N_TS_OBJ, fn.ti.typAnnot.Type(), "should be ok")
+}
+
+func TestTs26(t *testing.T) {
+	// ReturnType
+	ast, err := compileTs(`let a = {
+    m(): void { }
+}`, nil)
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	prog := ast.(*Prog)
+	dec := prog.stmts[0].(*VarDecStmt).decList[0].(*VarDec)
+	assert.Equal(t, "a", dec.id.(*Ident).Text(), "should be ok")
+
+	obj := dec.init.(*ObjLit)
+	prop0 := obj.props[0].(*Prop)
+	fn := prop0.value.(*FnDec)
+	assert.Equal(t, N_TS_VOID, fn.ti.typAnnot.Type(), "should be ok")
+}
+
+func TestTs27(t *testing.T) {
+	// ReturnType
+	ast, err := compileTs(`class A {
+    m(): void { }
+}`, nil)
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	prog := ast.(*Prog)
+	dec := prog.stmts[0].(*ClassDec)
+	assert.Equal(t, "A", dec.id.(*Ident).Text(), "should be ok")
+
+	m := dec.body.(*ClassBody).elems[0].(*Method)
+	assert.Equal(t, N_TS_VOID, m.value.(*FnDec).ti.typAnnot.Type(), "should be ok")
+}
+
+func TestTs28(t *testing.T) {
+	// ReturnType & getter
+	ast, err := compileTs(`class A {
+    get m(): string { return "" }
+}`, nil)
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	prog := ast.(*Prog)
+	dec := prog.stmts[0].(*ClassDec)
+	assert.Equal(t, "A", dec.id.(*Ident).Text(), "should be ok")
+
+	m := dec.body.(*ClassBody).elems[0].(*Method)
+	assert.Equal(t, PK_GETTER, m.kind, "should be ok")
+	assert.Equal(t, N_TS_STR, m.value.(*FnDec).ti.typAnnot.Type(), "should be ok")
+}
+
+func TestTs29(t *testing.T) {
+	// Setter
+	ast, err := compileTs(`class A {
+    set m(n: string) { }
+}`, nil)
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	prog := ast.(*Prog)
+	dec := prog.stmts[0].(*ClassDec)
+	assert.Equal(t, "A", dec.id.(*Ident).Text(), "should be ok")
+
+	m := dec.body.(*ClassBody).elems[0].(*Method)
+	assert.Equal(t, PK_SETTER, m.kind, "should be ok")
+
+	param0 := m.value.(*FnDec).params[0].(*Ident)
+	assert.Equal(t, N_TS_STR, param0.ti.typAnnot.Type(), "should be ok")
+}

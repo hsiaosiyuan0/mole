@@ -1729,6 +1729,15 @@ func (p *Parser) fnDec(expr bool, async *Token, canNameOmitted bool) (Node, erro
 		}
 	}
 
+	typAnnot, _, err := p.tsTypAnnot()
+	if err != nil {
+		return nil, err
+	}
+	ti := p.newTypInfo()
+	if ti != nil {
+		ti.typAnnot = typAnnot
+	}
+
 	if generator {
 		p.lexer.addMode(LM_GENERATOR)
 	}
@@ -1835,7 +1844,7 @@ func (p *Parser) fnDec(expr bool, async *Token, canNameOmitted bool) (Node, erro
 	p.symtab.LeaveScope()
 
 	if arrow {
-		fn := &ArrowFn{N_EXPR_ARROW, p.finLoc(loc), arrowLoc, async != nil, params, body, body.Type() != N_STMT_BLOCK, nil}
+		fn := &ArrowFn{N_EXPR_ARROW, p.finLoc(loc), arrowLoc, async != nil, params, body, body.Type() != N_STMT_BLOCK, nil, ti}
 		if expr {
 			return fn, nil
 		}
@@ -1846,7 +1855,7 @@ func (p *Parser) fnDec(expr bool, async *Token, canNameOmitted bool) (Node, erro
 	if expr {
 		typ = N_EXPR_FN
 	}
-	return &FnDec{typ, p.finLoc(loc), id, generator, async != nil, params, body, nil}, nil
+	return &FnDec{typ, p.finLoc(loc), id, generator, async != nil, params, body, nil, ti}, nil
 }
 
 func (p *Parser) collectNames(nodes []Node) (names []Node, firstComplicated *Loc, err error) {
@@ -2946,7 +2955,7 @@ func (p *Parser) assignExpr(checkLhs bool) (Node, error) {
 
 	tok := p.lexer.Peek()
 	if lhs.Type() == N_NAME && tok.value == T_ARROW && !tok.afterLineTerminator {
-		fn, err := p.arrowFn(loc, []Node{lhs})
+		fn, err := p.arrowFn(loc, []Node{lhs}, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -4257,7 +4266,7 @@ func (p *Parser) primaryExpr() (Node, error) {
 	return nil, p.errorTok(tok)
 }
 
-func (p *Parser) arrowFn(loc *Loc, args []Node) (Node, error) {
+func (p *Parser) arrowFn(loc *Loc, args []Node, retTyp *TypInfo) (Node, error) {
 	params, err := p.argsToParams(args)
 	if err != nil {
 		return nil, err
@@ -4279,6 +4288,17 @@ func (p *Parser) arrowFn(loc *Loc, args []Node) (Node, error) {
 		// duplicate-checking is enable in strict mode so here skip doing checking,
 		// checking is delegated to below `checkParams`
 		p.addLocalBinding(nil, ref, false, ref.Node.Text())
+	}
+
+	if retTyp == nil {
+		typAnnot, _, err := p.tsTypAnnot()
+		if err != nil {
+			return nil, err
+		}
+		retTyp = p.newTypInfo()
+		if retTyp != nil {
+			retTyp.typAnnot = typAnnot
+		}
 	}
 
 	var body Node
@@ -4307,9 +4327,10 @@ func (p *Parser) arrowFn(loc *Loc, args []Node) (Node, error) {
 	if err := p.checkParams(paramNames, firstComplicated, isStrict, directStrict); err != nil {
 		return nil, err
 	}
+
 	p.symtab.LeaveScope()
 
-	return &ArrowFn{N_EXPR_ARROW, p.finLoc(loc), arrowLoc, false, params, body, body.Type() != N_STMT_BLOCK, nil}, nil
+	return &ArrowFn{N_EXPR_ARROW, p.finLoc(loc), arrowLoc, false, params, body, body.Type() != N_STMT_BLOCK, nil, retTyp}, nil
 }
 
 func (p *Parser) parenExpr() (Node, error) {
@@ -4336,10 +4357,23 @@ func (p *Parser) parenExpr() (Node, error) {
 		return nil, err
 	}
 
+	typAnnot, typLoc, err := p.tsTypAnnot()
+	if err != nil {
+		return nil, err
+	}
+	ti := p.newTypInfo()
+	if ti != nil {
+		ti.typAnnot = typAnnot
+	}
+
 	// next is arrow-expression
 	ahead := p.lexer.Peek()
 	if ahead.value == T_ARROW && !ahead.afterLineTerminator {
-		return p.arrowFn(loc, args)
+		return p.arrowFn(loc, args, ti)
+	}
+
+	if typLoc != nil {
+		return nil, p.errorAtLoc(typLoc, ERR_UNEXPECTED_TOKEN)
 	}
 
 	// for report expr like: `(a,)`
@@ -4631,6 +4665,15 @@ func (p *Parser) method(loc *Loc, key Node, compute *Loc, shorthand bool, kind P
 		p.addLocalBinding(nil, ref, false, ref.Node.Text())
 	}
 
+	typAnnot, _, err := p.tsTypAnnot()
+	if err != nil {
+		return nil, err
+	}
+	ti := p.newTypInfo()
+	if ti != nil {
+		ti.typAnnot = typAnnot
+	}
+
 	if kind == PK_GETTER && len(params) > 0 {
 		return nil, p.errorAtLoc(params[0].Loc(), ERR_GETTER_SHOULD_NO_PARAM)
 	} else if kind == PK_SETTER {
@@ -4664,7 +4707,7 @@ func (p *Parser) method(loc *Loc, key Node, compute *Loc, shorthand bool, kind P
 
 	p.symtab.LeaveScope()
 
-	value := &FnDec{N_EXPR_FN, p.finLoc(fnLoc), nil, gen, async, params, body, nil}
+	value := &FnDec{N_EXPR_FN, p.finLoc(fnLoc), nil, gen, async, params, body, nil, ti}
 	if inclass {
 		if static && p.isName(key, "prototype", false, true) {
 			return nil, p.errorAtLoc(key.Loc(), ERR_STATIC_PROP_PROTOTYPE)

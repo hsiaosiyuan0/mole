@@ -506,18 +506,23 @@ func (p *Parser) tsPrimary(rough bool) (Node, error) {
 
 	var err error
 	var node Node
-	if av == T_NAME {
-		id, err := p.ident(nil, false)
-		if err != nil {
-			return nil, err
+	if av == T_NAME || av == T_VOID {
+		name := "void"
+		var loc *Loc
+		if av == T_NAME {
+			node, err = p.ident(nil, false)
+			if err != nil {
+				return nil, err
+			}
+			name = node.(*Ident).Text()
+			loc = node.Loc()
+		} else {
+			loc = p.locFromTok(p.lexer.Next())
 		}
 
-		name := id.Text()
 		if typ, ok := builtinTyp[name]; ok {
 			// predef
-			node = &TsPredef{typ, id.loc, nil}
-		} else {
-			node = id
+			node = &TsPredef{typ, loc, nil}
 		}
 
 		node, err = p.tsRef(node)

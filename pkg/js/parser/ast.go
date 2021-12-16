@@ -1298,6 +1298,7 @@ type FnDec struct {
 	params     []Node
 	body       Node
 	outerParen *Loc
+	ti         *TypInfo
 }
 
 func (n *FnDec) Id() Node {
@@ -1336,6 +1337,10 @@ func (n *FnDec) SetOuterParen(loc *Loc) {
 	n.outerParen = loc
 }
 
+func (n *FnDec) TypInfo() *TypInfo {
+	return n.ti
+}
+
 type ArrowFn struct {
 	typ        NodeType
 	loc        *Loc
@@ -1345,6 +1350,7 @@ type ArrowFn struct {
 	body       Node
 	expr       bool
 	outerParen *Loc
+	ti         *TypInfo
 }
 
 func (n *ArrowFn) Async() bool {
@@ -1377,6 +1383,10 @@ func (n *ArrowFn) SetOuterParen(loc *Loc) {
 
 func (n *ArrowFn) Expr() bool {
 	return n.expr
+}
+
+func (n *ArrowFn) TypInfo() *TypInfo {
+	return n.ti
 }
 
 type VarDecStmt struct {
