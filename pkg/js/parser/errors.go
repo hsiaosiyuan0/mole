@@ -161,5 +161,6 @@ const (
 	ERR_TPL_JSX_HTML_UNESCAPED_ENTITY              = "Unexpected `%s`, HTML entity "
 	ERR_TPL_JSX_UNDEFINED_HTML_ENTITY              = "Undefined HTML entity `%s`"
 
-	ERR_THIS_CANNOT_BE_OPTIONAL = "The `this` parameter cannot be optional"
+	ERR_THIS_CANNOT_BE_OPTIONAL    = "The `this` parameter cannot be optional"
+	ERR_ILLEGAL_PARAMETER_MODIFIER = "A parameter property is only allowed in a constructor implementation"
 )

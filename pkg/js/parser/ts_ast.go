@@ -14,13 +14,6 @@ func (n *TsPredef) Loc() *Loc {
 	return n.loc
 }
 
-func (n *TsPredef) Extra() interface{} {
-	return nil
-}
-
-func (n *TsPredef) setExtra(ext interface{}) {
-}
-
 type TsThis struct {
 	typ NodeType
 	loc *Loc
@@ -32,13 +25,6 @@ func (n *TsThis) Type() NodeType {
 
 func (n *TsThis) Loc() *Loc {
 	return n.loc
-}
-
-func (n *TsThis) Extra() interface{} {
-	return nil
-}
-
-func (n *TsThis) setExtra(ext interface{}) {
 }
 
 type TsNsName struct {
@@ -57,13 +43,6 @@ func (n *TsNsName) Loc() *Loc {
 	return n.loc
 }
 
-func (n *TsNsName) Extra() interface{} {
-	return nil
-}
-
-func (n *TsNsName) setExtra(ext interface{}) {
-}
-
 type TsRef struct {
 	typ  NodeType
 	loc  *Loc
@@ -78,13 +57,6 @@ func (n *TsRef) Type() NodeType {
 
 func (n *TsRef) Loc() *Loc {
 	return n.loc
-}
-
-func (n *TsRef) Extra() interface{} {
-	return nil
-}
-
-func (n *TsRef) setExtra(ext interface{}) {
 }
 
 func (n *TsRef) HasArgs() bool {
@@ -105,13 +77,6 @@ func (n *TsQuery) Loc() *Loc {
 	return n.loc
 }
 
-func (n *TsQuery) Extra() interface{} {
-	return nil
-}
-
-func (n *TsQuery) setExtra(ext interface{}) {
-}
-
 type TsParen struct {
 	typ NodeType
 	loc *Loc
@@ -124,13 +89,6 @@ func (n *TsParen) Type() NodeType {
 
 func (n *TsParen) Loc() *Loc {
 	return n.loc
-}
-
-func (n *TsParen) Extra() interface{} {
-	return nil
-}
-
-func (n *TsParen) setExtra(ext interface{}) {
 }
 
 type TsArr struct {
@@ -148,13 +106,6 @@ func (n *TsArr) Loc() *Loc {
 	return n.loc
 }
 
-func (n *TsArr) Extra() interface{} {
-	return nil
-}
-
-func (n *TsArr) setExtra(ext interface{}) {
-}
-
 type TsTuple struct {
 	typ  NodeType
 	loc  *Loc
@@ -169,13 +120,6 @@ func (n *TsTuple) Loc() *Loc {
 	return n.loc
 }
 
-func (n *TsTuple) Extra() interface{} {
-	return nil
-}
-
-func (n *TsTuple) setExtra(ext interface{}) {
-}
-
 type TsObj struct {
 	typ   NodeType
 	loc   *Loc
@@ -188,13 +132,6 @@ func (n *TsObj) Type() NodeType {
 
 func (n *TsObj) Loc() *Loc {
 	return n.loc
-}
-
-func (n *TsObj) Extra() interface{} {
-	return nil
-}
-
-func (n *TsObj) setExtra(ext interface{}) {
 }
 
 type TsProp struct {
@@ -214,13 +151,6 @@ func (n *TsProp) Loc() *Loc {
 	return n.loc
 }
 
-func (n *TsProp) Extra() interface{} {
-	return nil
-}
-
-func (n *TsProp) setExtra(ext interface{}) {
-}
-
 type TsCallSig struct {
 	typ       NodeType
 	loc       *Loc
@@ -235,13 +165,6 @@ func (n *TsCallSig) Type() NodeType {
 
 func (n *TsCallSig) Loc() *Loc {
 	return n.loc
-}
-
-func (n *TsCallSig) Extra() interface{} {
-	return nil
-}
-
-func (n *TsCallSig) setExtra(ext interface{}) {
 }
 
 type TsNewSig struct {
@@ -260,13 +183,6 @@ func (n *TsNewSig) Loc() *Loc {
 	return n.loc
 }
 
-func (n *TsNewSig) Extra() interface{} {
-	return nil
-}
-
-func (n *TsNewSig) setExtra(ext interface{}) {
-}
-
 type TsIdxSig struct {
 	typ NodeType
 	loc *Loc
@@ -283,19 +199,12 @@ func (n *TsIdxSig) Loc() *Loc {
 	return n.loc
 }
 
-func (n *TsIdxSig) Extra() interface{} {
-	return nil
-}
-
-func (n *TsIdxSig) setExtra(ext interface{}) {
-}
-
 type TsRoughParam struct {
-	typ      NodeType
-	loc      *Loc
-	name     Node
-	colon    *Loc
-	typAnnot Node
+	typ   NodeType
+	loc   *Loc
+	name  Node
+	colon *Loc
+	ti    *TypInfo
 }
 
 func (n *TsRoughParam) Type() NodeType {
@@ -304,13 +213,6 @@ func (n *TsRoughParam) Type() NodeType {
 
 func (n *TsRoughParam) Loc() *Loc {
 	return n.loc
-}
-
-func (n *TsRoughParam) Extra() interface{} {
-	return nil
-}
-
-func (n *TsRoughParam) setExtra(ext interface{}) {
 }
 
 type TsParam struct {
@@ -326,13 +228,6 @@ func (n *TsParam) Type() NodeType {
 
 func (n *TsParam) Loc() *Loc {
 	return n.loc
-}
-
-func (n *TsParam) Extra() interface{} {
-	return nil
-}
-
-func (n *TsParam) setExtra(ext interface{}) {
 }
 
 type TsFnTyp struct {
@@ -351,13 +246,6 @@ func (n *TsFnTyp) Loc() *Loc {
 	return n.loc
 }
 
-func (n *TsFnTyp) Extra() interface{} {
-	return nil
-}
-
-func (n *TsFnTyp) setExtra(ext interface{}) {
-}
-
 type TsUnionTyp struct {
 	typ NodeType
 	loc *Loc
@@ -374,13 +262,6 @@ func (n *TsUnionTyp) Loc() *Loc {
 	return n.loc
 }
 
-func (n *TsUnionTyp) Extra() interface{} {
-	return nil
-}
-
-func (n *TsUnionTyp) setExtra(ext interface{}) {
-}
-
 type TsIntersecTyp struct {
 	typ NodeType
 	loc *Loc
@@ -395,11 +276,4 @@ func (n *TsIntersecTyp) Type() NodeType {
 
 func (n *TsIntersecTyp) Loc() *Loc {
 	return n.loc
-}
-
-func (n *TsIntersecTyp) Extra() interface{} {
-	return nil
-}
-
-func (n *TsIntersecTyp) setExtra(ext interface{}) {
 }

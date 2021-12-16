@@ -13,6 +13,13 @@ func (p *Parser) ts() bool {
 	return p.feat&FEAT_TS != 0
 }
 
+func (p *Parser) newTypInfo() *TypInfo {
+	if p.ts() {
+		return &TypInfo{ACC_MOD_PUB, nil, nil}
+	}
+	return nil
+}
+
 func (p *Parser) tsTypAnnot() (Node, *Loc, error) {
 	if !p.ts() {
 		return nil, nil, nil
@@ -85,7 +92,7 @@ func (p *Parser) tsConstructTyp() (Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	params, _, err := p.paramList(false)
+	params, _, err := p.paramList(false, false)
 	if err != nil {
 		return nil, err
 	}
@@ -107,29 +114,15 @@ func (p *Parser) tsIsPrimitive(typ NodeType) bool {
 	return false
 }
 
-func (p *Parser) tsNodeTypAnnot(binding Node, typAnnot Node) bool {
+func (p *Parser) tsNodeTypAnnot(binding Node, typAnnot Node, accMod ACC_MOD) bool {
 	if typAnnot == nil {
 		return true
 	}
 
-	switch binding.Type() {
-	case N_NAME:
-		binding.(*Ident).typAnnot = typAnnot
-		return true
-	case N_PAT_ARRAY:
-		binding.(*ArrPat).typAnnot = typAnnot
-		return true
-	case N_PAT_OBJ:
-		binding.(*ObjPat).typAnnot = typAnnot
-		return true
-	case N_LIT_ARR:
-		binding.(*ArrLit).typAnnot = typAnnot
-		return true
-	case N_LIT_OBJ:
-		binding.(*ObjLit).typAnnot = typAnnot
-		return true
-	case N_SPREAD:
-		binding.(*Spread).typAnnot = typAnnot
+	if wt, ok := binding.(NodeWithTypInfo); ok {
+		ti := wt.TypInfo()
+		ti.typAnnot = typAnnot
+		ti.accMod = accMod
 		return true
 	}
 	return false
@@ -151,7 +144,7 @@ func (p *Parser) tsRoughParamToParam(node Node) (Node, error) {
 	n := node
 	if node.Type() == N_TS_ROUGH_PARAM {
 		param := node.(*TsRoughParam)
-		if param.name.Type() == N_TS_THIS && param.typAnnot == nil {
+		if param.name.Type() == N_TS_THIS && param.ti.typAnnot == nil {
 			return nil, p.errorAtLoc(param.Loc(), ERR_UNEXPECTED_TOKEN)
 		}
 
@@ -160,7 +153,7 @@ func (p *Parser) tsRoughParamToParam(node Node) (Node, error) {
 			return nil, err
 		}
 
-		if ok := p.tsNodeTypAnnot(fp, param.typAnnot); !ok {
+		if ok := p.tsNodeTypAnnot(fp, param.ti.typAnnot, param.ti.accMod); !ok {
 			return nil, p.errorAtLoc(fp.Loc(), ERR_UNEXPECTED_TOKEN)
 		}
 
@@ -170,7 +163,9 @@ func (p *Parser) tsRoughParamToParam(node Node) (Node, error) {
 	switch n.Type() {
 	case N_TS_ANY, N_TS_NUM, N_TS_BOOL, N_TS_STR, N_TS_SYM:
 		d := n.(*TsPredef)
-		return &Ident{N_NAME, d.loc, d.loc.Text(), false, false, nil, false, d.ques, nil}, nil
+		ti := p.newTypInfo()
+		ti.ques = d.ques
+		return &Ident{N_NAME, d.loc, d.loc.Text(), false, false, nil, false, ti}, nil
 	case N_TS_VOID:
 		return nil, p.errorAtLoc(n.Loc(), ERR_UNEXPECTED_TOKEN)
 	case N_TS_REF:
@@ -188,7 +183,7 @@ func (p *Parser) tsRoughParamToParam(node Node) (Node, error) {
 				return nil, err
 			}
 		}
-		return &ObjPat{N_PAT_OBJ, o.loc, props, nil, nil}, nil
+		return &ObjPat{N_PAT_OBJ, o.loc, props, nil, p.newTypInfo()}, nil
 	case N_TS_PROP:
 		pn := n.(*TsProp)
 		if pn.computeLoc != nil {
@@ -220,12 +215,12 @@ func (p *Parser) tsRoughParamToParam(node Node) (Node, error) {
 				return nil, err
 			}
 		}
-		return &ArrPat{N_PAT_ARRAY, t.loc, elems, nil, nil}, nil
+		return &ArrPat{N_PAT_ARRAY, t.loc, elems, nil, p.newTypInfo()}, nil
 	case N_TS_PAREN:
 		return nil, p.errorAtLoc(n.Loc(), ERR_UNEXPECTED_TOKEN)
 	case N_TS_THIS:
 		t := n.(*TsThis)
-		return &Ident{N_NAME, t.loc, t.loc.Text(), false, false, nil, true, nil, nil}, nil
+		return &Ident{N_NAME, t.loc, t.loc.Text(), false, false, nil, true, nil}, nil
 	case N_TS_NS_NAME:
 		s := n.(*TsNsName)
 		return nil, p.errorAtLoc(s.dot, ERR_UNEXPECTED_TOKEN)
@@ -252,14 +247,14 @@ func (p *Parser) tsPropToIdxSig(prop *TsProp) (Node, error) {
 		return nil, p.errorAtLoc(prop.key.Loc(), ERR_UNEXPECTED_TOKEN)
 	}
 	name := prop.key.(*Ident)
-	if name.typAnnot == nil {
+	if name.ti.typAnnot == nil {
 		return nil, p.errorAtLoc(name.loc, ERR_UNEXPECTED_TOKEN)
 	}
-	switch name.typAnnot.Type() {
+	switch name.ti.typAnnot.Type() {
 	case N_TS_NUM, N_TS_STR, N_TS_SYM:
 		break
 	default:
-		return nil, p.errorAtLoc(name.typAnnot.Loc(), ERR_UNEXPECTED_TOKEN)
+		return nil, p.errorAtLoc(name.ti.typAnnot.Loc(), ERR_UNEXPECTED_TOKEN)
 	}
 	vt := prop.val.Type()
 	if vt < N_TS_ANY || vt > N_TS_ROUGH_PARAM {
@@ -269,7 +264,7 @@ func (p *Parser) tsPropToIdxSig(prop *TsProp) (Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &TsIdxSig{N_TS_IDX_SIG, prop.loc, name, name.typAnnot, typAnnot}, nil
+	return &TsIdxSig{N_TS_IDX_SIG, prop.loc, name, name.ti.typAnnot, typAnnot}, nil
 }
 
 // `RoughParam` is something like `a:b` which `a` is a rough-type and `b` is typAnnot
@@ -325,7 +320,7 @@ func (p *Parser) tsRoughParamToTyp(node Node) (Node, error) {
 
 // `ParenthesizedType` or`FunctionType`
 func (p *Parser) tsParen(keepParen bool) (Node, error) {
-	params, loc, err := p.paramList(true)
+	params, loc, err := p.paramList(true, false)
 	if err != nil {
 		return nil, err
 	}
@@ -398,7 +393,7 @@ func (p *Parser) tsFnTyp(params []Node, parenL *Loc) (Node, error) {
 			}
 		}
 
-		params, _, err = p.paramList(false)
+		params, _, err = p.paramList(false, false)
 		if err != nil {
 			return nil, err
 		}
@@ -603,7 +598,7 @@ func (p *Parser) tsNewSig(loc *Loc) (Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	params, _, err := p.paramList(false)
+	params, _, err := p.paramList(false, false)
 	if err != nil {
 		return nil, err
 	}
@@ -816,7 +811,7 @@ func (p *Parser) tsCallSig(typParams []Node, loc *Loc) (Node, error) {
 			return nil, err
 		}
 	}
-	params, _, err := p.paramList(false)
+	params, _, err := p.paramList(false, false)
 	if err != nil {
 		return nil, err
 	}
