@@ -252,3 +252,22 @@ func TestTs21(t *testing.T) {
 		"A parameter property is only allowed in a constructor implementation at (2:6)", err.Error(),
 		"should be prog ok")
 }
+
+func TestTs22(t *testing.T) {
+	// ArrowFn
+	ast, err := compileTs(`let a = ({ b }: { b?: string }, c: Array<string> & number) => { }`, nil)
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	prog := ast.(*Prog)
+	dec := prog.stmts[0].(*VarDecStmt).decList[0].(*VarDec)
+	assert.Equal(t, "a", dec.id.(*Ident).Text(), "should be ok")
+
+	fn := dec.init.(*ArrowFn)
+	param0 := fn.params[0].(*ObjPat)
+	ti := param0.ti
+	assert.Equal(t, N_TS_OBJ, ti.typAnnot.Type(), "should be ok")
+
+	param1 := fn.params[1].(*Ident)
+	ti = param1.ti
+	assert.Equal(t, N_TS_INTERSEC_TYP, ti.typAnnot.Type(), "should be ok")
+}

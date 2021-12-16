@@ -1128,7 +1128,6 @@ type AssignPat struct {
 	lhs        Node
 	rhs        Node
 	outerParen *Loc
-	ti         *TypInfo
 }
 
 func (n *AssignPat) Left() Node {
@@ -1149,14 +1148,6 @@ func (n *AssignPat) Loc() *Loc {
 
 func (n *AssignPat) OuterParen() *Loc {
 	return n.outerParen
-}
-
-func (n *AssignPat) SetOuterParen(loc *Loc) {
-	n.outerParen = loc
-}
-
-func (n *AssignPat) TypInfo() *TypInfo {
-	return n.ti
 }
 
 type RestPat struct {

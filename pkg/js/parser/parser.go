@@ -2414,7 +2414,6 @@ func (p *Parser) param(ctor bool) (Node, error) {
 			loc: p.finLoc(loc),
 			lhs: binding,
 			rhs: value,
-			ti:  p.newTypInfo(),
 		}
 	}
 
@@ -2797,7 +2796,7 @@ func (p *Parser) patternAssign(ident Node, asProp bool) (Node, error) {
 	}
 
 	loc := ident.Loc()
-	val := &AssignPat{N_PAT_ASSIGN, p.finLoc(loc.Clone()), ident, init, nil, p.newTypInfo()}
+	val := &AssignPat{N_PAT_ASSIGN, p.finLoc(loc.Clone()), ident, init, nil}
 	if !asProp {
 		return val, nil
 	}
@@ -3557,7 +3556,7 @@ func (p *Parser) argToParam(arg Node, depth int, prop bool, destruct bool, inPar
 			typ:   N_PAT_ARRAY,
 			loc:   n.loc,
 			elems: make([]Node, len(n.elems)),
-			ti:    p.newTypInfo(),
+			ti:    n.ti,
 		}
 		var err error
 		for i, node := range n.elems {
@@ -3576,7 +3575,7 @@ func (p *Parser) argToParam(arg Node, depth int, prop bool, destruct bool, inPar
 			typ:   N_PAT_OBJ,
 			loc:   n.loc,
 			props: make([]Node, len(n.props)),
-			ti:    p.newTypInfo(),
+			ti:    n.ti,
 		}
 		for i, prop := range n.props {
 			pp, err := p.argToParam(prop, depth+1, true, destruct, inParen)
@@ -3647,7 +3646,6 @@ func (p *Parser) argToParam(arg Node, depth int, prop bool, destruct bool, inPar
 				loc: n.loc,
 				lhs: n.key,
 				rhs: n.value,
-				ti:  p.newTypInfo(),
 			}
 		}
 		return n, nil
@@ -3677,7 +3675,6 @@ func (p *Parser) argToParam(arg Node, depth int, prop bool, destruct bool, inPar
 			loc: n.loc,
 			lhs: lhs,
 			rhs: n.rhs,
-			ti:  p.newTypInfo(),
 		}
 		return p, nil
 	case N_NAME:
