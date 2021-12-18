@@ -765,7 +765,7 @@ func (p *Parser) classElem() (Node, error) {
 			return p.field(key, nil)
 		} else if ahead.value == T_BRACE_L {
 			return p.staticBlock(staticLoc)
-		} else if ahead.value == T_PAREN_L {
+		} else if p.aheadIsArgList(ahead) {
 			key := &Ident{N_NAME, p.finLoc(p.locFromTok(tok)), "static", false, tok.ContainsEscape(), nil, true, p.newTypInfo()}
 			return p.method(staticLoc, key, nil, false, PK_METHOD, false, false, false, true, false)
 		}
@@ -807,7 +807,7 @@ func (p *Parser) classElem() (Node, error) {
 		}
 
 		kd := PK_INIT
-		if ahead.value == T_PAREN_L {
+		if p.aheadIsArgList(ahead) {
 			kd = PK_METHOD
 			if name == "constructor" {
 				kd = PK_CTOR
@@ -877,7 +877,7 @@ func (p *Parser) field(key Node, static *Loc) (Node, error) {
 		if err != nil {
 			return nil, err
 		}
-	} else if tok.value == T_PAREN_L {
+	} else if p.aheadIsArgList(tok) {
 		if static != nil {
 			loc = static
 		}
@@ -1608,7 +1608,7 @@ func (p *Parser) aheadIsAsync(tok *Token, prop bool, pvt bool) bool {
 			return false
 		}
 		if ahead.value == T_FUNC ||
-			(ahead.value == T_PAREN_L && !prop) ||
+			(p.aheadIsArgList(ahead) && !prop) ||
 			ahead.value == T_MUL {
 			return true
 		}
@@ -1706,13 +1706,14 @@ func (p *Parser) fnDec(expr bool, async *Token, canNameOmitted bool) (Node, erro
 	}
 
 	var args []Node
+	var typArgs []Node
 	ahead := p.lexer.Peek()
 	if id != nil && ahead.value == T_ARROW && !ahead.afterLineTerminator {
 		// async a => {}
 		args = make([]Node, 1)
 		args[0] = id
 	} else if fn {
-		args, _, err = p.paramList(false, false)
+		args, _, typArgs, err = p.paramList(false, false, true)
 		if err != nil {
 			return nil, err
 		}
@@ -1721,7 +1722,7 @@ func (p *Parser) fnDec(expr bool, async *Token, canNameOmitted bool) (Node, erro
 		// below `argsToFormalParams`
 		p.checkName = false
 		scope.AddKind(SPK_FORMAL_PARAMS)
-		args, _, err = p.argList(false, false)
+		args, _, typArgs, err = p.argList(false, false)
 		scope.EraseKind(SPK_FORMAL_PARAMS)
 		p.checkName = true
 		if err != nil {
@@ -1816,7 +1817,16 @@ func (p *Parser) fnDec(expr bool, async *Token, canNameOmitted bool) (Node, erro
 			if err := p.checkArgs(args, false, true); err != nil {
 				return nil, err
 			}
-			expr = &CallExpr{N_EXPR_CALL, p.finLoc(loc), lhs, args, false, nil}
+			ti := p.newTypInfo()
+			if ti != nil {
+				// typArgs is produced by `argList` in this branch, so it's required
+				// to do a typeParam to typeArg transformation
+				if err = p.tsCheckTypArgs(typArgs); err != nil {
+					return nil, err
+				}
+				ti.typArgs = typArgs
+			}
+			expr = &CallExpr{N_EXPR_CALL, p.finLoc(loc), lhs, args, false, nil, ti}
 		}
 
 		return &ExprStmt{N_STMT_EXPR, p.finLoc(loc.Clone()), expr, false}, nil
@@ -2317,7 +2327,7 @@ func (p *Parser) ident(scope *Scope, binding bool) (*Ident, error) {
 
 func (p *Parser) accMod() (ACC_MOD, *Loc, error) {
 	if !p.ts() {
-		return ACC_MOD_PUB, nil, nil
+		return ACC_MOD_NONE, nil, nil
 	}
 
 	var loc *Loc
@@ -2431,16 +2441,29 @@ func (p *Parser) param(ctor bool) (Node, error) {
 
 // `ctor` indicates this method is called when processing the constructor method of class,
 // in that case the access modifier is needed to be considered as long as TS is enabled
-func (p *Parser) paramList(firstRough bool, ctor bool) ([]Node, *Loc, error) {
+func (p *Parser) paramList(firstRough bool, ctor bool, typParams bool) ([]Node, *Loc, []Node, error) {
 	scope := p.scope()
 	p.checkName = false
 	scope.AddKind(SPK_FORMAL_PARAMS)
 
+	var tp []Node
+	var err error
+	var loc *Loc
+	if typParams {
+		tp, loc, err = p.tsTryTypParams()
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		if ctor && loc != nil {
+			return nil, nil, nil, p.errorAtLoc(loc, ERR_CTOR_CANNOT_WITH_TYPE_PARAMS)
+		}
+	}
+
 	tok, err := p.nextMustTok(T_PAREN_L)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
-	loc := p.locFromTok(tok)
+	loc = p.locFromTok(tok)
 
 	params := make([]Node, 0)
 	i := 0
@@ -2449,7 +2472,7 @@ func (p *Parser) paramList(firstRough bool, ctor bool) ([]Node, *Loc, error) {
 		if tok.value == T_PAREN_R {
 			break
 		} else if tok.value == T_EOF {
-			return nil, nil, p.errorTok(tok)
+			return nil, nil, nil, p.errorTok(tok)
 		}
 
 		var param Node
@@ -2460,7 +2483,7 @@ func (p *Parser) paramList(firstRough bool, ctor bool) ([]Node, *Loc, error) {
 			param, err = p.param(ctor)
 		}
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 		params = append(params, param)
 		i += 1
@@ -2475,20 +2498,20 @@ func (p *Parser) paramList(firstRough bool, ctor bool) ([]Node, *Loc, error) {
 				if ahead.value != T_PAREN_R {
 					msg = ERR_REST_ELEM_MUST_LAST
 				}
-				return nil, nil, p.errorAt(tok.value, &tok.begin, msg)
+				return nil, nil, nil, p.errorAt(tok.value, &tok.begin, msg)
 			}
 		} else if av != T_PAREN_R {
-			return nil, nil, p.errorTok(ahead)
+			return nil, nil, nil, p.errorTok(ahead)
 		}
 	}
 
 	if _, err := p.nextMustTok(T_PAREN_R); err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	scope.EraseKind(SPK_FORMAL_PARAMS)
 	p.checkName = true
-	return params, loc, nil
+	return params, loc, tp, nil
 }
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-statements-and-declarations.html#sec-destructuring-binding-patterns
@@ -3084,7 +3107,7 @@ func (p *Parser) awaitExpr(tok *Token) (Node, error) {
 		return nil, p.errorAt(tok.value, &tok.begin, ERR_AWAIT_OUTSIDE_ASYNC)
 	}
 
-	arg, err := p.unaryExpr()
+	arg, err := p.unaryExpr(nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -3092,13 +3115,23 @@ func (p *Parser) awaitExpr(tok *Token) (Node, error) {
 }
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-expressions.html#prod-UnaryExpression
-func (p *Parser) unaryExpr() (Node, error) {
+func (p *Parser) unaryExpr(typArgs []Node, typArgsLoc *Loc) (Node, error) {
+	var err error
+	if typArgs == nil {
+		typArgs, typArgsLoc, err = p.tsTryTypArgs()
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	tok := p.lexer.Peek()
 	loc := p.locFromTok(tok)
 	op := tok.value
-	if tok.IsUnary() || tok.value == T_ADD || tok.value == T_SUB {
-		p.lexer.Next()
-		arg, err := p.unaryExpr()
+	if tok.IsUnary() || op == T_ADD || op == T_SUB || (op == T_LT && p.ts() && p.feat&FEAT_JSX == 0) {
+		if op != T_LT {
+			p.lexer.Next()
+		}
+		arg, err := p.unaryExpr(nil, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -3132,30 +3165,46 @@ func (p *Parser) unaryExpr() (Node, error) {
 			}
 		}
 
+		if op == T_LT {
+			arg, err = p.tsTypAssert(arg, typArgs, typArgsLoc)
+			if err != nil {
+				return nil, err
+			}
+
+			return arg, nil
+		}
+
 		return &UnaryExpr{N_EXPR_UNARY, p.finLoc(loc), op, arg, nil}, nil
-	} else if tok.value == T_AWAIT {
+	}
+
+	if tok.value == T_AWAIT {
 		if p.feat&FEAT_ASYNC_AWAIT == 0 {
 			return nil, p.errorTok(tok)
 		}
 		p.lexer.Next()
 		return p.awaitExpr(tok)
 	}
-	return p.updateExpr()
+	return p.updateExpr(typArgs, typArgsLoc)
 }
 
-func (p *Parser) updateExpr() (Node, error) {
+func (p *Parser) updateExpr(typArgs []Node, typArgsLoc *Loc) (Node, error) {
 	loc := p.loc()
 	tok := p.lexer.Peek()
 	if tok.value == T_INC || tok.value == T_DEC {
 		p.lexer.Next()
-		arg, err := p.unaryExpr()
+		arg, err := p.unaryExpr(nil, nil)
 		if err != nil {
 			return nil, err
 		}
 		if !p.isSimpleLVal(arg, true, false, true, false) {
 			return nil, p.errorAtLoc(arg.Loc(), ERR_ASSIGN_TO_RVALUE)
 		}
-		return &UpdateExpr{N_EXPR_UPDATE, p.finLoc(loc), tok.value, true, arg, nil}, nil
+		ud := &UpdateExpr{N_EXPR_UPDATE, p.finLoc(loc), tok.value, true, arg, nil}
+		arg, err = p.tsTypAssert(ud, typArgs, typArgsLoc)
+		if err != nil {
+			return nil, err
+		}
+		return arg, nil
 	}
 
 	arg, err := p.lhs()
@@ -3166,6 +3215,23 @@ func (p *Parser) updateExpr() (Node, error) {
 	tok = p.lexer.Peek()
 	postfix := !tok.afterLineTerminator && (tok.value == T_INC || tok.value == T_DEC)
 	if !postfix {
+		// for the type info before the arrow fn in this stmt `let a = <T, R>(a: T): void => { a++ }`,
+		// it's typeParams of the arrowFn rather than typeAssert
+		if arg.Type() == N_EXPR_ARROW {
+			ti := arg.(NodeWithTypInfo).TypInfo()
+			if ti != nil {
+				if err := p.tsTypArgsToTypParams(typArgs); err != nil {
+					return nil, err
+				}
+				ti.typParams = typArgs
+			}
+			return arg, nil
+		}
+
+		arg, err = p.tsTypAssert(arg, typArgs, typArgsLoc)
+		if err != nil {
+			return nil, err
+		}
 		return arg, nil
 	}
 
@@ -3174,7 +3240,13 @@ func (p *Parser) updateExpr() (Node, error) {
 	}
 
 	p.lexer.Next()
-	return &UpdateExpr{N_EXPR_UPDATE, p.finLoc(loc), tok.value, false, arg, nil}, nil
+
+	ud := &UpdateExpr{N_EXPR_UPDATE, p.finLoc(loc), tok.value, false, arg, nil}
+	ta, err := p.tsTypAssert(ud, typArgs, typArgsLoc)
+	if err != nil {
+		return nil, err
+	}
+	return ta, nil
 }
 
 func (p *Parser) lhs() (Node, error) {
@@ -3235,20 +3307,28 @@ func (p *Parser) newExpr() (Node, error) {
 	}
 
 	var args []Node
-	if p.lexer.Peek().value == T_PAREN_L {
-		args, _, err = p.argList(true, true)
+	var typArgs []Node
+	if p.aheadIsArgList(p.lexer.Peek()) {
+		args, _, typArgs, err = p.argList(true, true)
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	var ret Node
-	ret = &NewExpr{N_EXPR_NEW, p.finLoc(loc), expr, args, nil}
+	ti := p.newTypInfo()
+	if ti != nil {
+		if err = p.tsCheckTypArgs(typArgs); err != nil {
+			return nil, err
+		}
+		ti.typArgs = typArgs
+	}
+	ret = &NewExpr{N_EXPR_NEW, p.finLoc(loc), expr, args, nil, ti}
 	root := true
 	for {
 		tok := p.lexer.Peek()
 		tv := tok.value
-		if tv == T_PAREN_L {
+		if p.aheadIsArgList(tok) {
 			if ret, _, err = p.callExpr(ret, root, false, nil); err != nil {
 				return nil, err
 			}
@@ -3289,6 +3369,11 @@ func (p *Parser) checkCallee(callee Node, nextLoc *Loc) error {
 	return nil
 }
 
+func (p *Parser) aheadIsArgList(tok *Token) bool {
+	tv := tok.value
+	return tv == T_PAREN_L || (tv == T_LT && p.ts())
+}
+
 // https://tc39.es/ecma262/multipage/ecmascript-language-expressions.html#prod-CallExpression
 func (p *Parser) callExpr(callee Node, root bool, directOpt bool, opt *Loc) (Node, *Loc, error) {
 	var loc *Loc
@@ -3303,24 +3388,31 @@ func (p *Parser) callExpr(callee Node, root bool, directOpt bool, opt *Loc) (Nod
 		loc = callee.Loc().Clone()
 	}
 
-	ahead := p.lexer.Peek()
-	if ahead.value == T_PAREN_L {
-		if err = p.checkCallee(callee, p.locFromTok(ahead)); err != nil {
-			return nil, nil, err
-		}
-	}
-
 	firstOpt := opt
 	var fo *Loc
 	for {
 		tok := p.lexer.Peek()
 		tv := tok.value
-		if tv == T_PAREN_L {
-			args, _, err := p.argList(true, true)
+		if p.aheadIsArgList(tok) {
+			aheadLoc := p.locFromTok(tok)
+
+			args, _, typArgs, err := p.argList(true, true)
 			if err != nil {
 				return nil, nil, err
 			}
-			callee = &CallExpr{N_EXPR_CALL, p.finLoc(loc), callee, args, directOpt, nil}
+			ti := p.newTypInfo()
+			if ti != nil {
+				if err = p.tsCheckTypArgs(typArgs); err != nil {
+					return nil, nil, err
+				}
+				ti.typArgs = typArgs
+			}
+
+			if err = p.checkCallee(callee, aheadLoc); err != nil {
+				return nil, nil, err
+			}
+
+			callee = &CallExpr{N_EXPR_CALL, p.finLoc(loc), callee, args, directOpt, nil, ti}
 		} else if tv == T_BRACKET_L || tv == T_DOT || tv == T_OPT_CHAIN {
 			callee, fo, err = p.memberExpr(callee, true, root, firstOpt)
 			if err != nil {
@@ -3890,9 +3982,14 @@ func (p *Parser) checkArgs(args []Node, spread bool, simplicity bool) error {
 	return nil
 }
 
-func (p *Parser) argList(check bool, incall bool) ([]Node, *Loc, error) {
+func (p *Parser) argList(check bool, incall bool) ([]Node, *Loc, []Node, error) {
+	typArgs, _, err := p.tsTryTypArgs()
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
 	if _, err := p.nextMustTok(T_PAREN_L); err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	var tailingComma *Loc
@@ -3902,11 +3999,11 @@ func (p *Parser) argList(check bool, incall bool) ([]Node, *Loc, error) {
 		if tok.value == T_PAREN_R {
 			break
 		} else if tok.value == T_EOF {
-			return nil, nil, p.errorTok(tok)
+			return nil, nil, nil, p.errorTok(tok)
 		}
 		arg, err := p.arg()
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 
 		ahead := p.lexer.Peek()
@@ -3922,20 +4019,20 @@ func (p *Parser) argList(check bool, incall bool) ([]Node, *Loc, error) {
 				if ahead.value != T_PAREN_R {
 					msg = ERR_REST_ELEM_MUST_LAST
 				}
-				return nil, tailingComma, p.errorAt(tok.value, &tok.begin, msg)
+				return nil, tailingComma, nil, p.errorAt(tok.value, &tok.begin, msg)
 			}
 			if tailingComma == nil && ahead.value == T_PAREN_R {
 				tailingComma = p.locFromTok(tok)
 			}
 		} else if av != T_PAREN_R {
-			return nil, nil, p.errorTok(ahead)
+			return nil, nil, nil, p.errorTok(ahead)
 		}
 
 		if check {
 			// `spread` or `pattern_rest` expression is legal argument:
 			// `f(c, b, ...a)`
 			if err := p.checkArg(arg, true, false); err != nil {
-				return nil, nil, err
+				return nil, nil, nil, err
 			}
 		}
 
@@ -3943,9 +4040,9 @@ func (p *Parser) argList(check bool, incall bool) ([]Node, *Loc, error) {
 	}
 
 	if _, err := p.nextMustTok(T_PAREN_R); err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
-	return args, tailingComma, nil
+	return args, tailingComma, typArgs, nil
 }
 
 // consider below exprs:
@@ -3977,7 +4074,7 @@ func (p *Parser) checkOp(tok *Token) error {
 func (p *Parser) binExpr(lhs Node, minPcd int, logic bool, nullish bool) (Node, error) {
 	var err error
 	if lhs == nil {
-		if lhs, err = p.unaryExpr(); err != nil {
+		if lhs, err = p.unaryExpr(nil, nil); err != nil {
 			return nil, err
 		}
 	}
@@ -4010,7 +4107,7 @@ func (p *Parser) binExpr(lhs Node, minPcd int, logic bool, nullish bool) (Node, 
 		}
 		opLoc := p.locFromTok(p.lexer.Next())
 
-		rhs, err := p.unaryExpr()
+		rhs, err := p.unaryExpr(nil, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -4076,7 +4173,7 @@ func (p *Parser) memberExpr(obj Node, call bool, root bool, optLoc *Loc) (Node, 
 				if obj, err = p.memberExprPropSubscript(obj, true); err != nil {
 					return nil, nil, err
 				}
-			} else if av == T_PAREN_L { // a?.()
+			} else if p.aheadIsArgList(ahead) { // a?.()
 				if obj, _, err = p.callExpr(obj, false, true, optLoc); err != nil {
 					return nil, nil, err
 				}
@@ -4112,7 +4209,7 @@ func (p *Parser) memberExpr(obj Node, call bool, root bool, optLoc *Loc) (Node, 
 		}
 	}
 
-	if call && p.lexer.Peek().value == T_PAREN_L {
+	if call && p.aheadIsArgList(p.lexer.Peek()) {
 		return p.callExpr(obj, root, false, optLoc)
 	}
 
@@ -4220,9 +4317,9 @@ func (p *Parser) primaryExpr() (Node, error) {
 		return &Ident{N_NAME, p.finLoc(loc), name, false, tok.ContainsEscape(), nil, kw, p.newTypInfo()}, nil
 	case T_THIS:
 		p.lexer.Next()
-		return &ThisExpr{N_EXPR_THIS, p.finLoc(loc), nil}, nil
+		return &ThisExpr{N_EXPR_THIS, p.finLoc(loc), nil, nil}, nil
 	case T_PAREN_L:
-		return p.parenExpr()
+		return p.parenExpr(nil, nil)
 	case T_BRACKET_L:
 		return p.arrLit()
 	case T_BRACE_L:
@@ -4252,21 +4349,32 @@ func (p *Parser) primaryExpr() (Node, error) {
 		if ahead.value != T_DOT && ahead.value != T_PAREN_L {
 			return nil, p.errorTok(sup)
 		}
-		return &Super{N_SUPER, p.finLoc(loc), nil}, nil
+		return &Super{N_SUPER, p.finLoc(loc), nil, nil}, nil
 	case T_IMPORT:
 		return p.importCall(nil)
 	case T_TPL_HEAD:
 		return p.tplExpr(nil)
 	case T_LT:
-		if p.feat&FEAT_JSX == 0 {
-			return nil, p.errorTok(tok)
+		if p.feat&FEAT_JSX != 0 {
+			return p.jsx(true, false)
+		} else if p.feat&FEAT_TS != 0 {
+			typArgs, typArgsLoc, err := p.tsTryTypArgs()
+			if err != nil {
+				return nil, err
+			}
+			ahead := p.lexer.Peek()
+			av := ahead.value
+			if av == T_PAREN_L {
+				return p.parenExpr(typArgs, typArgsLoc)
+			}
+			return p.unaryExpr(typArgs, typArgsLoc)
 		}
-		return p.jsx(true, false)
+		return nil, p.errorTok(tok)
 	}
 	return nil, p.errorTok(tok)
 }
 
-func (p *Parser) arrowFn(loc *Loc, args []Node, retTyp *TypInfo) (Node, error) {
+func (p *Parser) arrowFn(loc *Loc, args []Node, ti *TypInfo) (Node, error) {
 	params, err := p.argsToParams(args)
 	if err != nil {
 		return nil, err
@@ -4290,14 +4398,14 @@ func (p *Parser) arrowFn(loc *Loc, args []Node, retTyp *TypInfo) (Node, error) {
 		p.addLocalBinding(nil, ref, false, ref.Node.Text())
 	}
 
-	if retTyp == nil {
+	if ti == nil {
 		typAnnot, _, err := p.tsTypAnnot()
 		if err != nil {
 			return nil, err
 		}
-		retTyp = p.newTypInfo()
-		if retTyp != nil {
-			retTyp.typAnnot = typAnnot
+		ti = p.newTypInfo()
+		if ti != nil {
+			ti.typAnnot = typAnnot
 		}
 	}
 
@@ -4330,10 +4438,10 @@ func (p *Parser) arrowFn(loc *Loc, args []Node, retTyp *TypInfo) (Node, error) {
 
 	p.symtab.LeaveScope()
 
-	return &ArrowFn{N_EXPR_ARROW, p.finLoc(loc), arrowLoc, false, params, body, body.Type() != N_STMT_BLOCK, nil, retTyp}, nil
+	return &ArrowFn{N_EXPR_ARROW, p.finLoc(loc), arrowLoc, false, params, body, body.Type() != N_STMT_BLOCK, nil, ti}, nil
 }
 
-func (p *Parser) parenExpr() (Node, error) {
+func (p *Parser) parenExpr(typArgs []Node, typArgsLoc *Loc) (Node, error) {
 	loc := p.loc()
 
 	// the fnExpr and/or arrowExpr can not be followed by a pair of parens:
@@ -4349,9 +4457,13 @@ func (p *Parser) parenExpr() (Node, error) {
 	scope := p.symtab.EnterScope(false, false)
 	scope.AddKind(SPK_PAREN)
 	p.checkName = false
-	args, tailingComma, err := p.argList(false, false)
+	args, tailingComma, ta, err := p.argList(false, false)
 	p.checkName = true
 	p.symtab.LeaveScope()
+
+	if ta != nil {
+		typArgs = ta
+	}
 
 	if err != nil {
 		return nil, err
@@ -4364,6 +4476,7 @@ func (p *Parser) parenExpr() (Node, error) {
 	ti := p.newTypInfo()
 	if ti != nil {
 		ti.typAnnot = typAnnot
+		ti.typArgs = typArgs
 	}
 
 	// next is arrow-expression
@@ -4372,6 +4485,7 @@ func (p *Parser) parenExpr() (Node, error) {
 		return p.arrowFn(loc, args, ti)
 	}
 
+	// `():number` is illegal
 	if typLoc != nil {
 		return nil, p.errorAtLoc(typLoc, ERR_UNEXPECTED_TOKEN)
 	}
@@ -4391,7 +4505,15 @@ func (p *Parser) parenExpr() (Node, error) {
 	}
 
 	if argsLen == 1 {
-		return &ParenExpr{N_EXPR_PAREN, p.finLoc(loc), args[0], nil}, nil
+		pe := &ParenExpr{N_EXPR_PAREN, p.finLoc(loc), args[0], nil}
+		if ti == nil {
+			return pe, nil
+		}
+		node, err := p.tsTypAssert(pe, typArgs, typArgsLoc)
+		if err != nil {
+			return nil, err
+		}
+		return node, nil
 	}
 
 	seqLoc := args[0].Loc().Clone()
@@ -4399,7 +4521,15 @@ func (p *Parser) parenExpr() (Node, error) {
 	seqLoc.rng.end = end.rng.end
 	seqLoc.end = end.end.Clone()
 	seq := &SeqExpr{N_EXPR_SEQ, seqLoc, args, nil}
-	return &ParenExpr{N_EXPR_PAREN, p.finLoc(loc), seq, nil}, nil
+	pe := &ParenExpr{N_EXPR_PAREN, p.finLoc(loc), seq, nil}
+	if ti == nil {
+		return pe, nil
+	}
+	node, err := p.tsTypAssert(pe, typArgs, typArgsLoc)
+	if err != nil {
+		return nil, err
+	}
+	return node, nil
 }
 
 func (p *Parser) UnParen(expr Node) Node {
@@ -4569,7 +4699,7 @@ func (p *Parser) propData() (Node, error) {
 		if err != nil {
 			return nil, err
 		}
-	} else if tok.value == T_PAREN_L {
+	} else if p.aheadIsArgList(tok) {
 		return p.method(loc, key, compute, false, PK_INIT, false, false, false, false, false)
 	} else if compute != nil {
 		return nil, p.errorAt(tok.value, &tok.begin, ERR_COMPUTE_PROP_MISSING_INIT)
@@ -4646,7 +4776,7 @@ func (p *Parser) method(loc *Loc, key Node, compute *Loc, shorthand bool, kind P
 	}
 
 	fnLoc := p.loc()
-	params, _, err := p.paramList(false, ctor && p.ts())
+	params, _, typParams, err := p.paramList(false, ctor && p.ts(), true)
 	if err != nil {
 		return nil, err
 	}
@@ -4672,6 +4802,7 @@ func (p *Parser) method(loc *Loc, key Node, compute *Loc, shorthand bool, kind P
 	ti := p.newTypInfo()
 	if ti != nil {
 		ti.typAnnot = typAnnot
+		ti.typParams = typParams
 	}
 
 	if kind == PK_GETTER && len(params) > 0 {

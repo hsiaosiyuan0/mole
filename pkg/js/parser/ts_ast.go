@@ -14,6 +14,10 @@ func (n *TsPredef) Loc() *Loc {
 	return n.loc
 }
 
+func (n *TsPredef) Text() string {
+	return n.loc.Text()
+}
+
 type TsThis struct {
 	typ NodeType
 	loc *Loc
@@ -275,5 +279,20 @@ func (n *TsIntersecTyp) Type() NodeType {
 }
 
 func (n *TsIntersecTyp) Loc() *Loc {
+	return n.loc
+}
+
+type TsTypAssert struct {
+	typ NodeType
+	loc *Loc
+	des Node
+	arg Node
+}
+
+func (n *TsTypAssert) Type() NodeType {
+	return n.typ
+}
+
+func (n *TsTypAssert) Loc() *Loc {
 	return n.loc
 }

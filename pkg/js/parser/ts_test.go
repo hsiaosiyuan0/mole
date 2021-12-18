@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/hsiaosiyuan0/mole/pkg/assert"
@@ -369,4 +370,355 @@ func TestTs29(t *testing.T) {
 
 	param0 := m.value.(*FnDec).params[0].(*Ident)
 	assert.Equal(t, N_TS_STR, param0.ti.typAnnot.Type(), "should be ok")
+}
+
+func TestTs30(t *testing.T) {
+	// arguments
+	ast, err := compileTs(`f<string | number, void>()`, nil)
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	prog := ast.(*Prog)
+	c := prog.stmts[0].(*ExprStmt).expr.(*CallExpr)
+	assert.Equal(t, 2, len(c.ti.typArgs), "should be ok")
+
+	assert.Equal(t, N_TS_VOID, c.ti.typArgs[1].Type(), "should be ok")
+}
+
+func TestTs31(t *testing.T) {
+	// arguments
+	ast, err := compileTs(`f<string>()<number>()`, nil)
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	prog := ast.(*Prog)
+	c := prog.stmts[0].(*ExprStmt).expr.(*CallExpr)
+	assert.Equal(t, 1, len(c.ti.typArgs), "should be ok")
+	assert.Equal(t, N_TS_NUM, c.ti.typArgs[0].Type(), "should be ok")
+
+	c = prog.stmts[0].(*ExprStmt).expr.(*CallExpr).callee.(*CallExpr)
+	assert.Equal(t, 1, len(c.ti.typArgs), "should be ok")
+	assert.Equal(t, N_TS_STR, c.ti.typArgs[0].Type(), "should be ok")
+}
+
+func TestTs32(t *testing.T) {
+	// arguments
+	ast, err := compileTs(`f<string>().f<number>()`, nil)
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	prog := ast.(*Prog)
+	c := prog.stmts[0].(*ExprStmt).expr.(*CallExpr)
+	assert.Equal(t, 1, len(c.ti.typArgs), "should be ok")
+	assert.Equal(t, N_TS_NUM, c.ti.typArgs[0].Type(), "should be ok")
+
+	m := prog.stmts[0].(*ExprStmt).expr.(*CallExpr).callee.(*MemberExpr)
+	c = m.obj.(*CallExpr)
+	assert.Equal(t, 1, len(c.ti.typArgs), "should be ok")
+	assert.Equal(t, N_TS_STR, c.ti.typArgs[0].Type(), "should be ok")
+}
+
+func TestTs33(t *testing.T) {
+	// arguments
+	ast, err := compileTs(`new f<string>()<number>()`, nil)
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	prog := ast.(*Prog)
+	c := prog.stmts[0].(*ExprStmt).expr.(*CallExpr)
+	assert.Equal(t, 1, len(c.ti.typArgs), "should be ok")
+	assert.Equal(t, N_TS_NUM, c.ti.typArgs[0].Type(), "should be ok")
+
+	n := c.callee.(*NewExpr)
+	assert.Equal(t, 1, len(n.ti.typArgs), "should be ok")
+	assert.Equal(t, N_TS_STR, n.ti.typArgs[0].Type(), "should be ok")
+}
+
+func TestTs34(t *testing.T) {
+	// arguments
+	ast, err := compileTs(`class A {
+    m<T, R>(): void { }
+}`, nil)
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	prog := ast.(*Prog)
+	dec := prog.stmts[0].(*ClassDec)
+	assert.Equal(t, "A", dec.id.(*Ident).Text(), "should be ok")
+
+	m := dec.body.(*ClassBody).elems[0].(*Method)
+	assert.Equal(t, PK_METHOD, m.kind, "should be ok")
+	assert.Equal(t, N_TS_VOID, m.value.(*FnDec).ti.typAnnot.Type(), "should be ok")
+
+	tp := m.value.(*FnDec).ti.typParams
+	assert.Equal(t, 2, len(tp), "should be ok")
+	assert.Equal(t, "R", tp[1].(*TsParam).name.(*Ident).Text(), "should be ok")
+}
+
+func TestTs35(t *testing.T) {
+	// arguments
+	ast, err := compileTs(`let a = {
+    m<T>(): void { }
+}`, nil)
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	prog := ast.(*Prog)
+	dec := prog.stmts[0].(*VarDecStmt).decList[0].(*VarDec)
+	assert.Equal(t, "a", dec.id.(*Ident).Text(), "should be ok")
+
+	obj := dec.init.(*ObjLit)
+	prop0 := obj.props[0].(*Prop)
+	fn := prop0.value.(*FnDec)
+	assert.Equal(t, N_TS_VOID, fn.ti.typAnnot.Type(), "should be ok")
+	assert.Equal(t, "T", fn.ti.typParams[0].(*TsParam).name.(*Ident).Text(), "should be ok")
+}
+
+func TestTs36(t *testing.T) {
+	// arguments
+	opts := NewParserOpts()
+	opts.Feature = opts.Feature.Off(FEAT_JSX)
+	ast, err := compileTs(`let f = <T>(a: T) => {}`, opts)
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	fmt.Println(ast)
+}
+
+func TestTs37(t *testing.T) {
+	// arguments
+	opts := NewParserOpts()
+	opts.Feature = opts.Feature.Off(FEAT_JSX)
+	ast, err := compileTs(`let a = { m: <T, R>(a: T): void => { a++ } }`, opts)
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	prog := ast.(*Prog)
+	dec := prog.stmts[0].(*VarDecStmt).decList[0].(*VarDec)
+	assert.Equal(t, "a", dec.id.(*Ident).Text(), "should be ok")
+
+	obj := dec.init.(*ObjLit)
+	prop0 := obj.props[0].(*Prop)
+	fn := prop0.value.(*ArrowFn)
+	assert.Equal(t, N_TS_VOID, fn.ti.typAnnot.Type(), "should be ok")
+	assert.Equal(t, 2, len(fn.ti.typParams), "should be ok")
+	assert.Equal(t, "R", fn.ti.typParams[1].(*TsParam).name.(*Ident).Text(), "should be ok")
+	assert.Equal(t, 1, len(fn.body.(*BlockStmt).body), "should be ok")
+}
+
+func TestTs38(t *testing.T) {
+	// arguments
+	opts := NewParserOpts()
+	opts.Feature = opts.Feature.Off(FEAT_JSX)
+	ast, err := compileTs(`class A {
+    m<T>() { }
+}`, opts)
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	prog := ast.(*Prog)
+	dec := prog.stmts[0].(*ClassDec)
+	assert.Equal(t, "A", dec.id.(*Ident).Text(), "should be ok")
+
+	m := dec.body.(*ClassBody).elems[0].(*Method)
+	assert.Equal(t, PK_METHOD, m.kind, "should be ok")
+	assert.Equal(t, nil, m.value.(*FnDec).ti.typAnnot, "should be ok")
+
+	tp := m.value.(*FnDec).ti.typParams
+	assert.Equal(t, 1, len(tp), "should be ok")
+	assert.Equal(t, "T", tp[0].(*TsParam).name.(*Ident).Text(), "should be ok")
+}
+
+func TestTs39(t *testing.T) {
+	// arguments
+	opts := NewParserOpts()
+	opts.Feature = opts.Feature.Off(FEAT_JSX)
+	ast, err := compileTs(`class A {
+    set a<T>(a: T) { }
+}`, opts)
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	prog := ast.(*Prog)
+	dec := prog.stmts[0].(*ClassDec)
+	assert.Equal(t, "A", dec.id.(*Ident).Text(), "should be ok")
+
+	m := dec.body.(*ClassBody).elems[0].(*Method)
+	assert.Equal(t, PK_SETTER, m.kind, "should be ok")
+	assert.Equal(t, "a", m.key.(*Ident).Text(), "should be ok")
+	assert.Equal(t, nil, m.value.(*FnDec).ti.typAnnot, "should be ok")
+
+	tp := m.value.(*FnDec).ti.typParams
+	assert.Equal(t, 1, len(tp), "should be ok")
+	assert.Equal(t, "T", tp[0].(*TsParam).name.(*Ident).Text(), "should be ok")
+}
+
+func TestTs40(t *testing.T) {
+	// arguments
+	opts := NewParserOpts()
+	opts.Feature = opts.Feature.Off(FEAT_JSX)
+	ast, err := compileTs(`let a = <number>b`, opts)
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	prog := ast.(*Prog)
+	dec := prog.stmts[0].(*VarDecStmt).decList[0].(*VarDec)
+	assert.Equal(t, "a", dec.id.(*Ident).Text(), "should be ok")
+
+	ta := dec.init.(*TsTypAssert)
+	assert.Equal(t, N_TS_NUM, ta.des.Type(), "should be ok")
+	assert.Equal(t, "b", ta.arg.(*Ident).Text(), "should be ok")
+}
+
+func TestTs41(t *testing.T) {
+	// arguments
+	opts := NewParserOpts()
+	opts.Feature = opts.Feature.Off(FEAT_JSX)
+	ast, err := compileTs(`let a = <number>b++`, opts)
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	prog := ast.(*Prog)
+	dec := prog.stmts[0].(*VarDecStmt).decList[0].(*VarDec)
+	assert.Equal(t, "a", dec.id.(*Ident).Text(), "should be ok")
+
+	ta := dec.init.(*TsTypAssert)
+	assert.Equal(t, N_TS_NUM, ta.des.Type(), "should be ok")
+
+	up := ta.arg.(*UpdateExpr)
+	assert.Equal(t, "b", up.arg.(*Ident).Text(), "should be ok")
+}
+
+func TestTs42(t *testing.T) {
+	// arguments
+	opts := NewParserOpts()
+	opts.Feature = opts.Feature.Off(FEAT_JSX)
+	ast, err := compileTs(`let a = <number>++b`, opts)
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	prog := ast.(*Prog)
+	dec := prog.stmts[0].(*VarDecStmt).decList[0].(*VarDec)
+	assert.Equal(t, "a", dec.id.(*Ident).Text(), "should be ok")
+
+	ta := dec.init.(*TsTypAssert)
+	assert.Equal(t, N_TS_NUM, ta.des.Type(), "should be ok")
+
+	up := ta.arg.(*UpdateExpr)
+	assert.Equal(t, true, up.prefix, "should be ok")
+	assert.Equal(t, "b", up.arg.(*Ident).Text(), "should be ok")
+}
+
+func TestTs43(t *testing.T) {
+	// arguments
+	opts := NewParserOpts()
+	opts.Feature = opts.Feature.Off(FEAT_JSX)
+	ast, err := compileTs(`let a = <number><string>b++`, opts)
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	prog := ast.(*Prog)
+	dec := prog.stmts[0].(*VarDecStmt).decList[0].(*VarDec)
+	assert.Equal(t, "a", dec.id.(*Ident).Text(), "should be ok")
+
+	ta := dec.init.(*TsTypAssert)
+	assert.Equal(t, N_TS_NUM, ta.des.Type(), "should be ok")
+
+	ta = ta.arg.(*TsTypAssert)
+	assert.Equal(t, N_TS_STR, ta.des.Type(), "should be ok")
+
+	up := ta.arg.(*UpdateExpr)
+	assert.Equal(t, "b", up.arg.(*Ident).Text(), "should be ok")
+}
+
+func TestTs44(t *testing.T) {
+	// arguments
+	opts := NewParserOpts()
+	opts.Feature = opts.Feature.Off(FEAT_JSX)
+	ast, err := compileTs(`let a = <number><string><boolean>b++`, opts)
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	prog := ast.(*Prog)
+	dec := prog.stmts[0].(*VarDecStmt).decList[0].(*VarDec)
+	assert.Equal(t, "a", dec.id.(*Ident).Text(), "should be ok")
+
+	ta := dec.init.(*TsTypAssert)
+	assert.Equal(t, N_TS_NUM, ta.des.Type(), "should be ok")
+
+	ta = ta.arg.(*TsTypAssert)
+	assert.Equal(t, N_TS_STR, ta.des.Type(), "should be ok")
+
+	ta = ta.arg.(*TsTypAssert)
+	assert.Equal(t, N_TS_BOOL, ta.des.Type(), "should be ok")
+
+	up := ta.arg.(*UpdateExpr)
+	assert.Equal(t, "b", up.arg.(*Ident).Text(), "should be ok")
+}
+
+func TestTs45(t *testing.T) {
+	// arguments
+	opts := NewParserOpts()
+	opts.Feature = opts.Feature.Off(FEAT_JSX)
+	ast, err := compileTs(`let a = <number><string><boolean>++b`, opts)
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	prog := ast.(*Prog)
+	dec := prog.stmts[0].(*VarDecStmt).decList[0].(*VarDec)
+	assert.Equal(t, "a", dec.id.(*Ident).Text(), "should be ok")
+
+	ta := dec.init.(*TsTypAssert)
+	assert.Equal(t, N_TS_NUM, ta.des.Type(), "should be ok")
+
+	ta = ta.arg.(*TsTypAssert)
+	assert.Equal(t, N_TS_STR, ta.des.Type(), "should be ok")
+
+	ta = ta.arg.(*TsTypAssert)
+	assert.Equal(t, N_TS_BOOL, ta.des.Type(), "should be ok")
+
+	up := ta.arg.(*UpdateExpr)
+	assert.Equal(t, true, up.prefix, "should be ok")
+	assert.Equal(t, "b", up.arg.(*Ident).Text(), "should be ok")
+}
+
+func TestTs46(t *testing.T) {
+	// arguments
+	opts := NewParserOpts()
+	opts.Feature = opts.Feature.Off(FEAT_JSX)
+	ast, err := compileTs(`let a = 1 + <number><string>b++`, opts)
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	prog := ast.(*Prog)
+	dec := prog.stmts[0].(*VarDecStmt).decList[0].(*VarDec)
+	assert.Equal(t, "a", dec.id.(*Ident).Text(), "should be ok")
+
+	bin := dec.init.(*BinExpr)
+	ta := bin.rhs.(*TsTypAssert)
+	assert.Equal(t, N_TS_NUM, ta.des.Type(), "should be ok")
+
+	ta = ta.arg.(*TsTypAssert)
+	assert.Equal(t, N_TS_STR, ta.des.Type(), "should be ok")
+
+	up := ta.arg.(*UpdateExpr)
+	assert.Equal(t, "b", up.arg.(*Ident).Text(), "should be ok")
+}
+
+func TestTs47(t *testing.T) {
+	// arguments
+	opts := NewParserOpts()
+	opts.Feature = opts.Feature.Off(FEAT_JSX)
+	ast, err := compileTs(`let a = { m: <T, R extends string>(a: T): void => { a++ } }`, opts)
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	prog := ast.(*Prog)
+	dec := prog.stmts[0].(*VarDecStmt).decList[0].(*VarDec)
+	assert.Equal(t, "a", dec.id.(*Ident).Text(), "should be ok")
+
+	obj := dec.init.(*ObjLit)
+	prop0 := obj.props[0].(*Prop)
+	fn := prop0.value.(*ArrowFn)
+	assert.Equal(t, N_TS_VOID, fn.ti.typAnnot.Type(), "should be ok")
+	assert.Equal(t, 2, len(fn.ti.typParams), "should be ok")
+	assert.Equal(t, "R", fn.ti.typParams[1].(*TsParam).name.(*Ident).Text(), "should be ok")
+	assert.Equal(t, "string", fn.ti.typParams[1].(*TsParam).cons.(*TsPredef).Text(), "should be ok")
+	assert.Equal(t, 1, len(fn.body.(*BlockStmt).body), "should be ok")
+}
+
+func TestTs48(t *testing.T) {
+	// arguments
+	opts := NewParserOpts()
+	opts.Feature = opts.Feature.Off(FEAT_JSX)
+
+	_, err := compileTs(`class A {
+    constructor<T>(): T { }
+}`, opts)
+
+	assert.Equal(t,
+		"Type parameters cannot appear on a constructor declaration at (2:15)",
+		err.Error(), "should be prog ok")
 }

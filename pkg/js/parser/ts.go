@@ -15,7 +15,7 @@ func (p *Parser) ts() bool {
 
 func (p *Parser) newTypInfo() *TypInfo {
 	if p.ts() {
-		return &TypInfo{ACC_MOD_PUB, nil, nil}
+		return &TypInfo{ACC_MOD_PUB, nil, nil, nil, nil}
 	}
 	return nil
 }
@@ -88,11 +88,7 @@ func (p *Parser) tsUnionOrIntersecType(lhs Node, rough bool) (Node, error) {
 
 func (p *Parser) tsConstructTyp() (Node, error) {
 	loc := p.locFromTok(p.lexer.Next())
-	typParams, _, err := p.tsTypParams()
-	if err != nil {
-		return nil, err
-	}
-	params, _, err := p.paramList(false, false)
+	params, _, typParams, err := p.paramList(false, false, true)
 	if err != nil {
 		return nil, err
 	}
@@ -126,6 +122,23 @@ func (p *Parser) tsNodeTypAnnot(binding Node, typAnnot Node, accMod ACC_MOD) boo
 		return true
 	}
 	return false
+}
+
+// `TypeAssertionExpression`
+func (p *Parser) tsTypAssert(node Node, typArgs []Node, typArgsLoc *Loc) (Node, error) {
+	if len(typArgs) == 0 {
+		return node, nil
+	}
+
+	if !p.ts() {
+		return nil, p.errorAtLoc(typArgsLoc, ERR_UNEXPECTED_TOKEN)
+	}
+
+	if len(typArgs) > 1 {
+		return nil, p.errorAtLoc(typArgs[1].Loc(), ERR_UNEXPECTED_TOKEN)
+	}
+
+	return &TsTypAssert{N_TS_TYP_ASSERT, p.finLoc(typArgsLoc), typArgs[0], node}, nil
 }
 
 func (p *Parser) tsAdvanceOp() *Loc {
@@ -320,7 +333,7 @@ func (p *Parser) tsRoughParamToTyp(node Node) (Node, error) {
 
 // `ParenthesizedType` or`FunctionType`
 func (p *Parser) tsParen(keepParen bool) (Node, error) {
-	params, loc, err := p.paramList(true, false)
+	params, loc, _, err := p.paramList(true, false, false)
 	if err != nil {
 		return nil, err
 	}
@@ -379,21 +392,7 @@ func (p *Parser) tsFnTyp(params []Node, parenL *Loc) (Node, error) {
 		loc = parenL
 	}
 	if params == nil {
-		tok := p.lexer.Next()
-		loc = p.locFromTok(tok)
-		tv := tok.value
-
-		if tv == T_LT {
-			typParams, _, err = p.tsTypParams()
-			if err != nil {
-				return nil, err
-			}
-			if _, err = p.nextMustTok(T_PAREN_L); err != nil {
-				return nil, err
-			}
-		}
-
-		params, _, err = p.paramList(false, false)
+		params, _, typParams, err = p.paramList(false, false, true)
 		if err != nil {
 			return nil, err
 		}
@@ -599,11 +598,7 @@ func (p *Parser) tsObj(rough bool) (Node, error) {
 
 func (p *Parser) tsNewSig(loc *Loc) (Node, error) {
 	p.lexer.Next()
-	typParams, _, err := p.tsTypParams()
-	if err != nil {
-		return nil, err
-	}
-	params, _, err := p.paramList(false, false)
+	params, _, typParams, err := p.paramList(false, false, true)
 	if err != nil {
 		return nil, err
 	}
@@ -764,6 +759,13 @@ func (p *Parser) tsTypParam() (Node, error) {
 	return &TsParam{N_TS_PARAM, p.finLoc(id.loc.Clone()), id, cons}, nil
 }
 
+func (p *Parser) tsTryTypParams() ([]Node, *Loc, error) {
+	if !p.ts() || p.lexer.Peek().value != T_LT {
+		return nil, nil, nil
+	}
+	return p.tsTypParams()
+}
+
 func (p *Parser) tsTypParams() ([]Node, *Loc, error) {
 	loc := p.locFromTok(p.lexer.Next())
 	ps := make([]Node, 0, 1)
@@ -786,11 +788,82 @@ func (p *Parser) tsTypParams() ([]Node, *Loc, error) {
 	return ps, loc, nil
 }
 
+// returned nodes are the superset of typeArgs which also includes `Constraint`
+//
+// the caller maybe required to check the returned nodes are:
+// - valid type args, by further doing a `tsCheckTypArgs` subroutine
+// - valid type params, by further doing a `tsTypArgsToTypParams` subroutine
+//
+// this method returns type params instead of type args since the former is
+// a superset of the later and in the calling point of this method, there is
+// no enough information to determine whether the type params or args is satisfied
+// so like others method to resolve the ambiguities in the grammar - a rough firstly
+// parsing is introduced and construct rough nodes to let the later processes to
+// do checking or transformation to produce more precise results
+func (p *Parser) tsTryTypArgs() ([]Node, *Loc, error) {
+	if !p.ts() || p.lexer.Peek().value != T_LT {
+		return nil, nil, nil
+	}
+	return p.tsTypArgs()
+}
+
+func (p *Parser) tsCheckTypArgs(nodes []Node) error {
+	for i, arg := range nodes {
+		if arg.Type() == N_TS_PARAM {
+			pn := arg.(*TsParam)
+			if pn.cons != nil {
+				return p.errorAtLoc(arg.(*TsParam).cons.Loc(), ERR_UNEXPECTED_TOKEN)
+			}
+			nodes[i] = pn.name
+		}
+	}
+	return nil
+}
+
+func (p *Parser) tsTypArgsToTypParams(nodes []Node) error {
+	var err error
+	for i, n := range nodes {
+		n, err = p.tsRoughParamToParam(n)
+		if n.Type() == N_NAME {
+			n = &TsParam{N_TS_PARAM, n.Loc().Clone(), n, nil}
+		}
+		nodes[i] = n
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (p *Parser) tsPredefToName(node Node) (Node, error) {
+	node, err := p.tsRoughParamToParam(node)
+	if err != nil {
+		return nil, err
+	}
+	if node.Type() != N_NAME {
+		return nil, p.errorAtLoc(node.Loc(), ERR_UNEXPECTED_TOKEN)
+	}
+	return node, nil
+}
+
 func (p *Parser) tsTypArgs() ([]Node, *Loc, error) {
 	loc := p.locFromTok(p.lexer.Next())
 	args := make([]Node, 0, 1)
 	for {
 		arg, err := p.tsTyp(false)
+		if p.lexer.Peek().value == T_EXTENDS {
+			id, err := p.tsPredefToName(arg)
+			if err != nil {
+				return nil, nil, err
+			}
+
+			p.lexer.Next()
+			cons, err := p.tsTyp(false)
+			if err != nil {
+				return nil, nil, err
+			}
+			arg = &TsParam{N_TS_PARAM, p.finLoc(id.Loc().Clone()), id, cons}
+		}
 		if err != nil {
 			return nil, nil, err
 		}
@@ -809,20 +882,16 @@ func (p *Parser) tsTypArgs() ([]Node, *Loc, error) {
 }
 
 func (p *Parser) tsCallSig(typParams []Node, loc *Loc) (Node, error) {
-	if typParams == nil && loc == nil {
-		var err error
-		typParams, loc, err = p.tsTypParams()
-		if err != nil {
-			return nil, err
-		}
-	}
-	params, _, err := p.paramList(false, false)
+	params, _, tp, err := p.paramList(false, false, typParams == nil && loc == nil)
 	if err != nil {
 		return nil, err
 	}
 	typAnnot, _, err := p.tsTypAnnot()
 	if err != nil {
 		return nil, err
+	}
+	if tp != nil {
+		typParams = tp
 	}
 	return &TsCallSig{N_TS_CALL_SIG, p.finLoc(loc), typParams, params, typAnnot}, nil
 }

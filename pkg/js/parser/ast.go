@@ -420,6 +420,10 @@ func (n *ArrLit) TypInfo() *TypInfo {
 	return n.ti
 }
 
+func (n *ArrLit) SetTypInfo(ti *TypInfo) {
+	n.ti = ti
+}
+
 type Spread struct {
 	typ              NodeType
 	loc              *Loc
@@ -451,6 +455,10 @@ func (n *Spread) SetOuterParen(loc *Loc) {
 
 func (n *Spread) TypInfo() *TypInfo {
 	return n.ti
+}
+
+func (n *Spread) SetTypInfo(ti *TypInfo) {
+	n.ti = ti
 }
 
 type ObjLit struct {
@@ -485,6 +493,10 @@ func (n *ObjLit) TypInfo() *TypInfo {
 	return n.ti
 }
 
+func (n *ObjLit) SetTypInfo(ti *TypInfo) {
+	n.ti = ti
+}
+
 type ACC_MOD uint8
 
 const (
@@ -507,13 +519,16 @@ func (a ACC_MOD) String() string {
 }
 
 type TypInfo struct {
-	accMod   ACC_MOD
-	ques     *Loc
-	typAnnot Node
+	accMod    ACC_MOD
+	ques      *Loc
+	typAnnot  Node
+	typParams []Node
+	typArgs   []Node
 }
 
 type NodeWithTypInfo interface {
 	TypInfo() *TypInfo
+	SetTypInfo(*TypInfo)
 }
 
 type Ident struct {
@@ -568,12 +583,17 @@ func (n *Ident) TypInfo() *TypInfo {
 	return n.ti
 }
 
+func (n *Ident) SetTypInfo(ti *TypInfo) {
+	n.ti = ti
+}
+
 type NewExpr struct {
 	typ        NodeType
 	loc        *Loc
 	callee     Node
 	args       []Node
 	outerParen *Loc
+	ti         *TypInfo
 }
 
 func (n *NewExpr) Type() NodeType {
@@ -598,6 +618,14 @@ func (n *NewExpr) OuterParen() *Loc {
 
 func (n *NewExpr) SetOuterParen(loc *Loc) {
 	n.outerParen = loc
+}
+
+func (n *NewExpr) TypInfo() *TypInfo {
+	return n.ti
+}
+
+func (n *NewExpr) SetTypInfo(ti *TypInfo) {
+	n.ti = ti
 }
 
 type MemberExpr struct {
@@ -649,6 +677,7 @@ type CallExpr struct {
 	args       []Node
 	optional   bool
 	outerParen *Loc
+	ti         *TypInfo
 }
 
 func (n *CallExpr) Callee() Node {
@@ -677,6 +706,14 @@ func (n *CallExpr) OuterParen() *Loc {
 
 func (n *CallExpr) SetOuterParen(loc *Loc) {
 	n.outerParen = loc
+}
+
+func (n *CallExpr) TypInfo() *TypInfo {
+	return n.ti
+}
+
+func (n *CallExpr) SetTypInfo(ti *TypInfo) {
+	n.ti = ti
 }
 
 type BinExpr struct {
@@ -881,6 +918,7 @@ type ThisExpr struct {
 	typ        NodeType
 	loc        *Loc
 	outerParen *Loc
+	ti         *TypInfo
 }
 
 func (n *ThisExpr) Type() NodeType {
@@ -897,6 +935,14 @@ func (n *ThisExpr) OuterParen() *Loc {
 
 func (n *ThisExpr) SetOuterParen(loc *Loc) {
 	n.outerParen = loc
+}
+
+func (n *ThisExpr) TypInfo() *TypInfo {
+	return n.ti
+}
+
+func (n *ThisExpr) SetTypInfo(ti *TypInfo) {
+	n.ti = ti
 }
 
 type SeqExpr struct {
@@ -1013,6 +1059,7 @@ type Super struct {
 	typ        NodeType
 	loc        *Loc
 	outerParen *Loc
+	ti         *TypInfo
 }
 
 func (n *Super) Type() NodeType {
@@ -1029,6 +1076,14 @@ func (n *Super) OuterParen() *Loc {
 
 func (n *Super) SetOuterParen(loc *Loc) {
 	n.outerParen = loc
+}
+
+func (n *Super) TypInfo() *TypInfo {
+	return n.ti
+}
+
+func (n *Super) SetTypInfo(ti *TypInfo) {
+	n.ti = ti
 }
 
 type ImportCall struct {
@@ -1122,6 +1177,10 @@ func (n *ArrPat) TypInfo() *TypInfo {
 	return n.ti
 }
 
+func (n *ArrPat) SetTypInfo(ti *TypInfo) {
+	n.ti = ti
+}
+
 type AssignPat struct {
 	typ        NodeType
 	loc        *Loc
@@ -1212,6 +1271,10 @@ func (n *ObjPat) SetOuterParen(loc *Loc) {
 
 func (n *ObjPat) TypInfo() *TypInfo {
 	return n.ti
+}
+
+func (n *ObjPat) SetTypInfo(ti *TypInfo) {
+	n.ti = ti
 }
 
 type PropKind uint8
@@ -1341,6 +1404,10 @@ func (n *FnDec) TypInfo() *TypInfo {
 	return n.ti
 }
 
+func (n *FnDec) SetTypInfo(ti *TypInfo) {
+	n.ti = ti
+}
+
 type ArrowFn struct {
 	typ        NodeType
 	loc        *Loc
@@ -1387,6 +1454,10 @@ func (n *ArrowFn) Expr() bool {
 
 func (n *ArrowFn) TypInfo() *TypInfo {
 	return n.ti
+}
+
+func (n *ArrowFn) SetTypInfo(ti *TypInfo) {
+	n.ti = ti
 }
 
 type VarDecStmt struct {
