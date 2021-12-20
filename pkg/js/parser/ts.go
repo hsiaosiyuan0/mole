@@ -946,14 +946,15 @@ func (p *Parser) tsIsFnSigValid(name string) error {
 	return p.errorAtLoc(p.lastTsFnSig.loc, ERR_FN_SIG_MISSING_IMPL)
 }
 
-func (p *Parser) tsIsFnImplValid(name string) error {
+func (p *Parser) tsIsFnImplValid(id Node) error {
 	if p.lastTsFnSig == nil {
 		return nil
 	}
 
 	ep := p.lastTsFnSig.id.(*Ident).Text()
-	if ep == name {
+	act := id.(*Ident).Text()
+	if ep == act {
 		return nil
 	}
-	return p.errorAtLoc(p.lastTsFnSig.loc, fmt.Sprintf(ERR_TPL_INVALID_FN_IMPL_NAME, ep))
+	return p.errorAtLoc(id.(*Ident).loc, fmt.Sprintf(ERR_TPL_INVALID_FN_IMPL_NAME, ep))
 }

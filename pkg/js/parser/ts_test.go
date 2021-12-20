@@ -813,6 +813,6 @@ func TestTs54(t *testing.T) {
 function f1(): any {}`, opts)
 
 	assert.Equal(t,
-		"Function implementation name must be `f` at (1:0)",
+		"Function implementation name must be `f` at (2:9)",
 		err.Error(), "should be prog ok")
 }

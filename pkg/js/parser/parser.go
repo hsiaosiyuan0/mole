@@ -1891,7 +1891,7 @@ func (p *Parser) fnDec(expr bool, async *Token, canNameOmitted bool) (Node, erro
 	if !expr && p.ts() {
 		if body == nil {
 			p.lastTsFnSig = fnDec
-		} else if err = p.tsIsFnImplValid(id.(*Ident).Text()); err != nil {
+		} else if err = p.tsIsFnImplValid(id); err != nil {
 			return nil, err
 		}
 	}
