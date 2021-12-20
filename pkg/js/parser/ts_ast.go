@@ -296,3 +296,18 @@ func (n *TsTypAssert) Type() NodeType {
 func (n *TsTypAssert) Loc() *Loc {
 	return n.loc
 }
+
+type TsTypDec struct {
+	typ  NodeType
+	loc  *Loc
+	name Node
+	ti   *TypInfo
+}
+
+func (n *TsTypDec) Type() NodeType {
+	return n.typ
+}
+
+func (n *TsTypDec) Loc() *Loc {
+	return n.loc
+}

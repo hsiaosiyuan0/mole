@@ -1,5 +1,7 @@
 package parser
 
+import "fmt"
+
 var builtinTyp = map[string]NodeType{
 	"any":     N_TS_ANY,
 	"number":  N_TS_NUM,
@@ -71,14 +73,14 @@ func (p *Parser) tsUnionOrIntersecType(lhs Node, rough bool) (Node, error) {
 			if err != nil {
 				return nil, err
 			}
-			lhs = &TsUnionTyp{N_TS_UNION_TYP, p.finLoc(lhs.Loc()), lhs, loc, rhs}
+			lhs = &TsUnionTyp{N_TS_UNION_TYP, p.finLoc(lhs.Loc().Clone()), lhs, loc, rhs}
 		} else if av == T_BIT_AND {
 			loc := p.locFromTok(p.lexer.Next())
 			rhs, err = p.tsPrimary(rough)
 			if err != nil {
 				return nil, err
 			}
-			lhs = &TsIntersecTyp{N_TS_INTERSEC_TYP, p.finLoc(lhs.Loc()), lhs, loc, rhs}
+			lhs = &TsIntersecTyp{N_TS_INTERSEC_TYP, p.finLoc(lhs.Loc().Clone()), lhs, loc, rhs}
 		} else {
 			break
 		}
@@ -894,4 +896,64 @@ func (p *Parser) tsCallSig(typParams []Node, loc *Loc) (Node, error) {
 		typParams = tp
 	}
 	return &TsCallSig{N_TS_CALL_SIG, p.finLoc(loc), typParams, params, typAnnot}, nil
+}
+
+func (p *Parser) aheadIsTypDec(tok *Token) bool {
+	if tok.value == T_NAME {
+		return tok.Text() == "type"
+	}
+	return false
+}
+
+func (p *Parser) tsTypDec() (Node, error) {
+	loc := p.locFromTok(p.lexer.Next())
+	name, err := p.ident(nil, true)
+	if err != nil {
+		return nil, err
+	}
+	params, _, err := p.tsTryTypParams()
+	if err != nil {
+		return nil, err
+	}
+
+	if _, err = p.nextMustTok(T_ASSIGN); err != nil {
+		return nil, err
+	}
+
+	typAnnot, err := p.tsTyp(false)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := p.advanceIfSemi(true); err != nil {
+		return nil, err
+	}
+
+	ti := p.newTypInfo()
+	ti.typParams = params
+	ti.typAnnot = typAnnot
+	return &TsTypDec{N_TS_TYP_DEC, p.finLoc(loc), name, ti}, nil
+}
+
+func (p *Parser) tsIsFnSigValid(name string) error {
+	if p.lastTsFnSig == nil {
+		return nil
+	}
+
+	if p.lastTsFnSig.id.(*Ident).Text() == name {
+		return nil
+	}
+	return p.errorAtLoc(p.lastTsFnSig.loc, ERR_FN_SIG_MISSING_IMPL)
+}
+
+func (p *Parser) tsIsFnImplValid(name string) error {
+	if p.lastTsFnSig == nil {
+		return nil
+	}
+
+	ep := p.lastTsFnSig.id.(*Ident).Text()
+	if ep == name {
+		return nil
+	}
+	return p.errorAtLoc(p.lastTsFnSig.loc, fmt.Sprintf(ERR_TPL_INVALID_FN_IMPL_NAME, ep))
 }

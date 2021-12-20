@@ -1392,6 +1392,10 @@ func (n *FnDec) Loc() *Loc {
 	return n.loc
 }
 
+func (n *FnDec) IsSig() bool {
+	return n.body == nil
+}
+
 func (n *FnDec) OuterParen() *Loc {
 	return n.outerParen
 }

@@ -13,6 +13,15 @@ type Parser struct {
 	exp             []*ExportDec
 	checkName       bool
 	danglingPvtRefs []*Ref
+
+	// the ts func sig cannot stand alone:
+	// `function f(a:number)` is illegal unless it's followed by a
+	// func dec with the same id:
+	// ```
+	// function f(a:number)
+	// function f(): any {}
+	// ```
+	lastTsFnSig *FnDec
 }
 
 type ParserOpts struct {
@@ -246,6 +255,8 @@ func (p *Parser) stmt() (node Node, err error) {
 		node, err = p.fnDec(false, tok, false)
 	} else if p.aheadIsLabel(tok) {
 		node, err = p.labelStmt()
+	} else if p.aheadIsTypDec(tok) {
+		node, err = p.tsTypDec()
 	} else if tok.value == T_SEMI {
 		node, err = p.emptyStmt()
 	} else if tok.value == T_EOF {
@@ -1671,6 +1682,7 @@ func (p *Parser) fnDec(expr bool, async *Token, canNameOmitted bool) (Node, erro
 	var id Node
 	var err error
 	tok = p.lexer.Peek()
+	var fnRef *Ref
 	if tok.value != T_PAREN_L {
 		id, err = p.ident(idScope, true)
 		if err != nil {
@@ -1679,14 +1691,14 @@ func (p *Parser) fnDec(expr bool, async *Token, canNameOmitted bool) (Node, erro
 
 		// name of the function expression will not add a ref record
 		if !expr {
-			ref := NewRef()
-			ref.Node = id.(*Ident)
-			ref.BindKind = BK_VAR
-			ref.TargetType = TT_FN
+			fnRef = NewRef()
+			fnRef.Node = id.(*Ident)
+			fnRef.BindKind = BK_VAR
+			fnRef.TargetType = TT_FN
 			if ps.IsKind(SPK_STRICT) {
-				ref.BindKind = BK_LET
+				fnRef.BindKind = BK_LET
 			}
-			if err := p.addLocalBinding(ps, ref, ps.IsKind(SPK_STRICT), ref.Node.Text()); err != nil {
+			if err := p.addLocalBinding(ps, fnRef, ps.IsKind(SPK_STRICT), fnRef.Node.Text()); err != nil {
 				return nil, err
 			}
 		}
@@ -1776,6 +1788,7 @@ func (p *Parser) fnDec(expr bool, async *Token, canNameOmitted bool) (Node, erro
 		if err != nil {
 			return nil, err
 		}
+
 		for _, paramName := range paramNames {
 			ref := NewRef()
 			ref.Node = paramName.(*Ident)
@@ -1790,6 +1803,14 @@ func (p *Parser) fnDec(expr bool, async *Token, canNameOmitted bool) (Node, erro
 			}
 		} else if expr || arrow {
 			if body, err = p.expr(); err != nil {
+				return nil, err
+			}
+		} else if fn && !expr && tok.value == T_FUNC && tok.afterLineTerminator && p.ts() {
+			// ts func overloads:
+			// `function f(a:number)`
+			// `function f(): any {}`
+			ps.DelLocal(fnRef) // suppress the dup-checking of binding name
+			if err = p.tsIsFnSigValid(fnRef.Node.Text()); err != nil {
 				return nil, err
 			}
 		} else {
@@ -1865,7 +1886,16 @@ func (p *Parser) fnDec(expr bool, async *Token, canNameOmitted bool) (Node, erro
 	if expr {
 		typ = N_EXPR_FN
 	}
-	return &FnDec{typ, p.finLoc(loc), id, generator, async != nil, params, body, nil, ti}, nil
+
+	fnDec := &FnDec{typ, p.finLoc(loc), id, generator, async != nil, params, body, nil, ti}
+	if !expr && p.ts() {
+		if body == nil {
+			p.lastTsFnSig = fnDec
+		} else if err = p.tsIsFnImplValid(id.(*Ident).Text()); err != nil {
+			return nil, err
+		}
+	}
+	return fnDec, nil
 }
 
 func (p *Parser) collectNames(nodes []Node) (names []Node, firstComplicated *Loc, err error) {

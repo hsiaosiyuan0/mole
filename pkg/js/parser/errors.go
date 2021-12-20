@@ -164,4 +164,6 @@ const (
 	ERR_THIS_CANNOT_BE_OPTIONAL      = "The `this` parameter cannot be optional"
 	ERR_ILLEGAL_PARAMETER_MODIFIER   = "A parameter property is only allowed in a constructor implementation"
 	ERR_CTOR_CANNOT_WITH_TYPE_PARAMS = "Type parameters cannot appear on a constructor declaration"
+	ERR_FN_SIG_MISSING_IMPL          = "Function implementation is missing or not immediately following the declaration"
+	ERR_TPL_INVALID_FN_IMPL_NAME     = "Function implementation name must be `%s`"
 )

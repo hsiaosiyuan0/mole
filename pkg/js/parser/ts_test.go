@@ -722,3 +722,97 @@ func TestTs48(t *testing.T) {
 		"Type parameters cannot appear on a constructor declaration at (2:15)",
 		err.Error(), "should be prog ok")
 }
+
+func TestTs49(t *testing.T) {
+	// TypeAliasDeclaration
+	opts := NewParserOpts()
+	opts.Feature = opts.Feature.Off(FEAT_JSX)
+
+	ast, err := compileTs(`type a = string | number`, opts)
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	prog := ast.(*Prog)
+	dec := prog.stmts[0].(*TsTypDec)
+	assert.Equal(t, "a", dec.name.(*Ident).Text(), "should be ok")
+
+	assert.Equal(t, N_TS_UNION_TYP, dec.ti.typAnnot.Type(), "should be ok")
+	assert.Equal(t, "string", dec.ti.typAnnot.(*TsUnionTyp).lhs.(*TsPredef).Text(), "should be ok")
+}
+
+func TestTs50(t *testing.T) {
+	// SimpleVariableDeclaration
+	opts := NewParserOpts()
+	opts.Feature = opts.Feature.Off(FEAT_JSX)
+
+	ast, err := compileTs(`let a: number = 1`, opts)
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	prog := ast.(*Prog)
+	dec := prog.stmts[0].(*VarDecStmt).decList[0].(*VarDec)
+	assert.Equal(t, "a", dec.id.(*Ident).Text(), "should be ok")
+
+	assert.Equal(t, N_TS_NUM, dec.id.(*Ident).ti.typAnnot.Type(), "should be ok")
+}
+
+func TestTs51(t *testing.T) {
+	// DestructuringLexicalBinding
+	opts := NewParserOpts()
+	opts.Feature = opts.Feature.Off(FEAT_JSX)
+
+	ast, err := compileTs(`let { a }: { a: number } = { a: 1 }`, opts)
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	prog := ast.(*Prog)
+	dec := prog.stmts[0].(*VarDecStmt).decList[0].(*VarDec)
+
+	prop := dec.id.(*ObjPat).props[0].(*Prop)
+	assert.Equal(t, "a", prop.key.(*Ident).Text(), "should be ok")
+	assert.Equal(t, N_TS_OBJ, dec.id.(*ObjPat).ti.typAnnot.Type(), "should be ok")
+
+	tsProp := dec.id.(*ObjPat).ti.typAnnot.(*TsObj).props[0].(*TsProp)
+	assert.Equal(t, "a", tsProp.key.(*Ident).Text(), "should be ok")
+	assert.Equal(t, N_TS_NUM, tsProp.val.Type(), "should be ok")
+}
+
+func TestTs52(t *testing.T) {
+	// FunctionDeclaration
+	opts := NewParserOpts()
+	opts.Feature = opts.Feature.Off(FEAT_JSX)
+
+	ast, err := compileTs(`function f()
+function f(): any {}`, opts)
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	prog := ast.(*Prog)
+	sig := prog.stmts[0].(*FnDec)
+	fn := prog.stmts[1].(*FnDec)
+	assert.Equal(t, true, sig.IsSig(), "should be ok")
+	assert.Equal(t, true, sig.id.(*Ident).Text() == fn.id.(*Ident).Text(), "should be ok")
+}
+
+func TestTs53(t *testing.T) {
+	// FunctionDeclaration
+	opts := NewParserOpts()
+	opts.Feature = opts.Feature.Off(FEAT_JSX)
+
+	_, err := compileTs(`function f()
+function f1()
+function f(): any {}`, opts)
+
+	assert.Equal(t,
+		"Function implementation is missing or not immediately following the declaration at (1:0)",
+		err.Error(), "should be prog ok")
+}
+
+func TestTs54(t *testing.T) {
+	// FunctionDeclaration
+	opts := NewParserOpts()
+	opts.Feature = opts.Feature.Off(FEAT_JSX)
+
+	_, err := compileTs(`function f()
+function f1(): any {}`, opts)
+
+	assert.Equal(t,
+		"Function implementation name must be `f` at (1:0)",
+		err.Error(), "should be prog ok")
+}
