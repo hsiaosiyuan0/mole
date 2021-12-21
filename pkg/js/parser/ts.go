@@ -1093,3 +1093,14 @@ func (p *Parser) tsEnum(loc *Loc) (Node, error) {
 	}
 	return &TsEnum{N_TS_ENUM, p.finLoc(loc), name, mems, cons}, nil
 }
+
+func (p *Parser) tsImportAlias(name Node) (Node, error) {
+	p.lexer.Next() // `=`
+
+	val, err := p.tsTypName(nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return &TsImportAlias{N_TS_IMPORT_ALIAS, p.finLoc(name.Loc().Clone()), name, val}, nil
+}

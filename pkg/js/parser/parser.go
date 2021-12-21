@@ -490,8 +490,10 @@ func (p *Parser) importDec() (Node, error) {
 	specs := make([]Node, 0)
 	tok := p.lexer.Peek()
 	if tok.value != T_STRING {
+		var id Node
+		var err error
 		if tok.value == T_NAME {
-			id, err := p.ident(nil, true)
+			id, err = p.ident(nil, true)
 			if err != nil {
 				return nil, err
 			}
@@ -520,7 +522,11 @@ func (p *Parser) importDec() (Node, error) {
 			specs = append(specs, ss...)
 		}
 
-		_, err := p.nextMustName("from", false)
+		if p.ts() && p.lexer.Peek().value == T_ASSIGN && id != nil {
+			return p.tsImportAlias(id)
+		}
+
+		_, err = p.nextMustName("from", false)
 		if err != nil {
 			return nil, err
 		}

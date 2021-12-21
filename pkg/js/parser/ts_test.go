@@ -859,3 +859,18 @@ func TestTs57(t *testing.T) {
 	assert.Equal(t, 2, len(enum.mems), "should be ok")
 	assert.Equal(t, N_EXPR_BIN, enum.mems[1].(*TsEnumMember).val.Type(), "should be ok")
 }
+
+func TestTs58(t *testing.T) {
+	// ImportAliasDeclaration
+	opts := NewParserOpts()
+	opts.Feature = opts.Feature.Off(FEAT_JSX)
+
+	ast, err := compileTs(`import a = b.c`, opts)
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	prog := ast.(*Prog)
+	ia := prog.stmts[0].(*TsImportAlias)
+	assert.Equal(t, "a", ia.name.(*Ident).Text(), "should be ok")
+	assert.Equal(t, N_TS_NS_NAME, ia.val.Type(), "should be ok")
+	assert.Equal(t, "c", ia.val.(*TsNsName).rhs.(*Ident).Text(), "should be ok")
+}
