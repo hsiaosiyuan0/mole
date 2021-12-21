@@ -539,6 +539,9 @@ func (p *Parser) tsPrimary(rough bool) (Node, error) {
 	var node Node
 	if av == T_NAME || av == T_VOID {
 		node, err = p.tsPredefOrRef(ahead)
+		if err != nil {
+			return nil, err
+		}
 	} else if av == T_BRACE_L {
 		// obj type
 		node, err = p.tsObj(rough)
@@ -689,7 +692,9 @@ func (p *Parser) tsProp(rough bool) (Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		if p.lexer.Peek().value != T_PAREN_L {
+
+		av := p.lexer.Peek().value
+		if av != T_PAREN_L && av != T_LT {
 			return &TsProp{N_TS_PROP, p.finLoc(name.Loc().Clone()), name, typAnnot, ques, nil}, nil
 		}
 
@@ -1025,4 +1030,66 @@ func (p *Parser) tsItf() (Node, error) {
 		return nil, err
 	}
 	return &TsInferface{N_TS_INTERFACE, p.finLoc(loc), name, params, supers, body}, nil
+}
+
+func (p *Parser) tsEnumBody() ([]Node, error) {
+	if _, err := p.nextMustTok(T_BRACE_L); err != nil {
+		return nil, err
+	}
+	mems := make([]Node, 0, 1)
+	for {
+		ahead := p.lexer.Peek()
+		av := ahead.value
+		if av == T_BRACE_R {
+			p.lexer.Next()
+			break
+		}
+		name, err := p.tsPropName()
+		if err != nil {
+			return nil, err
+		}
+		var val Node
+		if p.lexer.Peek().value == T_ASSIGN {
+			p.lexer.Next()
+			val, err = p.assignExpr(false)
+			if err != nil {
+				return nil, err
+			}
+		}
+		mems = append(mems, &TsEnumMember{N_TS_ENUM_MEMBER, p.finLoc(name.Loc().Clone()), name, val})
+		if p.lexer.Peek().value == T_COMMA {
+			p.lexer.Next()
+		}
+	}
+	return mems, nil
+}
+
+func (p *Parser) aheadIsTsEnum(tok *Token) bool {
+	if !p.ts() {
+		return false
+	}
+	if tok == nil {
+		tok = p.lexer.Peek()
+	}
+	return tok.value == T_ENUM
+}
+
+// `loc` is the loc of the preceding `const`
+func (p *Parser) tsEnum(loc *Loc) (Node, error) {
+	cons := loc != nil
+	tok := p.lexer.Next() // enum
+	if loc == nil {
+		loc = p.locFromTok(tok)
+	}
+
+	name, err := p.ident(nil, true)
+	if err != nil {
+		return nil, err
+	}
+
+	mems, err := p.tsEnumBody()
+	if err != nil {
+		return nil, err
+	}
+	return &TsEnum{N_TS_ENUM, p.finLoc(loc), name, mems, cons}, nil
 }

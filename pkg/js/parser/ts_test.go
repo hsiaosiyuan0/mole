@@ -110,7 +110,7 @@ func TestTs9(t *testing.T) {
 
 func TestTs10(t *testing.T) {
 	_, err := compileTs("var a: (string<a>) => number = 1", nil)
-	assert.Equal(t, "Unexpected token at (1:14)", err.Error(), "should be prog ok")
+	assert.Equal(t, "Unexpected token `<` at (1:14)", err.Error(), "should be prog ok")
 }
 
 func TestTs11(t *testing.T) {
@@ -120,7 +120,7 @@ func TestTs11(t *testing.T) {
 
 func TestTs12(t *testing.T) {
 	_, err := compileTs("var a: (string<a>|b) => number = 1", nil)
-	assert.Equal(t, "Unexpected token at (1:14)", err.Error(), "should be prog ok")
+	assert.Equal(t, "Unexpected token `<` at (1:14)", err.Error(), "should be prog ok")
 }
 
 func TestTs13(t *testing.T) {
@@ -829,4 +829,33 @@ func TestTs55(t *testing.T) {
 	itf := prog.stmts[0].(*TsInferface)
 	assert.Equal(t, 2, len(itf.supers), "should be ok")
 	assert.Equal(t, "b", itf.body.(*TsObj).props[0].(*TsProp).key.(*Ident).Text(), "should be ok")
+}
+
+func TestTs56(t *testing.T) {
+	// EnumDeclaration
+	opts := NewParserOpts()
+	opts.Feature = opts.Feature.Off(FEAT_JSX)
+
+	ast, err := compileTs(`const enum A { m1, m2 = "m2" }`, opts)
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	prog := ast.(*Prog)
+	enum := prog.stmts[0].(*TsEnum)
+	assert.Equal(t, true, enum.cons, "should be ok")
+	assert.Equal(t, 2, len(enum.mems), "should be ok")
+}
+
+func TestTs57(t *testing.T) {
+	// EnumDeclaration
+	opts := NewParserOpts()
+	opts.Feature = opts.Feature.Off(FEAT_JSX)
+
+	ast, err := compileTs(`enum A { m1, m2 = "a" + "b" }`, opts)
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	prog := ast.(*Prog)
+	enum := prog.stmts[0].(*TsEnum)
+	assert.Equal(t, false, enum.cons, "should be ok")
+	assert.Equal(t, 2, len(enum.mems), "should be ok")
+	assert.Equal(t, N_EXPR_BIN, enum.mems[1].(*TsEnumMember).val.Type(), "should be ok")
 }

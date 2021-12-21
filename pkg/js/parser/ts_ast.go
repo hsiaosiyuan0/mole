@@ -328,3 +328,34 @@ func (n *TsInferface) Type() NodeType {
 func (n *TsInferface) Loc() *Loc {
 	return n.loc
 }
+
+type TsEnum struct {
+	typ  NodeType
+	loc  *Loc
+	name Node
+	mems []Node
+	cons bool
+}
+
+func (n *TsEnum) Type() NodeType {
+	return n.typ
+}
+
+func (n *TsEnum) Loc() *Loc {
+	return n.loc
+}
+
+type TsEnumMember struct {
+	typ NodeType
+	loc *Loc
+	key Node
+	val Node
+}
+
+func (n *TsEnumMember) Type() NodeType {
+	return n.typ
+}
+
+func (n *TsEnumMember) Loc() *Loc {
+	return n.loc
+}

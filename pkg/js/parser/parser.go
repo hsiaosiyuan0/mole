@@ -242,6 +242,9 @@ func (p *Parser) stmt() (node Node, err error) {
 		case T_NEW, T_THIS, T_SUPER:
 			node, err = p.exprStmt()
 		}
+		if p.aheadIsTsEnum(tok) {
+			node, err = p.tsEnum(nil)
+		}
 	} else if tok.value == T_BRACE_L {
 		node, err = p.blockStmt(true)
 	} else if ok, kind := p.aheadIsVarDec(tok); ok {
@@ -2199,6 +2202,10 @@ func (p *Parser) varDecStmt(kind TokenValue, asExpr bool) (Node, error) {
 	} else if kind == T_CONST {
 		isConst = true
 		bindKind = BK_CONST
+	}
+
+	if p.aheadIsTsEnum(nil) {
+		return p.tsEnum(loc)
 	}
 
 	lvs := make([]Node, 0)
