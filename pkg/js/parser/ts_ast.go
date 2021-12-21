@@ -375,3 +375,18 @@ func (n *TsImportAlias) Type() NodeType {
 func (n *TsImportAlias) Loc() *Loc {
 	return n.loc
 }
+
+type TsNS struct {
+	typ   NodeType
+	loc   *Loc
+	name  Node
+	stmts []Node
+}
+
+func (n *TsNS) Type() NodeType {
+	return n.typ
+}
+
+func (n *TsNS) Loc() *Loc {
+	return n.loc
+}

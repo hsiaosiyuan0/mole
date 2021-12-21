@@ -1104,3 +1104,23 @@ func (p *Parser) tsImportAlias(name Node, export bool) (Node, error) {
 
 	return &TsImportAlias{N_TS_IMPORT_ALIAS, p.finLoc(name.Loc().Clone()), name, val, export}, nil
 }
+
+func (p *Parser) aheadIsTsNS(tok *Token) bool {
+	return p.ts() && tok.value == T_NAME && tok.Text() == "namespace"
+}
+
+func (p *Parser) tsNS() (Node, error) {
+	loc := p.locFromTok(p.lexer.Next()) // `namespace`
+
+	name, err := p.tsTypName(nil)
+	if err != nil {
+		return nil, err
+	}
+
+	blk, err := p.blockStmt(true)
+	if err != nil {
+		return nil, err
+	}
+
+	return &TsNS{N_TS_IMPORT_ALIAS, p.finLoc(loc), name, blk.body}, nil
+}

@@ -890,3 +890,30 @@ func TestTs59(t *testing.T) {
 	assert.Equal(t, N_TS_NS_NAME, ia.val.Type(), "should be ok")
 	assert.Equal(t, "c", ia.val.(*TsNsName).rhs.(*Ident).Text(), "should be ok")
 }
+
+func TestTs60(t *testing.T) {
+	// NamespaceDeclaration
+	opts := NewParserOpts()
+	opts.Feature = opts.Feature.Off(FEAT_JSX)
+
+	ast, err := compileTs(`namespace b { export const c = 1}`, opts)
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	prog := ast.(*Prog)
+	ns := prog.stmts[0].(*TsNS)
+	assert.Equal(t, 1, len(ns.stmts), "should be ok")
+}
+
+func TestTs61(t *testing.T) {
+	// NamespaceDeclaration
+	opts := NewParserOpts()
+	opts.Feature = opts.Feature.Off(FEAT_JSX)
+
+	ast, err := compileTs(`export namespace b { export const c = 1}`, opts)
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	prog := ast.(*Prog)
+	ep := prog.stmts[0].(*ExportDec)
+	ns := ep.dec.(*TsNS)
+	assert.Equal(t, 1, len(ns.stmts), "should be ok")
+}

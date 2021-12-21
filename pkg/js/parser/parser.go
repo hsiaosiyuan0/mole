@@ -262,6 +262,8 @@ func (p *Parser) stmt() (node Node, err error) {
 		node, err = p.tsTypDec()
 	} else if p.aheadIsTsItf(tok) {
 		node, err = p.tsItf()
+	} else if p.aheadIsTsNS(tok) {
+		node, err = p.tsNS()
 	} else if tok.value == T_SEMI {
 		node, err = p.emptyStmt()
 	} else if tok.value == T_EOF {
@@ -366,6 +368,11 @@ func (p *Parser) exportDec() (Node, error) {
 			return nil, err
 		}
 		return p.tsImportAlias(id, true)
+	} else if p.aheadIsTsNS(tok) {
+		node.dec, err = p.tsNS()
+		if err != nil {
+			return nil, err
+		}
 	} else {
 		return nil, p.errorTok(tok)
 	}
