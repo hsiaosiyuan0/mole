@@ -1094,12 +1094,21 @@ func (p *Parser) tsEnum(loc *Loc) (Node, error) {
 	return &TsEnum{N_TS_ENUM, p.finLoc(loc), name, mems, cons}, nil
 }
 
+// `ImportAliasDeclaration` or `ImportRequireDeclaration`
 func (p *Parser) tsImportAlias(name Node, export bool) (Node, error) {
 	p.lexer.Next() // `=`
 
 	val, err := p.tsTypName(nil)
 	if err != nil {
 		return nil, err
+	}
+
+	if val.Type() == N_NAME && val.(*Ident).Text() == "require" {
+		call, _, err := p.callExpr(val, true, false, nil)
+		if err != nil {
+			return nil, err
+		}
+		return &TsImportRequire{N_TS_IMPORT_REQUIRE, p.finLoc(name.Loc().Clone()), name, call.(*CallExpr).args}, nil
 	}
 
 	return &TsImportAlias{N_TS_IMPORT_ALIAS, p.finLoc(name.Loc().Clone()), name, val, export}, nil

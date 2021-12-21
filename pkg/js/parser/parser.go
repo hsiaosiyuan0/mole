@@ -368,12 +368,38 @@ func (p *Parser) exportDec() (Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		return p.tsImportAlias(id, true)
+		n, err := p.tsImportAlias(id, true)
+		if err != nil {
+			return nil, err
+		}
+		if n.Type() == N_TS_IMPORT_ALIAS {
+			return n, nil
+		}
+		node.dec = n
+	} else if p.aheadIsTsItf(tok) {
+		node.dec, err = p.tsItf()
+		if err != nil {
+			return nil, err
+		}
+	} else if p.aheadIsTsTypDec(tok) {
+		node.dec, err = p.tsTypDec()
+		if err != nil {
+			return nil, err
+		}
 	} else if p.aheadIsTsNS(tok) {
 		node.dec, err = p.tsNS()
 		if err != nil {
 			return nil, err
 		}
+	} else if p.ts() && tv == T_ASSIGN {
+		p.lexer.Next()
+		// ExportAssignment: `export = a`
+		id, err := p.ident(nil, false)
+		if err != nil {
+			return nil, err
+		}
+		loc := p.locFromTok(tok)
+		return &TsExportAssign{N_TS_EXPORT_ASSIGN, p.finLoc(loc), id}, nil
 	} else {
 		return nil, p.errorTok(tok)
 	}

@@ -390,3 +390,32 @@ func (n *TsNS) Type() NodeType {
 func (n *TsNS) Loc() *Loc {
 	return n.loc
 }
+
+type TsImportRequire struct {
+	typ  NodeType
+	loc  *Loc
+	name Node
+	args []Node
+}
+
+func (n *TsImportRequire) Type() NodeType {
+	return n.typ
+}
+
+func (n *TsImportRequire) Loc() *Loc {
+	return n.loc
+}
+
+type TsExportAssign struct {
+	typ  NodeType
+	loc  *Loc
+	name Node
+}
+
+func (n *TsExportAssign) Type() NodeType {
+	return n.typ
+}
+
+func (n *TsExportAssign) Loc() *Loc {
+	return n.loc
+}

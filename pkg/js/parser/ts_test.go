@@ -917,3 +917,73 @@ func TestTs61(t *testing.T) {
 	ns := ep.dec.(*TsNS)
 	assert.Equal(t, 1, len(ns.stmts), "should be ok")
 }
+
+func TestTs62(t *testing.T) {
+	// export TypeAliasDeclaration
+	opts := NewParserOpts()
+	opts.Feature = opts.Feature.Off(FEAT_JSX)
+
+	ast, err := compileTs(`export type a = string | number`, opts)
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	prog := ast.(*Prog)
+	ep := prog.stmts[0].(*ExportDec)
+	dec := ep.dec.(*TsTypDec)
+	assert.Equal(t, "a", dec.name.(*Ident).Text(), "should be ok")
+	assert.Equal(t, N_TS_UNION_TYP, dec.ti.typAnnot.Type(), "should be ok")
+}
+
+func TestTs63(t *testing.T) {
+	// export InterfaceDeclaration
+	opts := NewParserOpts()
+	opts.Feature = opts.Feature.Off(FEAT_JSX)
+
+	ast, err := compileTs(`export interface A<T> extends C<R>, D<S> { b }`, opts)
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	prog := ast.(*Prog)
+	ep := prog.stmts[0].(*ExportDec)
+	itf := ep.dec.(*TsInferface)
+	assert.Equal(t, 2, len(itf.supers), "should be ok")
+	assert.Equal(t, "b", itf.body.(*TsObj).props[0].(*TsProp).key.(*Ident).Text(), "should be ok")
+}
+
+func TestTs64(t *testing.T) {
+	// ImportRequireDeclaration
+	opts := NewParserOpts()
+	opts.Feature = opts.Feature.Off(FEAT_JSX)
+
+	ast, err := compileTs(`import a = require('test');`, opts)
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	prog := ast.(*Prog)
+	n := prog.stmts[0].(*TsImportRequire)
+	assert.Equal(t, "test", n.args[0].(*StrLit).Text(), "should be ok")
+}
+
+func TestTs65(t *testing.T) {
+	// export ImportRequireDeclaration
+	opts := NewParserOpts()
+	opts.Feature = opts.Feature.Off(FEAT_JSX)
+
+	ast, err := compileTs(`export import a = require('test');`, opts)
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	prog := ast.(*Prog)
+	ep := prog.stmts[0].(*ExportDec)
+	n := ep.dec.(*TsImportRequire)
+	assert.Equal(t, "test", n.args[0].(*StrLit).Text(), "should be ok")
+}
+
+func TestTs66(t *testing.T) {
+	// ExportAssignment
+	opts := NewParserOpts()
+	opts.Feature = opts.Feature.Off(FEAT_JSX)
+
+	ast, err := compileTs(`export = a`, opts)
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	prog := ast.(*Prog)
+	ep := prog.stmts[0].(*TsExportAssign)
+	assert.Equal(t, "a", ep.name.(*Ident).Text(), "should be ok")
+}
