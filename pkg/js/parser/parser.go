@@ -342,6 +342,7 @@ func (p *Parser) exportDec() (Node, error) {
 	} else if tv == T_DEFAULT {
 		def := p.lexer.Next()
 		tok := p.lexer.Peek()
+		tv = tok.value
 		node.def = p.locFromTok(def)
 		if tv == T_FUNC {
 			node.dec, err = p.fnDec(false, nil, true)
