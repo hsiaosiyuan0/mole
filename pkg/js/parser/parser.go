@@ -264,6 +264,8 @@ func (p *Parser) stmt() (node Node, err error) {
 		node, err = p.tsItf()
 	} else if p.aheadIsTsNS(tok) {
 		node, err = p.tsNS()
+	} else if p.aheadIsTsDec(tok) {
+		node, err = p.tsDec()
 	} else if tok.value == T_SEMI {
 		node, err = p.emptyStmt()
 	} else if tok.value == T_EOF {
@@ -363,12 +365,12 @@ func (p *Parser) exportDec() (Node, error) {
 			return nil, err
 		}
 	} else if p.ts() && tv == T_IMPORT {
-		p.lexer.Next()
+		loc := p.locFromTok(p.lexer.Next())
 		id, err := p.ident(nil, true)
 		if err != nil {
 			return nil, err
 		}
-		n, err := p.tsImportAlias(id, true)
+		n, err := p.tsImportAlias(loc, id, true)
 		if err != nil {
 			return nil, err
 		}
@@ -386,8 +388,15 @@ func (p *Parser) exportDec() (Node, error) {
 		if err != nil {
 			return nil, err
 		}
+	} else if p.aheadIsTsEnum(tok) {
+		node.dec, err = p.tsEnum(nil)
 	} else if p.aheadIsTsNS(tok) {
 		node.dec, err = p.tsNS()
+		if err != nil {
+			return nil, err
+		}
+	} else if p.aheadIsTsDec(tok) {
+		node.dec, err = p.tsDec()
 		if err != nil {
 			return nil, err
 		}
@@ -565,7 +574,7 @@ func (p *Parser) importDec() (Node, error) {
 		}
 
 		if p.ts() && p.lexer.Peek().value == T_ASSIGN && id != nil {
-			return p.tsImportAlias(id, false)
+			return p.tsImportAlias(p.locFromTok(tok), id, false)
 		}
 
 		_, err = p.nextMustName("from", false)

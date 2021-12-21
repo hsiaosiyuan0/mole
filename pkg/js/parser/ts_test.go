@@ -842,7 +842,7 @@ func TestTs56(t *testing.T) {
 	prog := ast.(*Prog)
 	enum := prog.stmts[0].(*TsEnum)
 	assert.Equal(t, true, enum.cons, "should be ok")
-	assert.Equal(t, 2, len(enum.mems), "should be ok")
+	assert.Equal(t, 2, len(enum.items), "should be ok")
 }
 
 func TestTs57(t *testing.T) {
@@ -856,8 +856,8 @@ func TestTs57(t *testing.T) {
 	prog := ast.(*Prog)
 	enum := prog.stmts[0].(*TsEnum)
 	assert.Equal(t, false, enum.cons, "should be ok")
-	assert.Equal(t, 2, len(enum.mems), "should be ok")
-	assert.Equal(t, N_EXPR_BIN, enum.mems[1].(*TsEnumMember).val.Type(), "should be ok")
+	assert.Equal(t, 2, len(enum.items), "should be ok")
+	assert.Equal(t, N_EXPR_BIN, enum.items[1].(*TsEnumMember).val.Type(), "should be ok")
 }
 
 func TestTs58(t *testing.T) {
@@ -923,12 +923,13 @@ func TestTs62(t *testing.T) {
 	opts := NewParserOpts()
 	opts.Feature = opts.Feature.Off(FEAT_JSX)
 
-	ast, err := compileTs(`export type a = string | number`, opts)
+	ast, err := compileTs(`export type a = string | number;`, opts)
 	assert.Equal(t, nil, err, "should be prog ok")
 
 	prog := ast.(*Prog)
 	ep := prog.stmts[0].(*ExportDec)
 	dec := ep.dec.(*TsTypDec)
+	assert.Equal(t, 1, len(prog.stmts), "should be ok")
 	assert.Equal(t, "a", dec.name.(*Ident).Text(), "should be ok")
 	assert.Equal(t, N_TS_UNION_TYP, dec.ti.typAnnot.Type(), "should be ok")
 }
@@ -972,6 +973,7 @@ func TestTs65(t *testing.T) {
 	prog := ast.(*Prog)
 	ep := prog.stmts[0].(*ExportDec)
 	n := ep.dec.(*TsImportRequire)
+	assert.Equal(t, 1, len(prog.stmts), "should be ok")
 	assert.Equal(t, "test", n.args[0].(*StrLit).Text(), "should be ok")
 }
 
@@ -986,4 +988,32 @@ func TestTs66(t *testing.T) {
 	prog := ast.(*Prog)
 	ep := prog.stmts[0].(*TsExportAssign)
 	assert.Equal(t, "a", ep.name.(*Ident).Text(), "should be ok")
+}
+
+func TestTs67(t *testing.T) {
+	// AmbientDeclaration
+	opts := NewParserOpts()
+	opts.Feature = opts.Feature.Off(FEAT_JSX)
+
+	ast, err := compileTs(`declare enum Enum { A = 1, B, C = 2, }`, opts)
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	prog := ast.(*Prog)
+	dec := prog.stmts[0].(*TsDec)
+	assert.Equal(t, 3, len(dec.inner.(*TsEnum).items), "should be ok")
+}
+
+func TestTs68(t *testing.T) {
+	// AmbientDeclaration
+	opts := NewParserOpts()
+	opts.Feature = opts.Feature.Off(FEAT_JSX)
+
+	ast, err := compileTs(`export declare enum Enum { A = 1, B, C = 2, }`, opts)
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	prog := ast.(*Prog)
+	ep := prog.stmts[0].(*ExportDec)
+	dec := ep.dec.(*TsDec)
+	assert.Equal(t, "Enum", dec.inner.(*TsEnum).name.(*Ident).Text(), "should be ok")
+	assert.Equal(t, 3, len(dec.inner.(*TsEnum).items), "should be ok")
 }

@@ -330,11 +330,11 @@ func (n *TsInferface) Loc() *Loc {
 }
 
 type TsEnum struct {
-	typ  NodeType
-	loc  *Loc
-	name Node
-	mems []Node
-	cons bool
+	typ   NodeType
+	loc   *Loc
+	name  Node
+	items []Node
+	cons  bool
 }
 
 func (n *TsEnum) Type() NodeType {
@@ -417,5 +417,19 @@ func (n *TsExportAssign) Type() NodeType {
 }
 
 func (n *TsExportAssign) Loc() *Loc {
+	return n.loc
+}
+
+type TsDec struct {
+	typ   NodeType
+	loc   *Loc
+	inner Node
+}
+
+func (n *TsDec) Type() NodeType {
+	return n.typ
+}
+
+func (n *TsDec) Loc() *Loc {
 	return n.loc
 }

@@ -1095,7 +1095,7 @@ func (p *Parser) tsEnum(loc *Loc) (Node, error) {
 }
 
 // `ImportAliasDeclaration` or `ImportRequireDeclaration`
-func (p *Parser) tsImportAlias(name Node, export bool) (Node, error) {
+func (p *Parser) tsImportAlias(loc *Loc, name Node, export bool) (Node, error) {
 	p.lexer.Next() // `=`
 
 	val, err := p.tsTypName(nil)
@@ -1103,15 +1103,21 @@ func (p *Parser) tsImportAlias(name Node, export bool) (Node, error) {
 		return nil, err
 	}
 
+	var node Node
 	if val.Type() == N_NAME && val.(*Ident).Text() == "require" {
 		call, _, err := p.callExpr(val, true, false, nil)
 		if err != nil {
 			return nil, err
 		}
-		return &TsImportRequire{N_TS_IMPORT_REQUIRE, p.finLoc(name.Loc().Clone()), name, call.(*CallExpr).args}, nil
+		node = &TsImportRequire{N_TS_IMPORT_REQUIRE, p.finLoc(loc), name, call.(*CallExpr).args}
+	} else {
+		node = &TsImportAlias{N_TS_IMPORT_ALIAS, p.finLoc(loc), name, val, export}
 	}
 
-	return &TsImportAlias{N_TS_IMPORT_ALIAS, p.finLoc(name.Loc().Clone()), name, val, export}, nil
+	if err := p.advanceIfSemi(true); err != nil {
+		return nil, err
+	}
+	return node, nil
 }
 
 func (p *Parser) aheadIsTsNS(tok *Token) bool {
@@ -1132,4 +1138,55 @@ func (p *Parser) tsNS() (Node, error) {
 	}
 
 	return &TsNS{N_TS_IMPORT_ALIAS, p.finLoc(loc), name, blk.body}, nil
+}
+
+func (p *Parser) aheadIsTsDec(tok *Token) bool {
+	return p.ts() && tok.value == T_NAME && tok.Text() == "declare"
+}
+
+func (p *Parser) tsDec() (Node, error) {
+	loc := p.locFromTok(p.lexer.Next())
+
+	tok := p.lexer.Peek()
+	tv := tok.value
+
+	var err error
+	typ := N_ILLEGAL
+	dec := &TsDec{typ, nil, nil}
+	if ok, kind := p.aheadIsVarDec(tok); ok {
+		dec.inner, err = p.varDecStmt(kind, false)
+		typ = N_TS_DEC_VAR_DEC
+	} else if tv == T_FUNC {
+		dec.inner, err = p.fnDec(false, nil, false)
+		typ = N_TS_DEC_FN
+	} else if p.aheadIsAsync(tok, false, false) {
+		if tok.ContainsEscape() {
+			return nil, p.errorAt(tv, &tok.begin, ERR_ESCAPE_IN_KEYWORD)
+		}
+		return nil, p.errorAt(tv, &tok.begin, ERR_ASYNC_IN_AMBIENT)
+	} else if tv == T_CLASS {
+		dec.inner, err = p.classDec(false, true)
+		typ = N_TS_DEC_CLASS
+	} else if p.aheadIsTsItf(tok) {
+		dec.inner, err = p.tsItf()
+		typ = N_TS_DEC_INTERFACE
+	} else if p.aheadIsTsTypDec(tok) {
+		dec.inner, err = p.tsTypDec()
+		typ = N_TS_DEC_TYP_DEC
+	} else if p.aheadIsTsEnum(tok) {
+		dec.inner, err = p.tsEnum(nil)
+		typ = N_TS_DEC_ENUM
+	} else if p.aheadIsTsNS(tok) {
+		dec.inner, err = p.tsNS()
+		typ = N_TS_DEC_NS
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	dec.typ = typ
+	dec.loc = p.finLoc(loc)
+
+	return dec, nil
 }
