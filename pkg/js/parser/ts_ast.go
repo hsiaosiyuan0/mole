@@ -311,3 +311,20 @@ func (n *TsTypDec) Type() NodeType {
 func (n *TsTypDec) Loc() *Loc {
 	return n.loc
 }
+
+type TsInferface struct {
+	typ    NodeType
+	loc    *Loc
+	name   Node
+	params []Node
+	supers []Node
+	body   Node
+}
+
+func (n *TsInferface) Type() NodeType {
+	return n.typ
+}
+
+func (n *TsInferface) Loc() *Loc {
+	return n.loc
+}

@@ -816,3 +816,17 @@ function f1(): any {}`, opts)
 		"Function implementation name must be `f` at (2:9)",
 		err.Error(), "should be prog ok")
 }
+
+func TestTs55(t *testing.T) {
+	// InterfaceDeclaration
+	opts := NewParserOpts()
+	opts.Feature = opts.Feature.Off(FEAT_JSX)
+
+	ast, err := compileTs(`interface A<T> extends C<R>, D<S> { b }`, opts)
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	prog := ast.(*Prog)
+	itf := prog.stmts[0].(*TsInferface)
+	assert.Equal(t, 2, len(itf.supers), "should be ok")
+	assert.Equal(t, "b", itf.body.(*TsObj).props[0].(*TsProp).key.(*Ident).Text(), "should be ok")
+}

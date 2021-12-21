@@ -255,8 +255,10 @@ func (p *Parser) stmt() (node Node, err error) {
 		node, err = p.fnDec(false, tok, false)
 	} else if p.aheadIsLabel(tok) {
 		node, err = p.labelStmt()
-	} else if p.aheadIsTypDec(tok) {
+	} else if p.aheadIsTsTypDec(tok) {
 		node, err = p.tsTypDec()
+	} else if p.aheadIsTsItf(tok) {
+		node, err = p.tsItf()
 	} else if tok.value == T_SEMI {
 		node, err = p.emptyStmt()
 	} else if tok.value == T_EOF {

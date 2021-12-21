@@ -166,4 +166,5 @@ const (
 	ERR_CTOR_CANNOT_WITH_TYPE_PARAMS = "Type parameters cannot appear on a constructor declaration"
 	ERR_FN_SIG_MISSING_IMPL          = "Function implementation is missing or not immediately following the declaration"
 	ERR_TPL_INVALID_FN_IMPL_NAME     = "Function implementation name must be `%s`"
+	ERR_TPL_USE_TYP_AS_VALUE         = "`%s` only refers to a type, but is being used as a value here"
 )

@@ -494,6 +494,36 @@ func (p *Parser) tsTuple(rough bool) (Node, error) {
 	return &TsTuple{N_TS_TUPLE, p.finLoc(loc), args}, nil
 }
 
+func (p *Parser) tsPredefOrRef(tok *Token) (Node, error) {
+	if tok == nil {
+		tok = p.lexer.Peek()
+	}
+	tv := tok.value
+	name := "void"
+
+	var node Node
+	var err error
+	var loc *Loc
+	if tv == T_NAME {
+		node, err = p.ident(nil, false)
+		if err != nil {
+			return nil, err
+		}
+		name = node.(*Ident).Text()
+		loc = node.Loc()
+	} else {
+		// void
+		loc = p.locFromTok(p.lexer.Next())
+	}
+
+	if typ, ok := builtinTyp[name]; ok {
+		// predef
+		return &TsPredef{typ, loc, nil}, nil
+	}
+
+	return p.tsRef(node)
+}
+
 // returns `FunctionType` or `PrimaryType` since `FunctionType`
 // is conflicts with `ParenthesizedType`
 func (p *Parser) tsPrimary(rough bool) (Node, error) {
@@ -508,28 +538,7 @@ func (p *Parser) tsPrimary(rough bool) (Node, error) {
 	var err error
 	var node Node
 	if av == T_NAME || av == T_VOID {
-		name := "void"
-		var loc *Loc
-		if av == T_NAME {
-			node, err = p.ident(nil, false)
-			if err != nil {
-				return nil, err
-			}
-			name = node.(*Ident).Text()
-			loc = node.Loc()
-		} else {
-			loc = p.locFromTok(p.lexer.Next())
-		}
-
-		if typ, ok := builtinTyp[name]; ok {
-			// predef
-			node = &TsPredef{typ, loc, nil}
-		}
-
-		node, err = p.tsRef(node)
-		if err != nil {
-			return nil, err
-		}
+		node, err = p.tsPredefOrRef(ahead)
 	} else if av == T_BRACE_L {
 		// obj type
 		node, err = p.tsObj(rough)
@@ -680,7 +689,7 @@ func (p *Parser) tsProp(rough bool) (Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		if typAnnot != nil {
+		if p.lexer.Peek().value != T_PAREN_L {
 			return &TsProp{N_TS_PROP, p.finLoc(name.Loc().Clone()), name, typAnnot, ques, nil}, nil
 		}
 
@@ -898,8 +907,8 @@ func (p *Parser) tsCallSig(typParams []Node, loc *Loc) (Node, error) {
 	return &TsCallSig{N_TS_CALL_SIG, p.finLoc(loc), typParams, params, typAnnot}, nil
 }
 
-func (p *Parser) aheadIsTypDec(tok *Token) bool {
-	if tok.value == T_NAME {
+func (p *Parser) aheadIsTsTypDec(tok *Token) bool {
+	if p.ts() && tok.value == T_NAME {
 		return tok.Text() == "type"
 	}
 	return false
@@ -957,4 +966,63 @@ func (p *Parser) tsIsFnImplValid(id Node) error {
 		return nil
 	}
 	return p.errorAtLoc(id.(*Ident).loc, fmt.Sprintf(ERR_TPL_INVALID_FN_IMPL_NAME, ep))
+}
+
+func (p *Parser) aheadIsTsItf(tok *Token) bool {
+	return p.ts() && tok.value == T_INTERFACE
+}
+
+func (p *Parser) tsItfExtClause() ([]Node, error) {
+	if p.lexer.Peek().value == T_EXTENDS {
+		p.lexer.Next()
+	}
+	ns := make([]Node, 0, 1)
+	for {
+		tr, err := p.tsPredefOrRef(nil)
+		if err != nil {
+			return nil, err
+		}
+
+		tt := tr.Type()
+		if tt != N_TS_REF {
+			if tt >= N_TS_ANY && tt <= N_TS_SYM {
+				return nil, p.errorAtLoc(tr.Loc(), fmt.Sprintf(ERR_TPL_USE_TYP_AS_VALUE, tr.Loc().Text()))
+			}
+			return nil, p.errorAtLoc(tr.Loc(), ERR_UNEXPECTED_TOKEN)
+		}
+		ns = append(ns, tr)
+
+		ahead := p.lexer.Peek()
+		av := ahead.value
+		if av == T_BRACE_L {
+			break
+		} else if av == T_COMMA {
+			p.lexer.Next()
+		}
+	}
+	return ns, nil
+}
+
+func (p *Parser) tsItf() (Node, error) {
+	loc := p.locFromTok(p.lexer.Next())
+	name, err := p.ident(nil, true)
+	if err != nil {
+		return nil, err
+	}
+
+	params, _, err := p.tsTryTypParams()
+	if err != nil {
+		return nil, err
+	}
+
+	supers, err := p.tsItfExtClause()
+	if err != nil {
+		return nil, err
+	}
+
+	body, err := p.tsObj(false)
+	if err != nil {
+		return nil, err
+	}
+	return &TsInferface{N_TS_INTERFACE, p.finLoc(loc), name, params, supers, body}, nil
 }
