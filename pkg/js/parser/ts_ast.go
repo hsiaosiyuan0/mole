@@ -361,10 +361,11 @@ func (n *TsEnumMember) Loc() *Loc {
 }
 
 type TsImportAlias struct {
-	typ  NodeType
-	loc  *Loc
-	name Node
-	val  Node
+	typ    NodeType
+	loc    *Loc
+	name   Node
+	val    Node
+	export bool
 }
 
 func (n *TsImportAlias) Type() NodeType {

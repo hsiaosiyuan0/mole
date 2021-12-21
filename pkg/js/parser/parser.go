@@ -302,7 +302,8 @@ func (p *Parser) exportDec() (Node, error) {
 	node := &ExportDec{N_STMT_EXPORT, nil, false, nil, nil, nil, nil}
 	specs := make([]Node, 0)
 	tok = p.lexer.Peek()
-	if tok.value == T_MUL || tok.value == T_BRACE_L {
+	tv := tok.value
+	if tv == T_MUL || tv == T_BRACE_L {
 		ss, all, src, err := p.exportFrom()
 		node.src = src
 		node.all = all
@@ -318,36 +319,36 @@ func (p *Parser) exportDec() (Node, error) {
 		if err != nil {
 			return nil, err
 		}
-	} else if tok.value == T_FUNC {
+	} else if tv == T_FUNC {
 		node.dec, err = p.fnDec(false, nil, false)
 		if err != nil {
 			return nil, err
 		}
 	} else if p.aheadIsAsync(tok, false, false) {
 		if tok.ContainsEscape() {
-			return nil, p.errorAt(tok.value, &tok.begin, ERR_ESCAPE_IN_KEYWORD)
+			return nil, p.errorAt(tv, &tok.begin, ERR_ESCAPE_IN_KEYWORD)
 		}
 		node.dec, err = p.fnDec(false, tok, false)
 		if err != nil {
 			return nil, err
 		}
-	} else if tok.value == T_CLASS {
+	} else if tv == T_CLASS {
 		node.dec, err = p.classDec(false, false)
 		if err != nil {
 			return nil, err
 		}
-	} else if tok.value == T_DEFAULT {
+	} else if tv == T_DEFAULT {
 		def := p.lexer.Next()
 		tok := p.lexer.Peek()
 		node.def = p.locFromTok(def)
-		if tok.value == T_FUNC {
+		if tv == T_FUNC {
 			node.dec, err = p.fnDec(false, nil, true)
 		} else if p.aheadIsAsync(tok, false, false) {
 			if tok.ContainsEscape() {
-				return nil, p.errorAt(tok.value, &tok.begin, ERR_ESCAPE_IN_KEYWORD)
+				return nil, p.errorAt(tv, &tok.begin, ERR_ESCAPE_IN_KEYWORD)
 			}
 			node.dec, err = p.fnDec(false, tok, true)
-		} else if tok.value == T_CLASS {
+		} else if tv == T_CLASS {
 			node.dec, err = p.classDec(false, true)
 		} else {
 			node.dec, err = p.assignExpr(true)
@@ -358,6 +359,13 @@ func (p *Parser) exportDec() (Node, error) {
 		if err != nil {
 			return nil, err
 		}
+	} else if p.ts() && tv == T_IMPORT {
+		p.lexer.Next()
+		id, err := p.ident(nil, true)
+		if err != nil {
+			return nil, err
+		}
+		return p.tsImportAlias(id, true)
 	} else {
 		return nil, p.errorTok(tok)
 	}
@@ -523,7 +531,7 @@ func (p *Parser) importDec() (Node, error) {
 		}
 
 		if p.ts() && p.lexer.Peek().value == T_ASSIGN && id != nil {
-			return p.tsImportAlias(id)
+			return p.tsImportAlias(id, false)
 		}
 
 		_, err = p.nextMustName("from", false)
