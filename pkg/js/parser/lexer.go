@@ -58,12 +58,17 @@ type Lexer struct {
 	comments        map[int][]Token
 
 	feat Feature
+
+	// always save loc of the previous whitespace being skipped by `skipSpace`
+	// in jsx mode
+	prevWs *Token
 }
 
 func NewLexer(src *Source) *Lexer {
 	lexer := &Lexer{src: src, mode: make([]*LexerMode, 0)}
 	lexer.mode = append(lexer.mode, &LexerMode{LM_NONE, 0, 0, 0})
 	lexer.comments = make(map[int][]Token)
+	lexer.prevWs = &Token{}
 	return lexer
 }
 
@@ -102,8 +107,23 @@ func (l *Lexer) isMode(mode LexerModeValue) bool {
 	return l.curMode().value&mode > 0
 }
 
+func (l *Lexer) skipSpace() *Source {
+	if l.feat&FEAT_JSX == 0 {
+		l.src.SkipSpace()
+		return l.src
+	}
+
+	l.prevWs.begin.line = l.src.line
+	l.prevWs.begin.col = l.src.col
+	l.prevWs.raw.lo = l.src.Ofst()
+	l.prevWs.len = l.src.Pos()
+	l.src.SkipSpace()
+	l.finToken(l.prevWs, T_ILLEGAL)
+	return l.src
+}
+
 func (l *Lexer) readTokWithComment() *Token {
-	if l.src.SkipSpace().AheadIsEOF() {
+	if l.skipSpace().AheadIsEOF() {
 		return l.finToken(l.newToken(), T_EOF)
 	}
 
@@ -1395,10 +1415,21 @@ func (l *Lexer) readHex4Digits(id bool) (rune, string) {
 
 func (l *Lexer) ReadJSXTxt() *Token {
 	tok := l.newToken()
+
+	var preWs string
+	if l.prevWs.len != 0 {
+		tok.begin.line = l.prevWs.begin.line
+		tok.begin.col = l.prevWs.begin.col
+		preWs = l.prevWs.Text()
+		tok.raw.lo = l.prevWs.raw.lo
+	}
+
 	rs := make([]rune, 0)
 
 	i := 0
 	entity := make([]rune, 0, MaxHTMLEntityName)
+
+	// loc of the first `&`
 	ampLine := 0
 	ampCol := 0
 	for {
@@ -1437,7 +1468,7 @@ func (l *Lexer) ReadJSXTxt() *Token {
 		}
 	}
 
-	tok.ext = string(rs)
+	tok.ext = preWs + string(rs)
 	return l.finToken(tok, T_JSX_TXT)
 }
 

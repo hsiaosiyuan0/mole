@@ -35,7 +35,7 @@ func TestJSX(t *testing.T) {
 	assert.Equal(t, N_JSX_ATTR_SPREAD, attr3.Type(), "should be name attr3")
 
 	children := elem.children
-	assert.Equal(t, 4, len(children), "should have 4 children")
+	assert.Equal(t, 5, len(children), "should have 4 children")
 
 	child1 := children[1].(*JsxExprSpan).expr.(*JsxElem)
 	child1_0 := child1.children[0]
@@ -61,7 +61,7 @@ func TestJSXFragment(t *testing.T) {
 	assert.Equal(t, false, open.closed, "should not closed")
 
 	children := elem.children
-	assert.Equal(t, 4, len(children), "should have 4 children")
+	assert.Equal(t, 5, len(children), "should have 4 children")
 
 	child3 := children[3]
 	assert.Equal(t, N_JSX_CHILD_SPREAD, child3.Type(), "should be spread")
@@ -84,13 +84,13 @@ func TestJSXEmpty(t *testing.T) {
 	assert.Equal(t, false, open.closed, "should not closed")
 
 	children := elem.children
-	assert.Equal(t, 5, len(children), "should have 4 children")
+	assert.Equal(t, 7, len(children), "should have 4 children")
 
 	empty := children[3]
 	assert.Equal(t, N_JSX_EXPR_SPAN, empty.Type(), "should be span")
 	assert.Equal(t, N_JSX_EMPTY, empty.(*JsxExprSpan).expr.Type(), "should be empty")
 
-	child3 := children[4]
+	child3 := children[5]
 	assert.Equal(t, N_JSX_CHILD_SPREAD, child3.Type(), "should be spread")
 }
 
