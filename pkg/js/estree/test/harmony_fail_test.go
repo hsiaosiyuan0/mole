@@ -878,15 +878,15 @@ func TestHarmonyFail193(t *testing.T) {
 }
 
 func TestHarmonyFail194(t *testing.T) {
-	testFail(t, "x = { method() 42 }", "Unexpected token `number` at (1:15)", nil)
+	testFail(t, "x = { method() 42 }", "Unexpected token at (1:15)", nil)
 }
 
 func TestHarmonyFail195(t *testing.T) {
-	testFail(t, "x = { get method() 42 }", "Unexpected token `number` at (1:19)", nil)
+	testFail(t, "x = { get method() 42 }", "Unexpected token at (1:19)", nil)
 }
 
 func TestHarmonyFail196(t *testing.T) {
-	testFail(t, "x = { set method(val) v = val }", "Unexpected token `identifier` at (1:22)", nil)
+	testFail(t, "x = { set method(val) v = val }", "Unexpected token at (1:22)", nil)
 }
 
 func TestHarmonyFail197(t *testing.T) {

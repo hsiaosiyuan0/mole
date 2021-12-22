@@ -160,4 +160,13 @@ const (
 	ERR_JSX_ADJACENT_ELEM_SHOULD_BE_WRAPPED        = "Adjacent JSX elements must be wrapped in an enclosing tag"
 	ERR_TPL_JSX_HTML_UNESCAPED_ENTITY              = "Unexpected `%s`, HTML entity "
 	ERR_TPL_JSX_UNDEFINED_HTML_ENTITY              = "Undefined HTML entity `%s`"
+
+	ERR_THIS_CANNOT_BE_OPTIONAL      = "The `this` parameter cannot be optional"
+	ERR_ILLEGAL_PARAMETER_MODIFIER   = "A parameter property is only allowed in a constructor implementation"
+	ERR_CTOR_CANNOT_WITH_TYPE_PARAMS = "Type parameters cannot appear on a constructor declaration"
+	ERR_FN_SIG_MISSING_IMPL          = "Function implementation is missing or not immediately following the declaration"
+	ERR_TPL_INVALID_FN_IMPL_NAME     = "Function implementation name must be `%s`"
+	ERR_TPL_USE_TYP_AS_VALUE         = "`%s` only refers to a type, but is being used as a value here"
+	ERR_ASYNC_IN_AMBIENT             = "`async` modifier cannot be used in an ambient context"
+	ERR_INIT_NOT_ALLOWED             = "Initializers are not allowed in ambient contexts"
 )

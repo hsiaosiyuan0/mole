@@ -1,10 +1,10 @@
 package parser
 
 type JsxIdent struct {
-	typ   NodeType
-	loc   *Loc
-	val   string
-	extra *ExprExtra
+	typ        NodeType
+	loc        *Loc
+	val        string
+	outerParen *Loc
 }
 
 func (n *JsxIdent) Type() NodeType {
@@ -15,12 +15,12 @@ func (n *JsxIdent) Loc() *Loc {
 	return n.loc
 }
 
-func (n *JsxIdent) Extra() interface{} {
-	return n.extra
+func (n *JsxIdent) OuterParen() *Loc {
+	return n.outerParen
 }
 
-func (n *JsxIdent) setExtra(ext interface{}) {
-	n.extra = ext.(*ExprExtra)
+func (n *JsxIdent) SetOuterParen(loc *Loc) {
+	n.outerParen = loc
 }
 
 func (n *JsxIdent) Text() string {
@@ -40,13 +40,6 @@ func (n *JsxNsName) Type() NodeType {
 
 func (n *JsxNsName) Loc() *Loc {
 	return n.loc
-}
-
-func (n *JsxNsName) Extra() interface{} {
-	return nil
-}
-
-func (n *JsxNsName) setExtra(ext interface{}) {
 }
 
 func (n *JsxNsName) NS() string {
@@ -70,13 +63,6 @@ func (n *JsxMemberExpr) Type() NodeType {
 
 func (n *JsxMemberExpr) Loc() *Loc {
 	return n.loc
-}
-
-func (n *JsxMemberExpr) Extra() interface{} {
-	return nil
-}
-
-func (n *JsxMemberExpr) setExtra(ext interface{}) {
 }
 
 func (n *JsxMemberExpr) Obj() Node {
@@ -107,13 +93,6 @@ func (n *JsxOpen) Loc() *Loc {
 	return n.loc
 }
 
-func (n *JsxOpen) Extra() interface{} {
-	return nil
-}
-
-func (n *JsxOpen) setExtra(ext interface{}) {
-}
-
 func (n *JsxOpen) Name() Node {
 	return n.name
 }
@@ -141,13 +120,6 @@ func (n *JsxClose) Loc() *Loc {
 	return n.loc
 }
 
-func (n *JsxClose) Extra() interface{} {
-	return nil
-}
-
-func (n *JsxClose) setExtra(ext interface{}) {
-}
-
 func (n *JsxClose) Name() Node {
 	return n.name
 }
@@ -164,13 +136,6 @@ func (n *JsxText) Type() NodeType {
 
 func (n *JsxText) Loc() *Loc {
 	return n.loc
-}
-
-func (n *JsxText) Extra() interface{} {
-	return nil
-}
-
-func (n *JsxText) setExtra(ext interface{}) {
 }
 
 func (n *JsxText) Value() string {
@@ -197,13 +162,6 @@ func (n *JsxAttr) Loc() *Loc {
 	return n.loc
 }
 
-func (n *JsxAttr) Extra() interface{} {
-	return nil
-}
-
-func (n *JsxAttr) setExtra(ext interface{}) {
-}
-
 func (n *JsxAttr) Name() Node {
 	return n.name
 }
@@ -226,13 +184,6 @@ func (n *JsxSpreadAttr) Loc() *Loc {
 	return n.loc
 }
 
-func (n *JsxSpreadAttr) Extra() interface{} {
-	return nil
-}
-
-func (n *JsxSpreadAttr) setExtra(ext interface{}) {
-}
-
 func (n *JsxSpreadAttr) Arg() Node {
 	return n.arg
 }
@@ -249,13 +200,6 @@ func (n *JsxSpreadChild) Type() NodeType {
 
 func (n *JsxSpreadChild) Loc() *Loc {
 	return n.loc
-}
-
-func (n *JsxSpreadChild) Extra() interface{} {
-	return nil
-}
-
-func (n *JsxSpreadChild) setExtra(ext interface{}) {
 }
 
 func (n *JsxSpreadChild) Expr() Node {
@@ -275,13 +219,6 @@ func (n *JsxEmpty) Loc() *Loc {
 	return n.loc
 }
 
-func (n *JsxEmpty) Extra() interface{} {
-	return nil
-}
-
-func (n *JsxEmpty) setExtra(ext interface{}) {
-}
-
 // https://github.com/facebook/jsx/blob/main/AST.md#jsx-element
 type JsxElem struct {
 	typ      NodeType
@@ -297,13 +234,6 @@ func (n *JsxElem) Type() NodeType {
 
 func (n *JsxElem) Loc() *Loc {
 	return n.loc
-}
-
-func (n *JsxElem) Extra() interface{} {
-	return nil
-}
-
-func (n *JsxElem) setExtra(_ interface{}) {
 }
 
 func (n *JsxElem) Open() Node {
@@ -334,13 +264,6 @@ func (n *JsxExprSpan) Type() NodeType {
 
 func (n *JsxExprSpan) Loc() *Loc {
 	return n.loc
-}
-
-func (n *JsxExprSpan) Extra() interface{} {
-	return nil
-}
-
-func (n *JsxExprSpan) setExtra(ext interface{}) {
 }
 
 func (n *JsxExprSpan) Expr() Node {

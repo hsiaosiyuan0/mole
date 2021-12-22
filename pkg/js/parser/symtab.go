@@ -204,6 +204,10 @@ func (s *Scope) AddLocal(ref *Ref, name string, checkDup bool) bool {
 	return true
 }
 
+func (s *Scope) DelLocal(ref *Ref) {
+	s.Refs[ref.Node.Text()] = nil
+}
+
 func (s *Scope) BindingOf(name string) *Ref {
 	scope := s
 	for scope != nil {
