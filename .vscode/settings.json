@@ -6,6 +6,7 @@
     "jquery",
     "pbcopy",
     "REDEF",
+    "stdlib",
     "unparenthesized"
   ],
   "go.toolsEnvVars": {
