@@ -1017,3 +1017,215 @@ func TestTs68(t *testing.T) {
 	assert.Equal(t, "Enum", dec.inner.(*TsEnum).name.(*Ident).Text(), "should be ok")
 	assert.Equal(t, 3, len(dec.inner.(*TsEnum).items), "should be ok")
 }
+
+func TestTs69(t *testing.T) {
+	// AmbientVariableDeclaration
+	opts := NewParserOpts()
+	opts.Feature = opts.Feature.Off(FEAT_JSX)
+
+	ast, err := compileTs(`declare let a`, opts)
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	prog := ast.(*Prog)
+	td := prog.stmts[0].(*TsDec)
+	assert.Equal(t, N_TS_DEC_VAR_DEC, td.Type(), "should be ok")
+	assert.Equal(t, "a", td.inner.(*VarDecStmt).decList[0].(*VarDec).id.(*Ident).Text(), "should be ok")
+}
+
+func TestTs70(t *testing.T) {
+	// AmbientFunctionDeclaration
+	opts := NewParserOpts()
+	opts.Feature = opts.Feature.Off(FEAT_JSX)
+
+	ast, err := compileTs(`declare function a();`, opts)
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	prog := ast.(*Prog)
+	td := prog.stmts[0].(*TsDec)
+	assert.Equal(t, N_TS_DEC_FN, td.Type(), "should be ok")
+	assert.Equal(t, "a", td.inner.(*FnDec).id.(*Ident).Text(), "should be ok")
+}
+
+func TestTs71(t *testing.T) {
+	// AmbientFunctionDeclaration
+	opts := NewParserOpts()
+	opts.Feature = opts.Feature.Off(FEAT_JSX)
+
+	ast, err := compileTs(`declare function a(): number;`, opts)
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	prog := ast.(*Prog)
+	td := prog.stmts[0].(*TsDec)
+	assert.Equal(t, N_TS_DEC_FN, td.Type(), "should be ok")
+	assert.Equal(t, "a", td.inner.(*FnDec).id.(*Ident).Text(), "should be ok")
+	assert.Equal(t, N_TS_NUM, td.inner.(*FnDec).ti.typAnnot.Type(), "should be ok")
+}
+
+func TestTs72(t *testing.T) {
+	// AmbientTypeAliasDeclaration
+	opts := NewParserOpts()
+	opts.Feature = opts.Feature.Off(FEAT_JSX)
+
+	ast, err := compileTs(`declare type a = number;`, opts)
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	prog := ast.(*Prog)
+	td := prog.stmts[0].(*TsDec)
+	assert.Equal(t, N_TS_DEC_TYP_DEC, td.Type(), "should be ok")
+	assert.Equal(t, "a", td.inner.(*TsTypDec).name.(*Ident).Text(), "should be ok")
+	assert.Equal(t, N_TS_NUM, td.inner.(*TsTypDec).ti.typAnnot.Type(), "should be ok")
+}
+
+func TestTs73(t *testing.T) {
+	// AmbientNamespaceDeclaration
+	opts := NewParserOpts()
+	opts.Feature = opts.Feature.Off(FEAT_JSX)
+
+	ast, err := compileTs(`declare namespace a { type a = number; }`, opts)
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	prog := ast.(*Prog)
+	td := prog.stmts[0].(*TsDec)
+	assert.Equal(t, N_TS_DEC_NS, td.Type(), "should be ok")
+
+	dec := td.inner.(*TsNS).stmts[0].(*TsTypDec)
+	assert.Equal(t, "a", dec.name.(*Ident).Text(), "should be ok")
+	assert.Equal(t, N_TS_NUM, dec.ti.typAnnot.Type(), "should be ok")
+}
+
+func TestTs74(t *testing.T) {
+	// Class TypeParams
+	ast, err := compileTs(`class A<T> {
+    m(): void { }
+}`, nil)
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	prog := ast.(*Prog)
+	dec := prog.stmts[0].(*ClassDec)
+	assert.Equal(t, "A", dec.id.(*Ident).Text(), "should be ok")
+	assert.Equal(t, "T", dec.id.(*Ident).ti.typParams[0].(*TsParam).name.(*Ident).Text(), "should be ok")
+
+	m := dec.body.(*ClassBody).elems[0].(*Method)
+	assert.Equal(t, N_TS_VOID, m.value.(*FnDec).ti.typAnnot.Type(), "should be ok")
+}
+
+func TestTs75(t *testing.T) {
+	// AmbientClassDeclaration Constructorignature
+	ast, err := compileTs(`declare class a {
+    constructor()
+}`, nil)
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	prog := ast.(*Prog)
+	dec := prog.stmts[0].(*TsDec)
+	cls := dec.inner.(*ClassDec)
+	assert.Equal(t, "a", cls.id.(*Ident).Text(), "should be ok")
+
+	ctor := cls.body.(*ClassBody).elems[0].(*Method)
+	assert.Equal(t, PK_CTOR, ctor.kind, "should be ok")
+}
+
+func TestTs76(t *testing.T) {
+	// AmbientClassDeclaration MethodSignature
+	ast, err := compileTs(`declare class a {
+    c(): any;
+}`, nil)
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	prog := ast.(*Prog)
+	dec := prog.stmts[0].(*TsDec)
+	cls := dec.inner.(*ClassDec)
+	assert.Equal(t, "a", cls.id.(*Ident).Text(), "should be ok")
+
+	m := cls.body.(*ClassBody).elems[0].(*Method)
+	assert.Equal(t, PK_METHOD, m.kind, "should be ok")
+	assert.Equal(t, N_TS_ANY, m.value.(*FnDec).ti.typAnnot.Type(), "should be ok")
+}
+
+func TestTs77(t *testing.T) {
+	// AmbientClassDeclaration IndexSignature
+	ast, err := compileTs(`declare class a {
+    [k: string]: number
+}`, nil)
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	prog := ast.(*Prog)
+	dec := prog.stmts[0].(*TsDec)
+	cls := dec.inner.(*ClassDec)
+	assert.Equal(t, "a", cls.id.(*Ident).Text(), "should be ok")
+
+	idx := cls.body.(*ClassBody).elems[0].(*TsIdxSig)
+	assert.Equal(t, "k", idx.id.(*Ident).Text(), "should be ok")
+	assert.Equal(t, N_TS_NUM, idx.val.Type(), "should be ok")
+}
+
+func TestTs78(t *testing.T) {
+	// Class AccessibilityModifier
+	ast, err := compileTs(`declare class a {
+    public static b: number
+}`, nil)
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	prog := ast.(*Prog)
+	dec := prog.stmts[0].(*TsDec)
+	cls := dec.inner.(*ClassDec)
+	assert.Equal(t, "a", cls.id.(*Ident).Text(), "should be ok")
+
+	f := cls.body.(*ClassBody).elems[0].(*Field)
+	assert.Equal(t, true, f.static, "should be ok")
+	assert.Equal(t, ACC_MOD_PUB, f.accMode, "should be ok")
+	assert.Equal(t, "b", f.key.(*Ident).Text(), "should be ok")
+	assert.Equal(t, N_TS_NUM, f.key.(*Ident).ti.typAnnot.Type(), "should be ok")
+}
+
+func TestTs79(t *testing.T) {
+	// Class AccessibilityModifier
+	ast, err := compileTs(`class a {
+    public ['test']() {}
+}`, nil)
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	prog := ast.(*Prog)
+	cls := prog.stmts[0].(*ClassDec)
+	assert.Equal(t, "a", cls.id.(*Ident).Text(), "should be ok")
+
+	m := cls.body.(*ClassBody).elems[0].(*Method)
+	assert.Equal(t, false, m.static, "should be ok")
+	assert.Equal(t, ACC_MOD_PUB, m.accMode, "should be ok")
+	assert.Equal(t, "test", m.key.(*StrLit).Text(), "should be ok")
+}
+
+func TestTs80(t *testing.T) {
+	// Class AccessibilityModifier
+	ast, err := compileTs(`class A {
+    private constructor() {}
+}`, nil)
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	prog := ast.(*Prog)
+	cls := prog.stmts[0].(*ClassDec)
+	assert.Equal(t, "A", cls.id.(*Ident).Text(), "should be ok")
+
+	m := cls.body.(*ClassBody).elems[0].(*Method)
+	assert.Equal(t, PK_CTOR, m.kind, "should be ok")
+	assert.Equal(t, ACC_MOD_PRI, m.accMode, "should be ok")
+}
+
+func TestTs81(t *testing.T) {
+	// AmbientModuleDeclaration
+	ast, err := compileTs(`declare module 'a' {
+    let a: number;
+}`, nil)
+	assert.Equal(t, nil, err, "should be prog ok")
+
+	prog := ast.(*Prog)
+	dec := prog.stmts[0].(*TsDec)
+	blk := dec.inner.(*BlockStmt)
+	assert.Equal(t, N_TS_DEC_MODULE, dec.Type(), "should be ok")
+	assert.Equal(t, "a", dec.name.(*StrLit).Text(), "should be ok")
+
+	vds := blk.body[0].(*VarDecStmt)
+	vd := vds.decList[0].(*VarDec)
+	assert.Equal(t, "a", vd.id.(*Ident).Text(), "should be ok")
+	assert.Equal(t, N_TS_NUM, vd.id.(*Ident).ti.typAnnot.Type(), "should be ok")
+}

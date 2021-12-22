@@ -153,6 +153,7 @@ type NullLit struct {
 	typ        NodeType
 	loc        *Loc
 	outerParen *Loc
+	ti         *TypInfo
 }
 
 func (n *NullLit) Type() NodeType {
@@ -175,11 +176,20 @@ func (n *NullLit) SetOuterParen(loc *Loc) {
 	n.outerParen = loc
 }
 
+func (n *NullLit) TypInfo() *TypInfo {
+	return n.ti
+}
+
+func (n *NullLit) SetTypInfo(ti *TypInfo) {
+	n.ti = ti
+}
+
 type BoolLit struct {
 	typ        NodeType
 	loc        *Loc
 	val        bool
 	outerParen *Loc
+	ti         *TypInfo
 }
 
 func (n *BoolLit) Value() bool {
@@ -209,10 +219,19 @@ func (n *BoolLit) SetOuterParen(loc *Loc) {
 	n.outerParen = loc
 }
 
+func (n *BoolLit) TypInfo() *TypInfo {
+	return n.ti
+}
+
+func (n *BoolLit) SetTypInfo(ti *TypInfo) {
+	n.ti = ti
+}
+
 type NumLit struct {
 	typ        NodeType
 	loc        *Loc
 	outerParen *Loc
+	ti         *TypInfo
 }
 
 func (n *NumLit) Type() NodeType {
@@ -323,12 +342,21 @@ func (n *NumLit) SetOuterParen(loc *Loc) {
 	n.outerParen = loc
 }
 
+func (n *NumLit) TypInfo() *TypInfo {
+	return n.ti
+}
+
+func (n *NumLit) SetTypInfo(ti *TypInfo) {
+	n.ti = ti
+}
+
 type StrLit struct {
 	typ                  NodeType
 	loc                  *Loc
 	val                  string
 	legacyOctalEscapeSeq bool
 	outerParen           *Loc
+	ti                   *TypInfo
 }
 
 func (n *StrLit) Type() NodeType {
@@ -355,6 +383,14 @@ func (n *StrLit) SetOuterParen(loc *Loc) {
 	n.outerParen = loc
 }
 
+func (n *StrLit) TypInfo() *TypInfo {
+	return n.ti
+}
+
+func (n *StrLit) SetTypInfo(ti *TypInfo) {
+	n.ti = ti
+}
+
 type RegLit struct {
 	typ        NodeType
 	loc        *Loc
@@ -362,6 +398,7 @@ type RegLit struct {
 	pattern    string
 	flags      string
 	outerParen *Loc
+	ti         *TypInfo
 }
 
 func (n *RegLit) Type() NodeType {
@@ -386,6 +423,14 @@ func (n *RegLit) OuterParen() *Loc {
 
 func (n *RegLit) SetOuterParen(loc *Loc) {
 	n.outerParen = loc
+}
+
+func (n *RegLit) TypInfo() *TypInfo {
+	return n.ti
+}
+
+func (n *RegLit) SetTypInfo(ti *TypInfo) {
+	n.ti = ti
 }
 
 type ArrLit struct {
@@ -1317,7 +1362,8 @@ type Prop struct {
 	// it's `true` if the prop value is in assign pattern
 	assign bool
 
-	kind PropKind
+	kind    PropKind
+	accMode ACC_MOD
 }
 
 func (n *Prop) Kind() string {
@@ -1956,6 +2002,7 @@ type Method struct {
 	computed bool
 	kind     PropKind
 	value    Node
+	accMode  ACC_MOD
 }
 
 func (n *Method) Kind() string {
@@ -1993,6 +2040,7 @@ type Field struct {
 	static   bool
 	computed bool
 	value    Node
+	accMode  ACC_MOD
 }
 
 func (n *Field) Key() Node {

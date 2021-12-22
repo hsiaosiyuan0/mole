@@ -206,7 +206,7 @@ func (p *Parser) stmt() (node Node, err error) {
 		case T_VAR:
 			node, err = p.varDecStmt(T_VAR, false)
 		case T_FUNC:
-			node, err = p.fnDec(false, nil, false)
+			node, err = p.fnDec(false, nil, false, false)
 		case T_IF:
 			node, err = p.ifStmt()
 		case T_FOR:
@@ -217,7 +217,7 @@ func (p *Parser) stmt() (node Node, err error) {
 			node, err = p.whileStmt()
 		case T_CLASS:
 			if allowDec {
-				node, err = p.classDec(false, false)
+				node, err = p.classDec(false, false, false)
 			}
 		case T_BREAK:
 			node, err = p.brkStmt()
@@ -255,7 +255,7 @@ func (p *Parser) stmt() (node Node, err error) {
 		if tok.ContainsEscape() {
 			return nil, p.errorAt(tok.value, &tok.begin, ERR_ESCAPE_IN_KEYWORD)
 		}
-		node, err = p.fnDec(false, tok, false)
+		node, err = p.fnDec(false, tok, false, false)
 	} else if p.aheadIsLabel(tok) {
 		node, err = p.labelStmt()
 	} else if p.aheadIsTsTypDec(tok) {
@@ -324,7 +324,7 @@ func (p *Parser) exportDec() (Node, error) {
 			return nil, err
 		}
 	} else if tv == T_FUNC {
-		node.dec, err = p.fnDec(false, nil, false)
+		node.dec, err = p.fnDec(false, nil, false, false)
 		if err != nil {
 			return nil, err
 		}
@@ -332,12 +332,12 @@ func (p *Parser) exportDec() (Node, error) {
 		if tok.ContainsEscape() {
 			return nil, p.errorAt(tv, &tok.begin, ERR_ESCAPE_IN_KEYWORD)
 		}
-		node.dec, err = p.fnDec(false, tok, false)
+		node.dec, err = p.fnDec(false, tok, false, false)
 		if err != nil {
 			return nil, err
 		}
 	} else if tv == T_CLASS {
-		node.dec, err = p.classDec(false, false)
+		node.dec, err = p.classDec(false, false, false)
 		if err != nil {
 			return nil, err
 		}
@@ -347,14 +347,14 @@ func (p *Parser) exportDec() (Node, error) {
 		tv = tok.value
 		node.def = p.locFromTok(def)
 		if tv == T_FUNC {
-			node.dec, err = p.fnDec(false, nil, true)
+			node.dec, err = p.fnDec(false, nil, true, false)
 		} else if p.aheadIsAsync(tok, false, false) {
 			if tok.ContainsEscape() {
 				return nil, p.errorAt(tv, &tok.begin, ERR_ESCAPE_IN_KEYWORD)
 			}
-			node.dec, err = p.fnDec(false, tok, true)
+			node.dec, err = p.fnDec(false, tok, true, false)
 		} else if tv == T_CLASS {
-			node.dec, err = p.classDec(false, true)
+			node.dec, err = p.classDec(false, true, false)
 		} else {
 			node.dec, err = p.assignExpr(true)
 			if err := p.advanceIfSemi(false); err != nil {
@@ -390,6 +390,9 @@ func (p *Parser) exportDec() (Node, error) {
 		}
 	} else if p.aheadIsTsEnum(tok) {
 		node.dec, err = p.tsEnum(nil)
+		if err != nil {
+			return nil, err
+		}
 	} else if p.aheadIsTsNS(tok) {
 		node.dec, err = p.tsNS()
 		if err != nil {
@@ -457,7 +460,7 @@ func (p *Parser) exportFrom() ([]Node, bool, Node, error) {
 		if err != nil {
 			return nil, false, nil, err
 		}
-		src = &StrLit{N_LIT_STR, p.finLoc(p.locFromTok(str)), str.Text(), str.HasLegacyOctalEscapeSeq(), nil}
+		src = &StrLit{N_LIT_STR, p.finLoc(p.locFromTok(str)), str.Text(), str.HasLegacyOctalEscapeSeq(), nil, nil}
 	} else {
 		// `export { default } from "a"` is legal
 		// `export { default }` is illegal
@@ -591,7 +594,7 @@ func (p *Parser) importDec() (Node, error) {
 	if p.scope().IsKind(SPK_STRICT) && legacyOctalEscapeSeq {
 		return nil, p.errorAtLoc(p.locFromTok(str), ERR_LEGACY_OCTAL_ESCAPE_IN_STRICT_MODE)
 	}
-	src := &StrLit{N_LIT_STR, p.finLoc(p.locFromTok(str)), str.Text(), legacyOctalEscapeSeq, nil}
+	src := &StrLit{N_LIT_STR, p.finLoc(p.locFromTok(str)), str.Text(), legacyOctalEscapeSeq, nil, nil}
 
 	if err := p.advanceIfSemi(true); err != nil {
 		return nil, err
@@ -684,9 +687,8 @@ func (p *Parser) importNS() ([]Node, error) {
 }
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-functions-and-classes.html#prod-ClassDeclaration
-func (p *Parser) classDec(expr bool, canNameOmitted bool) (Node, error) {
-	loc := p.loc()
-	p.lexer.Next()
+func (p *Parser) classDec(expr bool, canNameOmitted bool, declare bool) (Node, error) {
+	loc := p.locFromTok(p.lexer.Next())
 
 	ps := p.scope()
 	// all parts of the class dec are in strict mode(include the id part)
@@ -700,6 +702,15 @@ func (p *Parser) classDec(expr bool, canNameOmitted bool) (Node, error) {
 		id, err = p.identStrict(ps, true, true, false)
 		if err != nil {
 			return nil, err
+		}
+		ti := p.newTypInfo()
+		if ti != nil {
+			typParams, _, err := p.tsTryTypParams()
+			if err != nil {
+				return nil, err
+			}
+			ti.typParams = typParams
+			id.(NodeWithTypInfo).SetTypInfo(ti)
 		}
 		ref := NewRef()
 		ref.Node = id.(*Ident)
@@ -730,7 +741,7 @@ func (p *Parser) classDec(expr bool, canNameOmitted bool) (Node, error) {
 		scope.AddKind(SPK_CLASS_HAS_SUPER)
 	}
 
-	body, err := p.classBody()
+	body, err := p.classBody(declare)
 	if err != nil {
 		return nil, err
 	}
@@ -747,7 +758,7 @@ func (p *Parser) classDec(expr bool, canNameOmitted bool) (Node, error) {
 	return &ClassDec{typ, p.finLoc(loc), id, super, body}, nil
 }
 
-func (p *Parser) classBody() (Node, error) {
+func (p *Parser) classBody(declare bool) (Node, error) {
 	loc := p.loc()
 
 	if _, err := p.nextMustTok(T_BRACE_L); err != nil {
@@ -768,7 +779,7 @@ func (p *Parser) classBody() (Node, error) {
 			p.lexer.Next()
 			continue
 		}
-		elem, err := p.classElem()
+		elem, err := p.classElem(declare)
 		if err != nil {
 			return nil, err
 		}
@@ -821,7 +832,12 @@ func (p *Parser) classBody() (Node, error) {
 	return &ClassBody{N_ClASS_BODY, p.finLoc(loc), elems}, nil
 }
 
-func (p *Parser) classElem() (Node, error) {
+func (p *Parser) classElem(declare bool) (Node, error) {
+	accMod, _, err := p.accMod()
+	if err != nil {
+		return nil, err
+	}
+
 	var staticLoc *Loc
 	static := false
 
@@ -835,12 +851,12 @@ func (p *Parser) classElem() (Node, error) {
 		isField, ahead = p.isField(true, false, false)
 		if isField {
 			key := &Ident{N_NAME, p.finLoc(p.locFromTok(tok)), "static", false, tok.ContainsEscape(), nil, true, p.newTypInfo()}
-			return p.field(key, nil)
+			return p.field(key, nil, accMod)
 		} else if ahead.value == T_BRACE_L {
 			return p.staticBlock(staticLoc)
 		} else if p.aheadIsArgList(ahead) {
 			key := &Ident{N_NAME, p.finLoc(p.locFromTok(tok)), "static", false, tok.ContainsEscape(), nil, true, p.newTypInfo()}
-			return p.method(staticLoc, key, nil, false, PK_METHOD, false, false, false, true, false)
+			return p.method(staticLoc, key, accMod, nil, false, PK_METHOD, false, false, false, true, false, declare)
 		}
 	}
 
@@ -848,12 +864,12 @@ func (p *Parser) classElem() (Node, error) {
 		if ahead.ContainsEscape() {
 			return nil, p.errorAt(ahead.value, &ahead.begin, ERR_ESCAPE_IN_KEYWORD)
 		}
-		return p.method(staticLoc, nil, nil, false, PK_METHOD, false, true, true, true, static)
+		return p.method(staticLoc, nil, accMod, nil, false, PK_METHOD, false, true, true, true, static, declare)
 	} else if ahead.value == T_MUL {
 		if p.feat&FEAT_ASYNC_GENERATOR == 0 {
 			return nil, p.errorTok(ahead)
 		}
-		return p.method(staticLoc, nil, nil, false, PK_METHOD, true, false, true, true, static)
+		return p.method(staticLoc, nil, accMod, nil, false, PK_METHOD, true, false, true, true, static, declare)
 	}
 
 	propLoc := p.locFromTok(ahead)
@@ -865,14 +881,14 @@ func (p *Parser) classElem() (Node, error) {
 
 		var key Node
 		if ahead.value == T_STRING {
-			key = &StrLit{N_LIT_STR, p.finLoc(propLoc.Clone()), name, ahead.HasLegacyOctalEscapeSeq(), nil}
+			key = &StrLit{N_LIT_STR, p.finLoc(propLoc.Clone()), name, ahead.HasLegacyOctalEscapeSeq(), nil, nil}
 		} else {
 			key = &Ident{N_NAME, p.finLoc(propLoc.Clone()), name, false, ahead.ContainsEscape(), nil, kw, p.newTypInfo()}
 		}
 
 		isField, ahead = p.isField(false, name == "get" || name == "set", false)
 		if isField {
-			return p.field(key, staticLoc)
+			return p.field(key, staticLoc, accMod)
 		}
 
 		if static {
@@ -885,7 +901,7 @@ func (p *Parser) classElem() (Node, error) {
 			if name == "constructor" {
 				kd = PK_CTOR
 			}
-			return p.method(propLoc, key, nil, false, kd, false, false, true, true, static)
+			return p.method(propLoc, key, accMod, nil, false, kd, false, false, true, true, static, declare)
 		}
 
 		if name == "get" {
@@ -896,10 +912,14 @@ func (p *Parser) classElem() (Node, error) {
 			return nil, p.errorTok(ahead)
 		}
 
-		return p.method(propLoc, nil, nil, false, kd, false, false, true, true, static)
+		return p.method(propLoc, nil, accMod, nil, false, kd, false, false, true, true, static, declare)
 	}
 
-	return p.field(nil, staticLoc)
+	if declare && ahead.value == T_BRACKET_L {
+		return p.tsIdxSig(nil)
+	}
+
+	return p.field(nil, staticLoc, accMod)
 }
 
 func (p *Parser) isName(node Node, name string, canContainsEscape bool, str bool) bool {
@@ -924,7 +944,7 @@ func (p *Parser) isName(node Node, name string, canContainsEscape bool, str bool
 	return true
 }
 
-func (p *Parser) field(key Node, static *Loc) (Node, error) {
+func (p *Parser) field(key Node, static *Loc, accMode ACC_MOD) (Node, error) {
 	var loc *Loc
 	var err error
 	var compute *Loc
@@ -942,6 +962,16 @@ func (p *Parser) field(key Node, static *Loc) (Node, error) {
 		loc = key.Loc().Clone()
 	}
 
+	ti := p.newTypInfo()
+	if ti != nil {
+		typAnnot, _, err := p.tsTypAnnot()
+		if err != nil {
+			return nil, err
+		}
+		ti.typAnnot = typAnnot
+		key.(NodeWithTypInfo).SetTypInfo(ti)
+	}
+
 	var value Node
 	tok := p.lexer.Peek()
 	if tok.value == T_ASSIGN {
@@ -954,7 +984,7 @@ func (p *Parser) field(key Node, static *Loc) (Node, error) {
 		if static != nil {
 			loc = static
 		}
-		return p.method(loc, key, compute, false, PK_METHOD, false, false, true, true, static != nil)
+		return p.method(loc, key, accMode, compute, false, PK_METHOD, false, false, true, true, static != nil, false)
 	}
 	p.advanceIfSemi(false)
 
@@ -973,7 +1003,7 @@ func (p *Parser) field(key Node, static *Loc) (Node, error) {
 		return nil, p.errorAtLoc(key.Loc(), ERR_CTOR_CANNOT_BE_Field)
 	}
 
-	return &Field{N_FIELD, p.finLoc(loc), key, staticField, compute != nil, value}, nil
+	return &Field{N_FIELD, p.finLoc(loc), key, staticField, compute != nil, value, accMode}, nil
 }
 
 func (p *Parser) classElemName() (Node, *Loc, error) {
@@ -1703,7 +1733,7 @@ func (p *Parser) aheadIsAsync(tok *Token, prop bool, pvt bool) bool {
 }
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-statements-and-declarations.html#prod-HoistableDeclaration
-func (p *Parser) fnDec(expr bool, async *Token, canNameOmitted bool) (Node, error) {
+func (p *Parser) fnDec(expr bool, async *Token, canNameOmitted bool, declare bool) (Node, error) {
 	loc := p.loc()
 
 	// below value cache is needed since token is saved in the ring-buffer
@@ -1875,6 +1905,9 @@ func (p *Parser) fnDec(expr bool, async *Token, canNameOmitted bool) (Node, erro
 			if err = p.tsIsFnSigValid(fnRef.Node.Text()); err != nil {
 				return nil, err
 			}
+		} else if (tok.value == T_SEMI || tok.afterLineTerminator) && declare {
+			// AmbientFunctionDeclaration
+			// `declare function a();`
 		} else {
 			return nil, p.errorTok(tok)
 		}
@@ -2720,7 +2753,7 @@ func (p *Parser) patternProp() (Node, error) {
 		shorthand = true
 	}
 
-	return &Prop{N_PROP, p.finLoc(loc), key, opLoc, value, compute != nil, false, shorthand, assign, PK_INIT}, nil
+	return &Prop{N_PROP, p.finLoc(loc), key, opLoc, value, compute != nil, false, shorthand, assign, PK_INIT, ACC_MOD_NONE}, nil
 }
 
 // test whether current place is filed or method
@@ -2775,9 +2808,9 @@ func (p *Parser) propName(allowNamePVT bool, maybeMethod bool, tsRough bool) (No
 		if p.scope().IsKind(SPK_STRICT) && legacyOctalEscapeSeq {
 			return nil, nil, p.errorAtLoc(p.locFromTok(tok), ERR_LEGACY_OCTAL_ESCAPE_IN_STRICT_MODE)
 		}
-		key = &StrLit{N_LIT_STR, p.finLoc(loc), tok.Text(), tok.HasLegacyOctalEscapeSeq(), nil}
+		key = &StrLit{N_LIT_STR, p.finLoc(loc), tok.Text(), tok.HasLegacyOctalEscapeSeq(), nil, nil}
 	} else if tv == T_NUM {
-		key = &NumLit{N_LIT_NUM, p.finLoc(loc), nil}
+		key = &NumLit{N_LIT_NUM, p.finLoc(loc), nil, nil}
 	} else if tv == T_BRACKET_L {
 		computeLoc = p.locFromTok(tok)
 		scope.AddKind(SPK_PROP_NAME)
@@ -2828,7 +2861,7 @@ func (p *Parser) propName(allowNamePVT bool, maybeMethod bool, tsRough bool) (No
 		}
 	}
 
-	m, err := p.method(loc, key, computeLoc, false, kd, false, false, false, false, false)
+	m, err := p.method(loc, key, ACC_MOD_NONE, computeLoc, false, kd, false, false, false, false, false, false)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -2928,7 +2961,7 @@ func (p *Parser) patternAssign(ident Node, asProp bool) (Node, error) {
 	if !asProp {
 		return val, nil
 	}
-	return &Prop{N_PROP, p.finLoc(loc.Clone()), val.lhs, opLoc, val, false, false, true, true, PK_INIT}, nil
+	return &Prop{N_PROP, p.finLoc(loc.Clone()), val.lhs, opLoc, val, false, false, true, true, PK_INIT, ACC_MOD_NONE}, nil
 }
 
 // `arrPat` indicats whether `restExpr` is in array-pattern or not
@@ -3619,7 +3652,7 @@ func (p *Parser) tplExpr(tag Node) (Node, error) {
 				rng:   &Range{ext.strRng.lo, ext.strRng.hi},
 			}
 			p.lexer.Next()
-			str := &StrLit{N_LIT_STR, loc, cooked, false, nil}
+			str := &StrLit{N_LIT_STR, loc, cooked, false, nil, nil}
 			elems = append(elems, str)
 
 			if tok.value == T_TPL_TAIL || tok.IsPlainTpl() {
@@ -4376,26 +4409,26 @@ func (p *Parser) primaryExpr() (Node, error) {
 	switch tok.value {
 	case T_NUM:
 		p.lexer.Next()
-		return &NumLit{N_LIT_NUM, p.finLoc(loc), nil}, nil
+		return &NumLit{N_LIT_NUM, p.finLoc(loc), nil, nil}, nil
 	case T_STRING:
 		p.lexer.Next()
 		legacyOctalEscapeSeq := tok.HasLegacyOctalEscapeSeq()
 		if p.scope().IsKind(SPK_STRICT) && legacyOctalEscapeSeq {
 			return nil, p.errorAtLoc(p.finLoc(loc), ERR_LEGACY_OCTAL_ESCAPE_IN_STRICT_MODE)
 		}
-		return &StrLit{N_LIT_STR, p.finLoc(loc), tok.Text(), legacyOctalEscapeSeq, nil}, nil
+		return &StrLit{N_LIT_STR, p.finLoc(loc), tok.Text(), legacyOctalEscapeSeq, nil, nil}, nil
 	case T_NULL:
 		p.lexer.Next()
-		return &NullLit{N_LIT_NULL, p.finLoc(loc), nil}, nil
+		return &NullLit{N_LIT_NULL, p.finLoc(loc), nil, nil}, nil
 	case T_TRUE, T_FALSE:
 		p.lexer.Next()
-		return &BoolLit{N_LIT_BOOL, p.finLoc(loc), tok.Text() == "true", nil}, nil
+		return &BoolLit{N_LIT_BOOL, p.finLoc(loc), tok.Text() == "true", nil, nil}, nil
 	case T_NAME:
 		if p.aheadIsAsync(tok, false, false) {
 			if tok.ContainsEscape() {
 				return nil, p.errorAt(tok.value, &tok.begin, ERR_ESCAPE_IN_KEYWORD)
 			}
-			return p.fnDec(true, tok, false)
+			return p.fnDec(true, tok, false, false)
 		}
 		p.lexer.Next()
 
@@ -4421,13 +4454,13 @@ func (p *Parser) primaryExpr() (Node, error) {
 	case T_BRACE_L:
 		return p.objLit()
 	case T_FUNC:
-		return p.fnDec(true, nil, false)
+		return p.fnDec(true, nil, false, false)
 	case T_REGEXP:
 		p.lexer.Next()
 		ext := tok.ext.(*TokExtRegexp)
-		return &RegLit{N_LIT_REGEXP, p.finLoc(loc), tok.Text(), ext.Pattern(), ext.Flags(), nil}, nil
+		return &RegLit{N_LIT_REGEXP, p.finLoc(loc), tok.Text(), ext.Pattern(), ext.Flags(), nil, nil}, nil
 	case T_CLASS:
-		return p.classDec(true, false)
+		return p.classDec(true, false, false)
 	case T_SUPER:
 		scope := p.scope()
 		sup := p.lexer.Next()
@@ -4760,12 +4793,12 @@ func (p *Parser) objProp() (Node, error) {
 		if p.feat&FEAT_ASYNC_GENERATOR == 0 {
 			return nil, p.errorTok(tok)
 		}
-		return p.method(nil, nil, nil, false, PK_INIT, true, false, false, false, false)
+		return p.method(nil, nil, ACC_MOD_NONE, nil, false, PK_INIT, true, false, false, false, false, false)
 	} else if p.aheadIsAsync(tok, true, false) {
 		if tok.ContainsEscape() {
 			return nil, p.errorAt(tok.value, &tok.begin, ERR_ESCAPE_IN_KEYWORD)
 		}
-		return p.method(nil, nil, nil, false, PK_INIT, false, true, false, false, false)
+		return p.method(nil, nil, ACC_MOD_NONE, nil, false, PK_INIT, false, true, false, false, false, false)
 	}
 	return p.propData()
 }
@@ -4796,7 +4829,7 @@ func (p *Parser) propData() (Node, error) {
 			return nil, err
 		}
 	} else if p.aheadIsArgList(tok) {
-		return p.method(loc, key, compute, false, PK_INIT, false, false, false, false, false)
+		return p.method(loc, key, ACC_MOD_NONE, compute, false, PK_INIT, false, false, false, false, false, false)
 	} else if compute != nil {
 		return nil, p.errorAt(tok.value, &tok.begin, ERR_COMPUTE_PROP_MISSING_INIT)
 	}
@@ -4811,11 +4844,11 @@ func (p *Parser) propData() (Node, error) {
 		shorthand = true
 		value = key
 	}
-	return &Prop{N_PROP, p.finLoc(loc), key, opLoc, value, compute != nil, false, shorthand, assign, PK_INIT}, nil
+	return &Prop{N_PROP, p.finLoc(loc), key, opLoc, value, compute != nil, false, shorthand, assign, PK_INIT, ACC_MOD_NONE}, nil
 }
 
-func (p *Parser) method(loc *Loc, key Node, compute *Loc, shorthand bool, kind PropKind,
-	gen bool, async bool, allowNamePVT bool, inclass bool, static bool) (Node, error) {
+func (p *Parser) method(loc *Loc, key Node, accMode ACC_MOD, compute *Loc, shorthand bool, kind PropKind,
+	gen bool, async bool, allowNamePVT bool, inclass bool, static bool, declare bool) (Node, error) {
 
 	if !inclass && compute != nil {
 		loc = compute
@@ -4916,12 +4949,18 @@ func (p *Parser) method(loc *Loc, key Node, compute *Loc, shorthand bool, kind P
 		p.lexer.addMode(LM_GENERATOR)
 	}
 
-	body, err := p.fnBody()
-	if gen {
-		p.lexer.popMode()
-	}
-	if err != nil {
-		return nil, err
+	var body Node
+	ahead := p.lexer.Peek()
+	if ahead.value == T_BRACE_L {
+		body, err = p.fnBody()
+		if gen {
+			p.lexer.popMode()
+		}
+		if err != nil {
+			return nil, err
+		}
+	} else if !declare {
+		return nil, p.errorAt(ahead.value, &ahead.begin, ERR_UNEXPECTED_TOKEN)
 	}
 
 	isStrict := scope.IsKind(SPK_STRICT)
@@ -4940,9 +4979,9 @@ func (p *Parser) method(loc *Loc, key Node, compute *Loc, shorthand bool, kind P
 			return nil, p.errorAtLoc(key.Loc(), ERR_STATIC_PROP_PROTOTYPE)
 		}
 
-		return &Method{N_METHOD, p.finLoc(loc), key, static, compute != nil, kind, value}, nil
+		return &Method{N_METHOD, p.finLoc(loc), key, static, compute != nil, kind, value, accMode}, nil
 	}
-	return &Prop{N_PROP, p.finLoc(loc), key, nil, value, compute != nil, true, shorthand, false, kind}, nil
+	return &Prop{N_PROP, p.finLoc(loc), key, nil, value, compute != nil, true, shorthand, false, kind, accMode}, nil
 }
 
 func (p *Parser) jsxMemberExpr(obj Node, path string) (Node, string, error) {
@@ -5033,7 +5072,7 @@ func (p *Parser) jsxAttr() (Node, error) {
 	} else if av == T_STRING {
 		tok := p.lexer.Next()
 		loc := p.locFromTok(tok)
-		val = &StrLit{N_LIT_STR, p.finLoc(loc), tok.Text(), tok.HasLegacyOctalEscapeSeq(), nil}
+		val = &StrLit{N_LIT_STR, p.finLoc(loc), tok.Text(), tok.HasLegacyOctalEscapeSeq(), nil, nil}
 	} else if av == T_LT {
 		val, err = p.jsx(true, false)
 		if err != nil {

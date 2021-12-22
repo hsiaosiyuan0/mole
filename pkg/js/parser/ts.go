@@ -214,7 +214,7 @@ func (p *Parser) tsRoughParamToParam(node Node) (Node, error) {
 				return nil, err
 			}
 		}
-		return &Prop{N_PROP, pn.loc, pn.key, nil, val, false, false, val == nil, false, PK_INIT}, nil
+		return &Prop{N_PROP, pn.loc, pn.key, nil, val, false, false, val == nil, false, PK_INIT, ACC_MOD_NONE}, nil
 	case N_TS_ARR:
 		a := n.(*TsArr)
 		if p.tsIsPrimitive(a.arg.Type()) {
@@ -624,7 +624,10 @@ func (p *Parser) tsNewSig(loc *Loc) (Node, error) {
 }
 
 func (p *Parser) tsIdxSig(loc *Loc) (Node, error) {
-	p.lexer.Next()
+	tok := p.lexer.Next()
+	if loc == nil {
+		loc = p.locFromTok(tok)
+	}
 	id, err := p.ident(nil, false)
 	if err != nil {
 		return nil, err
@@ -744,14 +747,14 @@ func (p *Parser) tsPropName() (Node, error) {
 	switch tok.value {
 	case T_NUM:
 		p.lexer.Next()
-		return &NumLit{N_LIT_NUM, p.finLoc(loc), nil}, nil
+		return &NumLit{N_LIT_NUM, p.finLoc(loc), nil, nil}, nil
 	case T_STRING:
 		p.lexer.Next()
 		legacyOctalEscapeSeq := tok.HasLegacyOctalEscapeSeq()
 		if p.scope().IsKind(SPK_STRICT) && legacyOctalEscapeSeq {
 			return nil, p.errorAtLoc(p.finLoc(loc), ERR_LEGACY_OCTAL_ESCAPE_IN_STRICT_MODE)
 		}
-		return &StrLit{N_LIT_STR, p.finLoc(loc), tok.Text(), legacyOctalEscapeSeq, nil}, nil
+		return &StrLit{N_LIT_STR, p.finLoc(loc), tok.Text(), legacyOctalEscapeSeq, nil, nil}, nil
 	case T_NAME:
 		return p.ident(nil, false)
 	}
@@ -1144,6 +1147,27 @@ func (p *Parser) aheadIsTsDec(tok *Token) bool {
 	return p.ts() && tok.value == T_NAME && tok.Text() == "declare"
 }
 
+func (p *Parser) aheadIsModDec(tok *Token) bool {
+	return p.ts() && tok.value == T_NAME && tok.Text() == "module"
+}
+
+func (p *Parser) tsModDec() (*TsDec, error) {
+	p.lexer.Next() // `module`
+
+	tok := p.lexer.Next()
+	if tok.value != T_STRING {
+		return nil, p.errorAt(tok.value, &tok.begin, ERR_UNEXPECTED_TOKEN)
+	}
+
+	name := &StrLit{N_LIT_STR, p.finLoc(p.locFromTok(tok)), tok.Text(), tok.HasLegacyOctalEscapeSeq(), nil, nil}
+
+	blk, err := p.blockStmt(true)
+	if err != nil {
+		return nil, err
+	}
+	return &TsDec{N_TS_DEC_MODULE, p.finLoc(name.loc.Clone()), name, blk}, nil
+}
+
 func (p *Parser) tsDec() (Node, error) {
 	loc := p.locFromTok(p.lexer.Next())
 
@@ -1152,20 +1176,22 @@ func (p *Parser) tsDec() (Node, error) {
 
 	var err error
 	typ := N_ILLEGAL
-	dec := &TsDec{typ, nil, nil}
+	dec := &TsDec{typ, nil, nil, nil}
 	if ok, kind := p.aheadIsVarDec(tok); ok {
 		dec.inner, err = p.varDecStmt(kind, false)
 		typ = N_TS_DEC_VAR_DEC
 	} else if tv == T_FUNC {
-		dec.inner, err = p.fnDec(false, nil, false)
+		dec.inner, err = p.fnDec(false, nil, false, true)
 		typ = N_TS_DEC_FN
 	} else if p.aheadIsAsync(tok, false, false) {
 		if tok.ContainsEscape() {
 			return nil, p.errorAt(tv, &tok.begin, ERR_ESCAPE_IN_KEYWORD)
 		}
 		return nil, p.errorAt(tv, &tok.begin, ERR_ASYNC_IN_AMBIENT)
-	} else if tv == T_CLASS {
-		dec.inner, err = p.classDec(false, true)
+	}
+
+	if tv == T_CLASS {
+		dec.inner, err = p.classDec(false, false, true)
 		typ = N_TS_DEC_CLASS
 	} else if p.aheadIsTsItf(tok) {
 		dec.inner, err = p.tsItf()
@@ -1179,9 +1205,16 @@ func (p *Parser) tsDec() (Node, error) {
 	} else if p.aheadIsTsNS(tok) {
 		dec.inner, err = p.tsNS()
 		typ = N_TS_DEC_NS
+	} else if p.aheadIsModDec(tok) {
+		dec, err = p.tsModDec()
+		typ = N_TS_DEC_MODULE
 	}
 
 	if err != nil {
+		return nil, err
+	}
+
+	if err = p.checkAmbient(typ, dec.inner); err != nil {
 		return nil, err
 	}
 
@@ -1189,4 +1222,18 @@ func (p *Parser) tsDec() (Node, error) {
 	dec.loc = p.finLoc(loc)
 
 	return dec, nil
+}
+
+func (p *Parser) checkAmbient(typ NodeType, dec Node) error {
+	switch typ {
+	case N_TS_DEC_VAR_DEC:
+		n := dec.(*VarDecStmt)
+		for _, v := range n.decList {
+			init := v.(*VarDec).init
+			if init != nil {
+				return p.errorAtLoc(init.Loc(), ERR_INIT_NOT_ALLOWED)
+			}
+		}
+	}
+	return nil
 }

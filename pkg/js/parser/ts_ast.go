@@ -223,7 +223,7 @@ type TsParam struct {
 	typ  NodeType
 	loc  *Loc
 	name Node
-	cons Node
+	cons Node // the constraint
 }
 
 func (n *TsParam) Type() NodeType {
@@ -423,6 +423,7 @@ func (n *TsExportAssign) Loc() *Loc {
 type TsDec struct {
 	typ   NodeType
 	loc   *Loc
+	name  Node
 	inner Node
 }
 
