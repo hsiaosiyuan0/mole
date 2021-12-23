@@ -59,6 +59,9 @@ type Lexer struct {
 
 	feat Feature
 
+	// the prev read token in semantic
+	prevTv TokenValue
+
 	// always save loc of the previous whitespace being skipped by `skipSpace`
 	// in jsx mode
 	prevWs *Token
@@ -320,6 +323,7 @@ func (l *Lexer) nextTok() *Token {
 
 func (l *Lexer) Next() *Token {
 	tok := l.nextTok()
+	l.prevTv = tok.value
 	l.prtVal = tok.value
 	l.prtRng = tok.raw
 	l.prtBegin = tok.begin

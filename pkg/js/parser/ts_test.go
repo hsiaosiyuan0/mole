@@ -1226,3 +1226,9 @@ func TestTs81(t *testing.T) {
 	assert.Equal(t, "a", vd.id.(*Ident).Text(), "should be ok")
 	assert.Equal(t, N_TS_NUM, vd.id.(*Ident).ti.typAnnot.(*TsTypAnnot).tsTyp.Type(), "should be ok")
 }
+
+func TestTs82(t *testing.T) {
+	// AmbientModuleDeclaration
+	_, err := compileTs(`0 ? v => (sum += v) : v => 0;`, nil)
+	assert.Equal(t, nil, err, "should be prog ok")
+}

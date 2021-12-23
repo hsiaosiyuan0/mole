@@ -3103,11 +3103,13 @@ func (p *Parser) assignExpr(checkLhs bool) (Node, error) {
 	}
 	loc := lhs.Loc().Clone()
 
-	typAnnot, err := p.tsTypAnnot()
-	if err != nil {
-		return nil, err
+	if lhs.Type() != N_EXPR_PAREN {
+		typAnnot, err := p.tsTypAnnot()
+		if err != nil {
+			return nil, err
+		}
+		p.tsNodeTypAnnot(lhs, typAnnot, ACC_MOD_NONE)
 	}
-	p.tsNodeTypAnnot(lhs, typAnnot, ACC_MOD_NONE)
 
 	tok := p.lexer.Peek()
 	if lhs.Type() == N_NAME && tok.value == T_ARROW && !tok.afterLineTerminator {
@@ -4577,6 +4579,10 @@ func (p *Parser) arrowFn(loc *Loc, args []Node, ti *TypInfo) (Node, error) {
 func (p *Parser) parenExpr(typArgs []Node, typArgsLoc *Loc) (Node, error) {
 	loc := p.loc()
 
+	// `0 ? v => (sum += v) : v => 0;` is condExpr, avoid to process
+	// `: v` as typAnnot if the token before `(` is `=>`
+	allowTypAnnot := p.lexer.prevTv != T_ARROW
+
 	// the fnExpr and/or arrowExpr can not be followed by a pair of parens:
 	// `() => {}()` is illegal, therefor it should be encapsulated in parens
 	// to become the well-known IIFE - `(() => {})()`
@@ -4602,10 +4608,14 @@ func (p *Parser) parenExpr(typArgs []Node, typArgsLoc *Loc) (Node, error) {
 		return nil, err
 	}
 
-	typAnnot, err := p.tsTypAnnot()
-	if err != nil {
-		return nil, err
+	var typAnnot Node
+	if allowTypAnnot {
+		typAnnot, err = p.tsTypAnnot()
+		if err != nil {
+			return nil, err
+		}
 	}
+
 	ti := p.newTypInfo()
 	if ti != nil {
 		ti.typAnnot = typAnnot
