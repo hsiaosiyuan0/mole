@@ -571,6 +571,10 @@ type TypInfo struct {
 	typArgs   []Node
 }
 
+func (ti *TypInfo) TypAnnot() Node {
+	return ti.typAnnot
+}
+
 type NodeWithTypInfo interface {
 	TypInfo() *TypInfo
 	SetTypInfo(*TypInfo)

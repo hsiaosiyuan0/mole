@@ -16,12 +16,30 @@ func loc(s *parser.Loc) *SrcLoc {
 	}
 }
 
+func locUnion(s *parser.Loc, node parser.Node) *SrcLoc {
+	if node == nil {
+		return loc(s)
+	}
+	return &SrcLoc{
+		Source: s.Source(),
+		Start:  pos(s.Begin()),
+		End:    pos(node.Loc().End()),
+	}
+}
+
 func start(s *parser.Loc) int {
 	return s.Range().Start()
 }
 
 func end(s *parser.Loc) int {
 	return s.Range().End()
+}
+
+func endUnion(s *parser.Loc, node parser.Node) int {
+	if node == nil {
+		return s.Range().End()
+	}
+	return node.Loc().Range().End()
 }
 
 func ConvertProg(n *parser.Prog) *Program {
@@ -285,6 +303,37 @@ func elems(nodes []parser.Node) []Node {
 	return ret
 }
 
+func ident(node parser.Node) Node {
+	id := node.(*parser.Ident)
+	name := id.Text()
+	if id.IsPrivate() {
+		return &PrivateIdentifier{
+			Type:  "PrivateIdentifier",
+			Start: start(id.Loc()),
+			End:   end(id.Loc()),
+			Loc:   loc(id.Loc()),
+			Name:  name,
+		}
+	}
+	if id.TypInfo() != nil {
+		return &TSIdentifier{
+			Type:           "Identifier",
+			Start:          start(id.Loc()),
+			End:            endUnion(id.Loc(), id.TypInfo().TypAnnot()),
+			Loc:            locUnion(id.Loc(), id.TypInfo().TypAnnot()),
+			Name:           name,
+			TypeAnnotation: typAnnot(id.TypInfo()),
+		}
+	}
+	return &Identifier{
+		Type:  "Identifier",
+		Start: start(id.Loc()),
+		End:   end(id.Loc()),
+		Loc:   loc(id.Loc()),
+		Name:  name,
+	}
+}
+
 func convert(node parser.Node) Node {
 	if node == nil {
 		return nil
@@ -323,24 +372,7 @@ func convert(node parser.Node) Node {
 			Arguments: expressions(new.Args()),
 		}
 	case parser.N_NAME:
-		id := node.(*parser.Ident)
-		name := id.Text()
-		if id.IsPrivate() {
-			return &PrivateIdentifier{
-				Type:  "PrivateIdentifier",
-				Start: start(id.Loc()),
-				End:   end(id.Loc()),
-				Loc:   loc(id.Loc()),
-				Name:  name,
-			}
-		}
-		return &Identifier{
-			Type:  "Identifier",
-			Start: start(id.Loc()),
-			End:   end(id.Loc()),
-			Loc:   loc(id.Loc()),
-			Name:  name,
-		}
+		return ident(node)
 	case parser.N_EXPR_THIS:
 		return &ThisExpression{
 			Type:  "ThisExpression",
@@ -458,6 +490,21 @@ func convert(node parser.Node) Node {
 		return blockStmt(node.(*parser.BlockStmt))
 	case parser.N_EXPR_FN:
 		fn := node.(*parser.FnDec)
+		if fn.TypInfo() != nil {
+			return &TSFunctionExpression{
+				Type:       "FunctionExpression",
+				Start:      start(fn.Loc()),
+				End:        end(fn.Loc()),
+				Loc:        loc(fn.Loc()),
+				Id:         convert(fn.Id()),
+				Params:     fnParams(fn.Params()),
+				Body:       convert(fn.Body()),
+				Generator:  fn.Generator(),
+				Async:      fn.Async(),
+				Expression: false,
+				ReturnType: typAnnot(fn.TypInfo()),
+			}
+		}
 		return &FunctionExpression{
 			Type:       "FunctionExpression",
 			Start:      start(fn.Loc()),
@@ -472,6 +519,21 @@ func convert(node parser.Node) Node {
 		}
 	case parser.N_EXPR_ARROW:
 		fn := node.(*parser.ArrowFn)
+		if fn.TypInfo() != nil {
+			return &TSArrowFunctionExpression{
+				Type:       "ArrowFunctionExpression",
+				Start:      start(fn.Loc()),
+				End:        end(fn.Loc()),
+				Loc:        loc(fn.Loc()),
+				Id:         nil,
+				Params:     fnParams(fn.Params()),
+				Body:       convert(fn.Body()),
+				Generator:  false,
+				Async:      fn.Async(),
+				Expression: fn.Expr(),
+				ReturnType: typAnnot(fn.TypInfo()),
+			}
+		}
 		return &ArrowFunctionExpression{
 			Type:       "ArrowFunctionExpression",
 			Start:      start(fn.Loc()),
@@ -486,6 +548,20 @@ func convert(node parser.Node) Node {
 		}
 	case parser.N_STMT_FN:
 		fn := node.(*parser.FnDec)
+		if fn.TypInfo() != nil {
+			return &TSFunctionDeclaration{
+				Type:       "FunctionDeclaration",
+				Start:      start(fn.Loc()),
+				End:        end(fn.Loc()),
+				Loc:        loc(fn.Loc()),
+				Id:         convert(fn.Id()),
+				Params:     fnParams(fn.Params()),
+				Body:       convert(fn.Body()),
+				Generator:  fn.Generator(),
+				Async:      fn.Async(),
+				ReturnType: typAnnot(fn.TypInfo()),
+			}
+		}
 		return &FunctionDeclaration{
 			Type:      "FunctionDeclaration",
 			Start:     start(fn.Loc()),

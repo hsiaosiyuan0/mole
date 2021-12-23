@@ -22,20 +22,20 @@ func (p *Parser) newTypInfo() *TypInfo {
 	return nil
 }
 
-func (p *Parser) tsTypAnnot() (Node, *Loc, error) {
+func (p *Parser) tsTypAnnot() (Node, error) {
 	if !p.ts() {
-		return nil, nil, nil
+		return nil, nil
 	}
 	ahead := p.lexer.Peek()
 	if ahead.value == T_COLON {
 		loc := p.locFromTok(p.lexer.Next())
 		node, err := p.tsTyp(false)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
-		return node, loc, nil
+		return &TsTypAnnot{N_TS_TYP_ANNOT, p.finLoc(loc), node}, nil
 	}
-	return nil, nil, nil
+	return nil, nil
 }
 
 // for dealing with the ambiguous between `ParenthesizedType` and the `formalParamList`:
@@ -265,7 +265,7 @@ func (p *Parser) tsPropToIdxSig(prop *TsProp) (Node, error) {
 	if name.ti.typAnnot == nil {
 		return nil, p.errorAtLoc(name.loc, ERR_UNEXPECTED_TOKEN)
 	}
-	switch name.ti.typAnnot.Type() {
+	switch name.ti.typAnnot.(*TsTypAnnot).tsTyp.Type() {
 	case N_TS_NUM, N_TS_STR, N_TS_SYM:
 		break
 	default:
@@ -441,7 +441,7 @@ func (p *Parser) tsRef(ns Node) (Node, error) {
 		return nil, err
 	}
 	if p.lexer.Peek().value != T_LT {
-		return name, nil
+		return &TsRef{N_TS_REF, p.finLoc(ns.Loc().Clone()), name, nil, nil}, nil
 	}
 	args, lt, err := p.tsTypArgs()
 	if err != nil {
@@ -616,7 +616,7 @@ func (p *Parser) tsNewSig(loc *Loc) (Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	retTyp, _, err := p.tsTypAnnot()
+	retTyp, err := p.tsTypAnnot()
 	if err != nil {
 		return nil, err
 	}
@@ -642,7 +642,7 @@ func (p *Parser) tsIdxSig(loc *Loc) (Node, error) {
 	if _, err = p.nextMustTok(T_BRACKET_R); err != nil {
 		return nil, err
 	}
-	val, _, err := p.tsTypAnnot()
+	val, err := p.tsTypAnnot()
 	if err != nil {
 		return nil, err
 	}
@@ -691,7 +691,7 @@ func (p *Parser) tsProp(rough bool) (Node, error) {
 		if p.lexer.Peek().value == T_HOOK {
 			ques = p.locFromTok(p.lexer.Next())
 		}
-		typAnnot, _, err := p.tsTypAnnot()
+		typAnnot, err := p.tsTypAnnot()
 		if err != nil {
 			return nil, err
 		}
@@ -905,7 +905,7 @@ func (p *Parser) tsCallSig(typParams []Node, loc *Loc) (Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	typAnnot, _, err := p.tsTypAnnot()
+	typAnnot, err := p.tsTypAnnot()
 	if err != nil {
 		return nil, err
 	}

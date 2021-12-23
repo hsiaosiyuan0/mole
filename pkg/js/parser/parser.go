@@ -964,7 +964,7 @@ func (p *Parser) field(key Node, static *Loc, accMode ACC_MOD) (Node, error) {
 
 	ti := p.newTypInfo()
 	if ti != nil {
-		typAnnot, _, err := p.tsTypAnnot()
+		typAnnot, err := p.tsTypAnnot()
 		if err != nil {
 			return nil, err
 		}
@@ -1834,7 +1834,7 @@ func (p *Parser) fnDec(expr bool, async *Token, canNameOmitted bool, declare boo
 		}
 	}
 
-	typAnnot, _, err := p.tsTypAnnot()
+	typAnnot, err := p.tsTypAnnot()
 	if err != nil {
 		return nil, err
 	}
@@ -2360,7 +2360,7 @@ func (p *Parser) varDec(lexical bool) (*VarDec, error) {
 	loc := binding.Loc().Clone()
 	scope.EraseKind(SPK_LEXICAL_DEC)
 
-	typAnnot, _, err := p.tsTypAnnot()
+	typAnnot, err := p.tsTypAnnot()
 	if err != nil {
 		return nil, err
 	}
@@ -2500,14 +2500,18 @@ func (p *Parser) roughParam(ctor bool) (Node, error) {
 		}
 	}
 
-	typAnnot, loc, err := p.tsTypAnnot()
+	typAnnot, err := p.tsTypAnnot()
 	if err != nil {
 		return nil, err
 	}
 	ti := p.newTypInfo()
 	ti.typAnnot = typAnnot
 	ti.accMod = accMod
-	return &TsRoughParam{N_TS_ROUGH_PARAM, p.finLoc(name.Loc().Clone()), name, loc, ti}, nil
+	var colonLoc *Loc
+	if typAnnot != nil {
+		colonLoc = typAnnot.Loc().Clone()
+	}
+	return &TsRoughParam{N_TS_ROUGH_PARAM, p.finLoc(name.Loc().Clone()), name, colonLoc, ti}, nil
 }
 
 func (p *Parser) param(ctor bool) (Node, error) {
@@ -2533,7 +2537,7 @@ func (p *Parser) param(ctor bool) (Node, error) {
 		}
 	}
 
-	typAnnot, _, err := p.tsTypAnnot()
+	typAnnot, err := p.tsTypAnnot()
 	if err != nil {
 		return nil, err
 	}
@@ -3099,7 +3103,7 @@ func (p *Parser) assignExpr(checkLhs bool) (Node, error) {
 	}
 	loc := lhs.Loc().Clone()
 
-	typAnnot, _, err := p.tsTypAnnot()
+	typAnnot, err := p.tsTypAnnot()
 	if err != nil {
 		return nil, err
 	}
@@ -4528,7 +4532,7 @@ func (p *Parser) arrowFn(loc *Loc, args []Node, ti *TypInfo) (Node, error) {
 	}
 
 	if ti == nil {
-		typAnnot, _, err := p.tsTypAnnot()
+		typAnnot, err := p.tsTypAnnot()
 		if err != nil {
 			return nil, err
 		}
@@ -4598,7 +4602,7 @@ func (p *Parser) parenExpr(typArgs []Node, typArgsLoc *Loc) (Node, error) {
 		return nil, err
 	}
 
-	typAnnot, typLoc, err := p.tsTypAnnot()
+	typAnnot, err := p.tsTypAnnot()
 	if err != nil {
 		return nil, err
 	}
@@ -4615,8 +4619,8 @@ func (p *Parser) parenExpr(typArgs []Node, typArgsLoc *Loc) (Node, error) {
 	}
 
 	// `():number` is illegal
-	if typLoc != nil {
-		return nil, p.errorAtLoc(typLoc, ERR_UNEXPECTED_TOKEN)
+	if typAnnot != nil {
+		return nil, p.errorAtLoc(typAnnot.Loc(), ERR_UNEXPECTED_TOKEN)
 	}
 
 	// for report expr like: `(a,)`
@@ -4924,7 +4928,7 @@ func (p *Parser) method(loc *Loc, key Node, accMode ACC_MOD, compute *Loc, short
 		p.addLocalBinding(nil, ref, false, ref.Node.Text())
 	}
 
-	typAnnot, _, err := p.tsTypAnnot()
+	typAnnot, err := p.tsTypAnnot()
 	if err != nil {
 		return nil, err
 	}

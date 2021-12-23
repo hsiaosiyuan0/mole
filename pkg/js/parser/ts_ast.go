@@ -1,5 +1,23 @@
 package parser
 
+type TsTypAnnot struct {
+	typ   NodeType
+	loc   *Loc
+	tsTyp Node
+}
+
+func (n *TsTypAnnot) Type() NodeType {
+	return n.typ
+}
+
+func (n *TsTypAnnot) Loc() *Loc {
+	return n.loc
+}
+
+func (n *TsTypAnnot) TsTyp() Node {
+	return n.tsTyp
+}
+
 type TsPredef struct {
 	typ  NodeType
 	loc  *Loc
@@ -61,6 +79,10 @@ func (n *TsRef) Type() NodeType {
 
 func (n *TsRef) Loc() *Loc {
 	return n.loc
+}
+
+func (n *TsRef) Name() Node {
+	return n.name
 }
 
 func (n *TsRef) HasArgs() bool {

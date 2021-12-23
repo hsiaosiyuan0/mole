@@ -96,6 +96,7 @@ const (
 	N_JSX_TXT
 	N_JSX_ATTR
 
+	N_TS_TYP_ANNOT
 	N_TS_ANY
 	N_TS_NUM
 	N_TS_BOOL

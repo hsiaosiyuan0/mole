@@ -26,7 +26,8 @@ func EqualJson(t *testing.T, except, actual string) {
 		exceptV := v
 		actualV := actualKV[k]
 		if !reflect.DeepEqual(exceptV, actualV) {
-			t.Fatalf("\nUnexpected at:\n  %s\nExcept:\n  %v\nActual:\n  %v", k, exceptV, actualV)
+			t.Fatalf("\nUnexpected at:\n  %s\nExcept:\n  %v\nActual:\n  %v\n===========================AST===========================\n%v",
+				k, exceptV, actualV, actual)
 		}
 	}
 }

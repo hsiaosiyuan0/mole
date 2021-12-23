@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/hsiaosiyuan0/mole/pkg/assert"
+	"github.com/hsiaosiyuan0/mole/pkg/js/parser"
 )
 
 type Fixture struct {
@@ -50,7 +51,11 @@ func scanFixtures(name string) (map[string]*Fixture, error) {
 	return fxs, nil
 }
 
-func runFixtures(t *testing.T, name string) {
+func runFixtures(t *testing.T, name string, opts *parser.ParserOpts) {
+	if opts == nil {
+		opts = parser.NewParserOpts()
+	}
+
 	fxs, err := scanFixtures(name)
 	if err != nil {
 		t.Fatalf("failed to run fixture [%s] %v", name, err)
@@ -70,7 +75,7 @@ func runFixtures(t *testing.T, name string) {
 				t.Fatalf("failed to decode fixture output at: %s\nerror: %v", fx.output, err)
 			}
 
-			ast, err := compile(string(code))
+			ast, err := compileWithOpts(string(code), opts)
 			if jsonObj["throws"] != nil {
 				if err == nil {
 					t.Fatalf("should not pass code:\n%s\nast:\n%v", code, ast)
@@ -87,5 +92,11 @@ func runFixtures(t *testing.T, name string) {
 }
 
 func TestFixtures_es2015(t *testing.T) {
-	runFixtures(t, "es2015")
+	runFixtures(t, "es2015", nil)
+}
+
+func TestFixtures_ts(t *testing.T) {
+	opts := parser.NewParserOpts()
+	opts.Feature = opts.Feature.On(parser.FEAT_TS)
+	runFixtures(t, "typescript", opts)
 }

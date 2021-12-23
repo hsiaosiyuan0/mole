@@ -101,6 +101,9 @@ test-export-all-as-ns:	cmd/mole/*.go pkg/*/*.go go.mod
 test-fixtures: cmd/mole/*.go pkg/*/*.go go.mod
 	go test ./pkg/js/estree/... -run "^TestFixtures_"
 
+test-fixtures-ts: cmd/mole/*.go pkg/*/*.go go.mod
+	go test ./pkg/js/estree/... -run "^TestFixtures_ts"
+
 test-parser: cmd/mole/*.go pkg/*/*.go go.mod
 	go test ./pkg/js/parser
 
