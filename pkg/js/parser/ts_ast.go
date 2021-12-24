@@ -70,7 +70,7 @@ type TsRef struct {
 	loc  *Loc
 	name Node
 	lt   *Loc
-	args []Node
+	args Node
 }
 
 func (n *TsRef) Type() NodeType {
@@ -86,7 +86,7 @@ func (n *TsRef) Name() Node {
 }
 
 func (n *TsRef) HasArgs() bool {
-	return n.args != nil && len(n.args) > 0
+	return n.args != nil && len(n.args.(*TsParamsInst).params) > 0
 }
 
 type TsQuery struct {
@@ -180,7 +180,7 @@ func (n *TsProp) Loc() *Loc {
 type TsCallSig struct {
 	typ       NodeType
 	loc       *Loc
-	typParams []Node
+	typParams Node
 	params    []Node
 	retTyp    Node
 }
@@ -196,7 +196,7 @@ func (n *TsCallSig) Loc() *Loc {
 type TsNewSig struct {
 	typ       NodeType
 	loc       *Loc
-	typParams []Node
+	typParams Node
 	params    []Node
 	retTyp    Node
 }
@@ -241,11 +241,48 @@ func (n *TsRoughParam) Loc() *Loc {
 	return n.loc
 }
 
+type TsParamsInst struct {
+	typ    NodeType
+	loc    *Loc
+	params []Node
+}
+
+func (n *TsParamsInst) Type() NodeType {
+	return n.typ
+}
+
+func (n *TsParamsInst) Loc() *Loc {
+	return n.loc
+}
+
+func (n *TsParamsInst) Params() []Node {
+	return n.params
+}
+
+type TsParamsDec struct {
+	typ    NodeType
+	loc    *Loc
+	params []Node
+}
+
+func (n *TsParamsDec) Type() NodeType {
+	return n.typ
+}
+
+func (n *TsParamsDec) Loc() *Loc {
+	return n.loc
+}
+
+func (n *TsParamsDec) Params() []Node {
+	return n.params
+}
+
 type TsParam struct {
 	typ  NodeType
 	loc  *Loc
 	name Node
 	cons Node // the constraint
+	val  Node // the default
 }
 
 func (n *TsParam) Type() NodeType {
@@ -256,10 +293,22 @@ func (n *TsParam) Loc() *Loc {
 	return n.loc
 }
 
+func (n *TsParam) Name() Node {
+	return n.name
+}
+
+func (n *TsParam) Cons() Node {
+	return n.cons
+}
+
+func (n *TsParam) Default() Node {
+	return n.val
+}
+
 type TsFnTyp struct {
 	typ       NodeType
 	loc       *Loc
-	typParams []Node
+	typParams Node
 	params    []Node
 	retTyp    Node
 }
@@ -338,7 +387,7 @@ type TsInferface struct {
 	typ    NodeType
 	loc    *Loc
 	name   Node
-	params []Node
+	params Node
 	supers []Node
 	body   Node
 }

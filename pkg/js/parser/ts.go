@@ -90,7 +90,7 @@ func (p *Parser) tsUnionOrIntersecType(lhs Node, rough bool) (Node, error) {
 
 func (p *Parser) tsConstructTyp() (Node, error) {
 	loc := p.locFromTok(p.lexer.Next())
-	params, _, typParams, err := p.paramList(false, false, true)
+	params, typParams, _, err := p.paramList(false, false, true)
 	if err != nil {
 		return nil, err
 	}
@@ -112,6 +112,14 @@ func (p *Parser) tsIsPrimitive(typ NodeType) bool {
 	return false
 }
 
+func (p *Parser) tsExprHasTypAnnot(node Node) bool {
+	switch node.Type() {
+	case N_LIT_ARR, N_LIT_OBJ, N_EXPR_THIS, N_NAME, N_PAT_REST, N_PAT_ARRAY, N_PAT_ASSIGN, N_PAT_OBJ:
+		return true
+	}
+	return false
+}
+
 func (p *Parser) tsNodeTypAnnot(binding Node, typAnnot Node, accMod ACC_MOD) bool {
 	if typAnnot == nil {
 		return true
@@ -127,20 +135,25 @@ func (p *Parser) tsNodeTypAnnot(binding Node, typAnnot Node, accMod ACC_MOD) boo
 }
 
 // `TypeAssertionExpression`
-func (p *Parser) tsTypAssert(node Node, typArgs []Node, typArgsLoc *Loc) (Node, error) {
-	if len(typArgs) == 0 {
+func (p *Parser) tsTypAssert(node Node, typArgs Node) (Node, error) {
+	if typArgs == nil {
+		return node, nil
+	}
+
+	args := typArgs.(*TsParamsInst).params
+	if len(args) == 0 {
 		return node, nil
 	}
 
 	if !p.ts() {
-		return nil, p.errorAtLoc(typArgsLoc, ERR_UNEXPECTED_TOKEN)
+		return nil, p.errorAtLoc(typArgs.Loc(), ERR_UNEXPECTED_TOKEN)
 	}
 
-	if len(typArgs) > 1 {
-		return nil, p.errorAtLoc(typArgs[1].Loc(), ERR_UNEXPECTED_TOKEN)
+	if len(args) > 1 {
+		return nil, p.errorAtLoc(args[1].Loc(), ERR_UNEXPECTED_TOKEN)
 	}
 
-	return &TsTypAssert{N_TS_TYP_ASSERT, p.finLoc(typArgsLoc), typArgs[0], node}, nil
+	return &TsTypAssert{N_TS_TYP_ASSERT, p.finLoc(typArgs.Loc().Clone()), args[0], node}, nil
 }
 
 func (p *Parser) tsAdvanceOp() *Loc {
@@ -275,7 +288,7 @@ func (p *Parser) tsPropToIdxSig(prop *TsProp) (Node, error) {
 	if vt < N_TS_ANY || vt > N_TS_ROUGH_PARAM {
 		return nil, p.errorAtLoc(prop.val.Loc(), ERR_UNEXPECTED_TOKEN)
 	}
-	typAnnot, err := p.tsRoughParamToTyp(prop.val)
+	typAnnot, err := p.tsRoughParamToTyp(prop.val, false)
 	if err != nil {
 		return nil, err
 	}
@@ -285,7 +298,7 @@ func (p *Parser) tsPropToIdxSig(prop *TsProp) (Node, error) {
 // `RoughParam` is something like `a:b` which `a` is a rough-type and `b` is typAnnot
 // `rough-type` is a mixed node consists of ts-type-node and js-node, especially in tsObj
 // and tsTuple
-func (p *Parser) tsRoughParamToTyp(node Node) (Node, error) {
+func (p *Parser) tsRoughParamToTyp(node Node, raise bool) (Node, error) {
 	var err error
 	n := node
 	if node.Type() == N_TS_ROUGH_PARAM {
@@ -297,10 +310,18 @@ func (p *Parser) tsRoughParamToTyp(node Node) (Node, error) {
 	}
 
 	switch n.Type() {
+	case N_NAME:
+		n := node.(*Ident)
+		name := n.Text()
+		if typ, ok := builtinTyp[name]; ok {
+			// predef
+			return &TsPredef{typ, n.loc, nil}, nil
+		}
+		return &TsRef{N_TS_REF, n.Loc().Clone(), n, nil, nil}, nil
 	case N_TS_OBJ:
 		obj := n.(*TsObj)
 		for i, prop := range obj.props {
-			obj.props[i], err = p.tsRoughParamToTyp(prop)
+			obj.props[i], err = p.tsRoughParamToTyp(prop, raise)
 			if err != nil {
 				return nil, err
 			}
@@ -321,7 +342,7 @@ func (p *Parser) tsRoughParamToTyp(node Node) (Node, error) {
 	case N_TS_TUPLE:
 		arr := n.(*TsTuple)
 		for i, arg := range arr.args {
-			arr.args[i], err = p.tsRoughParamToTyp(arg)
+			arr.args[i], err = p.tsRoughParamToTyp(arg, raise)
 			if err != nil {
 				return nil, err
 			}
@@ -330,12 +351,16 @@ func (p *Parser) tsRoughParamToTyp(node Node) (Node, error) {
 	case N_PAT_REST:
 		return nil, p.errorAtLoc(n.Loc(), ERR_UNEXPECTED_TOKEN)
 	}
+
+	if raise {
+		return nil, p.errorAtLoc(node.Loc(), ERR_UNEXPECTED_TOKEN)
+	}
 	return n, nil
 }
 
 // `ParenthesizedType` or`FunctionType`
 func (p *Parser) tsParen(keepParen bool) (Node, error) {
-	params, loc, _, err := p.paramList(true, false, false)
+	params, _, loc, err := p.paramList(true, false, false)
 	if err != nil {
 		return nil, err
 	}
@@ -365,7 +390,7 @@ func (p *Parser) tsParen(keepParen bool) (Node, error) {
 		if param.colon != nil {
 			return nil, p.errorAtLoc(param.colon, ERR_UNEXPECTED_TOKEN)
 		}
-		typ, err := p.tsRoughParamToTyp(param)
+		typ, err := p.tsRoughParamToTyp(param, false)
 		if err != nil {
 			return nil, err
 		}
@@ -387,14 +412,14 @@ func (p *Parser) tsParen(keepParen bool) (Node, error) {
 
 // returns `PrimaryType` or `FunctionType`
 func (p *Parser) tsFnTyp(params []Node, parenL *Loc) (Node, error) {
-	var typParams []Node
+	var typParams Node
 	var err error
 	var loc *Loc
 	if parenL != nil {
 		loc = parenL
 	}
 	if params == nil {
-		params, _, typParams, err = p.paramList(false, false, true)
+		params, typParams, _, err = p.paramList(false, false, true)
 		if err != nil {
 			return nil, err
 		}
@@ -443,11 +468,11 @@ func (p *Parser) tsRef(ns Node) (Node, error) {
 	if p.lexer.Peek().value != T_LT {
 		return &TsRef{N_TS_REF, p.finLoc(ns.Loc().Clone()), name, nil, nil}, nil
 	}
-	args, lt, err := p.tsTypArgs()
+	args, err := p.tsTypArgs()
 	if err != nil {
 		return nil, err
 	}
-	return &TsRef{N_TS_REF, p.finLoc(ns.Loc().Clone()), name, lt, args}, nil
+	return &TsRef{N_TS_REF, p.finLoc(ns.Loc().Clone()), name, args.Loc().Clone(), args}, nil
 }
 
 func (p *Parser) tsArr(typ Node) (Node, error) {
@@ -612,7 +637,7 @@ func (p *Parser) tsObj(rough bool) (Node, error) {
 
 func (p *Parser) tsNewSig(loc *Loc) (Node, error) {
 	p.lexer.Next()
-	params, _, typParams, err := p.paramList(false, false, true)
+	params, typParams, _, err := p.paramList(false, false, true)
 	if err != nil {
 		return nil, err
 	}
@@ -655,7 +680,7 @@ func (p *Parser) tsProp(rough bool) (Node, error) {
 	loc := p.locFromTok(ahead)
 
 	if av == T_LT {
-		ps, _, err := p.tsTypParams()
+		ps, err := p.tsTypParams()
 		if err != nil {
 			return nil, err
 		}
@@ -747,7 +772,7 @@ func (p *Parser) tsPropName() (Node, error) {
 	switch tok.value {
 	case T_NUM:
 		p.lexer.Next()
-		return &NumLit{N_LIT_NUM, p.finLoc(loc), nil, nil}, nil
+		return &NumLit{N_LIT_NUM, p.finLoc(loc), nil}, nil
 	case T_STRING:
 		p.lexer.Next()
 		legacyOctalEscapeSeq := tok.HasLegacyOctalEscapeSeq()
@@ -775,23 +800,23 @@ func (p *Parser) tsTypParam() (Node, error) {
 			return nil, err
 		}
 	}
-	return &TsParam{N_TS_PARAM, p.finLoc(id.loc.Clone()), id, cons}, nil
+	return &TsParam{N_TS_PARAM, p.finLoc(id.loc.Clone()), id, cons, nil}, nil
 }
 
-func (p *Parser) tsTryTypParams() ([]Node, *Loc, error) {
+func (p *Parser) tsTryTypParams() (Node, error) {
 	if !p.ts() || p.lexer.Peek().value != T_LT {
-		return nil, nil, nil
+		return nil, nil
 	}
 	return p.tsTypParams()
 }
 
-func (p *Parser) tsTypParams() ([]Node, *Loc, error) {
+func (p *Parser) tsTypParams() (Node, error) {
 	loc := p.locFromTok(p.lexer.Next())
 	ps := make([]Node, 0, 1)
 	for {
 		pa, err := p.tsTypParam()
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 		ps = append(ps, pa)
 
@@ -804,7 +829,7 @@ func (p *Parser) tsTypParams() ([]Node, *Loc, error) {
 			break
 		}
 	}
-	return ps, loc, nil
+	return &TsParamsDec{N_TS_PARAM_DEC, p.finLoc(loc), ps}, nil
 }
 
 // returned nodes are the superset of typeArgs which also includes `Constraint`
@@ -819,14 +844,83 @@ func (p *Parser) tsTypParams() ([]Node, *Loc, error) {
 // so like others method to resolve the ambiguities in the grammar - a rough firstly
 // parsing is introduced and construct rough nodes to let the later processes to
 // do checking or transformation to produce more precise results
-func (p *Parser) tsTryTypArgs() ([]Node, *Loc, error) {
+//
+// `async` will bypassed to method `tsTryTypArgsAfterAsync` to handle the async ambiguity:
+//
+// ```
+// async < a, b;
+// async<T>() == 0;
+// ```
+func (p *Parser) tsTryTypArgs(asyncLoc *Loc) (Node, error) {
 	if !p.ts() || p.lexer.Peek().value != T_LT {
-		return nil, nil, nil
+		return nil, nil
+	}
+	if asyncLoc != nil {
+		return p.tsTryTypArgsAfterAsync(asyncLoc)
 	}
 	return p.tsTypArgs()
 }
 
-func (p *Parser) tsCheckTypArgs(nodes []Node) error {
+// consider ambiguity of the first `<` in below example:
+//
+// ```
+// async < a, b;
+// async<T>() == 0;
+// ```
+//
+// for avoiding lookbehind the process should accept the input as seqExpr then try to
+// tansform the subtree of seqExpr to typArgs if its followed by `>`
+func (p *Parser) tsTryTypArgsAfterAsync(asyncLoc *Loc) (Node, error) {
+	name := &Ident{N_NAME, asyncLoc, asyncLoc.Text(), false, false, nil, true, p.newTypInfo()}
+	binExpr, err := p.binExpr(name, 0, false, false, true)
+	ltLoc := binExpr.(*BinExpr).opLoc.Clone()
+	if err != nil {
+		return nil, err
+	}
+	seq, err := p.seqExpr(binExpr, true)
+	if err != nil {
+		return nil, err
+	}
+	if p.lexer.Peek().value == T_GT {
+		// to type args
+		return p.tsSeqExprToTypArgs(seq, ltLoc)
+	}
+	return seq, nil
+}
+
+func (p *Parser) tsSeqExprToTypArgs(node Node, loc *Loc) (Node, error) {
+	p.lexer.Next() // `>`
+	p.finLoc(loc)
+
+	var nodes []Node
+	nt := node.Type()
+	if nt == N_EXPR_BIN {
+		nodes = []Node{node.(*BinExpr).rhs}
+	} else if nt == N_EXPR_SEQ {
+		els := node.(*SeqExpr).elems
+		nodes = []Node{els[0].(*BinExpr).rhs}
+		if len(els) > 1 {
+			nodes = append(nodes, els[1:]...)
+		}
+	}
+
+	var err error
+	args := make([]Node, len(nodes))
+	for i, n := range nodes {
+		args[i], err = p.tsRoughParamToTyp(n, true)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return &TsParamsInst{N_TS_PARAM_INST, loc, args}, nil
+}
+
+func (p *Parser) tsCheckTypArgs(node Node) error {
+	if node == nil {
+		return nil
+	}
+
+	nodes := node.(*TsParamsInst).params
 	for i, arg := range nodes {
 		if arg.Type() == N_TS_PARAM {
 			pn := arg.(*TsParam)
@@ -839,19 +933,24 @@ func (p *Parser) tsCheckTypArgs(nodes []Node) error {
 	return nil
 }
 
-func (p *Parser) tsTypArgsToTypParams(nodes []Node) error {
+func (p *Parser) tsTypArgsToTypParams(node Node) (Node, error) {
+	if node == nil {
+		return nil, nil
+	}
+	nodes := node.(*TsParamsInst).params
+
 	var err error
 	for i, n := range nodes {
 		n, err = p.tsRoughParamToParam(n)
 		if n.Type() == N_NAME {
-			n = &TsParam{N_TS_PARAM, n.Loc().Clone(), n, nil}
+			n = &TsParam{N_TS_PARAM, n.Loc().Clone(), n, nil, nil}
 		}
 		nodes[i] = n
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
-	return nil
+	return &TsParamsDec{N_TS_PARAM_DEC, node.Loc(), nodes}, nil
 }
 
 func (p *Parser) tsPredefToName(node Node) (Node, error) {
@@ -865,7 +964,7 @@ func (p *Parser) tsPredefToName(node Node) (Node, error) {
 	return node, nil
 }
 
-func (p *Parser) tsTypArgs() ([]Node, *Loc, error) {
+func (p *Parser) tsTypArgs() (Node, error) {
 	loc := p.locFromTok(p.lexer.Next())
 	args := make([]Node, 0, 1)
 	for {
@@ -873,18 +972,18 @@ func (p *Parser) tsTypArgs() ([]Node, *Loc, error) {
 		if p.lexer.Peek().value == T_EXTENDS {
 			id, err := p.tsPredefToName(arg)
 			if err != nil {
-				return nil, nil, err
+				return nil, err
 			}
 
 			p.lexer.Next()
 			cons, err := p.tsTyp(false)
 			if err != nil {
-				return nil, nil, err
+				return nil, err
 			}
-			arg = &TsParam{N_TS_PARAM, p.finLoc(id.Loc().Clone()), id, cons}
+			arg = &TsParam{N_TS_PARAM, p.finLoc(id.Loc().Clone()), id, cons, nil}
 		}
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 		args = append(args, arg)
 
@@ -897,11 +996,11 @@ func (p *Parser) tsTypArgs() ([]Node, *Loc, error) {
 			break
 		}
 	}
-	return args, loc, nil
+	return &TsParamsInst{N_TS_PARAM_DEC, p.finLoc(loc), args}, nil
 }
 
-func (p *Parser) tsCallSig(typParams []Node, loc *Loc) (Node, error) {
-	params, _, tp, err := p.paramList(false, false, typParams == nil && loc == nil)
+func (p *Parser) tsCallSig(typParams Node, loc *Loc) (Node, error) {
+	params, tp, _, err := p.paramList(false, false, typParams == nil && loc == nil)
 	if err != nil {
 		return nil, err
 	}
@@ -928,7 +1027,7 @@ func (p *Parser) tsTypDec() (Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	params, _, err := p.tsTryTypParams()
+	params, err := p.tsTryTypParams()
 	if err != nil {
 		return nil, err
 	}
@@ -1018,7 +1117,7 @@ func (p *Parser) tsItf() (Node, error) {
 		return nil, err
 	}
 
-	params, _, err := p.tsTryTypParams()
+	params, err := p.tsTryTypParams()
 	if err != nil {
 		return nil, err
 	}
@@ -1054,7 +1153,7 @@ func (p *Parser) tsEnumBody() ([]Node, error) {
 		var val Node
 		if p.lexer.Peek().value == T_ASSIGN {
 			p.lexer.Next()
-			val, err = p.assignExpr(false)
+			val, err = p.assignExpr(false, false)
 			if err != nil {
 				return nil, err
 			}

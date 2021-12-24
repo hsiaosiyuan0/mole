@@ -231,7 +231,6 @@ type NumLit struct {
 	typ        NodeType
 	loc        *Loc
 	outerParen *Loc
-	ti         *TypInfo
 }
 
 func (n *NumLit) Type() NodeType {
@@ -340,14 +339,6 @@ func (n *NumLit) OuterParen() *Loc {
 
 func (n *NumLit) SetOuterParen(loc *Loc) {
 	n.outerParen = loc
-}
-
-func (n *NumLit) TypInfo() *TypInfo {
-	return n.ti
-}
-
-func (n *NumLit) SetTypInfo(ti *TypInfo) {
-	n.ti = ti
 }
 
 type StrLit struct {
@@ -567,12 +558,28 @@ type TypInfo struct {
 	accMod    ACC_MOD
 	ques      *Loc
 	typAnnot  Node
-	typParams []Node
-	typArgs   []Node
+	typParams Node
+	typArgs   Node
+}
+
+func (ti *TypInfo) Ques() *Loc {
+	return ti.ques
+}
+
+func (ti *TypInfo) Optional() bool {
+	return ti.ques != nil
 }
 
 func (ti *TypInfo) TypAnnot() Node {
 	return ti.typAnnot
+}
+
+func (ti *TypInfo) TypParams() Node {
+	return ti.typParams
+}
+
+func (ti *TypInfo) TypArgs() Node {
+	return ti.typArgs
 }
 
 type NodeWithTypInfo interface {

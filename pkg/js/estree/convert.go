@@ -322,6 +322,7 @@ func ident(node parser.Node) Node {
 			End:            endUnion(id.Loc(), id.TypInfo().TypAnnot()),
 			Loc:            locUnion(id.Loc(), id.TypInfo().TypAnnot()),
 			Name:           name,
+			Optional:       optional(id.TypInfo()),
 			TypeAnnotation: typAnnot(id.TypInfo()),
 		}
 	}
@@ -492,17 +493,18 @@ func convert(node parser.Node) Node {
 		fn := node.(*parser.FnDec)
 		if fn.TypInfo() != nil {
 			return &TSFunctionExpression{
-				Type:       "FunctionExpression",
-				Start:      start(fn.Loc()),
-				End:        end(fn.Loc()),
-				Loc:        loc(fn.Loc()),
-				Id:         convert(fn.Id()),
-				Params:     fnParams(fn.Params()),
-				Body:       convert(fn.Body()),
-				Generator:  fn.Generator(),
-				Async:      fn.Async(),
-				Expression: false,
-				ReturnType: typAnnot(fn.TypInfo()),
+				Type:           "FunctionExpression",
+				Start:          start(fn.Loc()),
+				End:            end(fn.Loc()),
+				Loc:            loc(fn.Loc()),
+				Id:             convert(fn.Id()),
+				Params:         fnParams(fn.Params()),
+				Body:           convert(fn.Body()),
+				Generator:      fn.Generator(),
+				Async:          fn.Async(),
+				Expression:     false,
+				TypeParameters: typParams(fn.TypInfo()),
+				ReturnType:     typAnnot(fn.TypInfo()),
 			}
 		}
 		return &FunctionExpression{
@@ -521,17 +523,18 @@ func convert(node parser.Node) Node {
 		fn := node.(*parser.ArrowFn)
 		if fn.TypInfo() != nil {
 			return &TSArrowFunctionExpression{
-				Type:       "ArrowFunctionExpression",
-				Start:      start(fn.Loc()),
-				End:        end(fn.Loc()),
-				Loc:        loc(fn.Loc()),
-				Id:         nil,
-				Params:     fnParams(fn.Params()),
-				Body:       convert(fn.Body()),
-				Generator:  false,
-				Async:      fn.Async(),
-				Expression: fn.Expr(),
-				ReturnType: typAnnot(fn.TypInfo()),
+				Type:           "ArrowFunctionExpression",
+				Start:          start(fn.Loc()),
+				End:            end(fn.Loc()),
+				Loc:            loc(fn.Loc()),
+				Id:             nil,
+				Params:         fnParams(fn.Params()),
+				Body:           convert(fn.Body()),
+				Generator:      false,
+				Async:          fn.Async(),
+				Expression:     fn.Expr(),
+				TypeParameters: typParams(fn.TypInfo()),
+				ReturnType:     typAnnot(fn.TypInfo()),
 			}
 		}
 		return &ArrowFunctionExpression{
@@ -550,16 +553,17 @@ func convert(node parser.Node) Node {
 		fn := node.(*parser.FnDec)
 		if fn.TypInfo() != nil {
 			return &TSFunctionDeclaration{
-				Type:       "FunctionDeclaration",
-				Start:      start(fn.Loc()),
-				End:        end(fn.Loc()),
-				Loc:        loc(fn.Loc()),
-				Id:         convert(fn.Id()),
-				Params:     fnParams(fn.Params()),
-				Body:       convert(fn.Body()),
-				Generator:  fn.Generator(),
-				Async:      fn.Async(),
-				ReturnType: typAnnot(fn.TypInfo()),
+				Type:           "FunctionDeclaration",
+				Start:          start(fn.Loc()),
+				End:            end(fn.Loc()),
+				Loc:            loc(fn.Loc()),
+				Id:             convert(fn.Id()),
+				Params:         fnParams(fn.Params()),
+				Body:           convert(fn.Body()),
+				Generator:      fn.Generator(),
+				Async:          fn.Async(),
+				TypeParameters: typParams(fn.TypInfo()),
+				ReturnType:     typAnnot(fn.TypInfo()),
 			}
 		}
 		return &FunctionDeclaration{
@@ -650,15 +654,27 @@ func convert(node parser.Node) Node {
 			Alternate:  convert(ifStmt.Alt()),
 		}
 	case parser.N_EXPR_CALL:
-		call := node.(*parser.CallExpr)
+		n := node.(*parser.CallExpr)
+		if n.TypInfo() != nil {
+			return &TSCallExpression{
+				Type:           "CallExpression",
+				Start:          start(n.Loc()),
+				End:            end(n.Loc()),
+				Loc:            loc(n.Loc()),
+				Callee:         convert(n.Callee()),
+				Arguments:      expressions(n.Args()),
+				Optional:       n.Optional(),
+				TypeParameters: typArgs(n.TypInfo()),
+			}
+		}
 		return &CallExpression{
 			Type:      "CallExpression",
-			Start:     start(call.Loc()),
-			End:       end(call.Loc()),
-			Loc:       loc(call.Loc()),
-			Callee:    convert(call.Callee()),
-			Arguments: expressions(call.Args()),
-			Optional:  call.Optional(),
+			Start:     start(n.Loc()),
+			End:       end(n.Loc()),
+			Loc:       loc(n.Loc()),
+			Callee:    convert(n.Callee()),
+			Arguments: expressions(n.Args()),
+			Optional:  n.Optional(),
 		}
 	case parser.N_STMT_SWITCH:
 		swc := node.(*parser.SwitchStmt)
