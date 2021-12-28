@@ -128,3 +128,31 @@ type TSCallExpression struct {
 	Optional       bool         `json:"optional"`
 	TypeParameters Node         `json:"typeParameters"`
 }
+
+type TSRestElement struct {
+	Type           string  `json:"type"`
+	Start          int     `json:"start"`
+	End            int     `json:"end"`
+	Loc            *SrcLoc `json:"loc"`
+	Argument       Pattern `json:"argument"`
+	Optional       bool    `json:"optional"`
+	TypeAnnotation Node    `json:"typeAnnotation"`
+}
+
+type TSArrayType struct {
+	Type        string  `json:"type"`
+	Start       int     `json:"start"`
+	End         int     `json:"end"`
+	Loc         *SrcLoc `json:"loc"`
+	ElementType Node    `json:"elementType"`
+}
+
+type TSObjectPattern struct {
+	Type           string  `json:"type"`
+	Start          int     `json:"start"`
+	End            int     `json:"end"`
+	Loc            *SrcLoc `json:"loc"`
+	Properties     []Node  `json:"properties"`
+	Optional       bool    `json:"optional"`
+	TypeAnnotation Node    `json:"typeAnnotation"`
+}

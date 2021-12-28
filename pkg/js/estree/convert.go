@@ -8,6 +8,19 @@ func pos(p *parser.Pos) *Position {
 	return &Position{Line: p.Line(), Column: p.Column()}
 }
 
+func minPos(ps ...*parser.Pos) *Position {
+	min := ps[0]
+	if min != ps[1] {
+		for i := 1; i < len(ps); i++ {
+			p := ps[i]
+			if p.Line() <= min.Line() && p.Column() < min.Column() {
+				min = p
+			}
+		}
+	}
+	return &Position{Line: min.Line(), Column: min.Column()}
+}
+
 func loc(s *parser.Loc) *SrcLoc {
 	return &SrcLoc{
 		Source: s.Source(),
@@ -16,15 +29,11 @@ func loc(s *parser.Loc) *SrcLoc {
 	}
 }
 
-func locUnion(s *parser.Loc, node parser.Node) *SrcLoc {
-	if node == nil {
-		return loc(s)
+func min(a, b int) int {
+	if a < b {
+		return a
 	}
-	return &SrcLoc{
-		Source: s.Source(),
-		Start:  pos(s.Begin()),
-		End:    pos(node.Loc().End()),
-	}
+	return b
 }
 
 func start(s *parser.Loc) int {
@@ -33,13 +42,6 @@ func start(s *parser.Loc) int {
 
 func end(s *parser.Loc) int {
 	return s.Range().End()
-}
-
-func endUnion(s *parser.Loc, node parser.Node) int {
-	if node == nil {
-		return s.Range().End()
-	}
-	return node.Loc().Range().End()
 }
 
 func ConvertProg(n *parser.Prog) *Program {
@@ -304,33 +306,35 @@ func elems(nodes []parser.Node) []Node {
 }
 
 func ident(node parser.Node) Node {
-	id := node.(*parser.Ident)
-	name := id.Text()
-	if id.IsPrivate() {
+	n := node.(*parser.Ident)
+	name := n.Text()
+	if n.IsPrivate() {
 		return &PrivateIdentifier{
 			Type:  "PrivateIdentifier",
-			Start: start(id.Loc()),
-			End:   end(id.Loc()),
-			Loc:   loc(id.Loc()),
+			Start: start(n.Loc()),
+			End:   end(n.Loc()),
+			Loc:   loc(n.Loc()),
 			Name:  name,
 		}
 	}
-	if id.TypInfo() != nil {
+	if n.TypInfo() != nil {
+		ti := n.TypInfo()
+		lc := parser.LocWithTypeInfo(n)
 		return &TSIdentifier{
 			Type:           "Identifier",
-			Start:          start(id.Loc()),
-			End:            endUnion(id.Loc(), id.TypInfo().TypAnnot()),
-			Loc:            locUnion(id.Loc(), id.TypInfo().TypAnnot()),
+			Start:          start(lc),
+			End:            end(lc),
+			Loc:            loc(lc),
 			Name:           name,
-			Optional:       optional(id.TypInfo()),
-			TypeAnnotation: typAnnot(id.TypInfo()),
+			Optional:       optional(ti),
+			TypeAnnotation: typAnnot(ti),
 		}
 	}
 	return &Identifier{
 		Type:  "Identifier",
-		Start: start(id.Loc()),
-		End:   end(id.Loc()),
-		Loc:   loc(id.Loc()),
+		Start: start(n.Loc()),
+		End:   end(n.Loc()),
+		Loc:   loc(n.Loc()),
 		Name:  name,
 	}
 }
@@ -490,92 +494,96 @@ func convert(node parser.Node) Node {
 	case parser.N_STMT_BLOCK:
 		return blockStmt(node.(*parser.BlockStmt))
 	case parser.N_EXPR_FN:
-		fn := node.(*parser.FnDec)
-		if fn.TypInfo() != nil {
+		n := node.(*parser.FnDec)
+		if n.TypInfo() != nil {
+			ti := n.TypInfo()
 			return &TSFunctionExpression{
 				Type:           "FunctionExpression",
-				Start:          start(fn.Loc()),
-				End:            end(fn.Loc()),
-				Loc:            loc(fn.Loc()),
-				Id:             convert(fn.Id()),
-				Params:         fnParams(fn.Params()),
-				Body:           convert(fn.Body()),
-				Generator:      fn.Generator(),
-				Async:          fn.Async(),
+				Start:          start(n.Loc()),
+				End:            end(n.Loc()),
+				Loc:            loc(n.Loc()),
+				Id:             convert(n.Id()),
+				Params:         fnParams(n.Params()),
+				Body:           convert(n.Body()),
+				Generator:      n.Generator(),
+				Async:          n.Async(),
 				Expression:     false,
-				TypeParameters: typParams(fn.TypInfo()),
-				ReturnType:     typAnnot(fn.TypInfo()),
+				TypeParameters: typParams(ti),
+				ReturnType:     typAnnot(ti),
 			}
 		}
 		return &FunctionExpression{
 			Type:       "FunctionExpression",
-			Start:      start(fn.Loc()),
-			End:        end(fn.Loc()),
-			Loc:        loc(fn.Loc()),
-			Id:         convert(fn.Id()),
-			Params:     fnParams(fn.Params()),
-			Body:       convert(fn.Body()),
-			Generator:  fn.Generator(),
-			Async:      fn.Async(),
+			Start:      start(n.Loc()),
+			End:        end(n.Loc()),
+			Loc:        loc(n.Loc()),
+			Id:         convert(n.Id()),
+			Params:     fnParams(n.Params()),
+			Body:       convert(n.Body()),
+			Generator:  n.Generator(),
+			Async:      n.Async(),
 			Expression: false,
 		}
 	case parser.N_EXPR_ARROW:
-		fn := node.(*parser.ArrowFn)
-		if fn.TypInfo() != nil {
+		n := node.(*parser.ArrowFn)
+		if n.TypInfo() != nil {
+			ti := n.TypInfo()
+			lc := parser.LocWithTypeInfo(n)
 			return &TSArrowFunctionExpression{
 				Type:           "ArrowFunctionExpression",
-				Start:          start(fn.Loc()),
-				End:            end(fn.Loc()),
-				Loc:            loc(fn.Loc()),
+				Start:          start(lc),
+				End:            end(lc),
+				Loc:            loc(lc),
 				Id:             nil,
-				Params:         fnParams(fn.Params()),
-				Body:           convert(fn.Body()),
+				Params:         fnParams(n.Params()),
+				Body:           convert(n.Body()),
 				Generator:      false,
-				Async:          fn.Async(),
-				Expression:     fn.Expr(),
-				TypeParameters: typParams(fn.TypInfo()),
-				ReturnType:     typAnnot(fn.TypInfo()),
+				Async:          n.Async(),
+				Expression:     n.Expr(),
+				TypeParameters: typParams(ti),
+				ReturnType:     typAnnot(ti),
 			}
 		}
 		return &ArrowFunctionExpression{
 			Type:       "ArrowFunctionExpression",
-			Start:      start(fn.Loc()),
-			End:        end(fn.Loc()),
-			Loc:        loc(fn.Loc()),
+			Start:      start(n.Loc()),
+			End:        end(n.Loc()),
+			Loc:        loc(n.Loc()),
 			Id:         nil,
-			Params:     fnParams(fn.Params()),
-			Body:       convert(fn.Body()),
+			Params:     fnParams(n.Params()),
+			Body:       convert(n.Body()),
 			Generator:  false,
-			Async:      fn.Async(),
-			Expression: fn.Expr(),
+			Async:      n.Async(),
+			Expression: n.Expr(),
 		}
 	case parser.N_STMT_FN:
-		fn := node.(*parser.FnDec)
-		if fn.TypInfo() != nil {
+		n := node.(*parser.FnDec)
+		if n.TypInfo() != nil {
+			ti := n.TypInfo()
 			return &TSFunctionDeclaration{
 				Type:           "FunctionDeclaration",
-				Start:          start(fn.Loc()),
-				End:            end(fn.Loc()),
-				Loc:            loc(fn.Loc()),
-				Id:             convert(fn.Id()),
-				Params:         fnParams(fn.Params()),
-				Body:           convert(fn.Body()),
-				Generator:      fn.Generator(),
-				Async:          fn.Async(),
-				TypeParameters: typParams(fn.TypInfo()),
-				ReturnType:     typAnnot(fn.TypInfo()),
+				Start:          start(n.Loc()),
+				End:            end(n.Loc()),
+				Loc:            loc(n.Loc()),
+				Id:             convert(n.Id()),
+				Params:         fnParams(n.Params()),
+				Body:           convert(n.Body()),
+				Generator:      n.Generator(),
+				Async:          n.Async(),
+				TypeParameters: typParams(ti),
+				ReturnType:     typAnnot(ti),
 			}
 		}
 		return &FunctionDeclaration{
 			Type:      "FunctionDeclaration",
-			Start:     start(fn.Loc()),
-			End:       end(fn.Loc()),
-			Loc:       loc(fn.Loc()),
-			Id:        convert(fn.Id()),
-			Params:    fnParams(fn.Params()),
-			Body:      convert(fn.Body()),
-			Generator: fn.Generator(),
-			Async:     fn.Async(),
+			Start:     start(n.Loc()),
+			End:       end(n.Loc()),
+			Loc:       loc(n.Loc()),
+			Id:        convert(n.Id()),
+			Params:    fnParams(n.Params()),
+			Body:      convert(n.Body()),
+			Generator: n.Generator(),
+			Async:     n.Async(),
 		}
 	case parser.N_EXPR_YIELD:
 		node := node.(*parser.YieldExpr)
@@ -626,6 +634,18 @@ func convert(node parser.Node) Node {
 		}
 	case parser.N_PAT_OBJ:
 		n := node.(*parser.ObjPat)
+		if n.TypInfo() != nil {
+			ti := n.TypInfo()
+			lc := parser.LocWithTypeInfo(n)
+			return &TSObjectPattern{
+				Type:           "ObjectPattern",
+				Start:          start(lc),
+				End:            end(lc),
+				Loc:            loc(lc),
+				Properties:     elems(n.Props()),
+				TypeAnnotation: typAnnot(ti),
+			}
+		}
 		return &ObjectPattern{
 			Type:       "ObjectPattern",
 			Start:      start(n.Loc()),
@@ -635,6 +655,17 @@ func convert(node parser.Node) Node {
 		}
 	case parser.N_PAT_REST:
 		n := node.(*parser.RestPat)
+		if n.TypInfo() != nil {
+			return &TSRestElement{
+				Type:           "RestElement",
+				Start:          start(n.Loc()),
+				End:            end(n.Loc()),
+				Loc:            loc(n.Loc()),
+				Argument:       convert(n.Arg()),
+				Optional:       n.Optional(),
+				TypeAnnotation: typAnnot(n.TypInfo()),
+			}
+		}
 		return &RestElement{
 			Type:     "RestElement",
 			Start:    start(n.Loc()),

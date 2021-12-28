@@ -60,6 +60,15 @@ func convertTsTyp(node parser.Node) Node {
 			Constraint: convert(n.Cons()),
 			Default:    convert(n.Default()),
 		}
+	case parser.N_TS_ARR:
+		n := node.(*parser.TsArr)
+		return &TSArrayType{
+			Type:        "TSArrayType",
+			Start:       start(node.Loc()),
+			End:         end(node.Loc()),
+			Loc:         loc(node.Loc()),
+			ElementType: convertTsTyp(n.Arg()),
+		}
 	}
 
 	return nil

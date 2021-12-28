@@ -120,14 +120,27 @@ func (p *Parser) tsExprHasTypAnnot(node Node) bool {
 	return false
 }
 
-func (p *Parser) tsNodeTypAnnot(binding Node, typAnnot Node, accMod ACC_MOD) bool {
-	if typAnnot == nil {
-		return true
+func (p *Parser) tsQues() *Loc {
+	var ques *Loc
+	if p.lexer.Peek().value == T_HOOK {
+		ques = p.locFromTok(p.lexer.Next())
 	}
+	return ques
+}
 
+func (p *Parser) tsNodeTypAnnot(binding Node, typAnnot Node, accMod ACC_MOD, ques *Loc) bool {
 	if wt, ok := binding.(NodeWithTypInfo); ok {
 		ti := wt.TypInfo()
-		ti.typAnnot = typAnnot
+		if ti == nil {
+			return false
+		}
+
+		if typAnnot != nil {
+			ti.typAnnot = typAnnot
+		}
+		if ques != nil {
+			ti.ques = ques
+		}
 		ti.accMod = accMod
 		return true
 	}
@@ -156,7 +169,7 @@ func (p *Parser) tsTypAssert(node Node, typArgs Node) (Node, error) {
 	return &TsTypAssert{N_TS_TYP_ASSERT, p.finLoc(typArgs.Loc().Clone()), args[0], node}, nil
 }
 
-func (p *Parser) tsAdvanceOp() *Loc {
+func (p *Parser) tsAdvanceHook() *Loc {
 	var loc *Loc
 	if p.lexer.Peek().value == T_HOOK {
 		loc = p.locFromTok(p.lexer.Next())
@@ -181,7 +194,8 @@ func (p *Parser) tsRoughParamToParam(node Node) (Node, error) {
 			return nil, err
 		}
 
-		if ok := p.tsNodeTypAnnot(fp, param.ti.typAnnot, param.ti.accMod); !ok {
+		ti := param.ti
+		if ok := p.tsNodeTypAnnot(fp, ti.typAnnot, ti.accMod, ti.ques); !ok {
 			return nil, p.errorAtLoc(fp.Loc(), ERR_UNEXPECTED_TOKEN)
 		}
 
@@ -1153,7 +1167,7 @@ func (p *Parser) tsEnumBody() ([]Node, error) {
 		var val Node
 		if p.lexer.Peek().value == T_ASSIGN {
 			p.lexer.Next()
-			val, err = p.assignExpr(false, false)
+			val, err = p.assignExpr(false, false, false)
 			if err != nil {
 				return nil, err
 			}

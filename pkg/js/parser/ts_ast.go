@@ -132,6 +132,10 @@ func (n *TsArr) Loc() *Loc {
 	return n.loc
 }
 
+func (n *TsArr) Arg() Node {
+	return n.arg
+}
+
 type TsTuple struct {
 	typ  NodeType
 	loc  *Loc

@@ -28,6 +28,14 @@ func (r *Range) End() int {
 	return r.end
 }
 
+func (r *Range) SetStart(n int) {
+	r.start = n
+}
+
+func (r *Range) SetEnd(n int) {
+	r.end = n
+}
+
 func (r *Range) Clone() *Range {
 	return &Range{
 		start: r.start,
@@ -585,6 +593,69 @@ func (ti *TypInfo) TypArgs() Node {
 type NodeWithTypInfo interface {
 	TypInfo() *TypInfo
 	SetTypInfo(*TypInfo)
+}
+
+func locOfNode(node Node) *Loc {
+	if node == nil {
+		return nil
+	}
+	return node.Loc()
+}
+
+func startOf(locs ...*Loc) *Loc {
+	start := 0
+	line := math.MaxInt
+	col := math.MaxInt
+	for i, loc := range locs {
+		if loc == nil {
+			continue
+		}
+		if loc.begin.line < line || (loc.begin.line == line && loc.begin.col < col) {
+			line = loc.begin.line
+			col = loc.begin.col
+			start = i
+		}
+	}
+	return locs[start]
+}
+
+func endOf(locs ...*Loc) *Loc {
+	end := 0
+	line := -1
+	col := -1
+	for i, loc := range locs {
+		if loc == nil {
+			continue
+		}
+		if loc.end.line > line || (loc.end.line == line && loc.end.col > col) {
+			line = loc.end.line
+			col = loc.end.col
+			end = i
+		}
+	}
+	return locs[end]
+}
+
+func LocWithTypeInfo(node Node) *Loc {
+	nw, ok := node.(NodeWithTypInfo)
+	if !ok {
+		return node.Loc()
+	}
+
+	ti := nw.TypInfo()
+	loc := node.Loc().Clone()
+
+	start := startOf(locOfNode(ti.TypParams()), locOfNode(node))
+	loc.begin.line = start.begin.line
+	loc.begin.col = start.begin.col
+	loc.rng.start = start.rng.start
+
+	end := endOf(locOfNode(ti.TypAnnot()), ti.Ques(), locOfNode(node))
+	loc.end.line = end.end.line
+	loc.end.col = end.end.col
+	loc.rng.end = end.rng.end
+
+	return loc
 }
 
 type Ident struct {
@@ -1295,6 +1366,17 @@ func (n *RestPat) SetOuterParen(loc *Loc) {
 
 func (n *RestPat) TypInfo() *TypInfo {
 	return n.ti
+}
+
+func (n *RestPat) Optional() bool {
+	return n.ti.ques != nil
+}
+
+func (n *RestPat) hoistTypInfo() {
+	if wt, ok := n.arg.(NodeWithTypInfo); ok {
+		n.ti = wt.TypInfo()
+		wt.SetTypInfo(nil)
+	}
 }
 
 type ObjPat struct {

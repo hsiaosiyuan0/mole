@@ -1,7 +1,6 @@
 package parser
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/hsiaosiyuan0/mole/pkg/assert"
@@ -1247,9 +1246,12 @@ func TestTs83(t *testing.T) {
 	assert.Equal(t, N_TS_NUM, expr.rhs.(*CallExpr).ti.typArgs.(*TsParamsInst).params[0].Type(), "should be ok")
 }
 
-func TestTsFixtures(t *testing.T) {
-	ast, err := compileTs(`async < a,b;
-async<T>() == 0;`, nil)
-	fmt.Println(ast)
+func TestTs84(t *testing.T) {
+	ast, err := compileTs(`type a = ({ a }?: { a: string }) => void`, nil)
 	assert.Equal(t, nil, err, "should be prog ok")
+
+	prog := ast.(*Prog)
+	expr := prog.stmts[0].(*TsTypDec)
+	fn := expr.ti.typAnnot.(*TsFnTyp)
+	assert.Equal(t, true, fn.params[0].(*ObjPat).ti.ques != nil, "should be ok")
 }

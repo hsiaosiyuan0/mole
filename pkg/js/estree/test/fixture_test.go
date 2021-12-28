@@ -51,6 +51,34 @@ func scanFixtures(name string) (map[string]*Fixture, error) {
 	return fxs, nil
 }
 
+func runFixture(t *testing.T, input, output string, opts *parser.ParserOpts) {
+	code, err := ioutil.ReadFile(input)
+	if err != nil {
+		t.Fatalf("failed to read fixture code at: %s\nerror: %v", input, err)
+	}
+	out, err := ioutil.ReadFile(output)
+	if err != nil {
+		t.Fatalf("failed to read fixture output at: %s\nerror: %v", output, err)
+	}
+	jsonObj := make(map[string]interface{})
+	if err = json.Unmarshal(out, &jsonObj); err != nil {
+		t.Fatalf("failed to decode fixture output at: %s\nerror: %v", output, err)
+	}
+
+	ast, err := compileWithOpts(string(code), opts)
+	if jsonObj["throws"] != nil {
+		if err == nil {
+			t.Fatalf("should not pass code:\n%s\nast:\n%v", code, ast)
+		}
+		assert.Equal(t, jsonObj["throws"].(string), err.Error(), "")
+	} else {
+		if err != nil {
+			t.Fatalf("failed to parse fixture at: %s\nerror: %v", input, err)
+		}
+		assert.EqualJson(t, string(out), ast)
+	}
+}
+
 func runFixtures(t *testing.T, name string, opts *parser.ParserOpts) {
 	if opts == nil {
 		opts = parser.NewParserOpts()
@@ -60,33 +88,11 @@ func runFixtures(t *testing.T, name string, opts *parser.ParserOpts) {
 	if err != nil {
 		t.Fatalf("failed to run fixture [%s] %v", name, err)
 	}
+
+	t.Logf("Running %d fixtures in [%s]...", len(fxs), name)
 	for _, fx := range fxs {
 		t.Run(fx.name, func(t *testing.T) {
-			code, err := ioutil.ReadFile(fx.input)
-			if err != nil {
-				t.Fatalf("failed to read fixture code at: %s\nerror: %v", fx.input, err)
-			}
-			output, err := ioutil.ReadFile(fx.output)
-			if err != nil {
-				t.Fatalf("failed to read fixture output at: %s\nerror: %v", fx.output, err)
-			}
-			jsonObj := make(map[string]interface{})
-			if err = json.Unmarshal(output, &jsonObj); err != nil {
-				t.Fatalf("failed to decode fixture output at: %s\nerror: %v", fx.output, err)
-			}
-
-			ast, err := compileWithOpts(string(code), opts)
-			if jsonObj["throws"] != nil {
-				if err == nil {
-					t.Fatalf("should not pass code:\n%s\nast:\n%v", code, ast)
-				}
-				assert.Equal(t, jsonObj["throws"].(string), err.Error(), "")
-			} else {
-				if err != nil {
-					t.Fatalf("failed to parse fixture at: %s\nerror: %v", fx.input, err)
-				}
-				assert.EqualJson(t, string(output), ast)
-			}
+			runFixture(t, fx.input, fx.output, opts)
 		})
 	}
 }
@@ -99,4 +105,10 @@ func TestFixtures_ts(t *testing.T) {
 	opts := parser.NewParserOpts()
 	opts.Feature = opts.Feature.On(parser.FEAT_TS)
 	runFixtures(t, "typescript", opts)
+}
+
+func TestFixtures_tsManually(t *testing.T) {
+	opts := parser.NewParserOpts()
+	opts.Feature = opts.Feature.On(parser.FEAT_TS)
+	runFixtures(t, "typescript/async-call/with-optional-parameter", opts)
 }
