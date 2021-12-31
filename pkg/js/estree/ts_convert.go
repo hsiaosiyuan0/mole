@@ -40,6 +40,13 @@ func convertTsTyp(node parser.Node) Node {
 			End:   end(node.Loc()),
 			Loc:   loc(node.Loc()),
 		}
+	case parser.N_TS_UNKNOWN:
+		return &TSUnknownKeyword{
+			Type:  "TSUnknownKeyword",
+			Start: start(node.Loc()),
+			End:   end(node.Loc()),
+			Loc:   loc(node.Loc()),
+		}
 	case parser.N_TS_REF:
 		n := node.(*parser.TsRef)
 		return &TSTypeReference{
@@ -78,6 +85,7 @@ func convertTsTyp(node parser.Node) Node {
 			Loc:            loc(node.Loc()),
 			ParameterName:  convert(n.Name()),
 			TypeAnnotation: convertTsTyp(n.Typ()),
+			Asserts:        n.Asserts(),
 		}
 	}
 

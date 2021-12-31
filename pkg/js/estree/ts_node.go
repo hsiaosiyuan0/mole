@@ -39,6 +39,13 @@ type TSAnyKeyword struct {
 	Loc   *SrcLoc `json:"loc"`
 }
 
+type TSUnknownKeyword struct {
+	Type  string  `json:"type"`
+	Start int     `json:"start"`
+	End   int     `json:"end"`
+	Loc   *SrcLoc `json:"loc"`
+}
+
 type TSFunctionExpression struct {
 	Type           string  `json:"type"`
 	Start          int     `json:"start"`

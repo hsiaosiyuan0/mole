@@ -10,6 +10,7 @@ var builtinTyp = map[string]NodeType{
 	"symbol":  N_TS_SYM,
 	"void":    N_TS_VOID,
 	"never":   N_TS_NEVER,
+	"unknown": N_TS_UNKNOWN,
 }
 
 func (p *Parser) ts() bool {
@@ -475,6 +476,7 @@ func (p *Parser) tsTypName(ns Node) (Node, error) {
 	return ns, nil
 }
 
+// `typePredicates` and `assertPredicate`
 func (p *Parser) tsTypPredicate(name Node, asserts bool) (Node, error) {
 	loc := name.Loc().Clone()
 	var err error
@@ -485,15 +487,19 @@ func (p *Parser) tsTypPredicate(name Node, asserts bool) (Node, error) {
 		}
 	}
 
-	if _, err := p.nextMustName("is", false); err != nil {
-		return nil, err
-	}
+	ahead := p.lexer.Peek()
+	av := ahead.value
 
-	typ, err := p.tsTyp(false)
-	if err != nil {
-		return nil, err
+	var typ Node
+	if av == T_NAME && ahead.Text() == "is" {
+		p.lexer.Next()
+
+		typ, err = p.tsTyp(false)
+		if err != nil {
+			return nil, err
+		}
+		typ = &TsTypAnnot{N_TS_TYP_ANNOT, typ.Loc().Clone(), typ}
 	}
-	typ = &TsTypAnnot{N_TS_TYP_ANNOT, typ.Loc().Clone(), typ}
 
 	return &TsTypPredicate{N_TS_TYP_PREDICATE, p.finLoc(loc), name, typ, asserts}, nil
 }
