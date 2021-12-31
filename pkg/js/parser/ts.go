@@ -9,6 +9,7 @@ var builtinTyp = map[string]NodeType{
 	"string":  N_TS_STR,
 	"symbol":  N_TS_SYM,
 	"void":    N_TS_VOID,
+	"never":   N_TS_NEVER,
 }
 
 func (p *Parser) ts() bool {
@@ -474,12 +475,43 @@ func (p *Parser) tsTypName(ns Node) (Node, error) {
 	return ns, nil
 }
 
+func (p *Parser) tsTypPredicate(name Node, asserts bool) (Node, error) {
+	loc := name.Loc().Clone()
+	var err error
+	if asserts {
+		name, err = p.ident(nil, true)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if _, err := p.nextMustName("is", false); err != nil {
+		return nil, err
+	}
+
+	typ, err := p.tsTyp(false)
+	if err != nil {
+		return nil, err
+	}
+
+	return &TsTypPredicate{N_TS_TYP_PREDICATE, p.finLoc(loc), name, typ, asserts}, nil
+}
+
 func (p *Parser) tsRef(ns Node) (Node, error) {
 	name, err := p.tsTypName(ns)
 	if err != nil {
 		return nil, err
 	}
-	if p.lexer.Peek().value != T_LT {
+
+	ahead := p.lexer.Peek()
+	av := ahead.value
+	asserts := p.isName(name, "asserts", false, false)
+	// type predicates
+	if (asserts && av == T_NAME) || ahead.Text() == "is" {
+		return p.tsTypPredicate(name, asserts)
+	}
+
+	if av != T_LT {
 		return &TsRef{N_TS_REF, p.finLoc(ns.Loc().Clone()), name, nil, nil}, nil
 	}
 	args, err := p.tsTypArgs()

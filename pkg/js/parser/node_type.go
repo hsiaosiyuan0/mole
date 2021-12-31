@@ -1,6 +1,6 @@
 package parser
 
-type NodeType int
+type NodeType uint16
 
 const (
 	N_ILLEGAL NodeType = iota
@@ -103,6 +103,7 @@ const (
 	N_TS_STR
 	N_TS_SYM
 	N_TS_VOID
+	N_TS_NEVER
 	N_TS_REF
 	N_TS_OBJ
 	N_TS_ARR
@@ -141,6 +142,8 @@ const (
 	N_TS_DEC_MODULE
 	N_TS_DEC_INTERFACE
 	N_TS_DEC_TYP_DEC
+
+	N_TS_TYP_PREDICATE
 
 	N_NODE_DEF_END
 )

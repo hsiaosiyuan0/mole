@@ -315,8 +315,6 @@ func (n *NumLit) ToFloat() float64 {
 	return f
 }
 
-const maxSafeInt = (uint64(1) << 53) - 1
-
 // unsafe method, use `IsBigint` before this method
 // return the numerical value if it's safe to be represented in JSON as number
 // otherwise zero is returned
@@ -326,7 +324,7 @@ func (n *NumLit) Float() float64 {
 		f := big.NewFloat(0)
 		f.SetInt(i)
 		max := big.NewFloat(0)
-		max.SetUint64(maxSafeInt)
+		max.SetUint64(math.MaxInt)
 		c := f.Cmp(max)
 		if c == -1 || c == 0 {
 			ff, _ := f.Float64()

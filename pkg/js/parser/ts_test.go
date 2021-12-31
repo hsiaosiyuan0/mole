@@ -1255,3 +1255,12 @@ func TestTs84(t *testing.T) {
 	fn := expr.ti.typAnnot.(*TsFnTyp)
 	assert.Equal(t, true, fn.params[0].(*ObjPat).ti.ques != nil, "should be ok")
 }
+
+func TestTs85(t *testing.T) {
+	// predicate types
+	ast, _ := compileTs(`(x: any): x is string => true;`, nil)
+	assert.Equal(t, true, ast != nil, "should be prog ok")
+
+	ast, _ = compileTs(`(x: any): asserts x is string => true;`, nil)
+	assert.Equal(t, true, ast != nil, "should be prog ok")
+}
