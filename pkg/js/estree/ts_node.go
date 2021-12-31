@@ -156,3 +156,13 @@ type TSObjectPattern struct {
 	Optional       bool    `json:"optional"`
 	TypeAnnotation Node    `json:"typeAnnotation"`
 }
+
+type TSTypePredicate struct {
+	Type           string  `json:"type"`
+	Start          int     `json:"start"`
+	End            int     `json:"end"`
+	Loc            *SrcLoc `json:"loc"`
+	ParameterName  Node    `json:"parameterName"`
+	TypeAnnotation Node    `json:"typeAnnotation"`
+	Asserts        bool    `json:"asserts"`
+}

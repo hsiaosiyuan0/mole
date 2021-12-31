@@ -493,6 +493,7 @@ func (p *Parser) tsTypPredicate(name Node, asserts bool) (Node, error) {
 	if err != nil {
 		return nil, err
 	}
+	typ = &TsTypAnnot{N_TS_TYP_ANNOT, typ.Loc().Clone(), typ}
 
 	return &TsTypPredicate{N_TS_TYP_PREDICATE, p.finLoc(loc), name, typ, asserts}, nil
 }

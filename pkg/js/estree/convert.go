@@ -8,32 +8,12 @@ func pos(p *parser.Pos) *Position {
 	return &Position{Line: p.Line(), Column: p.Column()}
 }
 
-func minPos(ps ...*parser.Pos) *Position {
-	min := ps[0]
-	if min != ps[1] {
-		for i := 1; i < len(ps); i++ {
-			p := ps[i]
-			if p.Line() <= min.Line() && p.Column() < min.Column() {
-				min = p
-			}
-		}
-	}
-	return &Position{Line: min.Line(), Column: min.Column()}
-}
-
 func loc(s *parser.Loc) *SrcLoc {
 	return &SrcLoc{
 		Source: s.Source(),
 		Start:  pos(s.Begin()),
 		End:    pos(s.End()),
 	}
-}
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }
 
 func start(s *parser.Loc) int {

@@ -528,3 +528,15 @@ func (n *TsTypPredicate) Type() NodeType {
 func (n *TsTypPredicate) Loc() *Loc {
 	return n.loc
 }
+
+func (n *TsTypPredicate) Name() Node {
+	return n.name
+}
+
+func (n *TsTypPredicate) Typ() Node {
+	return n.des
+}
+
+func (n *TsTypPredicate) Asserts() bool {
+	return n.assert
+}

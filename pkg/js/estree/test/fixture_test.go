@@ -110,5 +110,5 @@ func TestFixtures_ts(t *testing.T) {
 func TestFixtures_tsManually(t *testing.T) {
 	opts := parser.NewParserOpts()
 	opts.Feature = opts.Feature.On(parser.FEAT_TS)
-	runFixtures(t, "typescript/async-call/with-optional-parameter", opts)
+	runFixtures(t, "typescript/arrow-function/predicate-types", opts)
 }

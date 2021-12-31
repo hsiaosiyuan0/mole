@@ -69,6 +69,16 @@ func convertTsTyp(node parser.Node) Node {
 			Loc:         loc(node.Loc()),
 			ElementType: convertTsTyp(n.Arg()),
 		}
+	case parser.N_TS_TYP_PREDICATE:
+		n := node.(*parser.TsTypPredicate)
+		return &TSTypePredicate{
+			Type:           "TSTypePredicate",
+			Start:          start(node.Loc()),
+			End:            end(node.Loc()),
+			Loc:            loc(node.Loc()),
+			ParameterName:  convert(n.Name()),
+			TypeAnnotation: convertTsTyp(n.Typ()),
+		}
 	}
 
 	return nil
