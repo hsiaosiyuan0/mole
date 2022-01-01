@@ -32,7 +32,7 @@ bench-ecma:
 	go test -cpu 1 -benchmem -bench=. ./ecma/estree/test/perf... -run "^Benchmark"
 
 html-entities:
-	go run script/html_entities.go
+	go run script/html_entities/main.go
 
 gofmt:
 	gofmt -w .
