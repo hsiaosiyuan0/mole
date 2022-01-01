@@ -35,6 +35,4 @@ mole -ast -file path_to_your_test_file.js
 
 ## Development
 
-### Project structure
-
-Project structure is complied with [Standard Go Project Layout](https://github.com/golang-standards/project-layout)
+TBD
