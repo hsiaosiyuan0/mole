@@ -111,5 +111,5 @@ func TestFixture_ts(t *testing.T) {
 func TestFixture_tsManually(t *testing.T) {
 	opts := parser.NewParserOpts()
 	opts.Feature = opts.Feature.On(parser.FEAT_TS)
-	runFixtures(t, "typescript/arrow-function/predicate-types", opts)
+	runFixtures(t, "typescript/assert-predicate/asserts-this-with-predicate", opts)
 }

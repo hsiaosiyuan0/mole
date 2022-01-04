@@ -477,11 +477,15 @@ func (p *Parser) tsTypName(ns Node) (Node, error) {
 }
 
 // `typePredicates` and `assertPredicate`
-func (p *Parser) tsTypPredicate(name Node, asserts bool) (Node, error) {
+func (p *Parser) tsTypPredicate(name Node, asserts bool, this bool) (Node, error) {
 	loc := name.Loc().Clone()
 	var err error
 	if asserts {
-		name, err = p.ident(nil, true)
+		if this {
+			name = &TsPredef{N_TS_THIS, p.finLoc(p.locFromTok(p.lexer.Next())), nil}
+		} else {
+			name, err = p.ident(nil, true)
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -513,9 +517,9 @@ func (p *Parser) tsRef(ns Node) (Node, error) {
 	ahead := p.lexer.Peek()
 	av := ahead.value
 	asserts := p.isName(name, "asserts", false, false)
-	// type predicates
-	if (asserts && av == T_NAME) || ahead.Text() == "is" {
-		return p.tsTypPredicate(name, asserts)
+	// `assertPredicate` or `typePredicates`
+	if (asserts && (av == T_NAME || av == T_THIS)) || ahead.Text() == "is" {
+		return p.tsTypPredicate(name, asserts, av == T_THIS)
 	}
 
 	if av != T_LT {
@@ -1335,6 +1339,9 @@ func (p *Parser) tsDec() (Node, error) {
 	} else if tv == T_FUNC {
 		dec.inner, err = p.fnDec(false, nil, false, true)
 		typ = N_TS_DEC_FN
+		if err := p.advanceIfSemi(true); err != nil {
+			return nil, err
+		}
 	} else if p.aheadIsAsync(tok, false, false) {
 		if tok.ContainsEscape() {
 			return nil, p.errorAt(tv, &tok.begin, ERR_ESCAPE_IN_KEYWORD)

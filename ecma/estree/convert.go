@@ -963,6 +963,23 @@ func convert(node parser.Node) Node {
 		}
 	case parser.N_METHOD:
 		n := node.(*parser.Method)
+		f := n.Value().(*parser.FnDec)
+		if f.TypInfo() != nil {
+			ti := f.TypInfo()
+			return &TSMethodDefinition{
+				Type:           "MethodDefinition",
+				Start:          start(n.Loc()),
+				End:            end(n.Loc()),
+				Loc:            loc(n.Loc()),
+				Key:            convert(n.Key()),
+				Value:          convert(n.Value()),
+				Kind:           n.Kind(),
+				Computed:       n.Computed(),
+				Static:         n.Static(),
+				TypeParameters: typParams(ti),
+				ReturnType:     typAnnot(ti),
+			}
+		}
 		return &MethodDefinition{
 			Type:     "MethodDefinition",
 			Start:    start(n.Loc()),
@@ -1182,5 +1199,7 @@ func convert(node parser.Node) Node {
 			Loc:   loc(node.Loc()),
 		}
 	}
-	return nil
+
+	// bypass the ts related node like `Ambient`
+	return convertTsTyp(node)
 }

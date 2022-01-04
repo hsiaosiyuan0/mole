@@ -40,6 +40,13 @@ func convertTsTyp(node parser.Node) Node {
 			End:   end(node.Loc()),
 			Loc:   loc(node.Loc()),
 		}
+	case parser.N_TS_THIS:
+		return &TSThisType{
+			Type:  "TSThisType",
+			Start: start(node.Loc()),
+			End:   end(node.Loc()),
+			Loc:   loc(node.Loc()),
+		}
 	case parser.N_TS_UNKNOWN:
 		return &TSUnknownKeyword{
 			Type:  "TSUnknownKeyword",
@@ -86,6 +93,23 @@ func convertTsTyp(node parser.Node) Node {
 			ParameterName:  convert(n.Name()),
 			TypeAnnotation: convertTsTyp(n.Typ()),
 			Asserts:        n.Asserts(),
+		}
+	case parser.N_TS_DEC_FN:
+		n := node.(*parser.TsDec).Inner().(*parser.FnDec)
+		ti := n.TypInfo()
+		lc := parser.LocWithTypeInfo(node)
+		return &TSDeclareFunction{
+			Type:           "TSDeclareFunction",
+			Start:          start(lc),
+			End:            end(lc),
+			Loc:            loc(lc),
+			Id:             convert(n.Id()),
+			Params:         fnParams(n.Params()),
+			Body:           convert(n.Body()),
+			Generator:      false,
+			Async:          n.Async(),
+			TypeParameters: typParams(ti),
+			ReturnType:     typAnnot(ti),
 		}
 	}
 

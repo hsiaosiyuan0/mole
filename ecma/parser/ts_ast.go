@@ -510,6 +510,14 @@ func (n *TsDec) Loc() *Loc {
 	return n.loc
 }
 
+func (n *TsDec) Name() Node {
+	return n.name
+}
+
+func (n *TsDec) Inner() Node {
+	return n.inner
+}
+
 // [assertion](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-3-7.html#assertion-functions) and
 // [type-predicates](https://www.typescriptlang.org/docs/handbook/2/narrowing.html#using-type-predicates) have almost
 // the same syntax so they'll share the same definition by using `assert` to distinguish them

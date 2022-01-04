@@ -39,6 +39,13 @@ type TSAnyKeyword struct {
 	Loc   *SrcLoc `json:"loc"`
 }
 
+type TSThisType struct {
+	Type  string  `json:"type"`
+	Start int     `json:"start"`
+	End   int     `json:"end"`
+	Loc   *SrcLoc `json:"loc"`
+}
+
 type TSUnknownKeyword struct {
 	Type  string  `json:"type"`
 	Start int     `json:"start"`
@@ -172,4 +179,32 @@ type TSTypePredicate struct {
 	ParameterName  Node    `json:"parameterName"`
 	TypeAnnotation Node    `json:"typeAnnotation"`
 	Asserts        bool    `json:"asserts"`
+}
+
+type TSDeclareFunction struct {
+	Type           string  `json:"type"`
+	Start          int     `json:"start"`
+	End            int     `json:"end"`
+	Loc            *SrcLoc `json:"loc"`
+	Id             Node    `json:"id"`
+	Params         []Node  `json:"params"`
+	Body           Node    `json:"body"`
+	Generator      bool    `json:"generator"`
+	Async          bool    `json:"async"`
+	TypeParameters Node    `json:"typeParameters"`
+	ReturnType     Node    `json:"returnType"`
+}
+
+type TSMethodDefinition struct {
+	Type           string     `json:"type"`
+	Start          int        `json:"start"`
+	End            int        `json:"end"`
+	Loc            *SrcLoc    `json:"loc"`
+	Key            Expression `json:"key"`
+	Value          Expression `json:"value"`
+	Kind           string     `json:"kind"` // "constructor" | "method" | "get" | "set"
+	Computed       bool       `json:"computed"`
+	Static         bool       `json:"static"`
+	TypeParameters Node       `json:"typeParameters"`
+	ReturnType     Node       `json:"returnType"`
 }
