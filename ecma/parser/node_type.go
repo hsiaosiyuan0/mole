@@ -145,6 +145,7 @@ const (
 	N_TS_DEC_TYP_DEC
 
 	N_TS_TYP_PREDICATE
+	N_TS_AS
 
 	N_NODE_DEF_END
 )

@@ -6,6 +6,22 @@ import (
 	"unicode/utf8"
 )
 
+type SourceState struct {
+	ofst int
+	pos  int
+	line int
+	col  int
+
+	peeked [peekBufLen]rune
+	prl    [peekBufLen]int
+	pl     int
+	pbl    int
+	pr     int
+	pw     int
+
+	metLineTerminator bool
+}
+
 type Source struct {
 	path string
 	code string
@@ -23,6 +39,8 @@ type Source struct {
 	pw     int             // offset in buffer for writing
 
 	metLineTerminator bool
+
+	ss []*SourceState // state stack
 }
 
 const peekBufLen = 4
@@ -32,6 +50,7 @@ func NewSource(path string, code string) *Source {
 		path: path,
 		code: code,
 		line: 1,
+		ss:   make([]*SourceState, 0),
 	}
 }
 
@@ -39,6 +58,51 @@ const (
 	EOF = rune(-1)
 	EOL = rune(0x0a)
 )
+
+func (s *Source) pushState() {
+	ss := &SourceState{
+		ofst: s.ofst,
+		pos:  s.pos,
+		line: s.line,
+		col:  s.col,
+
+		peeked: s.peeked,
+		prl:    s.prl,
+		pl:     s.pl,
+		pbl:    s.pbl,
+		pr:     s.pr,
+		pw:     s.pw,
+
+		metLineTerminator: s.metLineTerminator,
+	}
+
+	s.ss = append(s.ss, ss)
+}
+
+func (s *Source) discardState() {
+	last := len(s.ss) - 1
+	s.ss = s.ss[:last]
+}
+
+func (s *Source) popState() {
+	last := len(s.ss) - 1
+	rest, ss := s.ss[:last], s.ss[last]
+	s.ss = rest
+
+	s.ofst = ss.ofst
+	s.pos = ss.pos
+	s.line = ss.line
+	s.col = ss.col
+
+	s.peeked = ss.peeked
+	s.prl = ss.prl
+	s.pl = ss.pl
+	s.pbl = ss.pbl
+	s.pr = ss.pr
+	s.pw = ss.pw
+
+	s.metLineTerminator = ss.metLineTerminator
+}
 
 func (s *Source) RuneAtOfst(ofst int) (rune, int) {
 	r, size := utf8.DecodeRuneInString(s.code[ofst:])
@@ -235,4 +299,12 @@ type SourceRange struct {
 
 func (r *SourceRange) Text() string {
 	return r.src.code[r.lo:r.hi]
+}
+
+func (r *SourceRange) Clone() *SourceRange {
+	return &SourceRange{
+		src: r.src,
+		lo:  r.lo,
+		hi:  r.hi,
+	}
 }

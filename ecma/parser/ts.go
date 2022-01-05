@@ -1,6 +1,9 @@
 package parser
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
 
 var builtinTyp = map[string]NodeType{
 	"any":     N_TS_ANY,
@@ -24,18 +27,48 @@ func (p *Parser) newTypInfo() *TypInfo {
 	return nil
 }
 
+func (p *Parser) tsAsTyp() (Node, error) {
+	asLoc := p.locFromTok(p.lexer.Next())
+	node, err := p.tsTyp(false)
+	if err != nil {
+		return nil, err
+	}
+	return &TsTypAnnot{N_TS_TYP_ANNOT, p.finLoc(asLoc.Clone()), asLoc, node}, nil
+}
+
+func (p *Parser) tsToTsAsExpr(node Node) Node {
+	if !p.ts() {
+		return node
+	}
+
+	if wt, ok := node.(NodeWithTypInfo); ok {
+		ti := wt.TypInfo()
+		if ti != nil && ti.typAnnot != nil {
+			ta := ti.typAnnot.(*TsTypAnnot)
+			if ta.as != nil {
+				wt.SetTypInfo(nil)
+				node = &TSAsExpression{N_TS_AS, node.Loc().Clone(), node, ta.tsTyp}
+			}
+		}
+	}
+	return node
+}
+
 func (p *Parser) tsTypAnnot() (Node, error) {
 	if !p.ts() {
 		return nil, nil
 	}
 	ahead := p.lexer.Peek()
-	if ahead.value == T_COLON {
+	av := ahead.value
+	if av == T_COLON {
 		loc := p.locFromTok(p.lexer.Next())
 		node, err := p.tsTyp(false)
 		if err != nil {
 			return nil, err
 		}
-		return &TsTypAnnot{N_TS_TYP_ANNOT, p.finLoc(loc), node}, nil
+		return &TsTypAnnot{N_TS_TYP_ANNOT, p.finLoc(loc), nil, node}, nil
+	} else if av == T_NAME && ahead.Text() == "as" {
+		return p.tsAsTyp()
 	}
 	return nil, nil
 }
@@ -502,7 +535,7 @@ func (p *Parser) tsTypPredicate(name Node, asserts bool, this bool) (Node, error
 		if err != nil {
 			return nil, err
 		}
-		typ = &TsTypAnnot{N_TS_TYP_ANNOT, typ.Loc().Clone(), typ}
+		typ = &TsTypAnnot{N_TS_TYP_ANNOT, typ.Loc().Clone(), nil, typ}
 	}
 
 	return &TsTypPredicate{N_TS_TYP_PREDICATE, p.finLoc(loc), name, typ, asserts}, nil
@@ -1021,8 +1054,10 @@ func (p *Parser) tsPredefToName(node Node) (Node, error) {
 	return node, nil
 }
 
+var errTypArgMissingGT = errors.New("missing the closing `>`")
+
 func (p *Parser) tsTypArgs() (Node, error) {
-	loc := p.locFromTok(p.lexer.Next())
+	loc := p.locFromTok(p.lexer.Next()) // `<`
 	args := make([]Node, 0, 1)
 	for {
 		arg, err := p.tsTyp(false)
@@ -1051,6 +1086,10 @@ func (p *Parser) tsTypArgs() (Node, error) {
 		} else if av == T_GT {
 			p.lexer.Next()
 			break
+		} else if av == T_NAME {
+			// next is typ
+		} else {
+			return nil, errTypArgMissingGT
 		}
 	}
 	return &TsParamsInst{N_TS_PARAM_DEC, p.finLoc(loc), args}, nil

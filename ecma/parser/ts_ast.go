@@ -3,6 +3,7 @@ package parser
 type TsTypAnnot struct {
 	typ   NodeType
 	loc   *Loc
+	as    *Loc
 	tsTyp Node
 }
 
@@ -547,4 +548,23 @@ func (n *TsTypPredicate) Typ() Node {
 
 func (n *TsTypPredicate) Asserts() bool {
 	return n.assert
+}
+
+type TSAsExpression struct {
+	typ  NodeType
+	loc  *Loc
+	expr Node
+	des  Node
+}
+
+func (n *TSAsExpression) Type() NodeType {
+	return n.typ
+}
+
+func (n *TSAsExpression) Loc() *Loc {
+	return n.loc
+}
+
+func (n *TSAsExpression) Expr() Node {
+	return n.expr
 }

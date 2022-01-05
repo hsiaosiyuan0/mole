@@ -33,11 +33,47 @@ type LexerMode struct {
 
 const sizeOfPeekedTok = 5
 
-type Lexer struct {
-	src *Source
+// consider the ambiguities introduced by TS grammar like `<`:
+//
+// ```ts
+// a < b   // binExpr
+// a<b>()  // callExpr
+// ```
+//
+// for dealing with above problem, parser should store its state when
+// the first `<` is met before performing the `argList` processing,
+// the stored state will be restored if the `argList` processing was
+// failed or be discarded if `argList` was succeeded
+type LexerState struct {
+	mode []LexerMode
 
+	peeked [sizeOfPeekedTok]Token
+	pl     int
+	pr     int
+	pw     int
+
+	beginStmt bool
+
+	prtVal   TokenValue
+	prtRng   SourceRange
+	prtBegin Pos
+	prtEnd   Pos
+
+	pptVal TokenValue
+
+	prevWs Token
+}
+
+type Lexer struct {
+	src  *Source
 	ver  ESVersion
-	mode []*LexerMode
+	feat Feature
+
+	lastCmtLine int
+	lastCmtCol  int
+	comments    map[int]map[int]*SourceRange
+
+	mode []LexerMode
 
 	peeked [sizeOfPeekedTok]Token
 	pl     int
@@ -51,25 +87,73 @@ type Lexer struct {
 	prtBegin Pos         // the begin position of perv read token
 	prtEnd   Pos         // the end position of prev read token
 
-	pptVal      TokenValue // prev peek
-	pptAfterEOL bool
+	pptVal TokenValue // prev peek
 
-	lastCommentLine int
-	comments        map[int][]Token
+	// always save loc of the previous whitespace being skipped
+	// by `skipSpace` in jsx mode
+	prevWs Token
 
-	feat Feature
-
-	// always save loc of the previous whitespace being skipped by `skipSpace`
-	// in jsx mode
-	prevWs *Token
+	ss []*LexerState // state stack
 }
 
 func NewLexer(src *Source) *Lexer {
-	lexer := &Lexer{src: src, mode: make([]*LexerMode, 0)}
-	lexer.mode = append(lexer.mode, &LexerMode{LM_NONE, 0, 0, 0})
-	lexer.comments = make(map[int][]Token)
-	lexer.prevWs = &Token{}
+	lexer := &Lexer{src: src, mode: make([]LexerMode, 0)}
+	lexer.mode = append(lexer.mode, LexerMode{LM_NONE, 0, 0, 0})
+	lexer.comments = make(map[int]map[int]*SourceRange)
 	return lexer
+}
+
+func (l *Lexer) pushState() {
+	s := &LexerState{
+		mode: make([]LexerMode, len(l.mode)),
+
+		peeked: l.peeked,
+		pl:     l.pl,
+		pr:     l.pr,
+		pw:     l.pw,
+
+		beginStmt: l.beginStmt,
+
+		prtVal:   l.prtVal,
+		prtRng:   l.prtRng,
+		prtBegin: l.prtBegin,
+		prtEnd:   l.prtEnd,
+
+		pptVal: l.pptVal,
+		prevWs: l.prevWs,
+	}
+
+	copy(s.mode, l.mode)
+
+	l.ss = append(l.ss, s)
+}
+
+func (l *Lexer) discardState() {
+	last := len(l.ss) - 1
+	l.ss = l.ss[:last]
+}
+
+func (l *Lexer) popState() {
+	last := len(l.ss) - 1
+	rest, s := l.ss[:last], l.ss[last]
+	l.ss = rest
+
+	l.mode = s.mode
+
+	l.peeked = s.peeked
+	l.pl = s.pl
+	l.pr = s.pr
+	l.pw = s.pw
+
+	l.beginStmt = s.beginStmt
+
+	l.prtVal = s.prtVal
+	l.prtRng = s.prtRng
+	l.prtBegin = s.prtBegin
+	l.prtEnd = s.prtEnd
+
+	l.pptVal = s.pptVal
+	l.prevWs = s.prevWs
 }
 
 func (l *Lexer) pushMode(mode LexerModeValue, inherit bool) {
@@ -80,26 +164,26 @@ func (l *Lexer) pushMode(mode LexerModeValue, inherit bool) {
 		v |= l.curMode().value & LM_ASYNC
 		mode |= v
 	}
-	l.mode = append(l.mode, &LexerMode{mode, 0, 0, 0})
+	l.mode = append(l.mode, LexerMode{mode, 0, 0, 0})
 }
 
 func (l *Lexer) popMode() *LexerMode {
 	mLen := len(l.mode)
 	if mLen == 1 {
-		l.mode[0] = &LexerMode{LM_NONE, 0, 0, 0}
-		return l.mode[0]
+		l.mode[0] = LexerMode{LM_NONE, 0, 0, 0}
+		return &l.mode[0]
 	}
 	m, last := l.mode[:mLen-1], l.mode[mLen-1]
 	l.mode = m
-	return last
+	return &last
 }
 
 func (l *Lexer) curMode() *LexerMode {
-	return l.mode[len(l.mode)-1]
+	return &l.mode[len(l.mode)-1]
 }
 
 func (l *Lexer) addMode(mode LexerModeValue) {
-	cur := l.mode[len(l.mode)-1]
+	cur := &l.mode[len(l.mode)-1]
 	cur.value |= mode
 }
 
@@ -118,7 +202,7 @@ func (l *Lexer) skipSpace() *Source {
 	l.prevWs.raw.lo = l.src.Ofst()
 	l.prevWs.len = l.src.Pos()
 	l.src.SkipSpace()
-	l.finToken(l.prevWs, T_ILLEGAL)
+	l.finToken(&l.prevWs, T_ILLEGAL)
 	return l.src
 }
 
@@ -188,15 +272,26 @@ func (l *Lexer) readTokWithComment() *Token {
 	return l.ReadJSXTxt()
 }
 
-func (l *Lexer) lastComment() *Token {
-	line := l.comments[l.lastCommentLine]
+func (l *Lexer) lastComment() *SourceRange {
+	line := l.comments[l.lastCmtLine]
 	if line == nil {
 		return nil
 	}
 	if len(line) == 0 {
 		return nil
 	}
-	return &line[len(line)-1]
+	return line[l.lastCmtCol]
+}
+
+func (l *Lexer) appendCmt(tok *Token) {
+	l.lastCmtLine = tok.begin.line
+	line := l.comments[tok.begin.line]
+	if line == nil {
+		line = make(map[int]*SourceRange, 0)
+		l.comments[tok.begin.line] = line
+	}
+	line[tok.begin.col] = tok.raw.Clone()
+	l.lastCmtCol = tok.begin.col
 }
 
 func (l *Lexer) readTok() *Token {
@@ -210,13 +305,7 @@ func (l *Lexer) readTok() *Token {
 			}
 			return tok
 		}
-		l.lastCommentLine = tok.begin.line
-		line := l.comments[tok.begin.line]
-		if line == nil {
-			line = make([]Token, 0)
-		}
-		line = append(line, *tok)
-		l.comments[tok.begin.line] = line
+		l.appendCmt(tok)
 		prt = tok.value
 		prtExt = tok.ext
 	}
@@ -241,7 +330,6 @@ func (l *Lexer) PeekGrow() *Token {
 	// other prt fields such as `prtRng` will be updated after `Next` is
 	// called
 	l.prtVal = tok.value
-	l.pptAfterEOL = tok.afterLineTerminator
 
 	l.beginStmt = false
 	if tok.isEof() {

@@ -226,7 +226,7 @@ func (p *Parser) jsxWsTxt() Node {
 	}
 
 	loc := p.loc()
-	prevWs := p.lexer.prevWs
+	prevWs := &p.lexer.prevWs
 	loc.begin = prevWs.begin.Clone()
 	loc.end = prevWs.end.Clone()
 	loc.rng.start = prevWs.raw.lo

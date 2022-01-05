@@ -84,7 +84,7 @@ func TestJSXEmpty(t *testing.T) {
 	AssertEqual(t, false, open.closed, "should not closed")
 
 	children := elem.children
-	AssertEqual(t, 7, len(children), "should have 4 children")
+	AssertEqual(t, 7, len(children), "should have 7 children")
 
 	empty := children[3]
 	AssertEqual(t, N_JSX_EXPR_SPAN, empty.Type(), "should be span")

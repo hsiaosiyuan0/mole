@@ -22,6 +22,8 @@ type Parser struct {
 	// function f(): any {}
 	// ```
 	lastTsFnSig *FnDec
+
+	ltTokens [][2]int
 }
 
 type ParserOpts struct {
@@ -3559,9 +3561,39 @@ func (p *Parser) checkCallee(callee Node, nextLoc *Loc) error {
 	return nil
 }
 
+func (p *Parser) isLtTok(tok *Token) bool {
+	line := tok.begin.line
+	col := tok.begin.col
+	for _, lc := range p.ltTokens {
+		if lc[0] == line && lc[1] == col {
+			return true
+		}
+	}
+	return false
+}
+
+func (p *Parser) addLtTok(line, col int) {
+	p.ltTokens = append(p.ltTokens, [2]int{line, col})
+}
+
+func (p *Parser) pushState() {
+	p.lexer.pushState()
+	p.lexer.src.pushState()
+}
+
+func (p *Parser) discardState() {
+	p.lexer.discardState()
+	p.lexer.src.discardState()
+}
+
+func (p *Parser) popState() {
+	p.lexer.src.popState()
+	p.lexer.popState()
+}
+
 func (p *Parser) aheadIsArgList(tok *Token) bool {
 	tv := tok.value
-	return tv == T_PAREN_L || (tv == T_LT && p.ts())
+	return tv == T_PAREN_L || (tv == T_LT && p.ts() && !p.isLtTok(tok))
 }
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-expressions.html#prod-CallExpression
@@ -3586,10 +3618,28 @@ func (p *Parser) callExpr(callee Node, root bool, directOpt bool, opt *Loc) (Nod
 		if p.aheadIsArgList(tok) {
 			aheadLoc := p.locFromTok(tok)
 
+			// below pair `pushState` and `popState` is used to dealing with
+			// the ambiguity between `<` in typArgs and `<` operator in binExpr
+			lt := tok.value == T_LT
+			var line, col int
+			if lt {
+				line = tok.begin.line
+				col = tok.begin.col
+				p.pushState()
+			}
 			args, _, typArgs, err := p.argList(true, true, nil)
 			if err != nil {
+				if err == errTypArgMissingGT && firstOpt == nil {
+					p.popState()
+					p.addLtTok(line, col)
+					return callee, nil, nil
+				}
 				return nil, nil, err
 			}
+			if lt {
+				p.discardState()
+			}
+
 			ti := p.newTypInfo()
 			if ti != nil {
 				if err = p.tsCheckTypArgs(typArgs); err != nil {

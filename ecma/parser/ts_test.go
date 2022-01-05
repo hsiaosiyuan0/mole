@@ -1264,3 +1264,16 @@ func TestTs85(t *testing.T) {
 	ast, _ = compileTs(`(x: any): asserts x is string => true;`, nil)
 	AssertEqual(t, true, ast != nil, "should be prog ok")
 }
+
+func TestTs86(t *testing.T) {
+	// predicate types
+	ast, err := compileTs(`x < y`, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+	AssertEqual(t, true, ast != nil, "should be prog ok")
+
+	prog := ast.(*Prog)
+	expr := prog.stmts[0].(*ExprStmt).expr.(*BinExpr)
+	AssertEqual(t, "x", expr.lhs.(*Ident).Text(), "should be ok")
+	AssertEqual(t, T_LT, expr.op, "should be ok")
+	AssertEqual(t, "y", expr.rhs.(*Ident).Text(), "should be ok")
+}
