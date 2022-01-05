@@ -1277,3 +1277,30 @@ func TestTs86(t *testing.T) {
 	AssertEqual(t, T_LT, expr.op, "should be ok")
 	AssertEqual(t, "y", expr.rhs.(*Ident).Text(), "should be ok")
 }
+
+func TestTs87(t *testing.T) {
+	// predicate types
+	ast, err := compileTs(`x < y < z<a>()`, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+	AssertEqual(t, true, ast != nil, "should be prog ok")
+
+	prog := ast.(*Prog)
+	expr := prog.stmts[0].(*ExprStmt).expr.(*BinExpr)
+	AssertEqual(t, "x", expr.lhs.(*BinExpr).lhs.(*Ident).Text(), "should be ok")
+	AssertEqual(t, T_LT, expr.op, "should be ok")
+	AssertEqual(t, "z", expr.rhs.(*CallExpr).callee.(*Ident).Text(), "should be ok")
+}
+
+func TestTs88(t *testing.T) {
+	// predicate types
+	ast, err := compileTs(`x < z<a>() > y`, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+	AssertEqual(t, true, ast != nil, "should be prog ok")
+
+	prog := ast.(*Prog)
+	expr := prog.stmts[0].(*ExprStmt).expr.(*BinExpr)
+	AssertEqual(t, "x", expr.lhs.(*BinExpr).lhs.(*Ident).Text(), "should be ok")
+	AssertEqual(t, T_GT, expr.op, "should be ok")
+	AssertEqual(t, "z", expr.lhs.(*BinExpr).rhs.(*CallExpr).callee.(*Ident).Text(), "should be ok")
+	AssertEqual(t, "y", expr.rhs.(*Ident).Text(), "should be ok")
+}
