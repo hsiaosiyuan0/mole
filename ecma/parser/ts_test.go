@@ -1304,3 +1304,65 @@ func TestTs88(t *testing.T) {
 	AssertEqual(t, "z", expr.lhs.(*BinExpr).rhs.(*CallExpr).callee.(*Ident).Text(), "should be ok")
 	AssertEqual(t, "y", expr.rhs.(*Ident).Text(), "should be ok")
 }
+
+func TestTs89(t *testing.T) {
+	// cast
+	ast, err := compileTs(`x as any as T;`, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+	AssertEqual(t, true, ast != nil, "should be prog ok")
+	prog := ast.(*Prog)
+	expr := prog.stmts[0].(*ExprStmt).expr.(*BinExpr)
+	AssertEqual(t, "x", expr.lhs.(*BinExpr).lhs.(*Ident).Text(), "should be ok")
+
+	ast, err = compileTs(`x as boolean <= y;`, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+	AssertEqual(t, true, ast != nil, "should be prog ok")
+	prog = ast.(*Prog)
+	expr = prog.stmts[0].(*ExprStmt).expr.(*BinExpr)
+	AssertEqual(t, "x", expr.lhs.(*BinExpr).lhs.(*Ident).Text(), "should be ok")
+
+	ast, err = compileTs(`x === 1 as number;`, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+	AssertEqual(t, true, ast != nil, "should be prog ok")
+	prog = ast.(*Prog)
+	expr = prog.stmts[0].(*ExprStmt).expr.(*BinExpr)
+	AssertEqual(t, "x", expr.lhs.(*Ident).Text(), "should be ok")
+	AssertEqual(t, "1", expr.rhs.(*BinExpr).lhs.(*NumLit).Text(), "should be ok")
+
+	ast, err = compileTs(`x as boolean ?? y;`, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+	AssertEqual(t, true, ast != nil, "should be prog ok")
+	prog = ast.(*Prog)
+	expr = prog.stmts[0].(*ExprStmt).expr.(*BinExpr)
+	AssertEqual(t, "x", expr.lhs.(*BinExpr).lhs.(*Ident).Text(), "should be ok")
+	AssertEqual(t, "y", expr.rhs.(*Ident).Text(), "should be ok")
+
+	ast, err = compileTs(`x < 1 as A<string>`, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+	AssertEqual(t, true, ast != nil, "should be prog ok")
+	prog = ast.(*Prog)
+	expr = prog.stmts[0].(*ExprStmt).expr.(*BinExpr)
+	AssertEqual(t, "x", expr.lhs.(*BinExpr).lhs.(*Ident).Text(), "should be ok")
+	AssertEqual(t, "1", expr.lhs.(*BinExpr).rhs.(*NumLit).Text(), "should be ok")
+}
+
+func TestTs90(t *testing.T) {
+	// cast to TypRef
+	ast, err := compileTs(`x < 1 as A<string>`, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+	AssertEqual(t, true, ast != nil, "should be prog ok")
+	prog := ast.(*Prog)
+	expr := prog.stmts[0].(*ExprStmt).expr.(*BinExpr)
+	AssertEqual(t, "x", expr.lhs.(*BinExpr).lhs.(*Ident).Text(), "should be ok")
+	AssertEqual(t, "1", expr.lhs.(*BinExpr).rhs.(*NumLit).Text(), "should be ok")
+
+	ast, err = compileTs(`x < b as A<string>`, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+	AssertEqual(t, true, ast != nil, "should be prog ok")
+	prog = ast.(*Prog)
+	expr = prog.stmts[0].(*ExprStmt).expr.(*BinExpr)
+	AssertEqual(t, "x", expr.lhs.(*BinExpr).lhs.(*Ident).Text(), "should be ok")
+	AssertEqual(t, "b", expr.lhs.(*BinExpr).rhs.(*Ident).Text(), "should be ok")
+	AssertEqual(t, "A", expr.rhs.(*TsRef).name.(*Ident).Text(), "should be ok")
+	AssertEqual(t, N_TS_STR, expr.rhs.(*TsRef).args.(*TsParamsInst).params[0].Type(), "should be ok")
+}

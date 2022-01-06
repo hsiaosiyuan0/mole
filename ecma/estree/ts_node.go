@@ -39,6 +39,13 @@ type TSAnyKeyword struct {
 	Loc   *SrcLoc `json:"loc"`
 }
 
+type TSBooleanKeyword struct {
+	Type  string  `json:"type"`
+	Start int     `json:"start"`
+	End   int     `json:"end"`
+	Loc   *SrcLoc `json:"loc"`
+}
+
 type TSThisType struct {
 	Type  string  `json:"type"`
 	Start int     `json:"start"`
@@ -207,4 +214,13 @@ type TSMethodDefinition struct {
 	Static         bool       `json:"static"`
 	TypeParameters Node       `json:"typeParameters"`
 	ReturnType     Node       `json:"returnType"`
+}
+
+type TSAsExpression struct {
+	Type           string  `json:"type"`
+	Start          int     `json:"start"`
+	End            int     `json:"end"`
+	Loc            *SrcLoc `json:"loc"`
+	Expression     Node    `json:"expression"`
+	TypeAnnotation Node    `json:"typeAnnotation"`
 }

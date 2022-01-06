@@ -91,13 +91,16 @@ func (t *Token) Text() string {
 	return t.RawText()
 }
 
-func (t *Token) IsBin(notIn bool) TokenValue {
+func (t *Token) IsBin(notIn bool, ts bool) TokenValue {
 	bin := t.value > T_BIN_OP_BEGIN && t.value < T_BIN_OP_END
 	if bin {
 		return t.value
 	}
 	if !notIn && IsName(t, "in", false) {
 		return T_IN
+	}
+	if ts && IsName(t, "as", false) {
+		return T_TS_AS
 	}
 	return T_ILLEGAL
 }
@@ -361,6 +364,7 @@ const (
 	T_ASSIGN_END
 
 	T_JSX_TXT
+	T_TS_AS
 
 	T_TOKEN_DEF_END
 )
@@ -478,7 +482,7 @@ var TokenKinds = [T_TOKEN_DEF_END + 1]*TokenKind{
 	{T_ARROW, "=>", 0, false, true, false},
 
 	{T_BIN_OP_BEGIN, "binary operator begin", 0, false, false, false},
-	{T_NULLISH, "??", 0, false, true, false},
+	{T_NULLISH, "??", 6, false, true, false},
 
 	// relational
 	{T_LT, "<", 12, false, true, false},
@@ -544,6 +548,7 @@ var TokenKinds = [T_TOKEN_DEF_END + 1]*TokenKind{
 	{T_ASSIGN_END, "assignment end", 0, false, false, false},
 
 	{T_JSX_TXT, "jsx text", 0, false, false, false},
+	{T_TS_AS, "as", 12, false, true, false},
 	{T_TOKEN_DEF_END, "token end def", 0, false, false, false},
 }
 

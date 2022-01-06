@@ -14,6 +14,8 @@ type Parser struct {
 	checkName       bool
 	danglingPvtRefs []*Ref
 
+	ts bool
+
 	// the ts func sig cannot stand alone:
 	// `function f(a:number)` is illegal unless it's followed by a
 	// func dec with the same id:
@@ -71,6 +73,8 @@ func (p *Parser) Setup(src *Source, opts *ParserOpts) {
 	p.lexer = NewLexer(src)
 	p.lexer.ver = opts.Version
 	p.lexer.feat = opts.Feature
+
+	p.ts = p.feat&FEAT_TS != 0
 }
 
 func (p *Parser) Prog() (Node, error) {
@@ -366,7 +370,7 @@ func (p *Parser) exportDec() (Node, error) {
 		if err != nil {
 			return nil, err
 		}
-	} else if p.ts() && tv == T_IMPORT {
+	} else if p.ts && tv == T_IMPORT {
 		loc := p.locFromTok(p.lexer.Next())
 		id, err := p.ident(nil, true)
 		if err != nil {
@@ -405,7 +409,7 @@ func (p *Parser) exportDec() (Node, error) {
 		if err != nil {
 			return nil, err
 		}
-	} else if p.ts() && tv == T_ASSIGN {
+	} else if p.ts && tv == T_ASSIGN {
 		p.lexer.Next()
 		// ExportAssignment: `export = a`
 		id, err := p.ident(nil, false)
@@ -578,7 +582,7 @@ func (p *Parser) importDec() (Node, error) {
 			specs = append(specs, ss...)
 		}
 
-		if p.ts() && p.lexer.Peek().value == T_ASSIGN && id != nil {
+		if p.ts && p.lexer.Peek().value == T_ASSIGN && id != nil {
 			return p.tsImportAlias(p.locFromTok(tok), id, false)
 		}
 
@@ -1905,7 +1909,7 @@ func (p *Parser) fnDec(expr bool, async *Token, canNameOmitted bool, declare boo
 			if body, err = p.expr(); err != nil {
 				return nil, err
 			}
-		} else if fn && !expr && tok.value == T_FUNC && tok.afterLineTerminator && p.ts() {
+		} else if fn && !expr && tok.value == T_FUNC && tok.afterLineTerminator && p.ts {
 			// ts func overloads:
 			// `function f(a:number)`
 			// `function f(): any {}`
@@ -2019,7 +2023,7 @@ func (p *Parser) fnDec(expr bool, async *Token, canNameOmitted bool, declare boo
 	}
 
 	fnDec := &FnDec{typ, p.finLoc(loc), id, generator, async != nil, params, body, nil, ti}
-	if !expr && p.ts() {
+	if !expr && p.ts {
 		if body == nil {
 			p.lastTsFnSig = fnDec
 		} else if err = p.tsIsFnImplValid(id); err != nil {
@@ -2491,7 +2495,7 @@ func (p *Parser) ident(scope *Scope, binding bool) (*Ident, error) {
 }
 
 func (p *Parser) accMod() (ACC_MOD, *Loc, error) {
-	if !p.ts() {
+	if !p.ts {
 		return ACC_MOD_NONE, nil, nil
 	}
 
@@ -3030,7 +3034,7 @@ func (p *Parser) patternRest(arrPat bool, allowNotLast bool) (Node, error) {
 	}
 
 	rest := &RestPat{N_PAT_REST, p.finLoc(loc), arg, nil, nil}
-	if p.ts() {
+	if p.ts {
 		rest.hoistTypInfo()
 	}
 	return rest, nil
@@ -3318,7 +3322,7 @@ func (p *Parser) unaryExpr(typArgs Node, typArgsLoc *Loc) (Node, error) {
 	tok := p.lexer.Peek()
 	loc := p.locFromTok(tok)
 	op := tok.value
-	if tok.IsUnary() || op == T_ADD || op == T_SUB || (op == T_LT && p.ts() && p.feat&FEAT_JSX == 0) {
+	if tok.IsUnary() || op == T_ADD || op == T_SUB || (op == T_LT && p.ts && p.feat&FEAT_JSX == 0) {
 		if op != T_LT {
 			p.lexer.Next()
 		}
@@ -3593,7 +3597,7 @@ func (p *Parser) popState() {
 
 func (p *Parser) aheadIsArgList(tok *Token) bool {
 	tv := tok.value
-	return tv == T_PAREN_L || (tv == T_LT && p.ts() && !p.isLtTok(tok))
+	return tv == T_PAREN_L || (tv == T_LT && p.ts && !p.isLtTok(tok))
 }
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-expressions.html#prod-CallExpression
@@ -4094,7 +4098,7 @@ func (p *Parser) argToParam(arg Node, depth int, prop bool, destruct bool, inPar
 			arg: n.arg,
 			ti:  p.newTypInfo(),
 		}
-		if p.ts() {
+		if p.ts {
 			rest.hoistTypInfo()
 		}
 		return rest, nil
@@ -4339,19 +4343,25 @@ func (p *Parser) binExpr(lhs Node, minPcd int, logic bool, nullish bool, notGT b
 		}
 	}
 
-	ahead := p.lexer.Peek()
-	kind := ahead.Kind()
-	pcd := kind.Pcd
+	ts := p.ts
 	notIn := p.scope().IsKind(SPK_NOT_IN)
 	for {
-		op := ahead.IsBin(notIn)
-		if op == T_ILLEGAL || pcd < minPcd || (op == T_GT && notGT) {
+		ahead := p.lexer.Peek()
+		op := ahead.IsBin(notIn, ts)
+		if op == T_ILLEGAL {
+			break
+		}
+
+		kind := TokenKinds[op]
+		pcd := kind.Pcd
+		if pcd < minPcd || (op == T_GT && notGT) {
 			break
 		}
 
 		if logic && op == T_NULLISH || nullish && (op == T_AND || op == T_OR) {
 			return nil, p.errorAtLoc(p.locFromTok(ahead), ERR_NULLISH_MIXED_WITH_LOGIC)
 		}
+
 		if op == T_AND || op == T_OR {
 			if !logic {
 				logic = true
@@ -4367,22 +4377,29 @@ func (p *Parser) binExpr(lhs Node, minPcd int, logic bool, nullish bool, notGT b
 		}
 		opLoc := p.locFromTok(p.lexer.Next())
 
-		rhs, err := p.unaryExpr(nil, nil)
+		var rhs Node
+		if op != T_TS_AS {
+			rhs, err = p.unaryExpr(nil, nil)
+		} else {
+			rhs, err = p.tsTyp(false)
+		}
 		if err != nil {
 			return nil, err
 		}
 
 		ahead = p.lexer.Peek()
-		kind = ahead.Kind()
-		for ahead.IsBin(notIn) != T_ILLEGAL && (kind.Pcd > pcd || kind.Pcd == pcd && kind.RightAssoc) {
+		aheadOp := ahead.IsBin(notIn, ts)
+		kind = TokenKinds[aheadOp]
+		for aheadOp != T_ILLEGAL && (kind.Pcd > pcd || kind.Pcd == pcd && kind.RightAssoc) {
 			rhs, err = p.binExpr(rhs, pcd, logic, nullish, notGT)
 			if err != nil {
 				return nil, err
 			}
 			ahead = p.lexer.Peek()
-			kind = ahead.Kind()
+			aheadOp = ahead.IsBin(notIn, ts)
+			kind = TokenKinds[aheadOp]
+			pcd = kind.Pcd
 		}
-		pcd = kind.Pcd
 
 		// deal with expr like: `console.log( -2 ** 4 )`
 		if lhs.Type() == N_EXPR_UNARY && op == T_POW {
@@ -5049,7 +5066,7 @@ func (p *Parser) method(loc *Loc, key Node, accMode ACC_MOD, compute *Loc, short
 	}
 
 	fnLoc := p.loc()
-	params, typParams, _, err := p.paramList(false, ctor && p.ts(), true)
+	params, typParams, _, err := p.paramList(false, ctor && p.ts, true)
 	if err != nil {
 		return nil, err
 	}

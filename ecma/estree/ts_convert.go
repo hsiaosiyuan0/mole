@@ -40,6 +40,13 @@ func convertTsTyp(node parser.Node) Node {
 			End:   end(node.Loc()),
 			Loc:   loc(node.Loc()),
 		}
+	case parser.N_TS_BOOL:
+		return &TSBooleanKeyword{
+			Type:  "TSBooleanKeyword",
+			Start: start(node.Loc()),
+			End:   end(node.Loc()),
+			Loc:   loc(node.Loc()),
+		}
 	case parser.N_TS_THIS:
 		return &TSThisType{
 			Type:  "TSThisType",

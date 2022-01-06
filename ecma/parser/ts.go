@@ -16,46 +16,15 @@ var builtinTyp = map[string]NodeType{
 	"unknown": N_TS_UNKNOWN,
 }
 
-func (p *Parser) ts() bool {
-	return p.feat&FEAT_TS != 0
-}
-
 func (p *Parser) newTypInfo() *TypInfo {
-	if p.ts() {
+	if p.ts {
 		return &TypInfo{ACC_MOD_PUB, nil, nil, nil, nil}
 	}
 	return nil
 }
 
-func (p *Parser) tsAsTyp() (Node, error) {
-	asLoc := p.locFromTok(p.lexer.Next())
-	node, err := p.tsTyp(false)
-	if err != nil {
-		return nil, err
-	}
-	return &TsTypAnnot{N_TS_TYP_ANNOT, p.finLoc(asLoc.Clone()), asLoc, node}, nil
-}
-
-func (p *Parser) tsToTsAsExpr(node Node) Node {
-	if !p.ts() {
-		return node
-	}
-
-	if wt, ok := node.(NodeWithTypInfo); ok {
-		ti := wt.TypInfo()
-		if ti != nil && ti.typAnnot != nil {
-			ta := ti.typAnnot.(*TsTypAnnot)
-			if ta.as != nil {
-				wt.SetTypInfo(nil)
-				node = &TSAsExpression{N_TS_AS, node.Loc().Clone(), node, ta.tsTyp}
-			}
-		}
-	}
-	return node
-}
-
 func (p *Parser) tsTypAnnot() (Node, error) {
-	if !p.ts() {
+	if !p.ts {
 		return nil, nil
 	}
 	ahead := p.lexer.Peek()
@@ -66,9 +35,7 @@ func (p *Parser) tsTypAnnot() (Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		return &TsTypAnnot{N_TS_TYP_ANNOT, p.finLoc(loc), nil, node}, nil
-	} else if av == T_NAME && ahead.Text() == "as" {
-		return p.tsAsTyp()
+		return &TsTypAnnot{N_TS_TYP_ANNOT, p.finLoc(loc), node}, nil
 	}
 	return nil, nil
 }
@@ -193,7 +160,7 @@ func (p *Parser) tsTypAssert(node Node, typArgs Node) (Node, error) {
 		return node, nil
 	}
 
-	if !p.ts() {
+	if !p.ts {
 		return nil, p.errorAtLoc(typArgs.Loc(), ERR_UNEXPECTED_TOKEN)
 	}
 
@@ -535,7 +502,7 @@ func (p *Parser) tsTypPredicate(name Node, asserts bool, this bool) (Node, error
 		if err != nil {
 			return nil, err
 		}
-		typ = &TsTypAnnot{N_TS_TYP_ANNOT, typ.Loc().Clone(), nil, typ}
+		typ = &TsTypAnnot{N_TS_TYP_ANNOT, typ.Loc().Clone(), typ}
 	}
 
 	return &TsTypPredicate{N_TS_TYP_PREDICATE, p.finLoc(loc), name, typ, asserts}, nil
@@ -894,7 +861,7 @@ func (p *Parser) tsTypParam() (Node, error) {
 }
 
 func (p *Parser) tsTryTypParams() (Node, error) {
-	if !p.ts() || p.lexer.Peek().value != T_LT {
+	if !p.ts || p.lexer.Peek().value != T_LT {
 		return nil, nil
 	}
 	return p.tsTypParams()
@@ -942,7 +909,7 @@ func (p *Parser) tsTypParams() (Node, error) {
 // async<T>() == 0;
 // ```
 func (p *Parser) tsTryTypArgs(asyncLoc *Loc) (Node, error) {
-	if !p.ts() || p.lexer.Peek().value != T_LT {
+	if !p.ts || p.lexer.Peek().value != T_LT {
 		return nil, nil
 	}
 	if asyncLoc != nil {
@@ -1060,6 +1027,19 @@ func (p *Parser) tsTypArgs() (Node, error) {
 	loc := p.locFromTok(p.lexer.Next()) // `<`
 	args := make([]Node, 0, 1)
 	for {
+		ahead := p.lexer.Peek()
+		av := ahead.value
+		if av == T_COMMA {
+			p.lexer.Next()
+		} else if av == T_GT {
+			p.lexer.Next()
+			break
+		} else if av == T_NAME {
+			// next is typ
+		} else {
+			return nil, errTypArgMissingGT
+		}
+
 		arg, err := p.tsTyp(false)
 		if p.lexer.Peek().value == T_EXTENDS {
 			id, err := p.tsPredefToName(arg)
@@ -1078,19 +1058,6 @@ func (p *Parser) tsTypArgs() (Node, error) {
 			return nil, err
 		}
 		args = append(args, arg)
-
-		ahead := p.lexer.Peek()
-		av := ahead.value
-		if av == T_COMMA {
-			p.lexer.Next()
-		} else if av == T_GT {
-			p.lexer.Next()
-			break
-		} else if av == T_NAME {
-			// next is typ
-		} else {
-			return nil, errTypArgMissingGT
-		}
 	}
 	return &TsParamsInst{N_TS_PARAM_DEC, p.finLoc(loc), args}, nil
 }
@@ -1111,7 +1078,7 @@ func (p *Parser) tsCallSig(typParams Node, loc *Loc) (Node, error) {
 }
 
 func (p *Parser) aheadIsTsTypDec(tok *Token) bool {
-	if p.ts() && tok.value == T_NAME {
+	if p.ts && tok.value == T_NAME {
 		return tok.Text() == "type"
 	}
 	return false
@@ -1172,7 +1139,7 @@ func (p *Parser) tsIsFnImplValid(id Node) error {
 }
 
 func (p *Parser) aheadIsTsItf(tok *Token) bool {
-	return p.ts() && tok.value == T_INTERFACE
+	return p.ts && tok.value == T_INTERFACE
 }
 
 func (p *Parser) tsItfExtClause() ([]Node, error) {
@@ -1263,7 +1230,7 @@ func (p *Parser) tsEnumBody() ([]Node, error) {
 }
 
 func (p *Parser) aheadIsTsEnum(tok *Token) bool {
-	if !p.ts() {
+	if !p.ts {
 		return false
 	}
 	if tok == nil {
@@ -1319,7 +1286,7 @@ func (p *Parser) tsImportAlias(loc *Loc, name Node, export bool) (Node, error) {
 }
 
 func (p *Parser) aheadIsTsNS(tok *Token) bool {
-	return p.ts() && tok.value == T_NAME && tok.Text() == "namespace"
+	return p.ts && tok.value == T_NAME && tok.Text() == "namespace"
 }
 
 func (p *Parser) tsNS() (Node, error) {
@@ -1339,11 +1306,11 @@ func (p *Parser) tsNS() (Node, error) {
 }
 
 func (p *Parser) aheadIsTsDec(tok *Token) bool {
-	return p.ts() && tok.value == T_NAME && tok.Text() == "declare"
+	return p.ts && tok.value == T_NAME && tok.Text() == "declare"
 }
 
 func (p *Parser) aheadIsModDec(tok *Token) bool {
-	return p.ts() && tok.value == T_NAME && tok.Text() == "module"
+	return p.ts && tok.value == T_NAME && tok.Text() == "module"
 }
 
 func (p *Parser) tsModDec() (*TsDec, error) {

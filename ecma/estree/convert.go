@@ -430,6 +430,16 @@ func convert(node parser.Node) Node {
 				Right:    rhs,
 			}
 		}
+		if opv == parser.T_TS_AS {
+			return &TSAsExpression{
+				Type:           "TSAsExpression",
+				Start:          start(node.Loc()),
+				End:            end(node.Loc()),
+				Loc:            loc(node.Loc()),
+				Expression:     lhs,
+				TypeAnnotation: rhs,
+			}
+		}
 		return &BinaryExpression{
 			Type:     "BinaryExpression",
 			Start:    start(node.Loc()),
