@@ -36,6 +36,20 @@ func (n *TsPredef) Text() string {
 	return n.loc.Text()
 }
 
+type TsLit struct {
+	typ NodeType
+	loc *Loc
+	lit Node
+}
+
+func (n *TsLit) Type() NodeType {
+	return n.typ
+}
+
+func (n *TsLit) Loc() *Loc {
+	return n.loc
+}
+
 type TsThis struct {
 	typ NodeType
 	loc *Loc
@@ -370,6 +384,14 @@ func (n *TsTypAssert) Type() NodeType {
 
 func (n *TsTypAssert) Loc() *Loc {
 	return n.loc
+}
+
+func (n *TsTypAssert) Typ() Node {
+	return n.des
+}
+
+func (n *TsTypAssert) Expr() Node {
+	return n.arg
 }
 
 type TsTypDec struct {

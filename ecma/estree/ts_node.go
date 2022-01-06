@@ -224,3 +224,12 @@ type TSAsExpression struct {
 	Expression     Node    `json:"expression"`
 	TypeAnnotation Node    `json:"typeAnnotation"`
 }
+
+type TSTypeAssertion struct {
+	Type           string  `json:"type"`
+	Start          int     `json:"start"`
+	End            int     `json:"end"`
+	Loc            *SrcLoc `json:"loc"`
+	Expression     Node    `json:"expression"`
+	TypeAnnotation Node    `json:"typeAnnotation"`
+}

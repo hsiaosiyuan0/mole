@@ -118,6 +118,16 @@ func convertTsTyp(node parser.Node) Node {
 			TypeParameters: typParams(ti),
 			ReturnType:     typAnnot(ti),
 		}
+	case parser.N_TS_TYP_ASSERT:
+		n := node.(*parser.TsTypAssert)
+		return &TSTypeAssertion{
+			Type:           "TSTypeAssertion",
+			Start:          start(node.Loc()),
+			End:            end(node.Loc()),
+			Loc:            loc(node.Loc()),
+			Expression:     convert(n.Expr()),
+			TypeAnnotation: convertTsTyp(n.Typ()),
+		}
 	}
 
 	return nil

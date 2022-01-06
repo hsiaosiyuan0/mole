@@ -46,6 +46,18 @@ func (t *Token) Len() int {
 	return t.len
 }
 
+func (t *Token) IsLit(in bool) bool {
+	v := t.value
+	return v == T_VOID || v == T_NULL || v == T_TRUE || v == T_FALSE || v == T_STRING ||
+		v == T_NUM || (in && v == T_IN)
+}
+
+func (t *Token) IsCtxKw() bool {
+	v := t.value
+	return (v > T_CTX_KEYWORD_BEGIN && v < T_CTX_KEYWORD_END) ||
+		(v > T_CTX_KEYWORD_STRICT_BEGIN && v < T_CTX_KEYWORD_STRICT_END)
+}
+
 func (t *Token) IsKw() bool {
 	v := t.value
 	return (v > T_KEYWORD_BEGIN && v < T_KEYWORD_END) ||

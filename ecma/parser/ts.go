@@ -6,14 +6,16 @@ import (
 )
 
 var builtinTyp = map[string]NodeType{
-	"any":     N_TS_ANY,
-	"number":  N_TS_NUM,
-	"boolean": N_TS_BOOL,
-	"string":  N_TS_STR,
-	"symbol":  N_TS_SYM,
-	"void":    N_TS_VOID,
-	"never":   N_TS_NEVER,
-	"unknown": N_TS_UNKNOWN,
+	"any":       N_TS_ANY,
+	"number":    N_TS_NUM,
+	"boolean":   N_TS_BOOL,
+	"string":    N_TS_STR,
+	"symbol":    N_TS_SYM,
+	"void":      N_TS_VOID,
+	"never":     N_TS_NEVER,
+	"unknown":   N_TS_UNKNOWN,
+	"undefined": N_TS_UNDEF,
+	"null":      N_TS_NULL,
 }
 
 func (p *Parser) newTypInfo() *TypInfo {
@@ -456,7 +458,7 @@ func (p *Parser) tsFnTyp(params []Node, parenL *Loc) (Node, error) {
 func (p *Parser) tsTypName(ns Node) (Node, error) {
 	if ns == nil {
 		var err error
-		ns, err = p.ident(nil, false)
+		ns, err = p.identWithKw(nil, false)
 		if err != nil {
 			return nil, err
 		}
@@ -464,7 +466,7 @@ func (p *Parser) tsTypName(ns Node) (Node, error) {
 	for {
 		if p.lexer.Peek().value == T_DOT {
 			loc := p.locFromTok(p.lexer.Next())
-			id, err := p.ident(nil, false)
+			id, err := p.identWithKw(nil, false)
 			if err != nil {
 				return nil, err
 			}
@@ -523,8 +525,9 @@ func (p *Parser) tsRef(ns Node) (Node, error) {
 	}
 
 	if av != T_LT {
-		return &TsRef{N_TS_REF, p.finLoc(ns.Loc().Clone()), name, nil, nil}, nil
+		return &TsRef{N_TS_REF, p.finLoc(name.Loc().Clone()), name, nil, nil}, nil
 	}
+
 	args, err := p.tsTypArgs()
 	if err != nil {
 		return nil, err
@@ -581,11 +584,11 @@ func (p *Parser) tsPredefOrRef(tok *Token) (Node, error) {
 		tok = p.lexer.Peek()
 	}
 	tv := tok.value
-	name := "void"
 
 	var node Node
 	var err error
 	var loc *Loc
+	var name string
 	if tv == T_NAME {
 		node, err = p.ident(nil, false)
 		if err != nil {
@@ -593,8 +596,8 @@ func (p *Parser) tsPredefOrRef(tok *Token) (Node, error) {
 		}
 		name = node.(*Ident).Text()
 		loc = node.Loc()
-	} else {
-		// void
+	} else if tv == T_VOID {
+		name = "void"
 		loc = p.locFromTok(p.lexer.Next())
 	}
 
@@ -619,11 +622,17 @@ func (p *Parser) tsPrimary(rough bool) (Node, error) {
 
 	var err error
 	var node Node
-	if av == T_NAME || av == T_VOID {
+	if av == T_NAME || av == T_VOID || av == T_CONST {
 		node, err = p.tsPredefOrRef(ahead)
 		if err != nil {
 			return nil, err
 		}
+	} else if ahead.IsLit(true) {
+		lit, err := p.primaryExpr()
+		if err != nil {
+			return nil, err
+		}
+		return &TsLit{N_TS_LIT, lit.Loc().Clone(), lit}, nil
 	} else if av == T_BRACE_L {
 		// obj type
 		node, err = p.tsObj(rough)
@@ -1034,7 +1043,7 @@ func (p *Parser) tsTypArgs() (Node, error) {
 		} else if av == T_GT {
 			p.lexer.Next()
 			break
-		} else if av == T_NAME {
+		} else if av == T_NAME || ahead.IsLit(true) || ahead.IsCtxKw() {
 			// next is typ
 		} else {
 			return nil, errTypArgMissingGT

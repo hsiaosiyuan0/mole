@@ -1366,3 +1366,47 @@ func TestTs90(t *testing.T) {
 	AssertEqual(t, "A", expr.rhs.(*TsRef).name.(*Ident).Text(), "should be ok")
 	AssertEqual(t, N_TS_STR, expr.rhs.(*TsRef).args.(*TsParamsInst).params[0].Type(), "should be ok")
 }
+
+func TestTs91(t *testing.T) {
+	// assert const
+	ast, err := compileTs(`let v1 = 'abc' as const;`, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+	AssertEqual(t, true, ast != nil, "should be prog ok")
+	prog := ast.(*Prog)
+	expr := prog.stmts[0].(*VarDecStmt).decList[0].(*VarDec).init.(*BinExpr)
+	AssertEqual(t, "const", expr.rhs.(*TsRef).name.(*Ident).Text(), "should be ok")
+}
+
+func TestTs92(t *testing.T) {
+	// assert const
+	ast, err := compileTs(`let q1 = <const> 10;`, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+	AssertEqual(t, true, ast != nil, "should be prog ok")
+	prog := ast.(*Prog)
+	expr := prog.stmts[0].(*VarDecStmt).decList[0].(*VarDec).init.(*TsTypAssert)
+	AssertEqual(t, "const", expr.des.(*TsRef).name.(*Ident).Text(), "should be ok")
+}
+
+func TestTs93(t *testing.T) {
+	// ts literal
+	ast, err := compileTs(`let q1 = <1> 10;`, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+	AssertEqual(t, true, ast != nil, "should be prog ok")
+	prog := ast.(*Prog)
+	expr := prog.stmts[0].(*VarDecStmt).decList[0].(*VarDec).init.(*TsTypAssert)
+	AssertEqual(t, "1", expr.des.(*TsLit).lit.(*NumLit).Text(), "should be ok")
+
+	ast, err = compileTs(`let q1 = <true> 10;`, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+	AssertEqual(t, true, ast != nil, "should be prog ok")
+	prog = ast.(*Prog)
+	expr = prog.stmts[0].(*VarDecStmt).decList[0].(*VarDec).init.(*TsTypAssert)
+	AssertEqual(t, "true", expr.des.(*TsLit).lit.(*BoolLit).Text(), "should be ok")
+
+	ast, err = compileTs(`let q1 = <null> 10;`, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+	AssertEqual(t, true, ast != nil, "should be prog ok")
+	prog = ast.(*Prog)
+	expr = prog.stmts[0].(*VarDecStmt).decList[0].(*VarDec).init.(*TsTypAssert)
+	AssertEqual(t, "null", expr.des.(*TsLit).lit.(*NullLit).Text(), "should be ok")
+}
