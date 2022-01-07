@@ -1426,3 +1426,13 @@ func (p *Parser) tsNoNull(node Node) Node {
 	p.lexer.NextAndRevise(T_TS_NO_NULL)
 	return &TsNoNull{N_TS_NO_NULL, p.finLoc(node.Loc().Clone()), node}
 }
+
+// the ts node which are valid at the left hand side of assignExpr
+func (p *Parser) isTsLhs(node Node) bool {
+	if !p.ts {
+		return false
+	}
+
+	nt := node.Type()
+	return nt == N_TS_NO_NULL || nt == N_TS_TYP_ASSERT
+}

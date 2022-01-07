@@ -3255,7 +3255,7 @@ func (p *Parser) isSimpleLVal(expr Node, pat bool, inParen bool, member bool, op
 	case N_EXPR_BIN:
 		node := expr.(*BinExpr)
 		return node.op == T_TS_AS
-	case N_TS_NO_NULL:
+	case N_TS_NO_NULL, N_TS_TYP_ASSERT:
 		return true
 	}
 	return false
@@ -4142,7 +4142,7 @@ func (p *Parser) argToParam(arg Node, depth int, prop bool, destruct bool, inPar
 		return rest, nil
 	case N_EXPR_PAREN:
 		sub := arg.(*ParenExpr).expr
-		if !destruct || !p.isPrimitive(sub) {
+		if !destruct || !p.isPrimitive(sub) && !p.isTsLhs(sub) {
 			st := sub.Type()
 			if !(destruct && st == N_EXPR_BIN && sub.(*BinExpr).op == T_TS_AS) {
 				if st != N_LIT_ARR && st != N_LIT_OBJ && st != N_NAME {
@@ -4161,7 +4161,12 @@ func (p *Parser) argToParam(arg Node, depth int, prop bool, destruct bool, inPar
 		return arg, nil
 	case N_TS_TYP_ASSERT:
 		n := arg.(*TsTypAssert)
-		if destruct {
+		if destruct && !inParen {
+			if depth < 2 {
+				// `[a as number] = [42];` is legal
+				// `<string>foo = '100';` is illegal
+				return nil, p.errorAtLoc(n.loc, ERR_ASSIGN_TO_RVALUE)
+			}
 			// transform the arg at first: `<number>(a)`
 			arg, err := p.argToParam(n.arg, depth, prop, destruct, true)
 			if err != nil {
@@ -4181,7 +4186,11 @@ func (p *Parser) argToParam(arg Node, depth int, prop bool, destruct bool, inPar
 		n := arg.(*BinExpr)
 		if destruct && depth > 0 && n.op == T_TS_AS {
 			if inParen {
+				// however `foo as any = 10;` is illegal
 				return n, nil
+			} else if depth < 2 {
+				// opposite to above true case, `[a as number] = [42];` is legal
+				return nil, p.errorAtLoc(n.loc, ERR_ASSIGN_TO_RVALUE)
 			}
 			arg, err := p.argToParam(n.lhs, depth, prop, destruct, true)
 			if err != nil {
@@ -4319,9 +4328,11 @@ func (p *Parser) checkArg(arg Node, spread bool, simplicity bool) error {
 			return p.errorAtLoc(arg.Loc(), fmt.Sprintf(ERR_TPL_UNEXPECTED_TOKEN_TYPE, id.Text()))
 		}
 		// for reporting `(a:b)` is illegal in ts
-		if simplicity && id.ti != nil && id.ti.typAnnot != nil {
+		if id.ti != nil && id.ti.typAnnot != nil {
 			return p.errorAtLoc(id.ti.typAnnot.Loc(), ERR_UNEXPECTED_TYPE_ANNOTATION)
 		}
+	case N_TS_NO_NULL:
+		return nil
 	}
 	return nil
 }
