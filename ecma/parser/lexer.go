@@ -420,7 +420,7 @@ func (l *Lexer) Next() *Token {
 // according to its context, so it's necessary to revise
 // the `prtVal` of lexer to the corresponding of that
 // keywords for satisfying the further lookheads
-func (l *Lexer) NextRevise(v TokenValue) *Token {
+func (l *Lexer) NextAndRevise(v TokenValue) *Token {
 	tok := l.nextTok()
 	l.prtVal = v
 	l.prtRng = tok.raw

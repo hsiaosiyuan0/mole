@@ -128,6 +128,15 @@ func convertTsTyp(node parser.Node) Node {
 			Expression:     convert(n.Expr()),
 			TypeAnnotation: convertTsTyp(n.Typ()),
 		}
+	case parser.N_TS_NO_NULL:
+		n := node.(*parser.TsNoNull)
+		return &TSNonNullExpression{
+			Type:       "TSNonNullExpression",
+			Start:      start(node.Loc()),
+			End:        end(node.Loc()),
+			Loc:        loc(node.Loc()),
+			Expression: convert(n.Arg()),
+		}
 	}
 
 	return nil

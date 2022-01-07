@@ -149,6 +149,7 @@ const (
 
 	N_TS_TYP_PREDICATE
 	N_TS_AS
+	N_TS_NO_NULL
 
 	N_NODE_DEF_END
 )

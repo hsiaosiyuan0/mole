@@ -1410,3 +1410,23 @@ func TestTs93(t *testing.T) {
 	expr = prog.stmts[0].(*VarDecStmt).decList[0].(*VarDec).init.(*TsTypAssert)
 	AssertEqual(t, "null", expr.des.(*TsLit).lit.(*NullLit).Text(), "should be ok")
 }
+
+func TestTs94(t *testing.T) {
+	// non-null
+	ast, err := compileTs(`x!;`, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+	AssertEqual(t, true, ast != nil, "should be prog ok")
+	prog := ast.(*Prog)
+	expr := prog.stmts[0].(*ExprStmt).expr.(*TsNoNull)
+	AssertEqual(t, "x", expr.arg.(*Ident).Text(), "should be ok")
+}
+
+func TestTs95(t *testing.T) {
+	// non-null
+	ast, err := compileTs(`x!.y;`, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+	AssertEqual(t, true, ast != nil, "should be prog ok")
+	prog := ast.(*Prog)
+	expr := prog.stmts[0].(*ExprStmt).expr.(*MemberExpr)
+	AssertEqual(t, "x", expr.obj.(*TsNoNull).arg.(*Ident).Text(), "should be ok")
+}

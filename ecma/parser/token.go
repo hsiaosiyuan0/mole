@@ -377,6 +377,7 @@ const (
 
 	T_JSX_TXT
 	T_TS_AS
+	T_TS_NO_NULL
 
 	T_TOKEN_DEF_END
 )
@@ -561,6 +562,7 @@ var TokenKinds = [T_TOKEN_DEF_END + 1]*TokenKind{
 
 	{T_JSX_TXT, "jsx text", 0, false, false, false},
 	{T_TS_AS, "as", 12, false, true, false},
+	{T_TS_NO_NULL, "!", 0, false, false, false},
 	{T_TOKEN_DEF_END, "token end def", 0, false, false, false},
 }
 

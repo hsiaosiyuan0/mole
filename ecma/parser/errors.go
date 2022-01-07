@@ -169,4 +169,5 @@ const (
 	ERR_TPL_USE_TYP_AS_VALUE         = "`%s` only refers to a type, but is being used as a value here"
 	ERR_ASYNC_IN_AMBIENT             = "`async` modifier cannot be used in an ambient context"
 	ERR_INIT_NOT_ALLOWED             = "Initializers are not allowed in ambient contexts"
+	ERR_UNEXPECTED_TYPE_ANNOTATION   = "Unexpected type annotation"
 )

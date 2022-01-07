@@ -25,6 +25,8 @@ type Parser struct {
 	// ```
 	lastTsFnSig *FnDec
 
+	// stores the `<` tokens which are resoled as `LT` operator and
+	// identified by their `[line, column]`
 	ltTokens [][2]int
 }
 
@@ -45,6 +47,28 @@ func NewParserOpts() *ParserOpts {
 	return &ParserOpts{
 		Externals: make([]string, 0),
 		Feature:   defaultFeatures,
+	}
+}
+
+func (o *ParserOpts) Clone() *ParserOpts {
+	return &ParserOpts{
+		Externals: o.Externals,
+		Version:   o.Version,
+		Feature:   o.Feature,
+	}
+}
+
+func (o *ParserOpts) MergeJson(obj map[string]interface{}) {
+	if moduleType, ok := obj["sourceType"]; ok {
+		if moduleType == "module" {
+			o.Feature = o.Feature.On(FEAT_MODULE)
+		}
+	}
+	if ts, ok := obj["typescript"]; ok && ts == true {
+		o.Feature = o.Feature.On(FEAT_TS)
+	}
+	if jsx, ok := obj["jsx"]; ok && jsx == true {
+		o.Feature = o.Feature.On(FEAT_JSX)
 	}
 }
 
@@ -1641,7 +1665,7 @@ func (p *Parser) forStmt() (Node, error) {
 		if !isIn {
 			revise = T_OF
 		}
-		p.lexer.NextRevise(revise)
+		p.lexer.NextAndRevise(revise)
 
 		right, err := p.assignExpr(true, false, false)
 		if err != nil {
@@ -3071,6 +3095,10 @@ func (p *Parser) seqExpr(expr Node, notGT bool) (Node, error) {
 		if err != nil {
 			return nil, err
 		}
+		// reports the illegal typAnnot usage in expr like `[a:b];` and `[x?]`
+		if err = p.checkArg(expr, false, true); err != nil {
+			return nil, err
+		}
 	}
 	if p.lexer.Peek().value != T_COMMA {
 		return expr, nil
@@ -3224,6 +3252,11 @@ func (p *Parser) isSimpleLVal(expr Node, pat bool, inParen bool, member bool, op
 	case N_EXPR_PAREN:
 		node := expr.(*ParenExpr)
 		return p.isSimpleLVal(node.expr, pat, true, false, optAssign)
+	case N_EXPR_BIN:
+		node := expr.(*BinExpr)
+		return node.op == T_TS_AS
+	case N_TS_NO_NULL:
+		return true
 	}
 	return false
 }
@@ -3454,6 +3487,7 @@ func (p *Parser) lhs() (Node, error) {
 	} else {
 		node, _, err = p.callExpr(nil, true, false, nil)
 	}
+	node = p.tsNoNull(node)
 	if err != nil {
 		return nil, err
 	}
@@ -3610,6 +3644,7 @@ func (p *Parser) callExpr(callee Node, root bool, directOpt bool, opt *Loc) (Nod
 		if err != nil {
 			return nil, nil, err
 		}
+		callee = p.tsNoNull(callee)
 	} else {
 		loc = callee.Loc().Clone()
 	}
@@ -4002,6 +4037,9 @@ func (p *Parser) argToParam(arg Node, depth int, prop bool, destruct bool, inPar
 			return nil, p.errorAtLoc(n.opLoc, ERR_UNEXPECTED_TOKEN)
 		}
 
+		if pn, ok := n.lhs.(InParenNode); ok {
+			inParen = pn.OuterParen() != nil
+		}
 		lhs, err := p.argToParam(n.lhs, depth+1, false, destruct, inParen)
 		if err != nil {
 			return nil, err
@@ -4106,16 +4144,56 @@ func (p *Parser) argToParam(arg Node, depth int, prop bool, destruct bool, inPar
 		sub := arg.(*ParenExpr).expr
 		if !destruct || !p.isPrimitive(sub) {
 			st := sub.Type()
-			if st != N_LIT_ARR && st != N_LIT_OBJ && st != N_NAME {
-				return nil, p.errorAtLoc(sub.Loc(), ERR_ASSIGN_TO_RVALUE)
+			if !(destruct && st == N_EXPR_BIN && sub.(*BinExpr).op == T_TS_AS) {
+				if st != N_LIT_ARR && st != N_LIT_OBJ && st != N_NAME {
+					return nil, p.errorAtLoc(sub.Loc(), ERR_ASSIGN_TO_RVALUE)
+				}
+				return nil, p.errorAtLoc(arg.Loc(), ERR_INVALID_PAREN_ASSIGN_PATTERN)
 			}
-			return nil, p.errorAtLoc(arg.Loc(), ERR_INVALID_PAREN_ASSIGN_PATTERN)
 		}
 		arg, err := p.argToParam(sub, depth, prop, destruct, true)
 		if err != nil {
 			return nil, err
 		}
+		if pn, ok := arg.(InParenNode); ok {
+			pn.SetOuterParen(sub.Loc().Clone())
+		}
 		return arg, nil
+	case N_TS_TYP_ASSERT:
+		n := arg.(*TsTypAssert)
+		if destruct {
+			// transform the arg at first: `<number>(a)`
+			arg, err := p.argToParam(n.arg, depth, prop, destruct, true)
+			if err != nil {
+				return nil, err
+			}
+
+			// the transformed arg should be `NodeWithTypInfo` since we need to attach the
+			// `des` of TsTypAssert as typAnnot of it
+			if wt, ok := arg.(NodeWithTypInfo); ok {
+				wt.TypInfo().typAnnot = n.des
+			} else {
+				return nil, p.errorAtLoc(n.Loc(), ERR_UNEXPECTED_TOKEN)
+			}
+			return arg, nil
+		}
+	case N_EXPR_BIN:
+		n := arg.(*BinExpr)
+		if destruct && depth > 0 && n.op == T_TS_AS {
+			if inParen {
+				return n, nil
+			}
+			arg, err := p.argToParam(n.lhs, depth, prop, destruct, true)
+			if err != nil {
+				return nil, err
+			}
+			if wt, ok := arg.(NodeWithTypInfo); ok {
+				wt.TypInfo().typAnnot = n.rhs
+			} else {
+				return nil, p.errorAtLoc(n.Loc(), ERR_UNEXPECTED_TOKEN)
+			}
+			return arg, nil
+		}
 	}
 	if depth == 0 {
 		return nil, p.errorAtLoc(arg.Loc(), ERR_UNEXPECTED_TOKEN)
@@ -4199,7 +4277,11 @@ func (p *Parser) checkArg(arg Node, spread bool, simplicity bool) error {
 	case N_PROP:
 		n := arg.(*Prop)
 		if n.assign && n.shorthand {
-			return p.errorAtLoc(n.opLoc, ERR_SHORTHAND_PROP_ASSIGN_NOT_IN_DESTRUCT)
+			notIn := p.scope().IsKind(SPK_NOT_IN)
+			// assign is legal in expr like `for ({x = 0} in arr);`
+			if !notIn {
+				return p.errorAtLoc(n.opLoc, ERR_SHORTHAND_PROP_ASSIGN_NOT_IN_DESTRUCT)
+			}
 		}
 		var err error
 		if n.value != nil {
@@ -4221,10 +4303,24 @@ func (p *Parser) checkArg(arg Node, spread bool, simplicity bool) error {
 		}
 	case N_EXPR_PAREN:
 		return p.checkArg(arg.(*ParenExpr).expr, spread, simplicity)
+	case N_LIT_ARR:
+		n := arg.(*ArrLit)
+		for _, el := range n.elems {
+			if el == nil {
+				continue
+			}
+			if err := p.checkArg(el, true, simplicity); err != nil {
+				return err
+			}
+		}
 	case N_NAME:
 		id := arg.(*Ident)
 		if id.kw && p.scope().IsKind(SPK_STRICT) {
 			return p.errorAtLoc(arg.Loc(), fmt.Sprintf(ERR_TPL_UNEXPECTED_TOKEN_TYPE, id.Text()))
+		}
+		// for reporting `(a:b)` is illegal in ts
+		if simplicity && id.ti != nil && id.ti.typAnnot != nil {
+			return p.errorAtLoc(id.ti.typAnnot.Loc(), ERR_UNEXPECTED_TYPE_ANNOTATION)
 		}
 	}
 	return nil
@@ -4501,6 +4597,7 @@ func (p *Parser) memberExprObj() (Node, error) {
 	if err != nil {
 		return nil, err
 	}
+	obj = p.tsNoNull(obj)
 	if p.lexer.Peek().value == T_TPL_HEAD {
 		return p.tplExpr(obj)
 	}

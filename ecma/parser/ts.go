@@ -1040,6 +1040,7 @@ func (p *Parser) tsTypArgs() (Node, error) {
 		av := ahead.value
 		if av == T_COMMA {
 			p.lexer.Next()
+			continue
 		} else if av == T_GT {
 			p.lexer.Next()
 			break
@@ -1410,4 +1411,18 @@ func (p *Parser) checkAmbient(typ NodeType, dec Node) error {
 		}
 	}
 	return nil
+}
+
+func (p *Parser) tsNoNull(node Node) Node {
+	if !p.ts {
+		return node
+	}
+
+	ahead := p.lexer.Peek()
+	if ahead.afterLineTerminator || ahead.value != T_NOT {
+		return node
+	}
+
+	p.lexer.NextAndRevise(T_TS_NO_NULL)
+	return &TsNoNull{N_TS_NO_NULL, p.finLoc(node.Loc().Clone()), node}
 }

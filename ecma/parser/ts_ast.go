@@ -570,3 +570,21 @@ func (n *TsTypPredicate) Typ() Node {
 func (n *TsTypPredicate) Asserts() bool {
 	return n.assert
 }
+
+type TsNoNull struct {
+	typ NodeType
+	loc *Loc
+	arg Node
+}
+
+func (n *TsNoNull) Type() NodeType {
+	return n.typ
+}
+
+func (n *TsNoNull) Loc() *Loc {
+	return n.loc
+}
+
+func (n *TsNoNull) Arg() Node {
+	return n.arg
+}
