@@ -340,11 +340,10 @@ func (n *TsFnTyp) Loc() *Loc {
 }
 
 type TsUnionTyp struct {
-	typ NodeType
-	loc *Loc
-	lhs Node
-	op  *Loc
-	rhs Node
+	typ   NodeType
+	loc   *Loc
+	op    *Loc
+	elems []Node
 }
 
 func (n *TsUnionTyp) Type() NodeType {
@@ -355,12 +354,15 @@ func (n *TsUnionTyp) Loc() *Loc {
 	return n.loc
 }
 
+func (n *TsUnionTyp) Elems() []Node {
+	return n.elems
+}
+
 type TsIntersecTyp struct {
-	typ NodeType
-	loc *Loc
-	lhs Node
-	op  *Loc
-	rhs Node
+	typ   NodeType
+	loc   *Loc
+	op    *Loc
+	elems []Node
 }
 
 func (n *TsIntersecTyp) Type() NodeType {
@@ -369,6 +371,10 @@ func (n *TsIntersecTyp) Type() NodeType {
 
 func (n *TsIntersecTyp) Loc() *Loc {
 	return n.loc
+}
+
+func (n *TsIntersecTyp) Elems() []Node {
+	return n.elems
 }
 
 type TsTypAssert struct {

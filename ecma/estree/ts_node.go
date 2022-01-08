@@ -241,3 +241,19 @@ type TSNonNullExpression struct {
 	Loc        *SrcLoc `json:"loc"`
 	Expression Node    `json:"expression"`
 }
+
+type TSUnionType struct {
+	Type  string  `json:"type"`
+	Start int     `json:"start"`
+	End   int     `json:"end"`
+	Loc   *SrcLoc `json:"loc"`
+	Types []Node  `json:"types"`
+}
+
+type TSIntersectionType struct {
+	Type  string  `json:"type"`
+	Start int     `json:"start"`
+	End   int     `json:"end"`
+	Loc   *SrcLoc `json:"loc"`
+	Types []Node  `json:"types"`
+}

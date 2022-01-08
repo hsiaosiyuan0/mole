@@ -51,10 +51,10 @@ func (p *Parser) tsTyp(rough bool) (Node, error) {
 	if p.lexer.Peek().value == T_NEW {
 		return p.tsConstructTyp()
 	}
-	return p.tsUnionOrIntersecType(nil, rough)
+	return p.tsUnionOrIntersecType(nil, 0, rough)
 }
 
-func (p *Parser) tsUnionOrIntersecType(lhs Node, rough bool) (Node, error) {
+func (p *Parser) tsUnionOrIntersecType(lhs Node, minPcd int, rough bool) (Node, error) {
 	var err error
 	if lhs == nil {
 		lhs, err = p.tsPrimary(rough)
@@ -68,28 +68,66 @@ func (p *Parser) tsUnionOrIntersecType(lhs Node, rough bool) (Node, error) {
 	}
 
 	var rhs Node
+	var elems []Node
+	var firstOp *Loc
+	var nt NodeType
 	for {
 		ahead := p.lexer.Peek()
 		av := ahead.value
-		if av == T_BIT_OR {
-			loc := p.locFromTok(p.lexer.Next())
-			rhs, err = p.tsPrimary(rough)
-			if err != nil {
-				return nil, err
-			}
-			lhs = &TsUnionTyp{N_TS_UNION_TYP, p.finLoc(lhs.Loc().Clone()), lhs, loc, rhs}
-		} else if av == T_BIT_AND {
-			loc := p.locFromTok(p.lexer.Next())
-			rhs, err = p.tsPrimary(rough)
-			if err != nil {
-				return nil, err
-			}
-			lhs = &TsIntersecTyp{N_TS_INTERSEC_TYP, p.finLoc(lhs.Loc().Clone()), lhs, loc, rhs}
-		} else {
+		if av != T_BIT_OR && av != T_BIT_AND {
 			break
 		}
+
+		kind := TokenKinds[av]
+		pcd := kind.Pcd
+		if pcd < minPcd {
+			break
+		}
+
+		if firstOp == nil {
+			firstOp = p.locFromTok(p.lexer.Next())
+		} else {
+			p.lexer.Next()
+		}
+
+		if nt == N_ILLEGAL {
+			if av == T_BIT_OR {
+				nt = N_TS_UNION_TYP
+			} else {
+				nt = N_TS_INTERSEC_TYP
+			}
+			elems = []Node{lhs}
+		}
+
+		rhs, err = p.tsPrimary(rough)
+		if err != nil {
+			return nil, err
+		}
+
+		ahead = p.lexer.Peek()
+		av = ahead.value
+		kind = TokenKinds[av]
+		for (av == T_BIT_OR || av == T_BIT_AND) && kind.Pcd > pcd {
+			pcd = kind.Pcd
+			rhs, err = p.tsUnionOrIntersecType(rhs, pcd, rough)
+			if err != nil {
+				return nil, err
+			}
+			ahead = p.lexer.Peek()
+			av = ahead.value
+			kind = TokenKinds[av]
+		}
+
+		elems = append(elems, rhs)
 	}
-	return lhs, nil
+
+	if nt == N_ILLEGAL {
+		return lhs, nil
+	}
+	if nt == N_TS_UNION_TYP {
+		return &TsUnionTyp{N_TS_UNION_TYP, p.finLoc(lhs.Loc().Clone()), firstOp, elems}, nil
+	}
+	return &TsIntersecTyp{N_TS_INTERSEC_TYP, p.finLoc(lhs.Loc().Clone()), firstOp, elems}, nil
 }
 
 func (p *Parser) tsConstructTyp() (Node, error) {
@@ -117,6 +155,9 @@ func (p *Parser) tsIsPrimitive(typ NodeType) bool {
 }
 
 func (p *Parser) tsExprHasTypAnnot(node Node) bool {
+	if !p.ts {
+		return false
+	}
 	switch node.Type() {
 	case N_LIT_ARR, N_LIT_OBJ, N_EXPR_THIS, N_NAME, N_PAT_REST, N_PAT_ARRAY, N_PAT_ASSIGN, N_PAT_OBJ:
 		return true
@@ -274,16 +315,10 @@ func (p *Parser) tsRoughParamToParam(node Node) (Node, error) {
 		return nil, p.errorAtLoc(n.Loc(), ERR_UNEXPECTED_TOKEN)
 	case N_TS_UNION_TYP:
 		u := n.(*TsUnionTyp)
-		if p.tsIsPrimitive(u.lhs.Type()) {
-			return nil, p.errorAtLoc(u.op, ERR_UNEXPECTED_TOKEN)
-		}
-		return p.tsRoughParamToParam(u.lhs)
+		return nil, p.errorAtLoc(u.op, ERR_UNEXPECTED_TOKEN)
 	case N_TS_INTERSEC_TYP:
 		i := n.(*TsIntersecTyp)
-		if p.tsIsPrimitive(i.lhs.Type()) {
-			return nil, p.errorAtLoc(i.op, ERR_UNEXPECTED_TOKEN)
-		}
-		return p.tsRoughParamToParam(i.lhs)
+		return nil, p.errorAtLoc(i.op, ERR_UNEXPECTED_TOKEN)
 	}
 	return node, nil
 }

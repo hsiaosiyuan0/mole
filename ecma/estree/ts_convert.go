@@ -137,6 +137,24 @@ func convertTsTyp(node parser.Node) Node {
 			Loc:        loc(node.Loc()),
 			Expression: convert(n.Arg()),
 		}
+	case parser.N_TS_UNION_TYP:
+		n := node.(*parser.TsUnionTyp)
+		return &TSUnionType{
+			Type:  "TSUnionType",
+			Start: start(node.Loc()),
+			End:   end(node.Loc()),
+			Loc:   loc(node.Loc()),
+			Types: elems(n.Elems()),
+		}
+	case parser.N_TS_INTERSEC_TYP:
+		n := node.(*parser.TsIntersecTyp)
+		return &TSIntersectionType{
+			Type:  "TSIntersectionType",
+			Start: start(node.Loc()),
+			End:   end(node.Loc()),
+			Loc:   loc(node.Loc()),
+			Types: elems(n.Elems()),
+		}
 	}
 
 	return nil

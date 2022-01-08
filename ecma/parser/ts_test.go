@@ -733,7 +733,7 @@ func TestTs49(t *testing.T) {
 	AssertEqual(t, "a", dec.name.(*Ident).Text(), "should be ok")
 
 	AssertEqual(t, N_TS_UNION_TYP, dec.ti.typAnnot.Type(), "should be ok")
-	AssertEqual(t, "string", dec.ti.typAnnot.(*TsUnionTyp).lhs.(*TsPredef).Text(), "should be ok")
+	AssertEqual(t, "string", dec.ti.typAnnot.(*TsUnionTyp).elems[0].(*TsPredef).Text(), "should be ok")
 }
 
 func TestTs50(t *testing.T) {
@@ -1429,4 +1429,14 @@ func TestTs95(t *testing.T) {
 	prog := ast.(*Prog)
 	expr := prog.stmts[0].(*ExprStmt).expr.(*MemberExpr)
 	AssertEqual(t, "x", expr.obj.(*TsNoNull).arg.(*Ident).Text(), "should be ok")
+}
+
+func TestTs96(t *testing.T) {
+	// ts union type
+	ast, err := compileTs(`let a:  a | b & c | d`, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+	AssertEqual(t, true, ast != nil, "should be prog ok")
+	prog := ast.(*Prog)
+	expr := prog.stmts[0].(*VarDecStmt).decList[0].(*VarDec)
+	AssertEqual(t, N_TS_UNION_TYP, expr.id.(*Ident).ti.typAnnot.(*TsTypAnnot).tsTyp.Type(), "should be ok")
 }

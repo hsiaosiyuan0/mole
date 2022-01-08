@@ -1128,6 +1128,13 @@ func (p *Parser) tryStmt() (Node, error) {
 			if err != nil {
 				return nil, err
 			}
+
+			typAnnot, err := p.tsTypAnnot()
+			if err != nil {
+				return nil, err
+			}
+			p.tsNodeTypAnnot(param, typAnnot, ACC_MOD_NONE, nil)
+
 			if _, err := p.nextMustTok(T_PAREN_R); err != nil {
 				return nil, err
 			}
@@ -4498,6 +4505,7 @@ func (p *Parser) binExpr(lhs Node, minPcd int, logic bool, nullish bool, notGT b
 		aheadOp := ahead.IsBin(notIn, ts)
 		kind = TokenKinds[aheadOp]
 		for aheadOp != T_ILLEGAL && (kind.Pcd > pcd || kind.Pcd == pcd && kind.RightAssoc) {
+			pcd = kind.Pcd
 			rhs, err = p.binExpr(rhs, pcd, logic, nullish, notGT)
 			if err != nil {
 				return nil, err
@@ -4505,7 +4513,6 @@ func (p *Parser) binExpr(lhs Node, minPcd int, logic bool, nullish bool, notGT b
 			ahead = p.lexer.Peek()
 			aheadOp = ahead.IsBin(notIn, ts)
 			kind = TokenKinds[aheadOp]
-			pcd = kind.Pcd
 		}
 
 		// deal with expr like: `console.log( -2 ** 4 )`
