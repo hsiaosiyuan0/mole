@@ -1,3 +1,3 @@
-pkg/js/estree/test/assets/* linguist-vendored
-pkg/js/estree/test/fixtures/* linguist-vendored
+ecma/estree/test/perf/assets/* linguist-vendored
+pkg/js/estree/test/fixture/* linguist-vendored
 Makefile linguist-vendored
