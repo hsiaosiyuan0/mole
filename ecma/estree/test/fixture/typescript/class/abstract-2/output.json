@@ -1,0 +1,82 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 36,
+  "loc": {
+    "start": {
+      "line": 1,
+      "column": 0
+    },
+    "end": {
+      "line": 1,
+      "column": 36
+    }
+  },
+  "body": [
+    {
+      "type": "ExportDefaultDeclaration",
+      "start": 0,
+      "end": 36,
+      "loc": {
+        "start": {
+          "line": 1,
+          "column": 0
+        },
+        "end": {
+          "line": 1,
+          "column": 36
+        }
+      },
+      "declaration": {
+        "type": "ClassDeclaration",
+        "start": 15,
+        "end": 36,
+        "loc": {
+          "start": {
+            "line": 1,
+            "column": 15
+          },
+          "end": {
+            "line": 1,
+            "column": 36
+          }
+        },
+        "abstract": true,
+        "id": {
+          "type": "Identifier",
+          "start": 30,
+          "end": 32,
+          "loc": {
+            "start": {
+              "line": 1,
+              "column": 30
+            },
+            "end": {
+              "line": 1,
+              "column": 32
+            }
+          },
+          "name": "C4"
+        },
+        "superClass": null,
+        "body": {
+          "type": "ClassBody",
+          "start": 33,
+          "end": 36,
+          "loc": {
+            "start": {
+              "line": 1,
+              "column": 33
+            },
+            "end": {
+              "line": 1,
+              "column": 36
+            }
+          },
+          "body": []
+        }
+      }
+    }
+  ],
+  "directives": []
+}

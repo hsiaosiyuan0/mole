@@ -1,0 +1,155 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 58,
+  "loc": {
+    "start": {
+      "line": 1,
+      "column": 0
+    },
+    "end": {
+      "line": 1,
+      "column": 58
+    }
+  },
+  "body": [
+    {
+      "type": "ExportDefaultDeclaration",
+      "start": 0,
+      "end": 58,
+      "loc": {
+        "start": {
+          "line": 1,
+          "column": 0
+        },
+        "end": {
+          "line": 1,
+          "column": 58
+        }
+      },
+      "declaration": {
+        "type": "ClassDeclaration",
+        "start": 15,
+        "end": 58,
+        "loc": {
+          "start": {
+            "line": 1,
+            "column": 15
+          },
+          "end": {
+            "line": 1,
+            "column": 58
+          }
+        },
+        "abstract": true,
+        "id": {
+          "type": "Identifier",
+          "start": 30,
+          "end": 32,
+          "loc": {
+            "start": {
+              "line": 1,
+              "column": 30
+            },
+            "end": {
+              "line": 1,
+              "column": 32
+            }
+          },
+          "name": "C5"
+        },
+        "superClass": null,
+        "body": {
+          "type": "ClassBody",
+          "start": 33,
+          "end": 58,
+          "loc": {
+            "start": {
+              "line": 1,
+              "column": 33
+            },
+            "end": {
+              "line": 1,
+              "column": 58
+            }
+          },
+          "body": [
+            {
+              "type": "MethodDefinition",
+              "start": 35,
+              "end": 56,
+              "loc": {
+                "start": {
+                  "line": 1,
+                  "column": 35
+                },
+                "end": {
+                  "line": 1,
+                  "column": 56
+                }
+              },
+              "abstract": true,
+              "static": false,
+              "key": {
+                "type": "Identifier",
+                "start": 44,
+                "end": 47,
+                "loc": {
+                  "start": {
+                    "line": 1,
+                    "column": 44
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": 47
+                  }
+                },
+                "name": "foo"
+              },
+              "computed": false,
+              "kind": "method",
+              "id": null,
+              "value": {
+                "type": "FunctionExpression",
+                "params": [],
+                "returnType": {
+                  "type": "TSTypeAnnotation",
+                  "start": 49,
+                  "end": 55,
+                  "loc": {
+                    "start": {
+                      "line": 1,
+                      "column": 49
+                    },
+                    "end": {
+                      "line": 1,
+                      "column": 55
+                    }
+                  },
+                  "typeAnnotation": {
+                    "type": "TSVoidKeyword",
+                    "start": 51,
+                    "end": 55,
+                    "loc": {
+                      "start": {
+                        "line": 1,
+                        "column": 51
+                      },
+                      "end": {
+                        "line": 1,
+                        "column": 55
+                      }
+                    }
+                  }
+                },
+                "async": false,
+                "generator": false
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "directives": []
+}

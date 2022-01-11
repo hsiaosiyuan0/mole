@@ -1,117 +1,38 @@
-dep: cmd/mole/*.go pkg/*/*.go go.mod
+dep:
 	go get -v ./...
 
-mole: cmd/mole/*.go pkg/*/*.go go.mod
-	go build ./cmd/mole
+mole:
+	go build -o mole ./cli
 
-mole_wasm: cmd/mole_wasm/*.go pkg/*/*.go go.mod
-	GOOS=js GOARCH=wasm go build -o mole.wasm ./cmd/mole_wasm
+mole_wasm:
+	GOOS=js GOARCH=wasm go build -o mole.wasm ./wasm
 
-install: ./mole
+install:
 	cp ./mole /usr/local/bin/mole
 
 clean:
-	go run scripts/clean/mod.go
+	go clean -cache
+	rm -rf mole
+	rm -rf mole.wasm
 
-test: cmd/mole/*.go pkg/*/*.go go.mod
+test:
 	go clean -testcache
-	go test ./pkg/...
+	go test ./ecma/...
 
-test-estree-convert: cmd/mole/*.go pkg/*/*.go go.mod
-	go test ./pkg/js/estree/...  -run "^Test\d"
+test-ecma:
+	go test ./ecma/...
 
-test-harmony:	cmd/mole/*.go pkg/*/*.go go.mod
-	go test ./pkg/js/estree/... -run "^TestHarmony\d"
+test-estree-basic:
+	go test ./ecma/estree/test/basic... -run "^Test"
 
-test-harmony-fail:	cmd/mole/*.go pkg/*/*.go go.mod
-	go test ./pkg/js/estree/... -run "^TestHarmonyFail\d"
+test-estree-fixture:
+	go test ./ecma/estree/test/fixture... -run "^TestFixture"
 
-test-async-iteration:	cmd/mole/*.go pkg/*/*.go go.mod
-	go test ./pkg/js/estree/... -run "^TestAsyncIteration\d"
-
-test-async-iteration-fail:	cmd/mole/*.go pkg/*/*.go go.mod
-	go test ./pkg/js/estree/... -run "^TestAsyncIterationFail\d"
-
-test-async-await:	cmd/mole/*.go pkg/*/*.go go.mod
-	go test ./pkg/js/estre/...e -run "^TestAsyncAwait\d"
-
-test-async-await-fail:	cmd/mole/*.go pkg/*/*.go go.mod
-	go test ./pkg/js/estree/... -run "^TestAsyncAwaitFail\d"
-
-test-class:	cmd/mole/*.go pkg/*/*.go go.mod
-	go test ./pkg/js/estree/... -run "^TestClassFeature\d"
-
-test-class-fail:	cmd/mole/*.go pkg/*/*.go go.mod
-	go test ./pkg/js/estree/... -run "^TestClassFeatureFail\d"
-
-test-optional-chain:	cmd/mole/*.go pkg/*/*.go go.mod
-	go test ./pkg/js/estree/... -run "^TestOptionalChain\d"
-
-test-optional-chain-fail:	cmd/mole/*.go pkg/*/*.go go.mod
-	go test ./pkg/js/estree/... -run "^TestOptionalChainFail\d"
-
-test-es7:	cmd/mole/*.go pkg/*/*.go go.mod
-	go test ./pkg/js/estree/... -run "^TestEs7th\d"
-
-test-es7-fail:	cmd/mole/*.go pkg/*/*.go go.mod
-	go test ./pkg/js/estree/... -run "^TestEs7thFail\d"
-
-test-nullish:	cmd/mole/*.go pkg/*/*.go go.mod
-	go test ./pkg/js/estree/... -run "^TestNullish\d"
-
-test-nullish-fail:	cmd/mole/*.go pkg/*/*.go go.mod
-	go test ./pkg/js/estree/... -run "^TestNullishFail\d"
-
-test-directive:	cmd/mole/*.go pkg/*/*.go go.mod
-	go test ./pkg/js/estree/... -run "^TestDirective\d"
-
-test-num-sep:	cmd/mole/*.go pkg/*/*.go go.mod
-	go test ./pkg/js/estree/... -run "^TestNumSep\d"
-
-test-num-sep-fail:	cmd/mole/*.go pkg/*/*.go go.mod
-	go test ./pkg/js/estree/... -run "^TestNumSepFail\d"
-
-test-logic-assign:	cmd/mole/*.go pkg/*/*.go go.mod
-	go test ./pkg/js/estree/... -run "^TestLogicAssign\d"
-
-test-logic-assign-fail:	cmd/mole/*.go pkg/*/*.go go.mod
-	go test ./pkg/js/estree/... -run "^TestLogicAssignFail\d"
-
-test-dynamic-import:	cmd/mole/*.go pkg/*/*.go go.mod
-	go test ./pkg/js/estree/... -run "^TestDynamicImport\d"
-
-test-dynamic-import-fail:	cmd/mole/*.go pkg/*/*.go go.mod
-	go test ./pkg/js/estree/... -run "^TestDynamicImportFail\d"
-
-test-bigint:	cmd/mole/*.go pkg/*/*.go go.mod
-	go test ./pkg/js/estree/... -run "^TestBigint\d"
-
-test-bigint-fail:	cmd/mole/*.go pkg/*/*.go go.mod
-	go test ./pkg/js/estree/... -run "^TestBigintFail\d"
-
-test-jsx:	cmd/mole/*.go pkg/*/*.go go.mod
-	go test ./pkg/js/estree/... -run "^TestJSX\d"
-
-test-jsx-fail:	cmd/mole/*.go pkg/*/*.go go.mod
-	go test ./pkg/js/estree/... -run "^TestJSXFail\d"
-
-test-export-all-as-ns:	cmd/mole/*.go pkg/*/*.go go.mod
-	go test ./pkg/js/estree/... -run "^TestExportAllAsNS"
-
-test-fixtures: cmd/mole/*.go pkg/*/*.go go.mod
-	go test ./pkg/js/estree/... -run "^TestFixtures_"
-
-test-fixtures-ts: cmd/mole/*.go pkg/*/*.go go.mod
-	go test ./pkg/js/estree/... -run "^TestFixtures_ts"
-
-test-parser: cmd/mole/*.go pkg/*/*.go go.mod
-	go test ./pkg/js/parser
-
-bench-1: cmd/mole/*.go pkg/*/*.go go.mod
-	go test -cpu 1 -benchmem -bench=. ./pkg/js/estree/... -run "^Benchmark"
+bench-ecma:
+	go test -cpu 1 -benchmem -bench=. ./ecma/estree/test/perf... -run "^Benchmark"
 
 html-entities:
-	go run scripts/html_entities/mod.go
+	go run script/html_entities/main.go
 
 gofmt:
 	gofmt -w .

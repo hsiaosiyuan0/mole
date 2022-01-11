@@ -7,8 +7,10 @@
     "jquery",
     "pbcopy",
     "REDEF",
+    "rvalue",
     "stdlib",
-    "unparenthesized"
+    "unparenthesized",
+    "valueof"
   ],
   "go.toolsEnvVars": {
     "GOOS": "js",

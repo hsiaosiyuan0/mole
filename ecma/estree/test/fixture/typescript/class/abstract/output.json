@@ -1,0 +1,231 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 111,
+  "loc": {
+    "start": {
+      "line": 1,
+      "column": 0
+    },
+    "end": {
+      "line": 4,
+      "column": 33
+    }
+  },
+  "body": [
+    {
+      "type": "ClassDeclaration",
+      "start": 0,
+      "end": 20,
+      "loc": {
+        "start": {
+          "line": 1,
+          "column": 0
+        },
+        "end": {
+          "line": 1,
+          "column": 20
+        }
+      },
+      "abstract": true,
+      "id": {
+        "type": "Identifier",
+        "start": 15,
+        "end": 17,
+        "loc": {
+          "start": {
+            "line": 1,
+            "column": 15
+          },
+          "end": {
+            "line": 1,
+            "column": 17
+          }
+        },
+        "name": "C1"
+      },
+      "superClass": null,
+      "body": {
+        "type": "ClassBody",
+        "start": 18,
+        "end": 20,
+        "loc": {
+          "start": {
+            "line": 1,
+            "column": 18
+          },
+          "end": {
+            "line": 1,
+            "column": 20
+          }
+        },
+        "body": []
+      }
+    },
+    {
+      "type": "ClassDeclaration",
+      "start": 21,
+      "end": 49,
+      "loc": {
+        "start": {
+          "line": 2,
+          "column": 0
+        },
+        "end": {
+          "line": 2,
+          "column": 28
+        }
+      },
+      "abstract": true,
+      "id": {
+        "type": "Identifier",
+        "start": 44,
+        "end": 46,
+        "loc": {
+          "start": {
+            "line": 2,
+            "column": 23
+          },
+          "end": {
+            "line": 2,
+            "column": 25
+          }
+        },
+        "name": "C2"
+      },
+      "superClass": null,
+      "body": {
+        "type": "ClassBody",
+        "start": 47,
+        "end": 49,
+        "loc": {
+          "start": {
+            "line": 2,
+            "column": 26
+          },
+          "end": {
+            "line": 2,
+            "column": 28
+          }
+        },
+        "body": []
+      }
+    },
+    {
+      "type": "ExportNamedDeclaration",
+      "start": 50,
+      "end": 77,
+      "loc": {
+        "start": {
+          "line": 3,
+          "column": 0
+        },
+        "end": {
+          "line": 3,
+          "column": 27
+        }
+      },
+      "specifiers": [],
+      "source": null,
+      "declaration": {
+        "type": "ClassDeclaration",
+        "start": 57,
+        "end": 77,
+        "loc": {
+          "start": {
+            "line": 3,
+            "column": 7
+          },
+          "end": {
+            "line": 3,
+            "column": 27
+          }
+        },
+        "abstract": true,
+        "id": {
+          "type": "Identifier",
+          "start": 72,
+          "end": 74,
+          "loc": {
+            "start": {
+              "line": 3,
+              "column": 22
+            },
+            "end": {
+              "line": 3,
+              "column": 24
+            }
+          },
+          "name": "C3"
+        },
+        "superClass": null,
+        "body": {
+          "type": "ClassBody",
+          "start": 75,
+          "end": 77,
+          "loc": {
+            "start": {
+              "line": 3,
+              "column": 25
+            },
+            "end": {
+              "line": 3,
+              "column": 27
+            }
+          },
+          "body": []
+        }
+      }
+    },
+    {
+      "type": "ExportDefaultDeclaration",
+      "start": 78,
+      "end": 111,
+      "loc": {
+        "start": {
+          "line": 4,
+          "column": 0
+        },
+        "end": {
+          "line": 4,
+          "column": 33
+        }
+      },
+      "declaration": {
+        "type": "ClassDeclaration",
+        "start": 93,
+        "end": 111,
+        "loc": {
+          "start": {
+            "line": 4,
+            "column": 15
+          },
+          "end": {
+            "line": 4,
+            "column": 33
+          }
+        },
+        "abstract": true,
+        "id": null,
+        "superClass": null,
+        "body": {
+          "type": "ClassBody",
+          "start": 108,
+          "end": 111,
+          "loc": {
+            "start": {
+              "line": 4,
+              "column": 30
+            },
+            "end": {
+              "line": 4,
+              "column": 33
+            }
+          },
+          "body": []
+        }
+      }
+    }
+  ],
+  "directives": []
+}
