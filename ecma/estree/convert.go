@@ -950,6 +950,7 @@ func convert(node parser.Node) Node {
 			Id:         convert(stmt.Id()),
 			SuperClass: convert(stmt.Super()),
 			Body:       convert(stmt.Body()),
+			Abstract:   stmt.Abstract(),
 		}
 	case parser.N_EXPR_CLASS:
 		stmt := node.(*parser.ClassDec)
@@ -961,6 +962,7 @@ func convert(node parser.Node) Node {
 			Id:         convert(stmt.Id()),
 			SuperClass: convert(stmt.Super()),
 			Body:       convert(stmt.Body()),
+			Abstract:   stmt.Abstract(),
 		}
 	case parser.N_ClASS_BODY:
 		stmt := node.(*parser.ClassBody)
@@ -988,6 +990,7 @@ func convert(node parser.Node) Node {
 				Static:         n.Static(),
 				TypeParameters: typParams(ti),
 				ReturnType:     typAnnot(ti),
+				Abstract:       n.Abstract(),
 			}
 		}
 		return &MethodDefinition{
@@ -1012,6 +1015,7 @@ func convert(node parser.Node) Node {
 			Value:    convert(n.Value()),
 			Computed: n.Computed(),
 			Static:   n.Static(),
+			Abstract: n.Abstract(),
 		}
 	case parser.N_SUPER:
 		n := node.(*parser.Super)

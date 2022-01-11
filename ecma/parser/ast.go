@@ -2040,11 +2040,12 @@ func (n *WithStmt) Loc() *Loc {
 }
 
 type ClassDec struct {
-	typ   NodeType
-	loc   *Loc
-	id    Node
-	super Node
-	body  Node
+	typ      NodeType
+	loc      *Loc
+	id       Node
+	super    Node
+	body     Node
+	abstract bool
 }
 
 func (n *ClassDec) Id() Node {
@@ -2053,6 +2054,10 @@ func (n *ClassDec) Id() Node {
 
 func (n *ClassDec) Super() Node {
 	return n.super
+}
+
+func (n *ClassDec) Abstract() bool {
+	return n.abstract
 }
 
 func (n *ClassDec) Body() Node {
@@ -2094,6 +2099,7 @@ type Method struct {
 	kind     PropKind
 	value    Node
 	accMode  ACC_MOD
+	abstract bool
 }
 
 func (n *Method) Kind() string {
@@ -2110,6 +2116,10 @@ func (n *Method) Value() Node {
 
 func (n *Method) Computed() bool {
 	return n.computed
+}
+
+func (n *Method) Abstract() bool {
+	return n.abstract
 }
 
 func (n *Method) Static() bool {
@@ -2132,6 +2142,7 @@ type Field struct {
 	computed bool
 	value    Node
 	accMode  ACC_MOD
+	abstract bool
 }
 
 func (n *Field) Key() Node {
@@ -2144,6 +2155,10 @@ func (n *Field) Value() Node {
 
 func (n *Field) Static() bool {
 	return n.static
+}
+
+func (n *Field) Abstract() bool {
+	return n.abstract
 }
 
 func (n *Field) Computed() bool {

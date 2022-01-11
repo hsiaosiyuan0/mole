@@ -1401,7 +1401,7 @@ func (p *Parser) tsDec() (Node, error) {
 	}
 
 	if tv == T_CLASS {
-		dec.inner, err = p.classDec(false, false, true)
+		dec.inner, err = p.classDec(false, false, true, false)
 		typ = N_TS_DEC_CLASS
 	} else if p.aheadIsTsItf(tok) {
 		dec.inner, err = p.tsItf()
@@ -1418,6 +1418,9 @@ func (p *Parser) tsDec() (Node, error) {
 	} else if p.aheadIsModDec(tok) {
 		dec, err = p.tsModDec()
 		typ = N_TS_DEC_MODULE
+	} else if p.tsAheadIsAbstract(tok, false, false) {
+		dec.inner, err = p.classDec(false, false, true, true)
+		typ = N_TS_DEC_CLASS
 	}
 
 	if err != nil {
@@ -1470,4 +1473,32 @@ func (p *Parser) isTsLhs(node Node) bool {
 
 	nt := node.Type()
 	return nt == N_TS_NO_NULL || nt == N_TS_TYP_ASSERT
+}
+
+func (p *Parser) tsAheadIsAbstract(tok *Token, prop bool, pvt bool) bool {
+	if p.ts && IsName(tok, "abstract", false) {
+		ahead := p.lexer.PeekN(2)
+		if ahead.afterLineTerminator {
+			return false
+		}
+		if ahead.value == T_CLASS ||
+			(p.aheadIsArgList(ahead) && !prop) ||
+			ahead.value == T_MUL {
+			return true
+		}
+		_, _, canProp := ahead.CanBePropKey()
+		if prop && (ahead.value == T_BRACKET_L || ahead.value == T_NAME || ahead.value == T_STRING || canProp) {
+			return true
+		}
+		if pvt && ahead.value == T_NAME_PVT {
+			return true
+		}
+		if ahead.value == T_NAME {
+			if p.scope().IsKind(SPK_NOT_IN) && (IsName(ahead, "in", false) || IsName(ahead, "of", false)) {
+				return false
+			}
+			return true
+		}
+	}
+	return false
 }

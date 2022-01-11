@@ -1440,3 +1440,32 @@ func TestTs96(t *testing.T) {
 	expr := prog.stmts[0].(*VarDecStmt).decList[0].(*VarDec)
 	AssertEqual(t, N_TS_UNION_TYP, expr.id.(*Ident).ti.typAnnot.(*TsTypAnnot).tsTyp.Type(), "should be ok")
 }
+
+func TestTs97(t *testing.T) {
+	// abstract class
+	ast, err := compileTs(`abstract class C1 {}`, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+	AssertEqual(t, true, ast != nil, "should be prog ok")
+	prog := ast.(*Prog)
+	expr := prog.stmts[0].(*ClassDec)
+	AssertEqual(t, true, expr.abstract, "should be ok")
+
+	ast, err = compileTs(`abstract class C1 {
+    abstract f();
+  }`, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+	AssertEqual(t, true, ast != nil, "should be prog ok")
+	prog = ast.(*Prog)
+	prop := prog.stmts[0].(*ClassDec).body.(*ClassBody).elems[0].(*Method)
+	AssertEqual(t, true, prop.abstract, "should be ok")
+}
+
+func TestTs98(t *testing.T) {
+	// abstract class
+	ast, err := compileTs(`export abstract class C3 {}`, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+	AssertEqual(t, true, ast != nil, "should be prog ok")
+	prog := ast.(*Prog)
+	expr := prog.stmts[0].(*ExportDec).dec.(*ClassDec)
+	AssertEqual(t, true, expr.abstract, "should be ok")
+}

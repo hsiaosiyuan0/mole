@@ -312,7 +312,7 @@ func (l *Lexer) readTok() *Token {
 }
 
 // guard the peeked buffer has at least N tokens and
-// return the Nth one
+// return the Nth one(index starts from 1)
 func (l *Lexer) PeekN(n int) *Token {
 	for i := n - l.pl; i > 0; i-- {
 		l.PeekGrow()

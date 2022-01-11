@@ -32,6 +32,13 @@ type TSStringKeyword struct {
 	Loc   *SrcLoc `json:"loc"`
 }
 
+type TSVoidKeyword struct {
+	Type  string  `json:"type"`
+	Start int     `json:"start"`
+	End   int     `json:"end"`
+	Loc   *SrcLoc `json:"loc"`
+}
+
 type TSAnyKeyword struct {
 	Type  string  `json:"type"`
 	Start int     `json:"start"`
@@ -214,6 +221,7 @@ type TSMethodDefinition struct {
 	Static         bool       `json:"static"`
 	TypeParameters Node       `json:"typeParameters"`
 	ReturnType     Node       `json:"returnType"`
+	Abstract       bool       `json:"abstract"`
 }
 
 type TSAsExpression struct {
@@ -256,4 +264,16 @@ type TSIntersectionType struct {
 	End   int     `json:"end"`
 	Loc   *SrcLoc `json:"loc"`
 	Types []Node  `json:"types"`
+}
+
+type TSClassDeclaration struct {
+	Type       string     `json:"type"`
+	Start      int        `json:"start"`
+	End        int        `json:"end"`
+	Loc        *SrcLoc    `json:"loc"`
+	Id         Expression `json:"id"`
+	SuperClass Expression `json:"superClass"`
+	Body       Expression `json:"body"`
+	Declare    bool       `json:"declare"`
+	Abstract   bool       `json:"abstract"`
 }

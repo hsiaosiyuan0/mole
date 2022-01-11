@@ -47,6 +47,13 @@ func convertTsTyp(node parser.Node) Node {
 			End:   end(node.Loc()),
 			Loc:   loc(node.Loc()),
 		}
+	case parser.N_TS_VOID:
+		return &TSVoidKeyword{
+			Type:  "TSVoidKeyword",
+			Start: start(node.Loc()),
+			End:   end(node.Loc()),
+			Loc:   loc(node.Loc()),
+		}
 	case parser.N_TS_THIS:
 		return &TSThisType{
 			Type:  "TSThisType",
@@ -154,6 +161,20 @@ func convertTsTyp(node parser.Node) Node {
 			End:   end(node.Loc()),
 			Loc:   loc(node.Loc()),
 			Types: elems(n.Elems()),
+		}
+	case parser.N_TS_DEC_CLASS:
+		n := node.(*parser.TsDec)
+		cls := n.Inner().(*parser.ClassDec)
+		return &TSClassDeclaration{
+			Type:       "ClassDeclaration",
+			Start:      start(n.Loc()),
+			End:        end(cls.Loc()),
+			Loc:        loc(n.Loc()),
+			Id:         convert(cls.Id()),
+			SuperClass: convert(cls.Super()),
+			Body:       convert(cls.Body()),
+			Declare:    true,
+			Abstract:   cls.Abstract(),
 		}
 	}
 

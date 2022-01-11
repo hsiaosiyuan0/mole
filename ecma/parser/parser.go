@@ -247,7 +247,7 @@ func (p *Parser) stmt() (node Node, err error) {
 			node, err = p.whileStmt()
 		case T_CLASS:
 			if allowDec {
-				node, err = p.classDec(false, false, false)
+				node, err = p.classDec(false, false, false, false)
 			}
 		case T_BREAK:
 			node, err = p.brkStmt()
@@ -296,6 +296,8 @@ func (p *Parser) stmt() (node Node, err error) {
 		node, err = p.tsNS()
 	} else if p.aheadIsTsDec(tok) {
 		node, err = p.tsDec()
+	} else if p.tsAheadIsAbstract(tok, false, false) {
+		node, err = p.classDec(false, false, false, true)
 	} else if tok.value == T_SEMI {
 		node, err = p.emptyStmt()
 	} else if tok.value == T_EOF {
@@ -367,7 +369,7 @@ func (p *Parser) exportDec() (Node, error) {
 			return nil, err
 		}
 	} else if tv == T_CLASS {
-		node.dec, err = p.classDec(false, false, false)
+		node.dec, err = p.classDec(false, false, false, false)
 		if err != nil {
 			return nil, err
 		}
@@ -384,7 +386,9 @@ func (p *Parser) exportDec() (Node, error) {
 			}
 			node.dec, err = p.fnDec(false, tok, true, false)
 		} else if tv == T_CLASS {
-			node.dec, err = p.classDec(false, true, false)
+			node.dec, err = p.classDec(false, true, false, false)
+		} else if p.tsAheadIsAbstract(tok, false, false) {
+			node.dec, err = p.classDec(false, true, false, true)
 		} else {
 			node.dec, err = p.assignExpr(true, false, false)
 			if err := p.advanceIfSemi(false); err != nil {
@@ -408,6 +412,11 @@ func (p *Parser) exportDec() (Node, error) {
 			return n, nil
 		}
 		node.dec = n
+	} else if p.tsAheadIsAbstract(tok, false, false) {
+		node.dec, err = p.classDec(false, true, false, true)
+		if err != nil {
+			return nil, err
+		}
 	} else if p.aheadIsTsItf(tok) {
 		node.dec, err = p.tsItf()
 		if err != nil {
@@ -717,8 +726,12 @@ func (p *Parser) importNS() ([]Node, error) {
 }
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-functions-and-classes.html#prod-ClassDeclaration
-func (p *Parser) classDec(expr bool, canNameOmitted bool, declare bool) (Node, error) {
+func (p *Parser) classDec(expr bool, canNameOmitted bool, declare bool, abstract bool) (Node, error) {
 	loc := p.locFromTok(p.lexer.Next())
+
+	if abstract {
+		p.lexer.Next()
+	}
 
 	ps := p.scope()
 	// all parts of the class dec are in strict mode(include the id part)
@@ -785,7 +798,7 @@ func (p *Parser) classDec(expr bool, canNameOmitted bool, declare bool) (Node, e
 	if expr {
 		typ = N_EXPR_CLASS
 	}
-	return &ClassDec{typ, p.finLoc(loc), id, super, body}, nil
+	return &ClassDec{typ, p.finLoc(loc), id, super, body, abstract}, nil
 }
 
 func (p *Parser) classBody(declare bool) (Node, error) {
@@ -862,44 +875,105 @@ func (p *Parser) classBody(declare bool) (Node, error) {
 	return &ClassBody{N_ClASS_BODY, p.finLoc(loc), elems}, nil
 }
 
-func (p *Parser) classElem(declare bool) (Node, error) {
-	accMod, _, err := p.accMod()
-	if err != nil {
-		return nil, err
-	}
-
-	var staticLoc *Loc
-	static := false
-
-	ahead := p.lexer.Peek()
-	var isField bool
-	if ahead.value == T_STATIC {
-		staticLoc = p.loc()
-		tok := p.lexer.Next()
-		static = true
-
-		isField, ahead = p.isField(true, false, false)
-		if isField {
-			key := &Ident{N_NAME, p.finLoc(p.locFromTok(tok)), "static", false, tok.ContainsEscape(), nil, true, p.newTypInfo()}
-			return p.field(key, nil, accMod)
-		} else if ahead.value == T_BRACE_L {
-			return p.staticBlock(staticLoc)
-		} else if p.aheadIsArgList(ahead) {
-			key := &Ident{N_NAME, p.finLoc(p.locFromTok(tok)), "static", false, tok.ContainsEscape(), nil, true, p.newTypInfo()}
-			return p.method(staticLoc, key, accMod, nil, false, PK_METHOD, false, false, false, true, false, declare)
+func (p *Parser) classModifier() (begin, static, access, abstract *Loc, isField, escape bool, name string, fieldLoc *Loc, accMod ACC_MOD, ahead *Token) {
+	for {
+		ahead = p.lexer.Peek()
+		av := ahead.value
+		if av == T_STATIC && static == nil {
+			tok := p.lexer.Next()
+			static = p.locFromTok(tok)
+			if begin == nil {
+				begin = static.Clone()
+			}
+			escape = tok.ContainsEscape()
+			name = tok.Text()
+			isField, ahead = p.isField(true, false)
+			fieldLoc = static
+			if isField {
+				static = nil
+				return
+			}
+			fieldLoc = static.Clone()
+		} else if p.ts && accMod == ACC_MOD_NONE && (av == T_PUBLIC || av == T_PRIVATE || av == T_PROTECTED) {
+			switch av {
+			case T_PUBLIC:
+				accMod = ACC_MOD_PUB
+			case T_PRIVATE:
+				accMod = ACC_MOD_PRI
+			case T_PROTECTED:
+				accMod = ACC_MOD_PRO
+			}
+			if accMod != ACC_MOD_NONE {
+				tok := p.lexer.Next()
+				access = p.locFromTok(tok)
+				if begin == nil {
+					begin = access.Clone()
+				}
+				escape = tok.ContainsEscape()
+				name = tok.Text()
+				isField, ahead = p.isField(true, false)
+				fieldLoc = access
+				if isField {
+					access = nil
+					return
+				}
+				fieldLoc = access.Clone()
+			}
+		} else if p.ts && abstract == nil && IsName(ahead, "abstract", false) {
+			tok := p.lexer.Next()
+			abstract = p.locFromTok(tok)
+			if begin == nil {
+				begin = abstract.Clone()
+			}
+			escape = tok.ContainsEscape()
+			name = tok.Text()
+			isField, ahead = p.isField(true, false)
+			fieldLoc = abstract
+			if isField {
+				abstract = nil
+				return
+			}
+			fieldLoc = abstract.Clone()
+		} else {
+			break
 		}
+	}
+	return
+}
+
+func (p *Parser) classElem(declare bool) (Node, error) {
+	beginLoc, staticLoc, accessLoc, abstractLoc, isField, escape, fieldName, fieldLoc, accMod, ahead := p.classModifier()
+
+	static := staticLoc != nil
+	abstract := abstractLoc != nil
+	if static || accessLoc != nil || abstractLoc != nil {
+		if static && abstract {
+			return nil, p.errorAtLoc(abstractLoc, ERR_ABSTRACT_MIXED_WITH_STATIC)
+		}
+
+		if ahead.value == T_BRACE_L {
+			return p.staticBlock(beginLoc)
+		}
+		if p.aheadIsArgList(ahead) {
+			key := &Ident{N_NAME, fieldLoc, fieldName, false, escape, nil, true, p.newTypInfo()}
+			return p.method(beginLoc, key, accMod, nil, false, PK_METHOD, false, false, false, true, false, declare, abstract)
+		}
+	} else if isField {
+		key := &Ident{N_NAME, fieldLoc, fieldName, false, escape, nil, true, p.newTypInfo()}
+		return p.field(key, nil, accMod, false)
 	}
 
 	if p.aheadIsAsync(ahead, true, true) {
 		if ahead.ContainsEscape() {
 			return nil, p.errorAt(ahead.value, &ahead.begin, ERR_ESCAPE_IN_KEYWORD)
 		}
-		return p.method(staticLoc, nil, accMod, nil, false, PK_METHOD, false, true, true, true, static, declare)
-	} else if ahead.value == T_MUL {
+		return p.method(beginLoc, nil, accMod, nil, false, PK_METHOD, false, true, true, true, static, declare, abstract)
+	}
+	if ahead.value == T_MUL {
 		if p.feat&FEAT_ASYNC_GENERATOR == 0 {
 			return nil, p.errorTok(ahead)
 		}
-		return p.method(staticLoc, nil, accMod, nil, false, PK_METHOD, true, false, true, true, static, declare)
+		return p.method(beginLoc, nil, accMod, nil, false, PK_METHOD, true, false, true, true, static, declare, abstract)
 	}
 
 	propLoc := p.locFromTok(ahead)
@@ -916,13 +990,13 @@ func (p *Parser) classElem(declare bool) (Node, error) {
 			key = &Ident{N_NAME, p.finLoc(propLoc.Clone()), name, false, ahead.ContainsEscape(), nil, kw, p.newTypInfo()}
 		}
 
-		isField, ahead = p.isField(false, name == "get" || name == "set", false)
+		isField, ahead = p.isField(false, name == "get" || name == "set")
 		if isField {
-			return p.field(key, staticLoc, accMod)
+			return p.field(key, beginLoc, accMod, abstract)
 		}
 
-		if static {
-			propLoc = staticLoc
+		if static || abstract || accMod != ACC_MOD_NONE {
+			propLoc = beginLoc
 		}
 
 		kd := PK_INIT
@@ -931,7 +1005,7 @@ func (p *Parser) classElem(declare bool) (Node, error) {
 			if name == "constructor" {
 				kd = PK_CTOR
 			}
-			return p.method(propLoc, key, accMod, nil, false, kd, false, false, true, true, static, declare)
+			return p.method(propLoc, key, accMod, nil, false, kd, false, false, true, true, static, declare, abstract)
 		}
 
 		if name == "get" {
@@ -942,14 +1016,14 @@ func (p *Parser) classElem(declare bool) (Node, error) {
 			return nil, p.errorTok(ahead)
 		}
 
-		return p.method(propLoc, nil, accMod, nil, false, kd, false, false, true, true, static, declare)
+		return p.method(propLoc, nil, accMod, nil, false, kd, false, false, true, true, static, declare, abstract)
 	}
 
 	if declare && ahead.value == T_BRACKET_L {
 		return p.tsIdxSig(nil)
 	}
 
-	return p.field(nil, staticLoc, accMod)
+	return p.field(nil, staticLoc, accMod, abstract)
 }
 
 func (p *Parser) isName(node Node, name string, canContainsEscape bool, str bool) bool {
@@ -974,7 +1048,7 @@ func (p *Parser) isName(node Node, name string, canContainsEscape bool, str bool
 	return true
 }
 
-func (p *Parser) field(key Node, static *Loc, accMode ACC_MOD) (Node, error) {
+func (p *Parser) field(key Node, static *Loc, accMode ACC_MOD, abstract bool) (Node, error) {
 	var loc *Loc
 	var err error
 	var compute *Loc
@@ -1014,7 +1088,7 @@ func (p *Parser) field(key Node, static *Loc, accMode ACC_MOD) (Node, error) {
 		if static != nil {
 			loc = static
 		}
-		return p.method(loc, key, accMode, compute, false, PK_METHOD, false, false, true, true, static != nil, false)
+		return p.method(loc, key, accMode, compute, false, PK_METHOD, false, false, true, true, static != nil, false, abstract)
 	}
 	p.advanceIfSemi(false)
 
@@ -1033,7 +1107,7 @@ func (p *Parser) field(key Node, static *Loc, accMode ACC_MOD) (Node, error) {
 		return nil, p.errorAtLoc(key.Loc(), ERR_CTOR_CANNOT_BE_Field)
 	}
 
-	return &Field{N_FIELD, p.finLoc(loc), key, staticField, compute != nil, value, accMode}, nil
+	return &Field{N_FIELD, p.finLoc(loc), key, staticField, compute != nil, value, accMode, abstract}, nil
 }
 
 func (p *Parser) classElemName() (Node, *Loc, error) {
@@ -2525,9 +2599,9 @@ func (p *Parser) ident(scope *Scope, binding bool) (*Ident, error) {
 	return id.(*Ident), nil
 }
 
-func (p *Parser) accMod() (ACC_MOD, *Loc, error) {
+func (p *Parser) accMod() (ACC_MOD, *Loc) {
 	if !p.ts {
-		return ACC_MOD_NONE, nil, nil
+		return ACC_MOD_NONE, nil
 	}
 
 	var loc *Loc
@@ -2544,14 +2618,11 @@ func (p *Parser) accMod() (ACC_MOD, *Loc, error) {
 		mod = ACC_MOD_PRO
 		loc = p.locFromTok(p.lexer.Next())
 	}
-	return mod, loc, nil
+	return mod, loc
 }
 
 func (p *Parser) roughParam(ctor bool) (Node, error) {
-	accMod, accLoc, err := p.accMod()
-	if err != nil {
-		return nil, err
-	}
+	accMod, accLoc := p.accMod()
 	if accLoc != nil && !ctor {
 		return nil, p.errorAtLoc(accLoc, ERR_ILLEGAL_PARAMETER_MODIFIER)
 	}
@@ -2582,10 +2653,7 @@ func (p *Parser) roughParam(ctor bool) (Node, error) {
 }
 
 func (p *Parser) param(ctor bool) (Node, error) {
-	accMod, accLoc, err := p.accMod()
-	if err != nil {
-		return nil, err
-	}
+	accMod, accLoc := p.accMod()
 	if accLoc != nil && !ctor {
 		return nil, p.errorAtLoc(accLoc, ERR_ILLEGAL_PARAMETER_MODIFIER)
 	}
@@ -2826,17 +2894,15 @@ func (p *Parser) patternProp() (Node, error) {
 	return &Prop{N_PROP, p.finLoc(loc), key, opLoc, value, compute != nil, false, shorthand, assign, PK_INIT, ACC_MOD_NONE}, nil
 }
 
-// test whether current place is filed or method
+// test whether current place is filed or method, this method just lookahead
+// the caller should ensure current place can be property key, eg: `T_NAME` or `T_STATIC`
+//
 // `static` indicates whether current place is `static` or not
 // `getter` indicates whether current place is `get/set` or not
-func (p *Parser) isField(static bool, getter bool, priv bool) (bool, *Token) {
+func (p *Parser) isField(static bool, getter bool) (bool, *Token) {
 	ahead := p.lexer.Peek()
 	av := ahead.value
-	if priv {
-		if p.feat&FEAT_CLASS_PRIV_FIELD == 0 {
-			return false, ahead
-		}
-	} else if p.feat&FEAT_CLASS_PUB_FIELD == 0 {
+	if p.feat&FEAT_CLASS_PUB_FIELD == 0 {
 		return false, ahead
 	}
 
@@ -2851,8 +2917,7 @@ func (p *Parser) isField(static bool, getter bool, priv bool) (bool, *Token) {
 	}
 
 	if getter {
-		kw := ahead.IsKw()
-		return !TokenKinds[av].StartExpr && av != T_NAME_PVT && av != T_BRACKET_L && !kw, ahead
+		return !TokenKinds[av].StartExpr && av != T_NAME_PVT && av != T_BRACKET_L && !ahead.IsKw(), ahead
 	}
 
 	if static {
@@ -2910,7 +2975,7 @@ func (p *Parser) propName(allowNamePVT bool, maybeMethod bool, tsRough bool) (No
 	}
 
 	getter := keyName == "get" || keyName == "set"
-	isField, ahead := p.isField(false, getter, false)
+	isField, ahead := p.isField(false, getter)
 	if isField || !maybeMethod {
 		return key, computeLoc, nil
 	}
@@ -2931,7 +2996,7 @@ func (p *Parser) propName(allowNamePVT bool, maybeMethod bool, tsRough bool) (No
 		}
 	}
 
-	m, err := p.method(loc, key, ACC_MOD_NONE, computeLoc, false, kd, false, false, false, false, false, false)
+	m, err := p.method(loc, key, ACC_MOD_NONE, computeLoc, false, kd, false, false, false, false, false, false, false)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -4692,9 +4757,11 @@ func (p *Parser) primaryExpr() (Node, error) {
 				return nil, p.errorAt(tok.value, &tok.begin, ERR_ESCAPE_IN_KEYWORD)
 			}
 			return p.fnDec(true, tok, false, false)
+		} else if p.tsAheadIsAbstract(tok, false, false) {
+			return p.classDec(true, false, false, true)
 		}
-		p.lexer.Next()
 
+		p.lexer.Next()
 		name := tok.Text()
 		ahead := p.lexer.Peek()
 		// `ahead.value != T_ARROW` is used to skip checking name when it appears in the param list of arrow expr
@@ -4723,7 +4790,7 @@ func (p *Parser) primaryExpr() (Node, error) {
 		ext := tok.ext.(*TokExtRegexp)
 		return &RegLit{N_LIT_REGEXP, p.finLoc(loc), tok.Text(), ext.Pattern(), ext.Flags(), nil, nil}, nil
 	case T_CLASS:
-		return p.classDec(true, false, false)
+		return p.classDec(true, false, false, false)
 	case T_SUPER:
 		scope := p.scope()
 		sup := p.lexer.Next()
@@ -5069,12 +5136,12 @@ func (p *Parser) objProp() (Node, error) {
 		if p.feat&FEAT_ASYNC_GENERATOR == 0 {
 			return nil, p.errorTok(tok)
 		}
-		return p.method(nil, nil, ACC_MOD_NONE, nil, false, PK_INIT, true, false, false, false, false, false)
+		return p.method(nil, nil, ACC_MOD_NONE, nil, false, PK_INIT, true, false, false, false, false, false, false)
 	} else if p.aheadIsAsync(tok, true, false) {
 		if tok.ContainsEscape() {
 			return nil, p.errorAt(tok.value, &tok.begin, ERR_ESCAPE_IN_KEYWORD)
 		}
-		return p.method(nil, nil, ACC_MOD_NONE, nil, false, PK_INIT, false, true, false, false, false, false)
+		return p.method(nil, nil, ACC_MOD_NONE, nil, false, PK_INIT, false, true, false, false, false, false, false)
 	}
 	return p.propData()
 }
@@ -5105,7 +5172,7 @@ func (p *Parser) propData() (Node, error) {
 			return nil, err
 		}
 	} else if p.aheadIsArgList(tok) {
-		return p.method(loc, key, ACC_MOD_NONE, compute, false, PK_INIT, false, false, false, false, false, false)
+		return p.method(loc, key, ACC_MOD_NONE, compute, false, PK_INIT, false, false, false, false, false, false, false)
 	} else if compute != nil {
 		return nil, p.errorAt(tok.value, &tok.begin, ERR_COMPUTE_PROP_MISSING_INIT)
 	}
@@ -5124,7 +5191,7 @@ func (p *Parser) propData() (Node, error) {
 }
 
 func (p *Parser) method(loc *Loc, key Node, accMode ACC_MOD, compute *Loc, shorthand bool, kind PropKind,
-	gen bool, async bool, allowNamePVT bool, inclass bool, static bool, declare bool) (Node, error) {
+	gen bool, async bool, allowNamePVT bool, inclass bool, static bool, declare bool, abstract bool) (Node, error) {
 
 	if !inclass && compute != nil {
 		loc = compute
@@ -5212,7 +5279,8 @@ func (p *Parser) method(loc *Loc, key Node, accMode ACC_MOD, compute *Loc, short
 
 	if kind == PK_GETTER && len(params) > 0 {
 		return nil, p.errorAtLoc(params[0].Loc(), ERR_GETTER_SHOULD_NO_PARAM)
-	} else if kind == PK_SETTER {
+	}
+	if kind == PK_SETTER {
 		if len(params) != 1 {
 			return nil, p.errorAtLoc(fnLoc, ERR_SETTER_SHOULD_ONE_PARAM)
 		}
@@ -5235,7 +5303,7 @@ func (p *Parser) method(loc *Loc, key Node, accMode ACC_MOD, compute *Loc, short
 		if err != nil {
 			return nil, err
 		}
-	} else if !declare {
+	} else if !declare && !abstract {
 		return nil, p.errorAt(ahead.value, &ahead.begin, ERR_UNEXPECTED_TOKEN)
 	}
 
@@ -5249,13 +5317,17 @@ func (p *Parser) method(loc *Loc, key Node, accMode ACC_MOD, compute *Loc, short
 
 	p.symtab.LeaveScope()
 
+	if declare || abstract {
+		p.advanceIfSemi(false)
+	}
+
 	value := &FnDec{N_EXPR_FN, p.finLoc(fnLoc), nil, gen, async, params, body, nil, ti}
 	if inclass {
 		if static && p.isName(key, "prototype", false, true) {
 			return nil, p.errorAtLoc(key.Loc(), ERR_STATIC_PROP_PROTOTYPE)
 		}
 
-		return &Method{N_METHOD, p.finLoc(loc), key, static, compute != nil, kind, value, accMode}, nil
+		return &Method{N_METHOD, p.finLoc(loc), key, static, compute != nil, kind, value, accMode, abstract}, nil
 	}
 	return &Prop{N_PROP, p.finLoc(loc), key, nil, value, compute != nil, true, shorthand, false, kind, accMode}, nil
 }

@@ -664,6 +664,7 @@ type PropertyDefinition struct {
 	Value    Expression `json:"value"`
 	Computed bool       `json:"computed"`
 	Static   bool       `json:"static"`
+	Abstract bool       `json:"abstract"`
 }
 
 // https://github.com/estree/estree/blob/master/es2015.md#classdeclaration
@@ -675,6 +676,7 @@ type ClassDeclaration struct {
 	Id         Expression `json:"id"`
 	SuperClass Expression `json:"superClass"`
 	Body       Expression `json:"body"`
+	Abstract   bool       `json:"abstract"`
 }
 
 // https://github.com/estree/estree/blob/master/es2015.md#classexpression
@@ -686,6 +688,7 @@ type ClassExpression struct {
 	Id         Expression `json:"id"`
 	SuperClass Expression `json:"superClass"`
 	Body       Expression `json:"body"`
+	Abstract   bool       `json:"abstract"`
 }
 
 // https://github.com/estree/estree/blob/master/es2022.md#privateidentifier
