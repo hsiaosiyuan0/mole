@@ -990,6 +990,7 @@ func convert(node parser.Node) Node {
 				Static:         n.Static(),
 				TypeParameters: typParams(ti),
 				ReturnType:     typAnnot(ti),
+				Optional:       n.Optional(),
 				Abstract:       n.Abstract(),
 			}
 		}
@@ -1006,6 +1007,22 @@ func convert(node parser.Node) Node {
 		}
 	case parser.N_FIELD:
 		n := node.(*parser.Field)
+		if n.TypInfo() != nil {
+			ti := n.TypInfo()
+			return &TSPropertyDefinition{
+				Type:           "PropertyDefinition",
+				Start:          start(n.Loc()),
+				End:            end(n.Loc()),
+				Loc:            loc(n.Loc()),
+				Key:            convert(n.Key()),
+				Value:          convert(n.Value()),
+				Computed:       n.Computed(),
+				Static:         n.Static(),
+				Abstract:       n.Abstract(),
+				Optional:       n.Optional(),
+				TypeAnnotation: typAnnot(ti),
+			}
+		}
 		return &PropertyDefinition{
 			Type:     "PropertyDefinition",
 			Start:    start(n.Loc()),

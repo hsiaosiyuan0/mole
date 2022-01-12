@@ -29,6 +29,7 @@ const (
 	SPK_NOT_IN          ScopeKind = 1 << iota
 	SPK_PROP_NAME       ScopeKind = 1 << iota
 	SPK_FORMAL_PARAMS   ScopeKind = 1 << iota
+	SPK_ABSTRACT_CLASS  ScopeKind = 1 << iota
 )
 
 type BindKind uint8
@@ -275,6 +276,9 @@ func (s *SymTab) EnterScope(fn bool, arrow bool) *Scope {
 	}
 	if s.Cur.IsKind(SPK_STRICT) {
 		scope.Kind |= SPK_STRICT
+	}
+	if s.Cur.IsKind(SPK_ABSTRACT_CLASS) {
+		scope.Kind |= SPK_ABSTRACT_CLASS
 	}
 	if s.Cur.IsKind(SPK_CLASS_HAS_SUPER) {
 		scope.Kind |= SPK_CLASS_HAS_SUPER

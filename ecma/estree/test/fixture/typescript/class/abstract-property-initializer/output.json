@@ -1,0 +1,3 @@
+{
+  "throws": "Property cannot have an initializer because it's marked abstract at (2:16)"
+}

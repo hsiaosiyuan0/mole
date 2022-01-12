@@ -221,7 +221,22 @@ type TSMethodDefinition struct {
 	Static         bool       `json:"static"`
 	TypeParameters Node       `json:"typeParameters"`
 	ReturnType     Node       `json:"returnType"`
+	Optional       bool       `json:"optional"`
 	Abstract       bool       `json:"abstract"`
+}
+
+type TSPropertyDefinition struct {
+	Type           string     `json:"type"`
+	Start          int        `json:"start"`
+	End            int        `json:"end"`
+	Loc            *SrcLoc    `json:"loc"`
+	Key            Expression `json:"key"`
+	Value          Expression `json:"value"`
+	Computed       bool       `json:"computed"`
+	Static         bool       `json:"static"`
+	Abstract       bool       `json:"abstract"`
+	Optional       bool       `json:"optional"`
+	TypeAnnotation Node       `json:"typeAnnotation"`
 }
 
 type TSAsExpression struct {

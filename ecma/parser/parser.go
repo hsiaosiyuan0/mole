@@ -780,6 +780,12 @@ func (p *Parser) classDec(expr bool, canNameOmitted bool, declare bool, abstract
 
 	scope := p.symtab.EnterScope(true, false)
 	p.enterStrict(true).AddKind(SPK_CLASS)
+	if abstract {
+		scope.AddKind(SPK_ABSTRACT_CLASS)
+	} else {
+		// erase the abstract flag inherits from parent scope
+		scope.EraseKind(SPK_ABSTRACT_CLASS)
+	}
 	if super != nil {
 		scope.AddKind(SPK_CLASS_HAS_SUPER)
 	}
@@ -811,6 +817,7 @@ func (p *Parser) classBody(declare bool) (Node, error) {
 	elems := make([]Node, 0, 3)
 	hasCtor := false
 	pvtNames := make(map[string]Node)
+	scope := p.scope()
 	for {
 		tok := p.lexer.Peek()
 		if tok.value == T_BRACE_R {
@@ -833,6 +840,14 @@ func (p *Parser) classBody(declare bool) (Node, error) {
 			}
 			if p.isName(m.key, "constructor", false, true) {
 				hasCtor = true
+			}
+			if m.abstract && !scope.IsKind(SPK_ABSTRACT_CLASS) {
+				return nil, p.errorAtLoc(m.Loc(), ERR_BARE_ABSTRACT_PROPERTY)
+			}
+		} else if elem.Type() == N_FIELD {
+			f := elem.(*Field)
+			if f.abstract && !scope.IsKind(SPK_ABSTRACT_CLASS) {
+				return nil, p.errorAtLoc(f.Loc(), ERR_BARE_ABSTRACT_PROPERTY)
 			}
 		}
 		if name, key, pvt := p.nameOfProp(elem); pvt {
@@ -990,6 +1005,16 @@ func (p *Parser) classElem(declare bool) (Node, error) {
 			key = &Ident{N_NAME, p.finLoc(propLoc.Clone()), name, false, ahead.ContainsEscape(), nil, kw, p.newTypInfo()}
 		}
 
+		ti := p.newTypInfo()
+		if ti != nil {
+			ques := p.tsAdvanceHook()
+			if ques != nil && key.Type() == N_TS_THIS {
+				return nil, p.errorAtLoc(ques, ERR_THIS_CANNOT_BE_OPTIONAL)
+			}
+			ti.ques = ques
+			key.(NodeWithTypInfo).SetTypInfo(ti)
+		}
+
 		isField, ahead = p.isField(false, name == "get" || name == "set")
 		if isField {
 			return p.field(key, beginLoc, accMod, abstract)
@@ -1052,12 +1077,19 @@ func (p *Parser) field(key Node, static *Loc, accMode ACC_MOD, abstract bool) (N
 	var loc *Loc
 	var err error
 	var compute *Loc
+	var ti *TypInfo
 	if key == nil {
 		key, compute, err = p.classElemName()
 		if err != nil {
 			return nil, err
 		}
+		ti = p.newTypInfo()
+	} else if p.ts {
+		if wt, ok := key.(NodeWithTypInfo); ok {
+			ti = wt.TypInfo()
+		}
 	}
+
 	if static != nil {
 		loc = static.Clone()
 	} else if compute != nil {
@@ -1066,20 +1098,22 @@ func (p *Parser) field(key Node, static *Loc, accMode ACC_MOD, abstract bool) (N
 		loc = key.Loc().Clone()
 	}
 
-	ti := p.newTypInfo()
 	if ti != nil {
 		typAnnot, err := p.tsTypAnnot()
 		if err != nil {
 			return nil, err
 		}
 		ti.typAnnot = typAnnot
-		key.(NodeWithTypInfo).SetTypInfo(ti)
 	}
 
 	var value Node
 	tok := p.lexer.Peek()
 	if tok.value == T_ASSIGN {
+		assignLoc := p.loc()
 		p.lexer.Next()
+		if abstract {
+			return nil, p.errorAtLoc(assignLoc, ERR_ABSTRACT_PROP_WITH_INIT)
+		}
 		value, err = p.assignExpr(true, false, false)
 		if err != nil {
 			return nil, err
@@ -1088,6 +1122,7 @@ func (p *Parser) field(key Node, static *Loc, accMode ACC_MOD, abstract bool) (N
 		if static != nil {
 			loc = static
 		}
+		// above `ti` is discard at here since if the field is method then it does not have `ti`
 		return p.method(loc, key, accMode, compute, false, PK_METHOD, false, false, true, true, static != nil, false, abstract)
 	}
 	p.advanceIfSemi(false)
@@ -1107,7 +1142,7 @@ func (p *Parser) field(key Node, static *Loc, accMode ACC_MOD, abstract bool) (N
 		return nil, p.errorAtLoc(key.Loc(), ERR_CTOR_CANNOT_BE_Field)
 	}
 
-	return &Field{N_FIELD, p.finLoc(loc), key, staticField, compute != nil, value, accMode, abstract}, nil
+	return &Field{N_FIELD, p.finLoc(loc), key, staticField, compute != nil, value, accMode, abstract, ti}, nil
 }
 
 func (p *Parser) classElemName() (Node, *Loc, error) {
@@ -5296,6 +5331,9 @@ func (p *Parser) method(loc *Loc, key Node, accMode ACC_MOD, compute *Loc, short
 	var body Node
 	ahead := p.lexer.Peek()
 	if ahead.value == T_BRACE_L {
+		if abstract {
+			return nil, p.errorAtLoc(loc, ERR_ABSTRACT_METHOD_WITH_IMPL)
+		}
 		body, err = p.fnBody()
 		if gen {
 			p.lexer.popMode()
@@ -5304,7 +5342,16 @@ func (p *Parser) method(loc *Loc, key Node, accMode ACC_MOD, compute *Loc, short
 			return nil, err
 		}
 	} else if !declare && !abstract {
-		return nil, p.errorAt(ahead.value, &ahead.begin, ERR_UNEXPECTED_TOKEN)
+		opt := false
+		if p.ts {
+			if wt, ok := key.(NodeWithTypInfo); ok {
+				opt = wt.TypInfo().Optional()
+			}
+		}
+		// `async?(): void` is legal in ts class
+		if !opt {
+			return nil, p.errorAt(ahead.value, &ahead.begin, ERR_UNEXPECTED_TOKEN)
+		}
 	}
 
 	isStrict := scope.IsKind(SPK_STRICT)

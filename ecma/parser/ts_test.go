@@ -1172,7 +1172,7 @@ func TestTs78(t *testing.T) {
 	AssertEqual(t, true, f.static, "should be ok")
 	AssertEqual(t, ACC_MOD_PUB, f.accMode, "should be ok")
 	AssertEqual(t, "b", f.key.(*Ident).Text(), "should be ok")
-	AssertEqual(t, N_TS_NUM, f.key.(*Ident).ti.typAnnot.(*TsTypAnnot).tsTyp.Type(), "should be ok")
+	AssertEqual(t, N_TS_NUM, f.ti.typAnnot.(*TsTypAnnot).tsTyp.Type(), "should be ok")
 }
 
 func TestTs79(t *testing.T) {

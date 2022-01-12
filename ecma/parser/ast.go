@@ -2126,6 +2126,13 @@ func (n *Method) Static() bool {
 	return n.static
 }
 
+func (n *Method) Optional() bool {
+	if wt, ok := n.key.(NodeWithTypInfo); ok {
+		return wt.TypInfo().Optional()
+	}
+	return false
+}
+
 func (n *Method) Type() NodeType {
 	return n.typ
 }
@@ -2143,6 +2150,7 @@ type Field struct {
 	value    Node
 	accMode  ACC_MOD
 	abstract bool
+	ti       *TypInfo
 }
 
 func (n *Field) Key() Node {
@@ -2171,6 +2179,21 @@ func (n *Field) Type() NodeType {
 
 func (n *Field) Loc() *Loc {
 	return n.loc
+}
+
+func (n *Field) Optional() bool {
+	if wt, ok := n.key.(NodeWithTypInfo); ok {
+		return wt.TypInfo().Optional()
+	}
+	return false
+}
+
+func (n *Field) TypInfo() *TypInfo {
+	return n.ti
+}
+
+func (n *Field) SetTypInfo(ti *TypInfo) {
+	n.ti = ti
 }
 
 type StaticBlock struct {

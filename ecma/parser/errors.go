@@ -170,5 +170,8 @@ const (
 	ERR_ASYNC_IN_AMBIENT             = "`async` modifier cannot be used in an ambient context"
 	ERR_INIT_NOT_ALLOWED             = "Initializers are not allowed in ambient contexts"
 	ERR_UNEXPECTED_TYPE_ANNOTATION   = "Unexpected type annotation"
-	ERR_ABSTRACT_MIXED_WITH_STATIC   = "'static' modifier cannot be used with 'abstract' modifier"
+	ERR_ABSTRACT_MIXED_WITH_STATIC   = "`static` modifier cannot be used with `abstract` modifier"
+	ERR_BARE_ABSTRACT_PROPERTY       = "Abstract methods can only appear within an abstract class"
+	ERR_ABSTRACT_METHOD_WITH_IMPL    = "Method cannot have an implementation because it's marked abstract"
+	ERR_ABSTRACT_PROP_WITH_INIT      = "Property cannot have an initializer because it's marked abstract"
 )
