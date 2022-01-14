@@ -84,6 +84,8 @@ func newSourceState() SourceState {
 //
 // the returned rune will be `utf8.RuneError` if the position
 // is not well encoded in utf8
+//
+// `\r`, `\r\n` will be unified to `\n` which has an alias `span.EOL`
 type Source struct {
 	Path string
 	code string
@@ -108,6 +110,7 @@ func NewSource(path string, code string) *Source {
 }
 
 const (
+	// used to unify `\r`, `\r\n` to `\n`, despite other line-terminators in unicode
 	EOL = rune('\n')
 	EOF = rune(-1)
 )

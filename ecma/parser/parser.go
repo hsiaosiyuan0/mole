@@ -7,6 +7,15 @@ import (
 	span "github.com/hsiaosiyuan0/mole/span"
 )
 
+// parser is one-pass mode and returns the first error in which either syntax-error or semantic-error
+//
+// it supports below syntaxes out-of-box by setting the `ParserOpts.Feature`:
+//
+// - ecmascript up to 2020
+// - jsx
+// - typescript
+//
+// an AST couple with a Symtab will be constructed after the source is processed successfully
 type Parser struct {
 	lexer           *Lexer
 	symtab          *SymTab
