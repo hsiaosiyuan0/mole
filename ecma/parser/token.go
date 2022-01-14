@@ -1,5 +1,7 @@
 package parser
 
+import "github.com/hsiaosiyuan0/mole/span"
+
 type Pos struct {
 	line int
 	col  int
@@ -23,13 +25,16 @@ func (p *Pos) Clone() *Pos {
 type Token struct {
 	value TokenValue
 	text  string
-	raw   SourceRange
+	raw   span.Range
 	begin Pos
 	end   Pos
+
 	// len of the codepoints in token. during the token is processing,
 	// it will store the begin pos of that token
-	len                 int
-	afterLineTerminator bool
+	len int
+
+	// whether the token is after a line terminator or not
+	afterLineTerm bool
 
 	ext interface{}
 }
@@ -83,10 +88,6 @@ func (t *Token) CanBePropKey() (string, bool, bool) {
 
 func (t *Token) IsLegal() bool {
 	return t.value != T_ILLEGAL
-}
-
-func (t *Token) isEof() bool {
-	return t.value == T_EOF
 }
 
 func (t *Token) RawText() string {
@@ -178,7 +179,7 @@ type TokExtTplSpan struct {
 	// store the internal string
 	str      string
 	strLen   int
-	strRng   SourceRange
+	strRng   span.Range
 	strBegin Pos
 	strEnd   Pos
 
@@ -193,8 +194,8 @@ type TokExtTplSpan struct {
 }
 
 type TokExtRegexp struct {
-	pattern *SourceRange
-	flags   *SourceRange
+	pattern *span.Range
+	flags   *span.Range
 }
 
 func (t *TokExtRegexp) Pattern() string {

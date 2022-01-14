@@ -698,7 +698,7 @@ func (p *Parser) tsPrimary(rough bool) (Node, error) {
 	if node != nil {
 		ahead = p.lexer.Peek()
 		av = ahead.value
-		if av == T_BRACKET_L && !ahead.afterLineTerminator {
+		if av == T_BRACKET_L && !ahead.afterLineTerm {
 			// array type
 			node, err = p.tsArr(node)
 			if err != nil {
@@ -1104,7 +1104,7 @@ func (p *Parser) tsTypArgs() (Node, error) {
 		}
 		args = append(args, arg)
 	}
-	return &TsParamsInst{N_TS_PARAM_DEC, p.finLoc(loc), args}, nil
+	return &TsParamsInst{N_TS_PARAM_INST, p.finLoc(loc), args}, nil
 }
 
 func (p *Parser) tsCallSig(typParams Node, loc *Loc) (Node, error) {
@@ -1457,11 +1457,11 @@ func (p *Parser) tsNoNull(node Node) Node {
 	}
 
 	ahead := p.lexer.Peek()
-	if ahead.afterLineTerminator || ahead.value != T_NOT {
+	if ahead.afterLineTerm || ahead.value != T_NOT {
 		return node
 	}
 
-	p.lexer.NextAndRevise(T_TS_NO_NULL)
+	p.lexer.NextRevise(T_TS_NO_NULL)
 	return &TsNoNull{N_TS_NO_NULL, p.finLoc(node.Loc().Clone()), node}
 }
 
@@ -1477,8 +1477,8 @@ func (p *Parser) isTsLhs(node Node) bool {
 
 func (p *Parser) tsAheadIsAbstract(tok *Token, prop bool, pvt bool) bool {
 	if p.ts && IsName(tok, "abstract", false) {
-		ahead := p.lexer.PeekN(2)
-		if ahead.afterLineTerminator {
+		ahead := p.lexer.peek2nd()
+		if ahead.afterLineTerm {
 			return false
 		}
 		if ahead.value == T_CLASS ||

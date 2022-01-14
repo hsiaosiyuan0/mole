@@ -11,7 +11,7 @@ import (
 	"strings"
 	"text/template"
 
-	. "github.com/hsiaosiyuan0/mole/internal"
+	"github.com/hsiaosiyuan0/mole/fuzz"
 )
 
 type EntitiesData struct {
@@ -100,5 +100,5 @@ var HTMLEntityNames = map[string]bool{
 		log.Fatal(err)
 	}
 
-	Shell("gofmt", "-w", file)
+	fuzz.Shell("gofmt", "-w", file)
 }

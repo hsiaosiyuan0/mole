@@ -99,6 +99,17 @@ func (n *TsRef) Name() Node {
 	return n.name
 }
 
+func (n *TsRef) Args() []Node {
+	if n.HasArgs() {
+		return n.args.(*TsParamsInst).params
+	}
+	return []Node{}
+}
+
+func (n *TsRef) ParamsInst() Node {
+	return n.args
+}
+
 func (n *TsRef) HasArgs() bool {
 	return n.args != nil && len(n.args.(*TsParamsInst).params) > 0
 }

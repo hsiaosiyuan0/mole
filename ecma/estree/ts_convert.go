@@ -71,11 +71,21 @@ func convertTsTyp(node parser.Node) Node {
 	case parser.N_TS_REF:
 		n := node.(*parser.TsRef)
 		return &TSTypeReference{
-			Type:     "TSTypeReference",
-			Start:    start(node.Loc()),
-			End:      end(node.Loc()),
-			Loc:      loc(node.Loc()),
-			TypeName: convert(n.Name()),
+			Type:           "TSTypeReference",
+			Start:          start(node.Loc()),
+			End:            end(node.Loc()),
+			Loc:            loc(node.Loc()),
+			TypeName:       convert(n.Name()),
+			TypeParameters: convert(n.ParamsInst()),
+		}
+	case parser.N_TS_PARAM_INST:
+		n := node.(*parser.TsParamsInst)
+		return &TSTypeParameterInstantiation{
+			Type:   "TSTypeParameterInstantiation",
+			Start:  start(node.Loc()),
+			End:    end(node.Loc()),
+			Loc:    loc(node.Loc()),
+			Params: elems(n.Params()),
 		}
 	case parser.N_TS_PARAM:
 		n := node.(*parser.TsParam)

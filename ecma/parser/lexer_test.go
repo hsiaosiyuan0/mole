@@ -3,16 +3,17 @@ package parser
 import (
 	"testing"
 
-	. "github.com/hsiaosiyuan0/mole/internal"
+	. "github.com/hsiaosiyuan0/mole/fuzz"
+	span "github.com/hsiaosiyuan0/mole/span"
 )
 
 func TestReadName(t *testing.T) {
-	s := NewSource("", "\\u0074 t\\u0065st")
+	s := span.NewSource("", "\\u0074 t\\u0065st")
 	l := NewLexer(s)
 	tok := l.Next()
 	AssertEqual(t, true, tok.IsLegal(), "should be ok t")
 	AssertEqual(t, "t", tok.text, "should be t")
-	AssertEqual(t, 6, tok.raw.hi, "should be t")
+	AssertEqual(t, 6, tok.raw.Hi, "should be t")
 
 	tok = l.Next()
 	AssertEqual(t, true, tok.IsLegal(), "should be ok test")
@@ -20,7 +21,7 @@ func TestReadName(t *testing.T) {
 }
 
 func TestReadId(t *testing.T) {
-	s := NewSource("", "if with void")
+	s := span.NewSource("", "if with void")
 	l := NewLexer(s)
 	tok := l.Next()
 	AssertEqual(t, true, tok.IsLegal(), "should be ok if")
@@ -39,7 +40,7 @@ func TestReadId(t *testing.T) {
 }
 
 func TestReadNum(t *testing.T) {
-	s := NewSource("", "1 23 1e1 .1e1 .1_1 1n 0b01 0B01 0o01 0O01 0x01 0X01 0x0_1")
+	s := span.NewSource("", "1 23 1e1 .1e1 .1_1 1n 0b01 0B01 0o01 0O01 0x01 0X01 0x0_1")
 	l := NewLexer(s)
 	l.feat = FEAT_BIGINT | FEAT_NUM_SEP
 	tok := l.Next()
@@ -96,7 +97,7 @@ func TestReadNum(t *testing.T) {
 }
 
 func TestReadStr(t *testing.T) {
-	s := NewSource("", `
+	s := span.NewSource("", `
   'h'
   'a\nb'
   't\u0065st'
@@ -132,7 +133,7 @@ func TestReadStr(t *testing.T) {
 }
 
 func TestReadSymbol(t *testing.T) {
-	s := NewSource("", `
+	s := span.NewSource("", `
   { }
   ( )
   [ ]
@@ -212,7 +213,7 @@ func TestReadSymbol(t *testing.T) {
 }
 
 func TestReadRegexp(t *testing.T) {
-	s := NewSource("", `
+	s := span.NewSource("", `
   /a/ig
   a / /b/i
   `)
@@ -232,7 +233,7 @@ func TestReadRegexp(t *testing.T) {
 	AssertEqual(t, "i", tok.ext.(*TokExtRegexp).flags.Text(), "should be tok regexp flags /b/i")
 }
 func TestReadTpl(t *testing.T) {
-	s := NewSource("", "`abc`"+"`a${ {} }b${c}d`")
+	s := span.NewSource("", "`abc`"+"`a${ {} }b${c}d`")
 	l := NewLexer(s)
 
 	tok := l.Next()
@@ -263,7 +264,7 @@ func TestReadTpl(t *testing.T) {
 }
 
 func TestReadNestTpl(t *testing.T) {
-	s := NewSource("", "`a${ 1 + {{`c${d}e`}} }b`")
+	s := span.NewSource("", "`a${ 1 + {{`c${d}e`}} }b`")
 	l := NewLexer(s)
 
 	tok := l.Next()
@@ -297,44 +298,44 @@ func TestReadNestTpl(t *testing.T) {
 }
 
 func TestReadTplOctalEscape(t *testing.T) {
-	s := NewSource("", "`\\1`")
+	s := span.NewSource("", "`\\1`")
 	l := NewLexer(s)
 	tok := l.Next()
 	AssertEqual(t, T_TPL_HEAD, tok.value, "should be tpl head")
 	AssertEqual(t, true, tok.ext.(*TokExtTplSpan).IllegalEscape != nil, "should be tpl head")
-	AssertEqual(t, 1, len(l.mode), "mode should be balanced")
+	AssertEqual(t, 1, len(l.state.mode), "mode should be balanced")
 }
 
 func TestReadComment(t *testing.T) {
-	s := NewSource("", `
+	s := span.NewSource("", `
   //
   `)
 	l := NewLexer(s)
 	l.Next()
 	AssertEqual(t, "//", l.lastComment().Text(), "should be tok comment //")
 
-	s = NewSource("", `
+	s = span.NewSource("", `
   // comment1
   `)
 	l = NewLexer(s)
 	l.Next()
 	AssertEqual(t, "// comment1", l.lastComment().Text(), "should be tok // comment1")
 
-	s = NewSource("", `
+	s = span.NewSource("", `
   /**/
   `)
 	l = NewLexer(s)
 	l.Next()
 	AssertEqual(t, "/**/", l.lastComment().Text(), "should be tok /**/")
 
-	s = NewSource("", `
+	s = span.NewSource("", `
   /* comment2 */
   `)
 	l = NewLexer(s)
 	l.Next()
 	AssertEqual(t, "/* comment2 */", l.lastComment().Text(), "should be tok /* comment2 */")
 
-	s = NewSource("", `/**
+	s = span.NewSource("", `/**
 
   comment 3
   **/
@@ -348,14 +349,14 @@ func TestReadComment(t *testing.T) {
 }
 
 func TestAfterLineTerminator(t *testing.T) {
-	s := NewSource("", "a\n1")
+	s := span.NewSource("", "a\n1")
 	l := NewLexer(s)
 
 	tok := l.Next()
 	AssertEqual(t, T_NAME, tok.value, "should be tok a")
-	AssertEqual(t, false, tok.afterLineTerminator, "mode should be afterLineTerminator false")
+	AssertEqual(t, false, tok.afterLineTerm, "mode should be afterLineTerminator false")
 
 	tok = l.Next()
 	AssertEqual(t, T_NUM, tok.value, "should be tok 1")
-	AssertEqual(t, true, tok.afterLineTerminator, "mode should be afterLineTerminator true")
+	AssertEqual(t, true, tok.afterLineTerm, "mode should be afterLineTerminator true")
 }

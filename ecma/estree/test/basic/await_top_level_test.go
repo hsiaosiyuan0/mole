@@ -5,7 +5,7 @@ import (
 
 	. "github.com/hsiaosiyuan0/mole/ecma/estree/test"
 	"github.com/hsiaosiyuan0/mole/ecma/parser"
-	. "github.com/hsiaosiyuan0/mole/internal"
+	. "github.com/hsiaosiyuan0/mole/fuzz"
 )
 
 func TestAwaitTopLevel1(t *testing.T) {

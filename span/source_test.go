@@ -1,26 +1,26 @@
-package parser
+package span
 
 import (
 	"testing"
 
-	. "github.com/hsiaosiyuan0/mole/internal"
+	. "github.com/hsiaosiyuan0/mole/fuzz"
 )
 
 func TestEOL(t *testing.T) {
 	s := NewSource("", "\u2028\u2029\u000a\u000d\u000a")
-	AssertEqual(t, 1, s.line, "line should begin from 1")
+	AssertEqual(t, 1, s.Line(), "line should begin from 1")
 
 	AssertEqual(t, '\u2028', s.Read(), "\\u2028 should be EOL")
-	AssertEqual(t, 1, s.line, "\\u2028 should step line")
+	AssertEqual(t, 1, s.Line(), "\\u2028 should step line")
 
 	AssertEqual(t, '\u2029', s.Read(), "\\u2029 should be EOL")
-	AssertEqual(t, 1, s.line, "\\u2028 should step line")
+	AssertEqual(t, 1, s.Line(), "\\u2028 should step line")
 
-	AssertEqual(t, EOL, s.Read(), "\\u000a should be EOL")
-	AssertEqual(t, 2, s.line, "\\u000a should step line")
+	AssertEqual(t, '\u000a', s.Read(), "\\u000a should be EOL")
+	AssertEqual(t, 2, s.Line(), "\\u000a should step line")
 
-	AssertEqual(t, EOL, s.Read(), "\\u000d\\u000a should be EOL")
-	AssertEqual(t, 3, s.line, "\\u000d should step line")
+	AssertEqual(t, '\u000d', s.Read(), "\\u000d\\u000a should be EOL")
+	AssertEqual(t, 3, s.Line(), "\\u000d should step line")
 }
 
 func TestAhead(t *testing.T) {
@@ -32,7 +32,7 @@ func TestAhead(t *testing.T) {
 	AssertEqual(t, 'e', s.Peek(), "next should be e")
 	AssertEqual(t, 'e', s.Read(), "next should be e")
 	AssertEqual(t, 'l', s.Read(), "next should be l")
-	AssertEqual(t, 0, s.pl, "peek buf should be empty")
+	AssertEqual(t, false, s.state.rb.readable(), "peek buf should be empty")
 
 	AssertEqual(t, 'l', s.Read(), "next should be l")
 	AssertEqual(t, 'o', s.Read(), "next should be o")

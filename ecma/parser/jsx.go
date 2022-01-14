@@ -171,7 +171,7 @@ func (p *Parser) jsxExpr(loc *Loc) (Node, error) {
 		// adjust loc of the empty node
 		locAfterBrace.end.line = tok.begin.line
 		locAfterBrace.end.col = tok.begin.col - 1
-		locAfterBrace.rng.end = tok.raw.lo
+		locAfterBrace.rng.end = tok.raw.Lo
 		empty = &JsxEmpty{N_JSX_EMPTY, locAfterBrace}
 		expr = &JsxExprSpan{N_JSX_EXPR_SPAN, p.finLoc(loc), empty}
 	} else {
@@ -221,16 +221,16 @@ func (p *Parser) isCloseTag(open Node, close Node) bool {
 
 // whitespace before `LT`
 func (p *Parser) jsxWsTxt() Node {
-	if p.lexer.prevWs.len == 0 {
+	if p.lexer.state.prevWs.len == 0 {
 		return nil
 	}
 
 	loc := p.loc()
-	prevWs := &p.lexer.prevWs
+	prevWs := &p.lexer.state.prevWs
 	loc.begin = prevWs.begin.Clone()
 	loc.end = prevWs.end.Clone()
-	loc.rng.start = prevWs.raw.lo
-	loc.rng.end = prevWs.raw.hi
+	loc.rng.start = prevWs.raw.Lo
+	loc.rng.end = prevWs.raw.Hi
 	prevWs.len = 0
 	return &JsxText{N_JSX_TXT, loc, loc.Text()}
 }

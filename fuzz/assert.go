@@ -1,4 +1,4 @@
-package internal
+package fuzz
 
 import (
 	"reflect"

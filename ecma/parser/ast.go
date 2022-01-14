@@ -5,6 +5,8 @@ import (
 	"math/big"
 	"strconv"
 	"strings"
+
+	span "github.com/hsiaosiyuan0/mole/span"
 )
 
 // below AST nodes are described as: https://github.com/estree/estree/blob/master/es5.md
@@ -44,7 +46,7 @@ func (r *Range) Clone() *Range {
 }
 
 type Loc struct {
-	src   *Source
+	src   *span.Source
 	begin *Pos
 	end   *Pos
 	rng   *Range
@@ -60,7 +62,7 @@ func NewLoc() *Loc {
 }
 
 func (l *Loc) Source() string {
-	return l.src.path
+	return l.src.Path
 }
 
 func (l *Loc) Begin() *Pos {
@@ -85,7 +87,7 @@ func (l *Loc) Clone() *Loc {
 }
 
 func (l *Loc) Text() string {
-	return l.src.code[l.rng.start:l.rng.end]
+	return l.src.Text(l.rng.start, l.rng.end)
 }
 
 type Prog struct {
@@ -2100,6 +2102,7 @@ type Method struct {
 	value    Node
 	accMode  ACC_MOD
 	abstract bool
+	ti       *TypInfo
 }
 
 func (n *Method) Kind() string {
@@ -2126,19 +2129,24 @@ func (n *Method) Static() bool {
 	return n.static
 }
 
-func (n *Method) Optional() bool {
-	if wt, ok := n.key.(NodeWithTypInfo); ok {
-		return wt.TypInfo().Optional()
-	}
-	return false
-}
-
 func (n *Method) Type() NodeType {
 	return n.typ
 }
 
 func (n *Method) Loc() *Loc {
 	return n.loc
+}
+
+func (n *Method) Optional() bool {
+	return n.ti.Optional()
+}
+
+func (n *Method) TypInfo() *TypInfo {
+	return n.ti
+}
+
+func (n *Method) SetTypInfo(ti *TypInfo) {
+	n.ti = ti
 }
 
 type Field struct {
@@ -2182,10 +2190,7 @@ func (n *Field) Loc() *Loc {
 }
 
 func (n *Field) Optional() bool {
-	if wt, ok := n.key.(NodeWithTypInfo); ok {
-		return wt.TypInfo().Optional()
-	}
-	return false
+	return n.ti.Optional()
 }
 
 func (n *Field) TypInfo() *TypInfo {

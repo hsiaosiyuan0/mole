@@ -13,14 +13,15 @@ import (
 
 	"github.com/hsiaosiyuan0/mole/ecma/estree"
 	"github.com/hsiaosiyuan0/mole/ecma/parser"
-	"github.com/hsiaosiyuan0/mole/internal"
+	internal "github.com/hsiaosiyuan0/mole/fuzz"
+	"github.com/hsiaosiyuan0/mole/span"
 )
 
 func NewParser(code string, opts *parser.ParserOpts) *parser.Parser {
 	if opts == nil {
 		opts = parser.NewParserOpts()
 	}
-	s := parser.NewSource("", code)
+	s := span.NewSource("", code)
 	return parser.NewParser(s, opts)
 }
 
@@ -34,7 +35,7 @@ func Compile(code string) (string, error) {
 }
 
 func CompileWithOpts(code string, opts *parser.ParserOpts) (string, error) {
-	s := parser.NewSource("", code)
+	s := span.NewSource("", code)
 	p := parser.NewParser(s, opts)
 	ast, err := p.Prog()
 	if err != nil {

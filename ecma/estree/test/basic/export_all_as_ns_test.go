@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	. "github.com/hsiaosiyuan0/mole/ecma/estree/test"
-	. "github.com/hsiaosiyuan0/mole/internal"
+	. "github.com/hsiaosiyuan0/mole/fuzz"
 )
 
 func TestExportAllAsNS1(t *testing.T) {

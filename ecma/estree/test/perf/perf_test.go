@@ -8,10 +8,11 @@ import (
 
 	"github.com/hsiaosiyuan0/mole/ecma/estree"
 	"github.com/hsiaosiyuan0/mole/ecma/parser"
+	"github.com/hsiaosiyuan0/mole/span"
 )
 
 func compileToESTree(code string, toEstree bool) error {
-	s := parser.NewSource("", code)
+	s := span.NewSource("", code)
 	p := parser.NewParser(s, parser.NewParserOpts())
 	ast, err := p.Prog()
 	if err != nil {

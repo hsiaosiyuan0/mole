@@ -6,11 +6,12 @@ import (
 
 	"github.com/hsiaosiyuan0/mole/ecma/estree"
 	"github.com/hsiaosiyuan0/mole/ecma/parser"
+	"github.com/hsiaosiyuan0/mole/span"
 )
 
 func compileToJson(src string) (string, error) {
 	opts := parser.NewParserOpts()
-	s := parser.NewSource("", src)
+	s := span.NewSource("", src)
 	p := parser.NewParser(s, opts)
 	ast, err := p.Prog()
 	if err != nil {

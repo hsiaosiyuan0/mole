@@ -3,7 +3,7 @@ package parser
 import (
 	"testing"
 
-	. "github.com/hsiaosiyuan0/mole/internal"
+	. "github.com/hsiaosiyuan0/mole/fuzz"
 )
 
 func TestJSX(t *testing.T) {

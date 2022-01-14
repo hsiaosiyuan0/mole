@@ -3,7 +3,8 @@ package parser
 import (
 	"testing"
 
-	. "github.com/hsiaosiyuan0/mole/internal"
+	. "github.com/hsiaosiyuan0/mole/fuzz"
+	span "github.com/hsiaosiyuan0/mole/span"
 )
 
 func compile(code string, opts *ParserOpts) (Node, error) {
@@ -15,7 +16,7 @@ func newParser(code string, opts *ParserOpts) *Parser {
 	if opts == nil {
 		opts = NewParserOpts()
 	}
-	s := NewSource("", code)
+	s := span.NewSource("", code)
 	return NewParser(s, opts)
 }
 

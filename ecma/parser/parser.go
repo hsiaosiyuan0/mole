@@ -3,6 +3,8 @@ package parser
 import (
 	"errors"
 	"fmt"
+
+	span "github.com/hsiaosiyuan0/mole/span"
 )
 
 type Parser struct {
@@ -72,13 +74,13 @@ func (o *ParserOpts) MergeJson(obj map[string]interface{}) {
 	}
 }
 
-func NewParser(src *Source, opts *ParserOpts) *Parser {
+func NewParser(src *span.Source, opts *ParserOpts) *Parser {
 	parser := &Parser{}
 	parser.Setup(src, opts)
 	return parser
 }
 
-func (p *Parser) Setup(src *Source, opts *ParserOpts) {
+func (p *Parser) Setup(src *span.Source, opts *ParserOpts) {
 	if opts.Feature&FEAT_ASYNC_AWAIT == 0 {
 		opts.Feature = opts.Feature.Off(FEAT_GLOBAL_ASYNC)
 	}
@@ -121,8 +123,8 @@ func (p *Parser) Prog() (Node, error) {
 
 	pg.stmts = stmts
 	pg.loc = p.finLoc(loc)
-	pg.loc.end.line = p.lexer.src.line
-	pg.loc.end.col = p.lexer.src.col
+	pg.loc.end.line = p.lexer.src.Line()
+	pg.loc.end.col = p.lexer.src.Col()
 	pg.loc.rng.end = p.lexer.src.Ofst()
 
 	if err := p.checkExp(); err != nil {
@@ -1300,13 +1302,13 @@ func (p *Parser) throwStmt() (Node, error) {
 	tok := p.lexer.Peek()
 	var arg Node
 	var err error
-	if tok.value != T_ILLEGAL && tok.value != T_EOF && !tok.afterLineTerminator {
+	if tok.value != T_ILLEGAL && tok.value != T_EOF && !tok.afterLineTerm {
 		arg, err = p.expr()
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		if tok.afterLineTerminator {
+		if tok.afterLineTerm {
 			return nil, p.errorAtLoc(loc, ERR_ILLEGAL_NEWLINE_AFTER_THROW)
 		}
 		return nil, p.errorTok(tok)
@@ -1334,7 +1336,7 @@ func (p *Parser) retStmt() (Node, error) {
 		tok.value != T_PAREN_R &&
 		tok.value != T_BRACKET_R &&
 		// tok.value != T_COMMENT &&
-		tok.value != T_EOF && !tok.afterLineTerminator {
+		tok.value != T_EOF && !tok.afterLineTerm {
 		arg, err = p.expr()
 		if err != nil {
 			return nil, err
@@ -1401,7 +1403,7 @@ func (p *Parser) brkStmt() (Node, error) {
 	p.lexer.Next()
 
 	tok := p.lexer.Peek()
-	if tok.value == T_NAME && !tok.afterLineTerminator {
+	if tok.value == T_NAME && !tok.afterLineTerm {
 		label, err := p.ident(nil, false)
 		if err != nil {
 			return nil, err
@@ -1437,7 +1439,7 @@ func (p *Parser) contStmt() (Node, error) {
 	p.lexer.Next()
 
 	tok := p.lexer.Peek()
-	if tok.value == T_NAME && !tok.afterLineTerminator {
+	if tok.value == T_NAME && !tok.afterLineTerm {
 		label, err := p.ident(nil, false)
 		if err != nil {
 			return nil, err
@@ -1524,8 +1526,7 @@ func (p *Parser) switchStmt() (Node, error) {
 }
 
 func (p *Parser) switchCase(tok *Token) (*SwitchCase, error) {
-	loc := p.loc()
-	p.lexer.nextTok()
+	loc := p.locFromTok(p.lexer.Next())
 
 	var test Node
 	var err error
@@ -1781,7 +1782,7 @@ func (p *Parser) forStmt() (Node, error) {
 		if !isIn {
 			revise = T_OF
 		}
-		p.lexer.NextAndRevise(revise)
+		p.lexer.NextRevise(revise)
 
 		right, err := p.assignExpr(true, false, false)
 		if err != nil {
@@ -1852,8 +1853,8 @@ func (p *Parser) forStmt() (Node, error) {
 
 func (p *Parser) aheadIsAsync(tok *Token, prop bool, pvt bool) bool {
 	if p.feat&FEAT_ASYNC_AWAIT != 0 && IsName(tok, "async", true) {
-		ahead := p.lexer.PeekN(2)
-		if ahead.afterLineTerminator {
+		ahead := p.lexer.peek2nd()
+		if ahead.afterLineTerm {
 			return false
 		}
 		if ahead.value == T_FUNC ||
@@ -1958,7 +1959,7 @@ func (p *Parser) fnDec(expr bool, async *Token, canNameOmitted bool, declare boo
 	var args []Node
 	var typArgs Node
 	ahead := p.lexer.Peek()
-	if id != nil && ahead.value == T_ARROW && !ahead.afterLineTerminator {
+	if id != nil && ahead.value == T_ARROW && !ahead.afterLineTerm {
 		// async a => {}
 		args = make([]Node, 1)
 		args[0] = id
@@ -2002,7 +2003,7 @@ func (p *Parser) fnDec(expr bool, async *Token, canNameOmitted bool, declare boo
 	tok = p.lexer.Peek()
 	arrow := false
 	var arrowLoc *Loc
-	if tok.value == T_ARROW && !tok.afterLineTerminator {
+	if tok.value == T_ARROW && !tok.afterLineTerm {
 		if !fn {
 			arrowLoc = p.locFromTok(p.lexer.Next())
 			arrow = true
@@ -2049,7 +2050,7 @@ func (p *Parser) fnDec(expr bool, async *Token, canNameOmitted bool, declare boo
 			if body, err = p.expr(); err != nil {
 				return nil, err
 			}
-		} else if fn && !expr && tok.value == T_FUNC && tok.afterLineTerminator && p.ts {
+		} else if fn && !expr && tok.value == T_FUNC && tok.afterLineTerm && p.ts {
 			// ts func overloads:
 			// `function f(a:number)`
 			// `function f(): any {}`
@@ -2057,7 +2058,7 @@ func (p *Parser) fnDec(expr bool, async *Token, canNameOmitted bool, declare boo
 			if err = p.tsIsFnSigValid(fnRef.Node.Text()); err != nil {
 				return nil, err
 			}
-		} else if (tok.value == T_SEMI || tok.afterLineTerminator) && declare {
+		} else if (tok.value == T_SEMI || tok.afterLineTerm) && declare {
 			// AmbientFunctionDeclaration
 			// `declare function a();`
 		} else {
@@ -2434,7 +2435,7 @@ func (p *Parser) aheadIsVarDec(tok *Token) (bool, TokenValue) {
 		// - `let a`
 		ahead := p.lexer.PeekGrow()
 		av := ahead.value
-		if !ahead.afterLineTerminator && (av == T_NAME ||
+		if !ahead.afterLineTerm && (av == T_NAME ||
 			(av > T_CTX_KEYWORD_BEGIN && av < T_CTX_KEYWORD_END) ||
 			av == T_BRACE_L || av == T_BRACKET_L) {
 			return true, v
@@ -2959,7 +2960,7 @@ func (p *Parser) isField(static bool, getter bool) (bool, *Token) {
 		return isField, ahead
 	}
 
-	return ahead.afterLineTerminator, ahead
+	return ahead.afterLineTerm, ahead
 }
 
 func (p *Parser) propName(allowNamePVT bool, maybeMethod bool, tsRough bool) (Node, *Loc, error) {
@@ -3222,7 +3223,7 @@ func (p *Parser) seqExpr(expr Node, notGT bool) (Node, error) {
 				return nil, err
 			}
 			if expr == nil {
-				return nil, p.errorAt(p.lexer.prtVal, &p.lexer.prtBegin, "")
+				return nil, p.errorAt(p.lexer.state.prtVal, &p.lexer.state.prtBegin, "")
 			}
 			exprs = append(exprs, expr)
 		} else {
@@ -3252,7 +3253,7 @@ func (p *Parser) yieldExpr() (Node, error) {
 	kind := TokenKinds[tok.value]
 	tv := tok.value
 	startExpr := kind.StartExpr || p.feat&FEAT_JSX != 0 && tv == T_LT
-	if tok.afterLineTerminator || !startExpr && tv != T_MUL {
+	if tok.afterLineTerm || !startExpr && tv != T_MUL {
 		return &YieldExpr{N_EXPR_YIELD, p.finLoc(loc), false, nil, nil}, nil
 	}
 
@@ -3291,7 +3292,7 @@ func (p *Parser) assignExpr(checkLhs bool, notGT bool, notHook bool) (Node, erro
 	}
 
 	tok := p.lexer.Peek()
-	if lhs.Type() == N_NAME && tok.value == T_ARROW && !tok.afterLineTerminator {
+	if lhs.Type() == N_NAME && tok.value == T_ARROW && !tok.afterLineTerm {
 		fn, err := p.arrowFn(loc, []Node{lhs}, nil, nil)
 		if err != nil {
 			return nil, err
@@ -3548,7 +3549,7 @@ func (p *Parser) updateExpr(typArgs Node, typArgsLoc *Loc) (Node, error) {
 	}
 
 	tok = p.lexer.Peek()
-	postfix := !tok.afterLineTerminator && (tok.value == T_INC || tok.value == T_DEC)
+	postfix := !tok.afterLineTerm && (tok.value == T_INC || tok.value == T_DEC)
 	if !postfix {
 		// for the type info before the arrow fn in this stmt `let a = <T, R>(a: T): void => { a++ }`,
 		// it's typeParams of the arrowFn rather than typeAssert
@@ -3723,16 +3724,16 @@ func (p *Parser) addLtTok(line, col int) {
 
 func (p *Parser) pushState() {
 	p.lexer.pushState()
-	p.lexer.src.pushState()
+	p.lexer.src.PushState()
 }
 
 func (p *Parser) discardState() {
 	p.lexer.discardState()
-	p.lexer.src.discardState()
+	p.lexer.src.DiscardState()
 }
 
 func (p *Parser) popState() {
-	p.lexer.src.popState()
+	p.lexer.src.PopState()
 	p.lexer.popState()
 }
 
@@ -3903,10 +3904,10 @@ func (p *Parser) tplExpr(tag Node) (Node, error) {
 			}
 
 			loc := &Loc{
-				src:   ext.strRng.src,
+				src:   ext.strRng.Src,
 				begin: ext.strBegin.Clone(),
 				end:   ext.strEnd.Clone(),
-				rng:   &Range{ext.strRng.lo, ext.strRng.hi},
+				rng:   &Range{ext.strRng.Lo, ext.strRng.Hi},
 			}
 			p.lexer.Next()
 			str := &StrLit{N_LIT_STR, loc, cooked, false, nil, nil}
@@ -4801,7 +4802,7 @@ func (p *Parser) primaryExpr() (Node, error) {
 		ahead := p.lexer.Peek()
 		// `ahead.value != T_ARROW` is used to skip checking name when it appears in the param list of arrow expr
 		// for `eval => 42` we should report binding-reserved-word error instead of unexpected-reserved-word error
-		if p.checkName && ahead.value != T_ARROW && !ahead.afterLineTerminator && p.isProhibitedName(nil, name, true, false, false, false) {
+		if p.checkName && ahead.value != T_ARROW && !ahead.afterLineTerm && p.isProhibitedName(nil, name, true, false, false, false) {
 			if tok.ContainsEscape() {
 				return nil, p.errorAtLoc(p.finLoc(loc), ERR_ESCAPE_IN_KEYWORD)
 			}
@@ -4985,7 +4986,7 @@ func (p *Parser) parenExpr(typArgs Node) (Node, error) {
 
 	// next is arrow-expression
 	ahead := p.lexer.Peek()
-	if ahead.value == T_ARROW && !ahead.afterLineTerminator {
+	if ahead.value == T_ARROW && !ahead.afterLineTerm {
 		if paramsErr != nil {
 			return nil, paramsErr
 		}
@@ -5004,7 +5005,7 @@ func (p *Parser) parenExpr(typArgs Node) (Node, error) {
 
 	argsLen := len(args)
 	if argsLen == 0 {
-		return nil, p.errorAt(p.lexer.prtVal, &p.lexer.prtBegin, "")
+		return nil, p.errorAt(p.lexer.state.prtVal, &p.lexer.state.prtBegin, "")
 	}
 
 	if err := p.checkArgs(args, false, true); err != nil {
@@ -5259,6 +5260,7 @@ func (p *Parser) method(loc *Loc, key Node, accMode ACC_MOD, compute *Loc, short
 	}
 
 	var err error
+	methodTi := p.newTypInfo()
 	if key == nil {
 		if inclass {
 			key, compute, err = p.classElemName()
@@ -5267,6 +5269,17 @@ func (p *Parser) method(loc *Loc, key Node, accMode ACC_MOD, compute *Loc, short
 		}
 		if err != nil {
 			return nil, err
+		}
+		if methodTi != nil {
+			ques := p.tsAdvanceHook()
+			methodTi.ques = ques
+		}
+	} else if methodTi != nil {
+		if wt, ok := key.(NodeWithTypInfo); ok {
+			ti := wt.TypInfo()
+			if ti != nil {
+				methodTi.ques = ti.ques
+			}
 		}
 	}
 
@@ -5302,6 +5315,7 @@ func (p *Parser) method(loc *Loc, key Node, accMode ACC_MOD, compute *Loc, short
 		p.addLocalBinding(nil, ref, false, ref.Node.Text())
 	}
 
+	// the return type of method
 	typAnnot, err := p.tsTypAnnot()
 	if err != nil {
 		return nil, err
@@ -5330,6 +5344,7 @@ func (p *Parser) method(loc *Loc, key Node, accMode ACC_MOD, compute *Loc, short
 
 	var body Node
 	ahead := p.lexer.Peek()
+	opt := false
 	if ahead.value == T_BRACE_L {
 		if abstract {
 			return nil, p.errorAtLoc(loc, ERR_ABSTRACT_METHOD_WITH_IMPL)
@@ -5342,12 +5357,8 @@ func (p *Parser) method(loc *Loc, key Node, accMode ACC_MOD, compute *Loc, short
 			return nil, err
 		}
 	} else if !declare && !abstract {
-		opt := false
-		if p.ts {
-			if wt, ok := key.(NodeWithTypInfo); ok {
-				opt = wt.TypInfo().Optional()
-			}
-		}
+		opt = methodTi != nil && methodTi.ques != nil
+
 		// `async?(): void` is legal in ts class
 		if !opt {
 			return nil, p.errorAt(ahead.value, &ahead.begin, ERR_UNEXPECTED_TOKEN)
@@ -5364,7 +5375,7 @@ func (p *Parser) method(loc *Loc, key Node, accMode ACC_MOD, compute *Loc, short
 
 	p.symtab.LeaveScope()
 
-	if declare || abstract {
+	if declare || abstract || opt {
 		p.advanceIfSemi(false)
 	}
 
@@ -5374,7 +5385,7 @@ func (p *Parser) method(loc *Loc, key Node, accMode ACC_MOD, compute *Loc, short
 			return nil, p.errorAtLoc(key.Loc(), ERR_STATIC_PROP_PROTOTYPE)
 		}
 
-		return &Method{N_METHOD, p.finLoc(loc), key, static, compute != nil, kind, value, accMode, abstract}, nil
+		return &Method{N_METHOD, p.finLoc(loc), key, static, compute != nil, kind, value, accMode, abstract, methodTi}, nil
 	}
 	return &Prop{N_PROP, p.finLoc(loc), key, nil, value, compute != nil, true, shorthand, false, kind, accMode}, nil
 }
@@ -5382,7 +5393,7 @@ func (p *Parser) method(loc *Loc, key Node, accMode ACC_MOD, compute *Loc, short
 func (p *Parser) isExprOpening(raise bool) (*Token, error) {
 	tok := p.lexer.Peek()
 	tv := tok.value
-	if raise && tv != T_SEMI && tv != T_BRACE_R && tv != T_COMMA && tv != T_PAREN_R && !tok.afterLineTerminator && tv != T_EOF {
+	if raise && tv != T_SEMI && tv != T_BRACE_R && tv != T_COMMA && tv != T_PAREN_R && !tok.afterLineTerm && tv != T_EOF {
 		errMsg := ERR_UNEXPECTED_TOKEN
 		if tok.value == T_ILLEGAL {
 			if msg, ok := tok.ext.(string); ok {
@@ -5454,10 +5465,10 @@ func (p *Parser) loc() *Loc {
 
 func (p *Parser) locFromTok(tok *Token) *Loc {
 	return &Loc{
-		src:   tok.raw.src,
+		src:   tok.raw.Src,
 		begin: tok.begin.Clone(),
 		end:   tok.end.Clone(),
-		rng:   &Range{tok.raw.lo, tok.raw.hi},
+		rng:   &Range{tok.raw.Lo, tok.raw.Hi},
 	}
 }
 
@@ -5467,20 +5478,20 @@ func (p *Parser) finLoc(loc *Loc) *Loc {
 
 func (p *Parser) errorTok(tok *Token) *ParserError {
 	if tok.value != T_ILLEGAL {
-		return NewParserError(fmt.Sprintf(ERR_TPL_UNEXPECTED_TOKEN_TYPE, TokenKinds[tok.value].Name),
-			p.lexer.src.path, tok.begin.line, tok.begin.col)
+		return newParserError(fmt.Sprintf(ERR_TPL_UNEXPECTED_TOKEN_TYPE, TokenKinds[tok.value].Name),
+			p.lexer.src.Path, tok.begin.line, tok.begin.col)
 	}
-	return NewParserError(tok.ErrMsg(), p.lexer.src.path, tok.begin.line, tok.begin.col)
+	return newParserError(tok.ErrMsg(), p.lexer.src.Path, tok.begin.line, tok.begin.col)
 }
 
 func (p *Parser) errorAt(tok TokenValue, pos *Pos, errMsg string) *ParserError {
 	if tok != T_ILLEGAL && errMsg == "" {
-		return NewParserError(fmt.Sprintf(ERR_TPL_UNEXPECTED_TOKEN_TYPE, TokenKinds[tok].Name),
-			p.lexer.src.path, pos.line, pos.col)
+		return newParserError(fmt.Sprintf(ERR_TPL_UNEXPECTED_TOKEN_TYPE, TokenKinds[tok].Name),
+			p.lexer.src.Path, pos.line, pos.col)
 	}
-	return NewParserError(errMsg, p.lexer.src.path, pos.line, pos.col)
+	return newParserError(errMsg, p.lexer.src.Path, pos.line, pos.col)
 }
 
 func (p *Parser) errorAtLoc(loc *Loc, errMsg string) *ParserError {
-	return NewParserError(errMsg, p.lexer.src.path, loc.begin.line, loc.begin.col)
+	return newParserError(errMsg, p.lexer.src.Path, loc.begin.line, loc.begin.col)
 }
