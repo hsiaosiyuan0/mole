@@ -155,4 +155,5 @@ const (
 	ERR_BARE_ABSTRACT_PROPERTY       = "Abstract methods can only appear within an abstract class"
 	ERR_ABSTRACT_METHOD_WITH_IMPL    = "Method cannot have an implementation because it's marked abstract"
 	ERR_ABSTRACT_PROP_WITH_INIT      = "Property cannot have an initializer because it's marked abstract"
+	ERR_OVERRIDE_METHOD_DYNAMIC_NAME = "Method overload name must refer to an expression whose type is a literal type"
 )

@@ -849,7 +849,8 @@ func (p *Parser) classBody(declare bool) (Node, error) {
 			if hasCtor {
 				return nil, p.errorAtLoc(m.key.Loc(), ERR_CTOR_DUP)
 			}
-			if p.isName(m.key, "constructor", false, true) {
+			// `!m.Declare` is used to skip the constructor overloads
+			if !m.Declare() && p.isName(m.key, "constructor", false, true) {
 				hasCtor = true
 			}
 			if m.abstract && !scope.IsKind(SPK_ABSTRACT_CLASS) {
@@ -5365,13 +5366,6 @@ func (p *Parser) method(loc *Loc, key Node, accMode ACC_MOD, compute *Loc, short
 		if err != nil {
 			return nil, err
 		}
-	} else if !declare && !abstract {
-		opt = methodTi != nil && methodTi.ques != nil
-
-		// `async?(): void` is legal in ts class
-		if !opt {
-			return nil, p.errorAt(ahead.value, &ahead.begin, ERR_UNEXPECTED_TOKEN)
-		}
 	}
 
 	isStrict := scope.IsKind(SPK_STRICT)
@@ -5384,11 +5378,41 @@ func (p *Parser) method(loc *Loc, key Node, accMode ACC_MOD, compute *Loc, short
 
 	p.symtab.LeaveScope()
 
-	if declare || abstract || opt {
-		p.advanceIfSemi(false)
+	if p.ts {
+		if body == nil {
+			p.advanceIfSemi(false)
+		}
 	}
 
 	value := &FnDec{N_EXPR_FN, p.finLoc(fnLoc), nil, gen, async, params, body, nil, ti}
+	if body == nil {
+		if p.ts {
+			// the method body can be emitted in typescript to represent the
+			// method override, eg:
+			// ```ts
+			// class A { async?(): void }
+			// ```
+			// above code is legal in ts, it means class A contains a method
+			// named `async` as well as optional, in other words the implementation
+			// of method `async` can be emitted
+			//
+			// however, if the method is not flagged as optional then it must be followed
+			// by the method definition which is the last subsequent statement in principle
+			opt = methodTi != nil && methodTi.ques != nil
+			if !opt {
+				if name := p.nameOfNode(key); name == "" {
+					return nil, p.errorAtLoc(fnLoc, ERR_OVERRIDE_METHOD_DYNAMIC_NAME)
+				}
+				sig := &FnDec{N_EXPR_FN, p.finLoc(fnLoc), key, gen, async, params, nil, nil, ti}
+				p.lastTsFnSig = sig
+			}
+		} else {
+			return nil, p.errorAt(ahead.value, &ahead.begin, ERR_UNEXPECTED_TOKEN)
+		}
+	} else if err = p.tsIsFnImplValid(key); err != nil {
+		return nil, err
+	}
+
 	if inclass {
 		if static && p.isName(key, "prototype", false, true) {
 			return nil, p.errorAtLoc(key.Loc(), ERR_STATIC_PROP_PROTOTYPE)
@@ -5397,6 +5421,29 @@ func (p *Parser) method(loc *Loc, key Node, accMode ACC_MOD, compute *Loc, short
 		return &Method{N_METHOD, p.finLoc(loc), key, static, compute != nil, kind, value, accMode, abstract, methodTi}, nil
 	}
 	return &Prop{N_PROP, p.finLoc(loc), key, nil, value, compute != nil, true, shorthand, false, kind, accMode}, nil
+}
+
+func (p *Parser) nameOfNode(node Node) string {
+	if node == nil {
+		return ""
+	}
+	switch node.Type() {
+	case N_NAME:
+		n := node.(*Ident)
+		return n.Text()
+	case N_LIT_STR:
+		n := node.(*StrLit)
+		return n.Text()
+	case N_LIT_NULL:
+		return "null"
+	case N_LIT_BOOL:
+		n := node.(*BoolLit)
+		return n.Text()
+	case N_LIT_NUM:
+		n := node.(*NumLit)
+		return n.Text()
+	}
+	return ""
 }
 
 func (p *Parser) isExprOpening(raise bool) (*Token, error) {

@@ -2139,6 +2139,11 @@ func (n *Method) Loc() *Loc {
 	return n.loc
 }
 
+func (n *Method) Declare() bool {
+	fn := n.value.(*FnDec)
+	return fn.body == nil
+}
+
 func (n *Method) Optional() bool {
 	return n.ti.Optional()
 }
