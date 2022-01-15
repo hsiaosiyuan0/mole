@@ -5,76 +5,41 @@ import (
 	"unicode/utf8"
 )
 
-const RUNES_BUF_LEN = 4
-
-type RunesBuf struct {
-	buf      [RUNES_BUF_LEN]rune
-	len      int // len of the alive cells in `buf`
-	byte_len int // byte length occupied by all the alive cells
-	r        int // the index in `buf` to perform next read
-	w        int // the index in `buf` to perform next write
+type Runes struct {
+	raw string
 }
 
-func (b *RunesBuf) incW() int {
-	w := b.w + 1
-	if w == RUNES_BUF_LEN {
-		return 0
+// read and return a rune from the beginning of
+// the underlying `bytes` as well as advance the head
+// of bytes to the beginning of the next rune
+//
+// returned rune may be either `EOF` or `utf8.RuneError`
+// in both case with size zero
+func (s *Runes) advance() (rune, int) {
+	r, size := utf8.DecodeRuneInString(s.raw)
+	if r == utf8.RuneError {
+		if size == 0 {
+			r = EOF
+		}
+		size = 0
+	} else {
+		s.raw = s.raw[size:]
 	}
-	return w
-}
-
-func (b *RunesBuf) incR() int {
-	r := b.r + 1
-	if r == RUNES_BUF_LEN {
-		return 0
-	}
-	return r
-}
-
-func (b *RunesBuf) writable() bool {
-	return b.len < RUNES_BUF_LEN
-}
-
-func (b *RunesBuf) readable() bool {
-	return b.len > 0
-}
-
-func (b *RunesBuf) write(r rune, len int) {
-	if !b.writable() {
-		panic("no place in runes buf")
-	}
-	b.buf[b.w] = r
-	b.byte_len += len
-	b.len += 1
-	b.w = b.incW()
-}
-
-func (b *RunesBuf) read() rune {
-	if !b.readable() {
-		panic("runes buf is empty")
-	}
-	r := b.buf[b.r]
-	b.byte_len -= utf8.RuneLen(r)
-	b.len -= 1
-	b.r = b.incR()
-	return r
-}
-
-func (rb *RunesBuf) cur() rune {
-	return rb.buf[rb.r]
+	return r, size
 }
 
 type SourceState struct {
-	rb          RunesBuf // runes buf to avoid decode rune twice
-	ofst        int      // ofst base on byte
-	pos         int      // pos base on rune
-	line        int      // 1-based line number
-	col         int      // 0-based column number
-	metLineTerm bool     // whether line terminator appeared
+	runes       Runes
+	ofst        int  // ofst base on byte
+	pos         int  // pos base on rune
+	line        int  // 1-based line number
+	col         int  // 0-based column number
+	metLineTerm bool // whether line terminator appeared
 }
 
-func newSourceState() SourceState {
+func newSourceState(code string) SourceState {
 	s := SourceState{}
+	s.runes.raw = code
 	s.line = 1
 	return s
 }
@@ -104,7 +69,7 @@ func NewSource(path string, code string) *Source {
 	return &Source{
 		Path:  path,
 		code:  code,
-		state: newSourceState(),
+		state: newSourceState(code),
 		ss:    make([]SourceState, 0),
 	}
 }
@@ -135,39 +100,31 @@ func (s *Source) PopState() {
 }
 
 // advance the underlying chars and cache the advanced char
-func (s *Source) advance(cache bool) rune {
-	ofst := s.state.ofst
-	r, size := utf8.DecodeRuneInString(s.code[ofst:])
-	if r == utf8.RuneError {
-		if size == 0 {
-			r = EOF
-		}
-	}
-
+func (s *Source) advance() rune {
+	r, size := s.state.runes.advance()
 	if r == EOF {
 		return EOF
 	}
 
 	s.state.ofst += size
 	s.state.pos += 1
-	if cache {
-		s.state.rb.write(r, size)
-	}
 	return r
 }
 
-// ensure the peeked buffer have 2 chars and return the 2nd
+func (s *Source) Peek() rune {
+	runes := s.state.runes
+	r, _ := runes.advance()
+	return r
+}
+
 func (s *Source) Ahead2nd() rune {
-	if s.state.rb.len < 2 {
-		s.advance(true)
+	runes := s.state.runes
+	r, size := runes.advance()
+	if size == 0 {
+		return r
 	}
-	if s.state.rb.len < 2 {
-		s.advance(true)
-	}
-	if s.state.rb.len >= 2 {
-		return s.state.rb.buf[s.state.rb.incR()]
-	}
-	return EOF
+	r, _ = runes.advance()
+	return r
 }
 
 func (s *Source) AheadIsCh(c rune) bool {
@@ -175,23 +132,7 @@ func (s *Source) AheadIsCh(c rune) bool {
 }
 
 func (s *Source) AheadIsEOF() bool {
-	return s.state.ofst == len(s.code) && s.state.rb.len == 0
-}
-
-// read from the runes buf at first, otherwise advance the
-// underlying position
-func (s *Source) readRune() rune {
-	if s.state.rb.readable() {
-		return s.state.rb.read()
-	}
-	return s.advance(false)
-}
-
-func (s *Source) Peek() rune {
-	if !s.state.rb.readable() {
-		return s.advance(true)
-	}
-	return s.state.rb.cur()
+	return s.state.ofst == len(s.code)
 }
 
 func (s *Source) AdvanceIf(c rune) bool {
@@ -204,11 +145,11 @@ func (s *Source) AdvanceIf(c rune) bool {
 
 // read rune as well as join the CR/LF to record the line/column info
 func (s *Source) Read() rune {
-	r := s.readRune()
+	r := s.advance()
 	if IsLineTerminator(r) {
 		if r == '\r' {
 			if s.Peek() == '\n' {
-				s.readRune()
+				s.advance()
 			}
 		}
 	}
@@ -223,8 +164,15 @@ func (s *Source) Read() rune {
 }
 
 func (s *Source) AheadIsChs2(c1 rune, c2 rune) bool {
-	a2 := s.Ahead2nd()
-	return s.state.rb.cur() == c1 && a2 == c2
+	r1 := utf8.RuneError
+	r2 := utf8.RuneError
+	size := 0
+	runes := s.state.runes
+	r1, size = runes.advance()
+	if size != 0 {
+		r2, _ = runes.advance()
+	}
+	return r1 == c1 && r2 == c2
 }
 
 func (s *Source) AheadIsChOr(c1 rune, c2 rune) bool {
@@ -238,12 +186,12 @@ func IsLineTerminator(c rune) bool {
 
 // ofst base on byte
 func (s *Source) Ofst() int {
-	return s.state.ofst - s.state.rb.byte_len
+	return s.state.ofst
 }
 
 // pos base on rune
 func (s *Source) Pos() int {
-	return s.state.pos - s.state.rb.len
+	return s.state.pos
 }
 
 func (s *Source) Line() int {

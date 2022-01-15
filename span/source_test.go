@@ -19,7 +19,7 @@ func TestEOL(t *testing.T) {
 	AssertEqual(t, '\u000a', s.Read(), "\\u000a should be EOL")
 	AssertEqual(t, 2, s.Line(), "\\u000a should step line")
 
-	AssertEqual(t, '\u000d', s.Read(), "\\u000d\\u000a should be EOL")
+	AssertEqual(t, '\u000a', s.Read(), "\\u000d\\u000a should be EOL")
 	AssertEqual(t, 3, s.Line(), "\\u000d should step line")
 }
 
@@ -32,7 +32,6 @@ func TestAhead(t *testing.T) {
 	AssertEqual(t, 'e', s.Peek(), "next should be e")
 	AssertEqual(t, 'e', s.Read(), "next should be e")
 	AssertEqual(t, 'l', s.Read(), "next should be l")
-	AssertEqual(t, false, s.state.rb.readable(), "peek buf should be empty")
 
 	AssertEqual(t, 'l', s.Read(), "next should be l")
 	AssertEqual(t, 'o', s.Read(), "next should be o")
