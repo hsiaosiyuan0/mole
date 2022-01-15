@@ -9,12 +9,11 @@ import (
 	span "github.com/hsiaosiyuan0/mole/span"
 )
 
-// AST nodes are refer to [ESTree](https://github.com/estree/estree/blob/master/es5.md) with some variants:
-//
+// AST nodes are referred to [ESTree](https://github.com/estree/estree/blob/master/es5.md) with some variants:
 // - flatterned struct is used instead of inheritance
 // - fields are not fully described as they are claimmed in ESTree, eg. the field names in this file are shorter then
-// their equivalent of ESTree. for the requirement what the ESTree compatible output is needed, use the `estree` package
-// to do the transformation
+//   their equivalent of ESTree. for the requirement what the ESTree compatible output is needed, use the `estree` package
+//   to do the transformation
 type Node interface {
 	Type() NodeType
 	Loc() *Loc

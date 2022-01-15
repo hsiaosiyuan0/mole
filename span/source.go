@@ -45,7 +45,6 @@ func newSourceState(code string) SourceState {
 }
 
 // process the utf8 encoded source file, it will panic if:
-// - underlying runes buf is out of bounds
 //
 // the returned rune will be `utf8.RuneError` if the position
 // is not well encoded in utf8
