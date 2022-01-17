@@ -6,6 +6,14 @@ type TsTypAnnot struct {
 	tsTyp Node
 }
 
+func NewTsTypAnnot(typ Node) *TsTypAnnot {
+	return &TsTypAnnot{
+		N_TS_TYP_ANNOT,
+		typ.Loc().Clone(),
+		typ,
+	}
+}
+
 func (n *TsTypAnnot) Type() NodeType {
 	return n.typ
 }
@@ -244,6 +252,18 @@ type TsIdxSig struct {
 	id  Node
 	key Node
 	val Node
+}
+
+func (n *TsIdxSig) Key() Node {
+	return n.id
+}
+
+func (n *TsIdxSig) KeyType() Node {
+	return n.key
+}
+
+func (n *TsIdxSig) Value() Node {
+	return n.val
 }
 
 func (n *TsIdxSig) Type() NodeType {

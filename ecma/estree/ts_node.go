@@ -249,6 +249,15 @@ type TSPropertyDefinition struct {
 	TypeAnnotation Node       `json:"typeAnnotation"`
 }
 
+type TSIndexSignature struct {
+	Type           string  `json:"type"`
+	Start          int     `json:"start"`
+	End            int     `json:"end"`
+	Loc            *SrcLoc `json:"loc"`
+	Parameters     []Node  `json:"parameters"`
+	TypeAnnotation Node    `json:"typeAnnotation"`
+}
+
 type TSAsExpression struct {
 	Type           string  `json:"type"`
 	Start          int     `json:"start"`

@@ -578,6 +578,12 @@ type TypInfo struct {
 	overrideLoc *Loc
 }
 
+func NewTypInfo() *TypInfo {
+	return &TypInfo{
+		ACC_MOD_PUB, nil, nil, nil, nil, nil, nil,
+	}
+}
+
 func (ti *TypInfo) Readonly() bool {
 	return ti.readonlyLoc != nil
 }
@@ -596,6 +602,13 @@ func (ti *TypInfo) Optional() bool {
 
 func (ti *TypInfo) TypAnnot() Node {
 	return ti.typAnnot
+}
+
+func (ti *TypInfo) SetTypAnnot(node Node) {
+	if node.Type() != N_TS_TYP_ANNOT {
+		node = NewTsTypAnnot(node)
+	}
+	ti.typAnnot = node
 }
 
 func (ti *TypInfo) TypParams() Node {

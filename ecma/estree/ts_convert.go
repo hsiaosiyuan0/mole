@@ -186,6 +186,24 @@ func convertTsTyp(node parser.Node) Node {
 			Declare:    true,
 			Abstract:   cls.Abstract(),
 		}
+	case parser.N_TS_IDX_SIG:
+		n := node.(*parser.TsIdxSig)
+		if wt, ok := n.Key().(parser.NodeWithTypInfo); ok {
+			ti := wt.TypInfo()
+			if ti == nil {
+				ti = parser.NewTypInfo()
+				wt.SetTypInfo(ti)
+			}
+			ti.SetTypAnnot(n.KeyType())
+		}
+		return &TSIndexSignature{
+			Type:           "TSIndexSignature",
+			Start:          start(n.Loc()),
+			End:            end(n.Loc()),
+			Loc:            loc(n.Loc()),
+			Parameters:     elems([]parser.Node{n.Key()}),
+			TypeAnnotation: convertTsTyp(n.Value()),
+		}
 	}
 
 	return nil

@@ -20,7 +20,7 @@ var builtinTyp = map[string]NodeType{
 
 func (p *Parser) newTypInfo() *TypInfo {
 	if p.ts {
-		return &TypInfo{ACC_MOD_PUB, nil, nil, nil, nil, nil, nil}
+		return NewTypInfo()
 	}
 	return nil
 }
@@ -774,6 +774,7 @@ func (p *Parser) tsIdxSig(loc *Loc) (Node, error) {
 	if err != nil {
 		return nil, err
 	}
+	p.advanceIfSemi(false)
 	return &TsIdxSig{N_TS_IDX_SIG, p.finLoc(loc), id, key, val}, nil
 }
 
