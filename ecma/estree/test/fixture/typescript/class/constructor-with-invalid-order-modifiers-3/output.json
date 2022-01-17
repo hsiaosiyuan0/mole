@@ -1,0 +1,3 @@
+{
+  "throws": "`public` modifier must precede `override` modifier at (2:32)"
+}

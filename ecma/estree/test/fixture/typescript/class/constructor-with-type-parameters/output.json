@@ -1,0 +1,3 @@
+{
+  "throws": "Type parameters cannot appear on a constructor declaration at (2:13)"
+}

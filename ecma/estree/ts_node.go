@@ -225,6 +225,16 @@ type TSMethodDefinition struct {
 	Abstract       bool       `json:"abstract"`
 }
 
+type TSParameterProperty struct {
+	Type      string  `json:"type"`
+	Start     int     `json:"start"`
+	End       int     `json:"end"`
+	Loc       *SrcLoc `json:"loc"`
+	Parameter Node    `json:"parameter"`
+	Readonly  bool    `json:"readonly"`
+	Override  bool    `json:"override"`
+}
+
 type TSPropertyDefinition struct {
 	Type           string     `json:"type"`
 	Start          int        `json:"start"`

@@ -20,7 +20,7 @@ var builtinTyp = map[string]NodeType{
 
 func (p *Parser) newTypInfo() *TypInfo {
 	if p.ts {
-		return &TypInfo{ACC_MOD_PUB, nil, nil, nil, nil}
+		return &TypInfo{ACC_MOD_PUB, nil, nil, nil, nil, nil, nil}
 	}
 	return nil
 }
@@ -173,7 +173,7 @@ func (p *Parser) tsQues() *Loc {
 	return ques
 }
 
-func (p *Parser) tsNodeTypAnnot(binding Node, typAnnot Node, accMod ACC_MOD, ques *Loc) bool {
+func (p *Parser) tsNodeTypAnnot(binding Node, typAnnot Node, accMod ACC_MOD, readonly, override *Loc, ques *Loc) bool {
 	if wt, ok := binding.(NodeWithTypInfo); ok {
 		ti := wt.TypInfo()
 		if ti == nil {
@@ -187,6 +187,8 @@ func (p *Parser) tsNodeTypAnnot(binding Node, typAnnot Node, accMod ACC_MOD, que
 			ti.ques = ques
 		}
 		ti.accMod = accMod
+		ti.readonlyLoc = readonly
+		ti.overrideLoc = override
 		return true
 	}
 	return false
@@ -240,7 +242,7 @@ func (p *Parser) tsRoughParamToParam(node Node) (Node, error) {
 		}
 
 		ti := param.ti
-		if ok := p.tsNodeTypAnnot(fp, ti.typAnnot, ti.accMod, ti.ques); !ok {
+		if ok := p.tsNodeTypAnnot(fp, ti.typAnnot, ti.accMod, ti.readonlyLoc, ti.overrideLoc, ti.ques); !ok {
 			return nil, p.errorAtLoc(fp.Loc(), ERR_UNEXPECTED_TOKEN)
 		}
 
@@ -1477,7 +1479,7 @@ func (p *Parser) isTsLhs(node Node) bool {
 
 func (p *Parser) tsAheadIsAbstract(tok *Token, prop bool, pvt bool) bool {
 	if p.ts && IsName(tok, "abstract", false) {
-		ahead := p.lexer.peek2nd()
+		ahead := p.lexer.Peek2nd()
 		if ahead.afterLineTerm {
 			return false
 		}
@@ -1501,4 +1503,30 @@ func (p *Parser) tsAheadIsAbstract(tok *Token, prop bool, pvt bool) bool {
 		}
 	}
 	return false
+}
+
+type ModifierNameLoc struct {
+	name string
+	loc  *Loc
+}
+
+func (p *Parser) tsModifierOrder(overrideLoc, readonlyLoc, accessLoc *Loc, accMod ACC_MOD) error {
+	order := []ModifierNameLoc{
+		{accMod.String(), accessLoc},
+		{"override", overrideLoc},
+		{"readonly", readonlyLoc},
+	}
+	for i := 0; i < len(order)-1; i++ {
+		for j := i + 1; j < len(order); j++ {
+			a := order[i]
+			b := order[j]
+			if a.loc == nil || b.loc == nil {
+				continue
+			}
+			if !a.loc.Before(b.loc) {
+				return p.errorAtLoc(a.loc, fmt.Sprintf(ERR_TPL_INVALID_MODIFIER_ORDER, a.name, b.name))
+			}
+		}
+	}
+	return nil
 }

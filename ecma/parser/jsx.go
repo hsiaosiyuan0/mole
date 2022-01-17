@@ -69,10 +69,10 @@ func (p *Parser) jsxAttr() (Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	p.lexer.pushMode(LM_JSX_ATTR, true)
+	p.lexer.PushMode(LM_JSX_ATTR, true)
 	attr := &JsxAttr{N_JSX_ATTR, p.finLoc(id.Loc().Clone()), id, name, nil}
 	if p.lexer.Peek().value != T_ASSIGN {
-		p.lexer.popMode()
+		p.lexer.PopMode()
 		return attr, nil
 	}
 	p.lexer.Next()
@@ -99,7 +99,7 @@ func (p *Parser) jsxAttr() (Node, error) {
 	}
 	p.finLoc(attr.loc)
 	attr.val = val
-	p.lexer.popMode()
+	p.lexer.PopMode()
 	return attr, nil
 }
 
@@ -148,7 +148,7 @@ func (p *Parser) jsxOpen(tok *Token) (Node, error) {
 }
 
 func (p *Parser) jsxExpr(loc *Loc) (Node, error) {
-	p.lexer.pushMode(LM_NONE, true)
+	p.lexer.PushMode(LM_NONE, true)
 
 	locAfterBrace := p.loc()
 
@@ -184,7 +184,7 @@ func (p *Parser) jsxExpr(loc *Loc) (Node, error) {
 		expr = &JsxExprSpan{N_JSX_EXPR_SPAN, p.finLoc(loc), expr}
 	}
 
-	p.lexer.popMode()
+	p.lexer.PopMode()
 	return expr, nil
 }
 
@@ -194,7 +194,7 @@ func (p *Parser) jsxClose(loc *Loc) (Node, error) {
 	// fragment
 	if p.lexer.Peek().value == T_GT {
 		p.lexer.Next()
-		p.lexer.popMode()
+		p.lexer.PopMode()
 		return &JsxClose{N_JSX_CLOSE, p.finLoc(loc), nil, ""}, nil
 	}
 
@@ -206,7 +206,7 @@ func (p *Parser) jsxClose(loc *Loc) (Node, error) {
 		return nil, err
 	}
 	// balance the `pushMode` at the beginning of the `p.jsx()`
-	p.lexer.popMode()
+	p.lexer.PopMode()
 	return &JsxClose{N_JSX_CLOSE, p.finLoc(loc), id, name}, nil
 }
 
@@ -239,7 +239,7 @@ func (p *Parser) jsx(root bool, opening bool) (Node, error) {
 	tok := p.lexer.Next() // `<`
 	loc := p.locFromTok(tok)
 
-	p.lexer.pushMode(LM_JSX, true)
+	p.lexer.PushMode(LM_JSX, true)
 
 	ahead := p.lexer.Peek()
 	if ahead.value == T_DIV {
@@ -259,7 +259,7 @@ func (p *Parser) jsx(root bool, opening bool) (Node, error) {
 	var openTag = open.(*JsxOpen)
 	var child Node
 	if !openTag.closed {
-		p.lexer.pushMode(LM_JSX_CHILD, true)
+		p.lexer.PushMode(LM_JSX_CHILD, true)
 		children = make([]Node, 0)
 		for {
 			ahead := p.lexer.Peek()
@@ -325,11 +325,11 @@ func (p *Parser) jsx(root bool, opening bool) (Node, error) {
 				return nil, p.errorTok(ahead)
 			}
 		}
-		p.lexer.popMode()
+		p.lexer.PopMode()
 	}
 
 	// element is closed
-	p.lexer.popMode()
+	p.lexer.PopMode()
 	ahead = p.lexer.Peek()
 	// here `T_LT` is not say that the followed node is a jsx-open tag since the close-tag also starts with `<`
 	// however if we combind the `is root` condition with is `is LI` then we can report the error `ERR_JSX_ADJACENT_ELEM_SHOULD_BE_WRAPPED`

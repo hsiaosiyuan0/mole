@@ -92,6 +92,10 @@ func (l *Loc) Text() string {
 	return l.src.Text(l.rng.start, l.rng.end)
 }
 
+func (l *Loc) Before(b *Loc) bool {
+	return l.rng.end < b.rng.start
+}
+
 type Prog struct {
 	typ   NodeType
 	loc   *Loc
@@ -565,11 +569,21 @@ func (a ACC_MOD) String() string {
 }
 
 type TypInfo struct {
-	accMod    ACC_MOD
-	ques      *Loc
-	typAnnot  Node
-	typParams Node
-	typArgs   Node
+	accMod      ACC_MOD
+	ques        *Loc
+	typAnnot    Node
+	typParams   Node
+	typArgs     Node
+	readonlyLoc *Loc
+	overrideLoc *Loc
+}
+
+func (ti *TypInfo) Readonly() bool {
+	return ti.readonlyLoc != nil
+}
+
+func (ti *TypInfo) Override() bool {
+	return ti.overrideLoc != nil
 }
 
 func (ti *TypInfo) Ques() *Loc {
@@ -638,7 +652,7 @@ func endOf(locs ...*Loc) *Loc {
 	return locs[end]
 }
 
-func LocWithTypeInfo(node Node) *Loc {
+func LocWithTypeInfo(node Node, includeParamProp bool) *Loc {
 	nw, ok := node.(NodeWithTypInfo)
 	if !ok {
 		return node.Loc()
@@ -647,7 +661,11 @@ func LocWithTypeInfo(node Node) *Loc {
 	ti := nw.TypInfo()
 	loc := node.Loc().Clone()
 
-	start := startOf(locOfNode(ti.TypParams()), locOfNode(node))
+	starLocList := []*Loc{locOfNode(ti.TypParams()), locOfNode(node)}
+	if includeParamProp {
+		starLocList = append(starLocList, []*Loc{ti.readonlyLoc, ti.overrideLoc}...)
+	}
+	start := startOf(starLocList...)
 	loc.begin.line = start.begin.line
 	loc.begin.col = start.begin.col
 	loc.rng.start = start.rng.start
@@ -2104,6 +2122,7 @@ type Method struct {
 	value    Node
 	accMode  ACC_MOD
 	abstract bool
+	override bool
 	ti       *TypInfo
 }
 
@@ -2165,6 +2184,8 @@ type Field struct {
 	value    Node
 	accMode  ACC_MOD
 	abstract bool
+	readonly bool
+	override bool
 	ti       *TypInfo
 }
 

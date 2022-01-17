@@ -72,7 +72,11 @@ func obj(n *parser.ObjLit) *ObjectExpression {
 func fnParams(params []parser.Node) []Node {
 	ps := make([]Node, len(params))
 	for i, p := range params {
-		ps[i] = convert(p)
+		fp := tsParamProp(p)
+		if fp == nil {
+			fp = convert(p)
+		}
+		ps[i] = fp
 	}
 	return ps
 }
@@ -299,7 +303,7 @@ func ident(node parser.Node) Node {
 	}
 	if n.TypInfo() != nil {
 		ti := n.TypInfo()
-		lc := parser.LocWithTypeInfo(n)
+		lc := parser.LocWithTypeInfo(n, false)
 		return &TSIdentifier{
 			Type:           "Identifier",
 			Start:          start(lc),
@@ -518,7 +522,7 @@ func convert(node parser.Node) Node {
 		n := node.(*parser.ArrowFn)
 		if n.TypInfo() != nil {
 			ti := n.TypInfo()
-			lc := parser.LocWithTypeInfo(n)
+			lc := parser.LocWithTypeInfo(n, false)
 			return &TSArrowFunctionExpression{
 				Type:           "ArrowFunctionExpression",
 				Start:          start(lc),
@@ -626,7 +630,7 @@ func convert(node parser.Node) Node {
 		n := node.(*parser.ObjPat)
 		if n.TypInfo() != nil {
 			ti := n.TypInfo()
-			lc := parser.LocWithTypeInfo(n)
+			lc := parser.LocWithTypeInfo(n, false)
 			return &TSObjectPattern{
 				Type:           "ObjectPattern",
 				Start:          start(lc),

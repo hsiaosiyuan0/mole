@@ -1,0 +1,218 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 59,
+  "loc": {
+    "start": {
+      "line": 1,
+      "column": 0
+    },
+    "end": {
+      "line": 3,
+      "column": 1
+    }
+  },
+  "body": [
+    {
+      "type": "ClassDeclaration",
+      "start": 0,
+      "end": 59,
+      "loc": {
+        "start": {
+          "line": 1,
+          "column": 0
+        },
+        "end": {
+          "line": 3,
+          "column": 1
+        }
+      },
+      "id": {
+        "type": "Identifier",
+        "start": 6,
+        "end": 9,
+        "loc": {
+          "start": {
+            "line": 1,
+            "column": 6
+          },
+          "end": {
+            "line": 1,
+            "column": 9
+          }
+        },
+        "name": "Foo"
+      },
+      "superClass": null,
+      "body": {
+        "type": "ClassBody",
+        "start": 10,
+        "end": 59,
+        "loc": {
+          "start": {
+            "line": 1,
+            "column": 10
+          },
+          "end": {
+            "line": 3,
+            "column": 1
+          }
+        },
+        "body": [
+          {
+            "type": "MethodDefinition",
+            "start": 14,
+            "end": 57,
+            "loc": {
+              "start": {
+                "line": 2,
+                "column": 2
+              },
+              "end": {
+                "line": 2,
+                "column": 45
+              }
+            },
+            "static": false,
+            "key": {
+              "type": "Identifier",
+              "start": 14,
+              "end": 25,
+              "loc": {
+                "start": {
+                  "line": 2,
+                  "column": 2
+                },
+                "end": {
+                  "line": 2,
+                  "column": 13
+                }
+              },
+              "name": "constructor"
+            },
+            "computed": false,
+            "kind": "constructor",
+            "id": null,
+            "value": {
+              "type": "FunctionExpression",
+              "params": [
+                {
+                  "type": "Identifier",
+                  "start": 26,
+                  "end": 34,
+                  "loc": {
+                    "start": {
+                      "line": 2,
+                      "column": 14
+                    },
+                    "end": {
+                      "line": 2,
+                      "column": 22
+                    }
+                  },
+                  "name": "set",
+                  "typeAnnotation": {
+                    "type": "TSTypeAnnotation",
+                    "start": 29,
+                    "end": 34,
+                    "loc": {
+                      "start": {
+                        "line": 2,
+                        "column": 17
+                      },
+                      "end": {
+                        "line": 2,
+                        "column": 22
+                      }
+                    },
+                    "typeAnnotation": {
+                      "type": "TSAnyKeyword",
+                      "start": 31,
+                      "end": 34,
+                      "loc": {
+                        "start": {
+                          "line": 2,
+                          "column": 19
+                        },
+                        "end": {
+                          "line": 2,
+                          "column": 22
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "Identifier",
+                  "start": 36,
+                  "end": 53,
+                  "loc": {
+                    "start": {
+                      "line": 2,
+                      "column": 24
+                    },
+                    "end": {
+                      "line": 2,
+                      "column": 41
+                    }
+                  },
+                  "name": "readonly",
+                  "typeAnnotation": {
+                    "type": "TSTypeAnnotation",
+                    "start": 44,
+                    "end": 53,
+                    "loc": {
+                      "start": {
+                        "line": 2,
+                        "column": 32
+                      },
+                      "end": {
+                        "line": 2,
+                        "column": 41
+                      }
+                    },
+                    "typeAnnotation": {
+                      "type": "TSBooleanKeyword",
+                      "start": 46,
+                      "end": 53,
+                      "loc": {
+                        "start": {
+                          "line": 2,
+                          "column": 34
+                        },
+                        "end": {
+                          "line": 2,
+                          "column": 41
+                        }
+                      }
+                    }
+                  }
+                }
+              ],
+              "body": {
+                "type": "BlockStatement",
+                "start": 55,
+                "end": 57,
+                "loc": {
+                  "start": {
+                    "line": 2,
+                    "column": 43
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": 45
+                  }
+                },
+                "body": [],
+                "directives": []
+              },
+              "async": false,
+              "generator": false
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "directives": []
+}

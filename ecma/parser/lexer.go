@@ -153,34 +153,134 @@ func NewLexer(src *span.Source) *Lexer {
 	return lexer
 }
 
-func (l *Lexer) pushState() {
+// read a token, named `next` to indicate it will move the cursor
+func (l *Lexer) Next() *Token {
+	tok := l.readTok()
+	l.state.prtVal = tok.value
+	l.state.prtRng = tok.raw
+	l.state.prtBegin = tok.begin
+	l.state.prtEnd = tok.end
+	return tok
+}
+
+// for tokens like `in` and `of`, they are firstly read
+// as names and then switched to keywords by the parser
+// according to its context, so it's necessary to revise
+// the `prtVal` of lexer to the corresponding of that
+// keywords for satisfying the further lookheads
+func (l *Lexer) NextRevise(v TokenValue) *Token {
+	tok := l.readTok()
+	l.state.prtVal = v
+	l.state.prtRng = tok.raw
+	l.state.prtBegin = tok.begin
+	l.state.prtEnd = tok.end
+	return tok
+}
+
+func (l *Lexer) Peek() *Token {
+	if !l.state.tb.readable() {
+		return l.advance()
+	}
+	return l.state.tb.cur()
+}
+
+func (l *Lexer) PeekStmtBegin() *Token {
+	l.state.beginStmt = true
+	tok := l.Peek()
+	l.state.beginStmt = false
+	return tok
+}
+
+func (l *Lexer) PeekGrow() *Token {
+	return l.advance()
+}
+
+// guard the peeked buffer has at least 2 tokens, return
+// the 2nd if the guarding is succeeded otherwise return
+// the `EOF_TOK`
+func (l *Lexer) Peek2nd() *Token {
+	if l.state.tb.len < 2 {
+		l.advance()
+	}
+	if l.state.tb.len < 2 {
+		l.advance()
+	}
+	if l.state.tb.len >= 2 {
+		return &l.state.tb.buf[l.state.tb.incR()]
+	}
+	return l.finToken(l.newToken(), T_EOF)
+}
+
+// the line and column in Source maybe moved forward then their actual position
+// that's because Lexer will reads tokens in buffer, so here firstly return Loc from
+// the foremost peeked token otherwise return from Source if peeked buffer is empty
+func (l *Lexer) Loc() *Loc {
+	loc := NewLoc()
+	loc.src = l.src
+	if l.state.tb.readable() {
+		tok := l.state.tb.cur()
+		p := tok.begin
+		loc.begin.line = p.line
+		loc.begin.col = p.col
+		loc.rng.start = tok.raw.Lo
+	} else {
+		loc.begin.line = l.src.Line()
+		loc.begin.col = l.src.Col()
+		loc.rng.start = l.src.Pos()
+	}
+	return loc
+}
+
+func (l *Lexer) FinLoc(loc *Loc) *Loc {
+	if l.state.prtVal != T_ILLEGAL {
+		p := l.state.prtEnd
+		loc.end.line = p.line
+		loc.end.col = p.col
+		loc.rng.end = l.state.prtRng.Hi
+	} else {
+		loc.end.line = l.src.Line()
+		loc.end.col = l.src.Col()
+		loc.rng.end = l.src.Pos()
+	}
+	return loc
+}
+
+func (l *Lexer) PrevTok() TokenValue {
+	return l.state.prtVal
+}
+
+func (l *Lexer) PrevTokBegin() *Pos {
+	return &l.state.prtBegin
+}
+
+func (l *Lexer) PushState() {
 	l.ss = append(l.ss, l.state)
 }
 
-func (l *Lexer) discardState() {
+func (l *Lexer) DiscardState() {
 	last := len(l.ss) - 1
 	l.ss = l.ss[:last]
 }
 
-func (l *Lexer) popState() {
+func (l *Lexer) PopState() {
 	last := len(l.ss) - 1
 	rest, state := l.ss[:last], l.ss[last]
 	l.ss = rest
 	l.state = state
 }
 
-func (l *Lexer) pushMode(mode LexerModeKind, inherit bool) {
+func (l *Lexer) PushMode(mode LexerModeKind, inherit bool) {
 	if inherit {
 		// only inherit the inheritable modes
 		v := LM_NONE
-		v |= l.curMode().kind & LM_STRICT
-		v |= l.curMode().kind & LM_ASYNC
+		v |= l.CurMode().kind & LM_STRICT
+		v |= l.CurMode().kind & LM_ASYNC
 		mode |= v
 	}
 	l.state.mode = append(l.state.mode, LexerMode{mode, 0, 0, 0})
 }
 
-func (l *Lexer) popMode() *LexerMode {
+func (l *Lexer) PopMode() *LexerMode {
 	mLen := len(l.state.mode)
 	if mLen == 1 {
 		l.state.mode[0] = LexerMode{LM_NONE, 0, 0, 0}
@@ -191,17 +291,17 @@ func (l *Lexer) popMode() *LexerMode {
 	return &last
 }
 
-func (l *Lexer) curMode() *LexerMode {
+func (l *Lexer) CurMode() *LexerMode {
 	return &l.state.mode[len(l.state.mode)-1]
 }
 
-func (l *Lexer) addMode(mode LexerModeKind) {
+func (l *Lexer) AddMode(mode LexerModeKind) {
 	cur := &l.state.mode[len(l.state.mode)-1]
 	cur.kind |= mode
 }
 
-func (l *Lexer) isMode(mode LexerModeKind) bool {
-	return l.curMode().kind&mode > 0
+func (l *Lexer) IsMode(mode LexerModeKind) bool {
+	return l.CurMode().kind&mode > 0
 }
 
 func (l *Lexer) skipSpace() *span.Source {
@@ -226,7 +326,7 @@ func (l *Lexer) readTokWithComment() *Token {
 		return l.finToken(l.newToken(), T_EOF)
 	}
 
-	if !l.isMode(LM_JSX) && !l.isMode(LM_JSX_CHILD) {
+	if !l.IsMode(LM_JSX) && !l.IsMode(LM_JSX_CHILD) {
 		if l.aheadIsIdStart() {
 			return l.readName()
 		} else if l.aheadIsNumStart() {
@@ -246,11 +346,11 @@ func (l *Lexer) readTokWithComment() *Token {
 	// `{` used to enter attribute value or child expr
 	if c == '{' {
 		l.src.Read()
-		l.pushMode(LM_NONE, true)
+		l.PushMode(LM_NONE, true)
 		return l.finToken(tok, T_BRACE_L)
 	} else if c == '}' {
 		l.src.Read()
-		l.popMode()
+		l.PopMode()
 		return l.finToken(tok, T_BRACE_R)
 	} else if c == '<' {
 		l.src.Read()
@@ -258,7 +358,7 @@ func (l *Lexer) readTokWithComment() *Token {
 	}
 
 	// in pair of open and close tags
-	if l.isMode(LM_JSX) {
+	if l.IsMode(LM_JSX) {
 		switch c {
 		case ':':
 			l.src.Read()
@@ -273,7 +373,7 @@ func (l *Lexer) readTokWithComment() *Token {
 			l.src.Read()
 			return l.finToken(tok, T_ASSIGN)
 		case '"', '\'':
-			if l.isMode(LM_JSX_ATTR) {
+			if l.IsMode(LM_JSX_ATTR) {
 				return l.readStr()
 			}
 		}
@@ -342,103 +442,11 @@ func (l *Lexer) advance() *Token {
 	return tok
 }
 
-// guard the peeked buffer has at least 2 tokens, return
-// the 2nd if the guarding is succeeded otherwise return
-// the `EOF_TOK`
-func (l *Lexer) peek2nd() *Token {
-	if l.state.tb.len < 2 {
-		l.advance()
-	}
-	if l.state.tb.len < 2 {
-		l.advance()
-	}
-	if l.state.tb.len >= 2 {
-		return &l.state.tb.buf[l.state.tb.incR()]
-	}
-	return l.finToken(l.newToken(), T_EOF)
-}
-
-// the line and column in Source maybe moved forward then their actual position
-// that's because Lexer will reads tokens in buffer, so here firstly return Loc from
-// the foremost peeked token otherwise return from Source if peeked buffer is empty
-func (l *Lexer) Loc() *Loc {
-	loc := NewLoc()
-	loc.src = l.src
-	if l.state.tb.readable() {
-		tok := l.state.tb.cur()
-		p := tok.begin
-		loc.begin.line = p.line
-		loc.begin.col = p.col
-		loc.rng.start = tok.raw.Lo
-	} else {
-		loc.begin.line = l.src.Line()
-		loc.begin.col = l.src.Col()
-		loc.rng.start = l.src.Pos()
-	}
-	return loc
-}
-
-func (l *Lexer) finLoc(loc *Loc) *Loc {
-	if l.state.prtVal != T_ILLEGAL {
-		p := l.state.prtEnd
-		loc.end.line = p.line
-		loc.end.col = p.col
-		loc.rng.end = l.state.prtRng.Hi
-	} else {
-		loc.end.line = l.src.Line()
-		loc.end.col = l.src.Col()
-		loc.rng.end = l.src.Pos()
-	}
-	return loc
-}
-
-func (l *Lexer) Peek() *Token {
-	if !l.state.tb.readable() {
-		return l.advance()
-	}
-	return l.state.tb.cur()
-}
-
-func (l *Lexer) PeekStmtBegin() *Token {
-	l.state.beginStmt = true
-	tok := l.Peek()
-	l.state.beginStmt = false
-	return tok
-}
-
-func (l *Lexer) PeekGrow() *Token {
-	return l.advance()
-}
-
 func (l *Lexer) readTok() *Token {
 	if l.state.tb.readable() {
 		return l.state.tb.read()
 	}
 	return l.lexTok()
-}
-
-// read a token, named `next` to indicate it will move the cursor
-func (l *Lexer) Next() *Token {
-	tok := l.readTok()
-	l.state.prtVal = tok.value
-	l.state.prtRng = tok.raw
-	l.state.prtBegin = tok.begin
-	l.state.prtEnd = tok.end
-	return tok
-}
-
-// for tokens like `in` and `of`, they are firstly read
-// as names and then switched to keywords by the parser
-// according to its context, so it's necessary to revise
-// the `prtVal` of lexer to the corresponding of that
-// keywords for satisfying the further lookheads
-func (l *Lexer) NextRevise(v TokenValue) *Token {
-	tok := l.readTok()
-	l.state.prtVal = v
-	l.state.prtRng = tok.raw
-	l.state.prtBegin = tok.begin
-	l.state.prtEnd = tok.end
-	return tok
 }
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-lexical-grammar.html#prod-Template
@@ -447,9 +455,9 @@ func (l *Lexer) readTplSpan() *Token {
 	c := l.src.Read() // consume `\`` or `}`
 	head := c == '`'
 	if head {
-		l.pushMode(LM_TEMPLATE, true)
+		l.PushMode(LM_TEMPLATE, true)
 	} else {
-		l.popMode()
+		l.PopMode()
 	}
 
 	ext := &TokExtTplSpan{IllegalEscape: nil}
@@ -465,7 +473,7 @@ func (l *Lexer) readTplSpan() *Token {
 	text, fin, line, col, ofst, pos, err, _, errEscape, errEscapeLine, errEscapeCol := l.readTplChs()
 
 	if err == ERR_UNTERMINATED_TPL {
-		l.popMode()
+		l.PopMode()
 		return l.errToken(span, err)
 	}
 
@@ -491,7 +499,7 @@ func (l *Lexer) readTplSpan() *Token {
 	}
 
 	if fin {
-		l.popMode()
+		l.PopMode()
 		if head {
 			ext.Plain = true
 			return span
@@ -516,7 +524,7 @@ func (l *Lexer) readTplChs() (text []rune, fin bool, line, col, ofst, pos int,
 			l.src.Read()
 			if l.src.AheadIsCh('{') {
 				l.src.Read()
-				l.pushMode(LM_TEMPLATE, true)
+				l.PushMode(LM_TEMPLATE, true)
 				break
 			}
 			text = append(text, c)
@@ -601,10 +609,10 @@ func (l *Lexer) readName() *Token {
 			return l.errToken(tok, ERR_ESCAPE_IN_KEYWORD)
 		}
 		return l.finToken(tok, Keywords[text])
-	} else if l.isMode(LM_STRICT) && IsStrictKeyword(text) {
+	} else if l.IsMode(LM_STRICT) && IsStrictKeyword(text) {
 		return l.finToken(tok, StrictKeywords[text])
 	} else if text == "await" {
-		if l.feat&FEAT_MODULE != 0 || (l.feat&FEAT_ASYNC_AWAIT != 0 && l.isMode(LM_ASYNC)) {
+		if l.feat&FEAT_MODULE != 0 || (l.feat&FEAT_ASYNC_AWAIT != 0 && l.IsMode(LM_ASYNC)) {
 			if containsEscape {
 				return l.errToken(tok, ERR_ESCAPE_IN_KEYWORD)
 			}
@@ -617,7 +625,7 @@ func (l *Lexer) readName() *Token {
 }
 
 func (l *Lexer) aheadIsRegexp(afterLineTerm bool) bool {
-	if l.isMode(LM_JSX) || l.isMode(LM_JSX_ATTR) {
+	if l.IsMode(LM_JSX) || l.IsMode(LM_JSX_ATTR) {
 		return false
 	}
 
@@ -647,16 +655,16 @@ func (l *Lexer) readSymbol() *Token {
 	switch c {
 	case '{':
 		val = T_BRACE_L
-		l.pushMode(LM_NONE, true)
+		l.PushMode(LM_NONE, true)
 	case '}':
 		val = T_BRACE_R
-		l.popMode()
+		l.PopMode()
 	case '(':
 		val = T_PAREN_L
-		l.curMode().paren += 1
+		l.CurMode().paren += 1
 	case ')':
 		val = T_PAREN_R
-		l.curMode().paren -= 1
+		l.CurMode().paren -= 1
 	case '[':
 		val = T_BRACKET_L
 	case ']':
@@ -1082,7 +1090,7 @@ func (l *Lexer) readOctalEscapeSeq(first rune) (rune, string) {
 	octal = append(octal, first)
 	zeroToThree := first >= '0' && first <= '3'
 	i := 1
-	if l.isMode(LM_TEMPLATE) {
+	if l.IsMode(LM_TEMPLATE) {
 		return utf8.RuneError, ERR_TPL_LEGACY_OCTAL_ESCAPE_IN
 	}
 	for {
@@ -1159,7 +1167,7 @@ func (l *Lexer) readNum() *Token {
 		nc := l.src.Peek()
 		if IsDecimalDigit(nc) {
 			if IsOctalDigit(nc) {
-				if l.isMode(LM_STRICT) {
+				if l.IsMode(LM_STRICT) {
 					return l.errToken(tok, ERR_LEGACY_OCTAL_IN_STRICT_MODE)
 				} else {
 					return l.readOctalNum(tok, 1)
@@ -1608,7 +1616,7 @@ func (l *Lexer) aheadIsStrStart() bool {
 }
 
 func (l *Lexer) aheadIsTplStart() bool {
-	return l.src.Peek() == '`' || l.isMode(LM_TEMPLATE) && l.src.AheadIsCh('}')
+	return l.src.Peek() == '`' || l.IsMode(LM_TEMPLATE) && l.src.AheadIsCh('}')
 }
 
 func (l *Lexer) newToken() *Token {

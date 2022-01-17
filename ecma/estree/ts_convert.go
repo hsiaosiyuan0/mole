@@ -121,7 +121,7 @@ func convertTsTyp(node parser.Node) Node {
 	case parser.N_TS_DEC_FN:
 		n := node.(*parser.TsDec).Inner().(*parser.FnDec)
 		ti := n.TypInfo()
-		lc := parser.LocWithTypeInfo(node)
+		lc := parser.LocWithTypeInfo(node, false)
 		return &TSDeclareFunction{
 			Type:           "TSDeclareFunction",
 			Start:          start(lc),
@@ -258,4 +258,34 @@ func typArgs(ti *parser.TypInfo) Node {
 		Loc:    loc(psInst.Loc()),
 		Params: ret,
 	}
+}
+
+func tsParamProp(node parser.Node) Node {
+	ti, ok := isTyParamProp(node)
+	if !ok {
+		return nil
+	}
+
+	lc := parser.LocWithTypeInfo(node, true)
+	return &TSParameterProperty{
+		Type:      "TSParameterProperty",
+		Start:     start(lc),
+		End:       end(lc),
+		Loc:       loc(lc),
+		Parameter: convert(node),
+		Readonly:  ti.Readonly(),
+		Override:  ti.Override(),
+	}
+}
+
+func isTyParamProp(node parser.Node) (*parser.TypInfo, bool) {
+	wt, ok := node.(parser.NodeWithTypInfo)
+	if !ok {
+		return nil, false
+	}
+	ti := wt.TypInfo()
+	if ti == nil {
+		return nil, false
+	}
+	return ti, ti.Readonly() || ti.Override()
 }
