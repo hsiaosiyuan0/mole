@@ -1,0 +1,3 @@
+{
+  "throws": "Initializers are not allowed in ambient contexts at (2:8)"
+}

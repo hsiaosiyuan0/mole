@@ -246,6 +246,8 @@ type TSPropertyDefinition struct {
 	Static         bool       `json:"static"`
 	Abstract       bool       `json:"abstract"`
 	Optional       bool       `json:"optional"`
+	Declare        bool       `json:"declare"`
+	Accessibility  string     `json:"accessibility"`
 	TypeAnnotation Node       `json:"typeAnnotation"`
 }
 

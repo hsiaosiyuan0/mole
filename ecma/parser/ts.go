@@ -173,7 +173,7 @@ func (p *Parser) tsQues() *Loc {
 	return ques
 }
 
-func (p *Parser) tsNodeTypAnnot(binding Node, typAnnot Node, accMod ACC_MOD, readonly, override *Loc, ques *Loc) bool {
+func (p *Parser) tsNodeTypAnnot(binding Node, typAnnot Node, accMod ACC_MOD, abstract, readonly, override, declare *Loc, ques *Loc) bool {
 	if wt, ok := binding.(NodeWithTypInfo); ok {
 		ti := wt.TypInfo()
 		if ti == nil {
@@ -187,8 +187,10 @@ func (p *Parser) tsNodeTypAnnot(binding Node, typAnnot Node, accMod ACC_MOD, rea
 			ti.ques = ques
 		}
 		ti.accMod = accMod
+		ti.abstractLoc = abstract
 		ti.readonlyLoc = readonly
 		ti.overrideLoc = override
+		ti.declareLoc = declare
 		return true
 	}
 	return false
@@ -242,7 +244,7 @@ func (p *Parser) tsRoughParamToParam(node Node) (Node, error) {
 		}
 
 		ti := param.ti
-		if ok := p.tsNodeTypAnnot(fp, ti.typAnnot, ti.accMod, ti.readonlyLoc, ti.overrideLoc, ti.ques); !ok {
+		if ok := p.tsNodeTypAnnot(fp, ti.typAnnot, ti.accMod, ti.abstractLoc, ti.readonlyLoc, ti.overrideLoc, ti.declareLoc, ti.ques); !ok {
 			return nil, p.errorAtLoc(fp.Loc(), ERR_UNEXPECTED_TOKEN)
 		}
 
@@ -1354,7 +1356,11 @@ func (p *Parser) tsNS() (Node, error) {
 }
 
 func (p *Parser) aheadIsTsDec(tok *Token) bool {
-	return p.ts && tok.value == T_NAME && tok.Text() == "declare"
+	if !(p.ts && tok.value == T_NAME && tok.Text() == "declare") {
+		return false
+	}
+	ahead := p.lexer.Peek2nd()
+	return !ahead.afterLineTerm
 }
 
 func (p *Parser) aheadIsModDec(tok *Token) bool {
@@ -1401,9 +1407,7 @@ func (p *Parser) tsDec() (Node, error) {
 			return nil, p.errorAt(tv, &tok.begin, ERR_ESCAPE_IN_KEYWORD)
 		}
 		return nil, p.errorAt(tv, &tok.begin, ERR_ASYNC_IN_AMBIENT)
-	}
-
-	if tv == T_CLASS {
+	} else if tv == T_CLASS {
 		dec.inner, err = p.classDec(false, false, true, false)
 		typ = N_TS_DEC_CLASS
 	} else if p.aheadIsTsItf(tok) {
@@ -1424,6 +1428,8 @@ func (p *Parser) tsDec() (Node, error) {
 	} else if p.tsAheadIsAbstract(tok, false, false) {
 		dec.inner, err = p.classDec(false, false, true, true)
 		typ = N_TS_DEC_CLASS
+	} else {
+		return nil, p.errorAt(tok.value, &tok.begin, ERR_UNEXPECTED_TOKEN)
 	}
 
 	if err != nil {
@@ -1447,7 +1453,7 @@ func (p *Parser) checkAmbient(typ NodeType, dec Node) error {
 		for _, v := range n.decList {
 			init := v.(*VarDec).init
 			if init != nil {
-				return p.errorAtLoc(init.Loc(), ERR_INIT_NOT_ALLOWED)
+				return p.errorAtLoc(init.Loc(), ERR_INIT_IN_ALLOWED_CTX)
 			}
 		}
 	}

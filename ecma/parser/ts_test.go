@@ -1170,7 +1170,7 @@ func TestTs78(t *testing.T) {
 
 	f := cls.body.(*ClassBody).elems[0].(*Field)
 	AssertEqual(t, true, f.static, "should be ok")
-	AssertEqual(t, ACC_MOD_PUB, f.accMode, "should be ok")
+	AssertEqual(t, ACC_MOD_PUB, f.ti.accMod, "should be ok")
 	AssertEqual(t, "b", f.key.(*Ident).Text(), "should be ok")
 	AssertEqual(t, N_TS_NUM, f.ti.typAnnot.(*TsTypAnnot).tsTyp.Type(), "should be ok")
 }
@@ -1188,7 +1188,7 @@ func TestTs79(t *testing.T) {
 
 	m := cls.body.(*ClassBody).elems[0].(*Method)
 	AssertEqual(t, false, m.static, "should be ok")
-	AssertEqual(t, ACC_MOD_PUB, m.accMode, "should be ok")
+	AssertEqual(t, ACC_MOD_PUB, m.ti.accMod, "should be ok")
 	AssertEqual(t, "test", m.key.(*StrLit).Text(), "should be ok")
 }
 
@@ -1205,7 +1205,7 @@ func TestTs80(t *testing.T) {
 
 	m := cls.body.(*ClassBody).elems[0].(*Method)
 	AssertEqual(t, PK_CTOR, m.kind, "should be ok")
-	AssertEqual(t, ACC_MOD_PRI, m.accMode, "should be ok")
+	AssertEqual(t, ACC_MOD_PRI, m.ti.accMod, "should be ok")
 }
 
 func TestTs81(t *testing.T) {
@@ -1457,7 +1457,7 @@ func TestTs97(t *testing.T) {
 	AssertEqual(t, true, ast != nil, "should be prog ok")
 	prog = ast.(*Prog)
 	prop := prog.stmts[0].(*ClassDec).body.(*ClassBody).elems[0].(*Method)
-	AssertEqual(t, true, prop.abstract, "should be ok")
+	AssertEqual(t, true, prop.ti.Abstract(), "should be ok")
 }
 
 func TestTs98(t *testing.T) {

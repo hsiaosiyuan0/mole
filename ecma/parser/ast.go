@@ -574,14 +574,20 @@ type TypInfo struct {
 	typAnnot    Node
 	typParams   Node
 	typArgs     Node
+	abstractLoc *Loc
 	readonlyLoc *Loc
 	overrideLoc *Loc
+	declareLoc  *Loc
 }
 
 func NewTypInfo() *TypInfo {
 	return &TypInfo{
-		ACC_MOD_PUB, nil, nil, nil, nil, nil, nil,
+		ACC_MOD_PUB, nil, nil, nil, nil, nil, nil, nil, nil,
 	}
+}
+
+func (ti *TypInfo) AccMod() ACC_MOD {
+	return ti.accMod
 }
 
 func (ti *TypInfo) Readonly() bool {
@@ -598,6 +604,14 @@ func (ti *TypInfo) Ques() *Loc {
 
 func (ti *TypInfo) Optional() bool {
 	return ti.ques != nil
+}
+
+func (ti *TypInfo) Abstract() bool {
+	return ti.abstractLoc != nil
+}
+
+func (ti *TypInfo) Declare() bool {
+	return ti.declareLoc != nil
 }
 
 func (ti *TypInfo) TypAnnot() Node {
@@ -2133,9 +2147,6 @@ type Method struct {
 	computed bool
 	kind     PropKind
 	value    Node
-	accMode  ACC_MOD
-	abstract bool
-	override bool
 	ti       *TypInfo
 }
 
@@ -2155,10 +2166,6 @@ func (n *Method) Computed() bool {
 	return n.computed
 }
 
-func (n *Method) Abstract() bool {
-	return n.abstract
-}
-
 func (n *Method) Static() bool {
 	return n.static
 }
@@ -2176,10 +2183,6 @@ func (n *Method) Declare() bool {
 	return fn.body == nil
 }
 
-func (n *Method) Optional() bool {
-	return n.ti.Optional()
-}
-
 func (n *Method) TypInfo() *TypInfo {
 	return n.ti
 }
@@ -2195,10 +2198,6 @@ type Field struct {
 	static   bool
 	computed bool
 	value    Node
-	accMode  ACC_MOD
-	abstract bool
-	readonly bool
-	override bool
 	ti       *TypInfo
 }
 
@@ -2214,10 +2213,6 @@ func (n *Field) Static() bool {
 	return n.static
 }
 
-func (n *Field) Abstract() bool {
-	return n.abstract
-}
-
 func (n *Field) Computed() bool {
 	return n.computed
 }
@@ -2228,10 +2223,6 @@ func (n *Field) Type() NodeType {
 
 func (n *Field) Loc() *Loc {
 	return n.loc
-}
-
-func (n *Field) Optional() bool {
-	return n.ti.Optional()
 }
 
 func (n *Field) TypInfo() *TypInfo {

@@ -994,8 +994,8 @@ func convert(node parser.Node) Node {
 				Static:         n.Static(),
 				TypeParameters: typParams(ti),
 				ReturnType:     typAnnot(ti),
-				Optional:       n.Optional(),
-				Abstract:       n.Abstract(),
+				Optional:       ti.Optional(),
+				Abstract:       ti.Abstract(),
 			}
 		}
 		return &MethodDefinition{
@@ -1022,8 +1022,10 @@ func convert(node parser.Node) Node {
 				Value:          convert(n.Value()),
 				Computed:       n.Computed(),
 				Static:         n.Static(),
-				Abstract:       n.Abstract(),
-				Optional:       n.Optional(),
+				Abstract:       ti.Abstract(),
+				Optional:       ti.Optional(),
+				Declare:        ti.Declare(),
+				Accessibility:  ti.AccMod().String(),
 				TypeAnnotation: typAnnot(ti),
 			}
 		}
@@ -1036,7 +1038,6 @@ func convert(node parser.Node) Node {
 			Value:    convert(n.Value()),
 			Computed: n.Computed(),
 			Static:   n.Static(),
-			Abstract: n.Abstract(),
 		}
 	case parser.N_SUPER:
 		n := node.(*parser.Super)

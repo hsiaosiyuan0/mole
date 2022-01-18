@@ -853,12 +853,12 @@ func (p *Parser) classBody(declare bool) (Node, error) {
 			if !m.Declare() && p.isName(m.key, "constructor", false, true) {
 				hasCtor = true
 			}
-			if m.abstract && !scope.IsKind(SPK_ABSTRACT_CLASS) {
+			if m.ti != nil && m.ti.Abstract() && !scope.IsKind(SPK_ABSTRACT_CLASS) {
 				return nil, p.errorAtLoc(m.Loc(), ERR_BARE_ABSTRACT_PROPERTY)
 			}
 		} else if elem.Type() == N_FIELD {
 			f := elem.(*Field)
-			if f.abstract && !scope.IsKind(SPK_ABSTRACT_CLASS) {
+			if f.ti != nil && f.ti.Abstract() && !scope.IsKind(SPK_ABSTRACT_CLASS) {
 				return nil, p.errorAtLoc(f.Loc(), ERR_BARE_ABSTRACT_PROPERTY)
 			}
 		}
@@ -902,7 +902,7 @@ func (p *Parser) classBody(declare bool) (Node, error) {
 	return &ClassBody{N_ClASS_BODY, p.finLoc(loc), elems}, nil
 }
 
-func (p *Parser) accessModifier() (begin, static, access, abstract, readonly, override *Loc, isField, escape bool, name string, fieldLoc *Loc, accMod ACC_MOD, ahead *Token) {
+func (p *Parser) modifiers() (begin, static, access, abstract, readonly, override, declare *Loc, isField, escape bool, name string, fieldLoc *Loc, accMod ACC_MOD, ahead *Token) {
 	for {
 		ahead = p.lexer.Peek()
 		av := ahead.value
@@ -917,7 +917,6 @@ func (p *Parser) accessModifier() (begin, static, access, abstract, readonly, ov
 			isField, ahead = p.isField(true, false)
 			fieldLoc = static
 			if isField {
-				p.advanceIfTok(T_COLON)
 				static = nil
 				return
 			}
@@ -992,6 +991,21 @@ func (p *Parser) accessModifier() (begin, static, access, abstract, readonly, ov
 				return
 			}
 			fieldLoc = override.Clone()
+		} else if p.ts && declare == nil && IsName(ahead, "declare", false) {
+			tok := p.lexer.Next()
+			declare = p.locFromTok(tok)
+			if begin == nil {
+				begin = declare.Clone()
+			}
+			escape = tok.ContainsEscape()
+			name = tok.Text()
+			isField, ahead = p.isField(true, false)
+			fieldLoc = declare
+			if isField {
+				declare = nil
+				return
+			}
+			fieldLoc = declare.Clone()
 		} else {
 			break
 		}
@@ -999,16 +1013,14 @@ func (p *Parser) accessModifier() (begin, static, access, abstract, readonly, ov
 	return
 }
 
-func (p *Parser) classElem(declare bool) (Node, error) {
-	beginLoc, staticLoc, accLoc, abstractLoc, readonlyLoc, overrideLoc, isField, escape, fieldName, fieldLoc, accMod, ahead := p.accessModifier()
-
-	static := staticLoc != nil
-	abstract := abstractLoc != nil
-	readonly := readonlyLoc != nil
-	override := overrideLoc != nil
+func (p *Parser) classElem(inDeclare bool) (Node, error) {
+	beginLoc, staticLoc, accLoc, abstractLoc, readonlyLoc, overrideLoc, declareLoc, isField, escape, fieldName, fieldLoc, accMod, ahead := p.modifiers()
 	if err := p.tsModifierOrder(overrideLoc, readonlyLoc, accLoc, accMod); err != nil {
 		return nil, err
 	}
+
+	static := staticLoc != nil
+	abstract := abstractLoc != nil
 
 	if static {
 		if static && abstract {
@@ -1020,24 +1032,24 @@ func (p *Parser) classElem(declare bool) (Node, error) {
 		}
 		if p.aheadIsArgList(ahead) {
 			key := &Ident{N_NAME, fieldLoc, fieldName, false, escape, nil, true, p.newTypInfo()}
-			return p.method(beginLoc, key, accMod, nil, false, PK_METHOD, false, false, false, true, false, declare, abstract, override)
+			return p.method(beginLoc, key, accMod, nil, false, PK_METHOD, false, false, false, true, false, declareLoc, abstractLoc, overrideLoc)
 		}
 	} else if isField {
 		key := &Ident{N_NAME, fieldLoc, fieldName, false, escape, nil, true, p.newTypInfo()}
-		return p.field(key, nil, accMod, false, readonly, override)
+		return p.field(key, beginLoc, nil, accMod, abstractLoc, readonlyLoc, overrideLoc, declareLoc, inDeclare)
 	}
 
 	if p.aheadIsAsync(ahead, true, true) {
 		if ahead.ContainsEscape() {
 			return nil, p.errorAt(ahead.value, &ahead.begin, ERR_ESCAPE_IN_KEYWORD)
 		}
-		return p.method(beginLoc, nil, accMod, nil, false, PK_METHOD, false, true, true, true, static, declare, abstract, override)
+		return p.method(beginLoc, nil, accMod, nil, false, PK_METHOD, false, true, true, true, static, declareLoc, abstractLoc, overrideLoc)
 	}
 	if ahead.value == T_MUL {
 		if p.feat&FEAT_ASYNC_GENERATOR == 0 {
 			return nil, p.errorTok(ahead)
 		}
-		return p.method(beginLoc, nil, accMod, nil, false, PK_METHOD, true, false, true, true, static, declare, abstract, override)
+		return p.method(beginLoc, nil, accMod, nil, false, PK_METHOD, true, false, true, true, static, declareLoc, abstractLoc, overrideLoc)
 	}
 
 	propLoc := p.locFromTok(ahead)
@@ -1066,10 +1078,14 @@ func (p *Parser) classElem(declare bool) (Node, error) {
 
 		isField, ahead = p.isField(false, name == "get" || name == "set")
 		if isField {
-			return p.field(key, beginLoc, accMod, abstract, readonly, override)
+			return p.field(key, beginLoc, staticLoc, accMod, abstractLoc, readonlyLoc, overrideLoc, declareLoc, inDeclare)
 		}
 
-		if static || abstract || accMod != ACC_MOD_NONE {
+		if declareLoc != nil {
+			return nil, p.errorAtLoc(beginLoc, ERR_ILLEGAL_DECLARE_IN_CLASS)
+		}
+
+		if beginLoc != nil {
 			propLoc = beginLoc
 		}
 
@@ -1079,7 +1095,7 @@ func (p *Parser) classElem(declare bool) (Node, error) {
 			if name == "constructor" {
 				kd = PK_CTOR
 			}
-			return p.method(propLoc, key, accMod, nil, false, kd, false, false, true, true, static, declare, abstract, override)
+			return p.method(propLoc, key, accMod, nil, false, kd, false, false, true, true, static, declareLoc, abstractLoc, overrideLoc)
 		}
 
 		if name == "get" {
@@ -1090,14 +1106,14 @@ func (p *Parser) classElem(declare bool) (Node, error) {
 			return nil, p.errorTok(ahead)
 		}
 
-		return p.method(propLoc, nil, accMod, nil, false, kd, false, false, true, true, static, declare, abstract, override)
+		return p.method(propLoc, nil, accMod, nil, false, kd, false, false, true, true, static, declareLoc, abstractLoc, overrideLoc)
 	}
 
-	if declare && ahead.value == T_BRACKET_L {
+	if (inDeclare || declareLoc != nil) && ahead.value == T_BRACKET_L {
 		return p.tsIdxSig(nil)
 	}
 
-	return p.field(nil, staticLoc, accMod, abstract, readonly, override)
+	return p.field(nil, beginLoc, staticLoc, accMod, abstractLoc, readonlyLoc, overrideLoc, declareLoc, inDeclare)
 }
 
 func (p *Parser) isName(node Node, name string, canContainsEscape bool, str bool) bool {
@@ -1122,7 +1138,7 @@ func (p *Parser) isName(node Node, name string, canContainsEscape bool, str bool
 	return true
 }
 
-func (p *Parser) field(key Node, static *Loc, accMode ACC_MOD, abstract, readonly, override bool) (Node, error) {
+func (p *Parser) field(key Node, begin, static *Loc, accMode ACC_MOD, abstract, readonly, override, declare *Loc, inDeclare bool) (Node, error) {
 	var loc *Loc
 	var err error
 	var compute *Loc
@@ -1139,8 +1155,8 @@ func (p *Parser) field(key Node, static *Loc, accMode ACC_MOD, abstract, readonl
 		}
 	}
 
-	if static != nil {
-		loc = static.Clone()
+	if begin != nil {
+		loc = begin.Clone()
 	} else if compute != nil {
 		loc = compute.Clone()
 	} else {
@@ -1153,14 +1169,19 @@ func (p *Parser) field(key Node, static *Loc, accMode ACC_MOD, abstract, readonl
 			return nil, err
 		}
 		ti.typAnnot = typAnnot
+		ti.abstractLoc = abstract
+		ti.declareLoc = declare
+		ti.readonlyLoc = readonly
+		ti.overrideLoc = override
 	}
 
 	var value Node
 	tok := p.lexer.Peek()
+	var assignLoc *Loc
 	if tok.value == T_ASSIGN {
-		assignLoc := p.loc()
+		assignLoc = p.loc()
 		p.lexer.Next()
-		if abstract {
+		if abstract != nil {
 			return nil, p.errorAtLoc(assignLoc, ERR_ABSTRACT_PROP_WITH_INIT)
 		}
 		value, err = p.assignExpr(true, false, false)
@@ -1172,7 +1193,7 @@ func (p *Parser) field(key Node, static *Loc, accMode ACC_MOD, abstract, readonl
 			loc = static
 		}
 		// above `ti` is discard at here since if the field is method then it does not have `ti`
-		return p.method(loc, key, accMode, compute, false, PK_METHOD, false, false, true, true, static != nil, false, abstract, override)
+		return p.method(loc, key, accMode, compute, false, PK_METHOD, false, false, true, true, static != nil, declare, abstract, override)
 	}
 	p.advanceIfSemi(false)
 
@@ -1182,16 +1203,20 @@ func (p *Parser) field(key Node, static *Loc, accMode ACC_MOD, abstract, readonl
 			return nil, err
 		}
 		p.checkName = false
+
+		if inDeclare || declare != nil {
+			return nil, p.errorAtLoc(assignLoc, ERR_INIT_IN_ALLOWED_CTX)
+		}
 	}
 
-	staticField := static != nil
-	if staticField && p.isName(key, "prototype", false, true) {
+	isStatic := static != nil
+	if isStatic && p.isName(key, "prototype", false, true) {
 		return nil, p.errorAtLoc(key.Loc(), ERR_STATIC_PROP_PROTOTYPE)
 	} else if p.isName(key, "constructor", false, true) {
 		return nil, p.errorAtLoc(key.Loc(), ERR_CTOR_CANNOT_BE_Field)
 	}
 
-	return &Field{N_FIELD, p.finLoc(loc), key, staticField, compute != nil, value, accMode, abstract, readonly, override, ti}, nil
+	return &Field{N_FIELD, p.finLoc(loc), key, isStatic, compute != nil, value, ti}, nil
 }
 
 func (p *Parser) classElemName() (Node, *Loc, error) {
@@ -1291,7 +1316,7 @@ func (p *Parser) tryStmt() (Node, error) {
 			if err != nil {
 				return nil, err
 			}
-			p.tsNodeTypAnnot(param, typAnnot, ACC_MOD_NONE, nil, nil, nil)
+			p.tsNodeTypAnnot(param, typAnnot, ACC_MOD_NONE, nil, nil, nil, nil, nil)
 
 			if _, err := p.nextMustTok(T_PAREN_R); err != nil {
 				return nil, err
@@ -2593,7 +2618,7 @@ func (p *Parser) varDec(lexical bool) (*VarDec, error) {
 	if err != nil {
 		return nil, err
 	}
-	p.tsNodeTypAnnot(binding, typAnnot, ACC_MOD_NONE, nil, nil, nil)
+	p.tsNodeTypAnnot(binding, typAnnot, ACC_MOD_NONE, nil, nil, nil, nil, nil)
 
 	var init Node
 	if p.lexer.Peek().value == T_ASSIGN {
@@ -2683,13 +2708,13 @@ func (p *Parser) ident(scope *Scope, binding bool) (*Ident, error) {
 	return id.(*Ident), nil
 }
 
-func (p *Parser) accMod() (accMod ACC_MOD, accLoc *Loc, readonlyLoc, overrideLoc *Loc, beginLoc *Loc, isField, escape bool, name string, fieldLoc *Loc, err error) {
+func (p *Parser) accMod() (accMod ACC_MOD, accLoc *Loc, abstractLoc, readonlyLoc, overrideLoc, declareLoc *Loc, beginLoc *Loc, isField, escape bool, name string, fieldLoc *Loc, err error) {
 	if !p.ts {
 		return
 	}
 
-	var staticLoc, abstractLoc *Loc
-	beginLoc, staticLoc, accLoc, abstractLoc, readonlyLoc, overrideLoc, isField, escape, name, fieldLoc, accMod, _ = p.accessModifier()
+	var staticLoc *Loc
+	beginLoc, staticLoc, accLoc, abstractLoc, readonlyLoc, overrideLoc, declareLoc, isField, escape, name, fieldLoc, accMod, _ = p.modifiers()
 	if err = p.tsModifierOrder(overrideLoc, readonlyLoc, accLoc, accMod); err != nil {
 		return
 	}
@@ -2706,7 +2731,7 @@ func (p *Parser) accMod() (accMod ACC_MOD, accLoc *Loc, readonlyLoc, overrideLoc
 }
 
 func (p *Parser) roughParam(ctor bool) (Node, error) {
-	accMod, accLoc, readonlyLoc, overrideLoc, _, isField, escape, fieldName, fieldLoc, err := p.accMod()
+	accMod, accLoc, abstract, readonlyLoc, overrideLoc, declareLoc, _, isField, escape, fieldName, fieldLoc, err := p.accMod()
 	if err != nil {
 		return nil, err
 	}
@@ -2739,7 +2764,10 @@ func (p *Parser) roughParam(ctor bool) (Node, error) {
 	ti.accMod = accMod
 	ti.readonlyLoc = readonlyLoc
 	ti.overrideLoc = overrideLoc
+	ti.declareLoc = declareLoc
+	ti.abstractLoc = abstract
 	ti.ques = ques
+
 	var colonLoc *Loc
 	if typAnnot != nil {
 		colonLoc = typAnnot.Loc().Clone()
@@ -2748,7 +2776,7 @@ func (p *Parser) roughParam(ctor bool) (Node, error) {
 }
 
 func (p *Parser) param(ctor bool) (Node, error) {
-	accMod, accLoc, readonly, override, _, isField, escape, fieldName, fieldLoc, err := p.accMod()
+	accMod, accLoc, abstract, readonly, override, declare, _, isField, escape, fieldName, fieldLoc, err := p.accMod()
 	if err != nil {
 		return nil, err
 	}
@@ -2783,7 +2811,7 @@ func (p *Parser) param(ctor bool) (Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	p.tsNodeTypAnnot(binding, typAnnot, accMod, readonly, override, nil)
+	p.tsNodeTypAnnot(binding, typAnnot, accMod, abstract, readonly, override, declare, nil)
 
 	if p.lexer.Peek().value == T_ASSIGN {
 		p.lexer.Next()
@@ -3104,7 +3132,7 @@ func (p *Parser) propName(allowNamePVT bool, maybeMethod bool, tsRough bool) (No
 		}
 	}
 
-	m, err := p.method(loc, key, ACC_MOD_NONE, computeLoc, false, kd, false, false, false, false, false, false, false, false)
+	m, err := p.method(loc, key, ACC_MOD_NONE, computeLoc, false, kd, false, false, false, false, false, nil, nil, nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -3360,7 +3388,7 @@ func (p *Parser) assignExpr(checkLhs bool, notGT bool, notHook bool) (Node, erro
 		if err != nil {
 			return nil, err
 		}
-		p.tsNodeTypAnnot(lhs, typAnnot, ACC_MOD_NONE, nil, nil, ques)
+		p.tsNodeTypAnnot(lhs, typAnnot, ACC_MOD_NONE, nil, nil, nil, nil, ques)
 	}
 
 	tok := p.lexer.Peek()
@@ -5244,12 +5272,12 @@ func (p *Parser) objProp() (Node, error) {
 		if p.feat&FEAT_ASYNC_GENERATOR == 0 {
 			return nil, p.errorTok(tok)
 		}
-		return p.method(nil, nil, ACC_MOD_NONE, nil, false, PK_INIT, true, false, false, false, false, false, false, false)
+		return p.method(nil, nil, ACC_MOD_NONE, nil, false, PK_INIT, true, false, false, false, false, nil, nil, nil)
 	} else if p.aheadIsAsync(tok, true, false) {
 		if tok.ContainsEscape() {
 			return nil, p.errorAt(tok.value, &tok.begin, ERR_ESCAPE_IN_KEYWORD)
 		}
-		return p.method(nil, nil, ACC_MOD_NONE, nil, false, PK_INIT, false, true, false, false, false, false, false, false)
+		return p.method(nil, nil, ACC_MOD_NONE, nil, false, PK_INIT, false, true, false, false, false, nil, nil, nil)
 	}
 	return p.propData()
 }
@@ -5280,7 +5308,7 @@ func (p *Parser) propData() (Node, error) {
 			return nil, err
 		}
 	} else if p.aheadIsArgList(tok) {
-		return p.method(loc, key, ACC_MOD_NONE, compute, false, PK_INIT, false, false, false, false, false, false, false, false)
+		return p.method(loc, key, ACC_MOD_NONE, compute, false, PK_INIT, false, false, false, false, false, nil, nil, nil)
 	} else if compute != nil {
 		return nil, p.errorAt(tok.value, &tok.begin, ERR_COMPUTE_PROP_MISSING_INIT)
 	}
@@ -5299,7 +5327,7 @@ func (p *Parser) propData() (Node, error) {
 }
 
 func (p *Parser) method(loc *Loc, key Node, accMode ACC_MOD, compute *Loc, shorthand bool, kind PropKind,
-	gen, async, allowNamePVT, inclass, static, declare, abstract, override bool) (Node, error) {
+	gen, async, allowNamePVT, inclass, static bool, declare, abstract, override *Loc) (Node, error) {
 
 	if !inclass && compute != nil {
 		loc = compute
@@ -5332,7 +5360,7 @@ func (p *Parser) method(loc *Loc, key Node, accMode ACC_MOD, compute *Loc, short
 	}
 
 	var err error
-	methodTi := p.newTypInfo()
+	ti := p.newTypInfo()
 	if key == nil {
 		if inclass {
 			key, compute, err = p.classElemName()
@@ -5342,17 +5370,24 @@ func (p *Parser) method(loc *Loc, key Node, accMode ACC_MOD, compute *Loc, short
 		if err != nil {
 			return nil, err
 		}
-		if methodTi != nil {
+		if ti != nil {
 			ques := p.tsAdvanceHook()
-			methodTi.ques = ques
+			ti.ques = ques
 		}
-	} else if methodTi != nil {
+	} else if ti != nil {
 		if wt, ok := key.(NodeWithTypInfo); ok {
-			ti := wt.TypInfo()
-			if ti != nil {
-				methodTi.ques = ti.ques
+			tti := wt.TypInfo()
+			if tti != nil {
+				ti.ques = tti.ques
 			}
 		}
+	}
+
+	if ti != nil {
+		ti.accMod = accMode
+		ti.abstractLoc = abstract
+		ti.declareLoc = declare
+		ti.overrideLoc = override
 	}
 
 	ctor := false
@@ -5392,7 +5427,6 @@ func (p *Parser) method(loc *Loc, key Node, accMode ACC_MOD, compute *Loc, short
 	if err != nil {
 		return nil, err
 	}
-	ti := p.newTypInfo()
 	if ti != nil {
 		ti.typAnnot = typAnnot
 		ti.typParams = typParams
@@ -5418,7 +5452,7 @@ func (p *Parser) method(loc *Loc, key Node, accMode ACC_MOD, compute *Loc, short
 	ahead := p.lexer.Peek()
 	opt := false
 	if ahead.value == T_BRACE_L {
-		if abstract {
+		if abstract != nil {
 			return nil, p.errorAtLoc(loc, ERR_ABSTRACT_METHOD_WITH_IMPL)
 		}
 		body, err = p.fnBody()
@@ -5460,7 +5494,7 @@ func (p *Parser) method(loc *Loc, key Node, accMode ACC_MOD, compute *Loc, short
 			//
 			// however, if the method is not flagged as optional then it must be followed
 			// by the method definition which is the last subsequent statement in principle
-			opt = methodTi != nil && methodTi.ques != nil
+			opt = ti != nil && ti.ques != nil
 			if !opt {
 				if name := p.nameOfNode(key); name == "" {
 					return nil, p.errorAtLoc(fnLoc, ERR_OVERRIDE_METHOD_DYNAMIC_NAME)
@@ -5480,7 +5514,7 @@ func (p *Parser) method(loc *Loc, key Node, accMode ACC_MOD, compute *Loc, short
 			return nil, p.errorAtLoc(key.Loc(), ERR_STATIC_PROP_PROTOTYPE)
 		}
 
-		return &Method{N_METHOD, p.finLoc(loc), key, static, compute != nil, kind, value, accMode, abstract, override, methodTi}, nil
+		return &Method{N_METHOD, p.finLoc(loc), key, static, compute != nil, kind, value, ti}, nil
 	}
 	return &Prop{N_PROP, p.finLoc(loc), key, nil, value, compute != nil, true, shorthand, false, kind, accMode}, nil
 }

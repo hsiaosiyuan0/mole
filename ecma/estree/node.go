@@ -664,7 +664,6 @@ type PropertyDefinition struct {
 	Value    Expression `json:"value"`
 	Computed bool       `json:"computed"`
 	Static   bool       `json:"static"`
-	Abstract bool       `json:"abstract"`
 }
 
 // https://github.com/estree/estree/blob/master/es2015.md#classdeclaration

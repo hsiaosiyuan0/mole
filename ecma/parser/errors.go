@@ -149,7 +149,7 @@ const (
 	ERR_TPL_INVALID_FN_IMPL_NAME     = "Function implementation name must be `%s`"
 	ERR_TPL_USE_TYP_AS_VALUE         = "`%s` only refers to a type, but is being used as a value here"
 	ERR_ASYNC_IN_AMBIENT             = "`async` modifier cannot be used in an ambient context"
-	ERR_INIT_NOT_ALLOWED             = "Initializers are not allowed in ambient contexts"
+	ERR_INIT_IN_ALLOWED_CTX          = "Initializers are not allowed in ambient contexts"
 	ERR_UNEXPECTED_TYPE_ANNOTATION   = "Unexpected type annotation"
 	ERR_ABSTRACT_MIXED_WITH_STATIC   = "`static` modifier cannot be used with `abstract` modifier"
 	ERR_BARE_ABSTRACT_PROPERTY       = "Abstract methods can only appear within an abstract class"
@@ -157,4 +157,5 @@ const (
 	ERR_ABSTRACT_PROP_WITH_INIT      = "Property cannot have an initializer because it's marked abstract"
 	ERR_OVERRIDE_METHOD_DYNAMIC_NAME = "Method overload name must refer to an expression whose type is a literal type"
 	ERR_TPL_INVALID_MODIFIER_ORDER   = "`%s` modifier must precede `%s` modifier"
+	ERR_ILLEGAL_DECLARE_IN_CLASS     = "`declare` modifier cannot appear on class elements of this kind"
 )
