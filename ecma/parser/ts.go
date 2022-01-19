@@ -1197,10 +1197,18 @@ func (p *Parser) aheadIsTsItf(tok *Token) bool {
 }
 
 func (p *Parser) tsItfExtClause() ([]Node, error) {
-	if p.lexer.Peek().value == T_EXTENDS {
-		p.lexer.Next()
-	}
 	ns := make([]Node, 0, 1)
+	var loc *Loc
+	if p.lexer.Peek().value == T_EXTENDS {
+		loc = p.locFromTok(p.lexer.Next())
+	} else {
+		return ns, nil
+	}
+
+	if p.lexer.Peek().value == T_BRACE_L {
+		return nil, p.errorAtLoc(loc, ERR_EXTEND_LIST_EMPTY)
+	}
+
 	for {
 		tr, err := p.tsPredefOrRef(nil)
 		if err != nil {
@@ -1549,7 +1557,7 @@ func (p *Parser) tsImplements() ([]Node, error) {
 	if av != T_IMPLEMENTS {
 		return nil, nil
 	}
-	p.lexer.Next()
+	implLoc := p.locFromTok(p.lexer.Next())
 	impl := []Node{}
 	for {
 		ahead = p.lexer.Peek()
@@ -1562,6 +1570,9 @@ func (p *Parser) tsImplements() ([]Node, error) {
 			return nil, err
 		}
 		impl = append(impl, typ)
+	}
+	if len(impl) == 0 {
+		return nil, p.errorAtLoc(implLoc, ERR_IMPLEMENT_LIST_EMPTY)
 	}
 	return impl, nil
 }

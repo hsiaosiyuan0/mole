@@ -159,4 +159,6 @@ const (
 	ERR_TPL_INVALID_MODIFIER_ORDER   = "`%s` modifier must precede `%s` modifier"
 	ERR_ILLEGAL_DECLARE_IN_CLASS     = "`declare` modifier cannot appear on class elements of this kind"
 	ERR_EMPTY_TYPE_PARAM_LIST        = "Type parameter list cannot be empty"
+	ERR_EXTEND_LIST_EMPTY            = "`extends` list cannot be empty"
+	ERR_IMPLEMENT_LIST_EMPTY         = "`implements` list cannot be empty"
 )
