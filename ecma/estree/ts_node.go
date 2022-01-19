@@ -303,13 +303,39 @@ type TSIntersectionType struct {
 }
 
 type TSClassDeclaration struct {
-	Type       string     `json:"type"`
-	Start      int        `json:"start"`
-	End        int        `json:"end"`
-	Loc        *SrcLoc    `json:"loc"`
-	Id         Expression `json:"id"`
-	SuperClass Expression `json:"superClass"`
-	Body       Expression `json:"body"`
-	Declare    bool       `json:"declare"`
-	Abstract   bool       `json:"abstract"`
+	Type                string     `json:"type"`
+	Start               int        `json:"start"`
+	End                 int        `json:"end"`
+	Loc                 *SrcLoc    `json:"loc"`
+	Id                  Expression `json:"id"`
+	TypeParameters      Node       `json:"typeParameters"`
+	SuperClass          Expression `json:"superClass"`
+	SuperTypeParameters Node       `json:"superTypeParameters"`
+	Implements          []Node     `json:"implements"`
+	Body                Expression `json:"body"`
+	Declare             bool       `json:"declare"`
+	Abstract            bool       `json:"abstract"`
+}
+
+type TSClassExpression struct {
+	Type                string     `json:"type"`
+	Start               int        `json:"start"`
+	End                 int        `json:"end"`
+	Loc                 *SrcLoc    `json:"loc"`
+	Id                  Expression `json:"id"`
+	TypeParameters      Node       `json:"typeParameters"`
+	SuperClass          Expression `json:"superClass"`
+	SuperTypeParameters Node       `json:"superTypeParameters"`
+	Implements          []Node     `json:"implements"`
+	Body                Expression `json:"body"`
+	Abstract            bool       `json:"abstract"`
+}
+
+type TSQualifiedName struct {
+	Type  string     `json:"type"`
+	Start int        `json:"start"`
+	End   int        `json:"end"`
+	Loc   *SrcLoc    `json:"loc"`
+	Left  Expression `json:"left"`
+	Right Expression `json:"right"`
 }

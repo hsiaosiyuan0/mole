@@ -87,6 +87,15 @@ func convertTsTyp(node parser.Node) Node {
 			Loc:    loc(node.Loc()),
 			Params: elems(n.Params()),
 		}
+	case parser.N_TS_PARAM_DEC:
+		n := node.(*parser.TsParamsDec)
+		return &TSTypeParameterDeclaration{
+			Type:   "TSTypeParameterDeclaration",
+			Start:  start(node.Loc()),
+			End:    end(node.Loc()),
+			Loc:    loc(node.Loc()),
+			Params: elems(n.Params()),
+		}
 	case parser.N_TS_PARAM:
 		n := node.(*parser.TsParam)
 		return &TSTypeParameter{
@@ -203,6 +212,16 @@ func convertTsTyp(node parser.Node) Node {
 			Loc:            loc(n.Loc()),
 			Parameters:     elems([]parser.Node{n.Key()}),
 			TypeAnnotation: convertTsTyp(n.Value()),
+		}
+	case parser.N_TS_NS_NAME:
+		n := node.(*parser.TsNsName)
+		return &TSQualifiedName{
+			Type:  "TSQualifiedName",
+			Start: start(n.Loc()),
+			End:   end(n.Loc()),
+			Loc:   loc(n.Loc()),
+			Left:  convertTsTyp(n.Lhs()),
+			Right: convertTsTyp(n.Rhs()),
 		}
 	}
 

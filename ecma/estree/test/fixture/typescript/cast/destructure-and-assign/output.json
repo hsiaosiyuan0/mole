@@ -73,7 +73,7 @@
               },
               "name": "a",
               "typeAnnotation": {
-                "type": "TSNumberKeyword",
+                "type": "TSTypeAnnotation",
                 "start": 6,
                 "end": 12,
                 "loc": {
@@ -84,6 +84,21 @@
                   "end": {
                     "line": 1,
                     "column": 12
+                  }
+                },
+                "typeAnnotation": {
+                  "type": "TSNumberKeyword",
+                  "start": 6,
+                  "end": 12,
+                  "loc": {
+                    "start": {
+                      "line": 1,
+                      "column": 6
+                    },
+                    "end": {
+                      "line": 1,
+                      "column": 12
+                    }
                   }
                 }
               }
@@ -185,7 +200,7 @@
               },
               "name": "a",
               "typeAnnotation": {
-                "type": "TSNumberKeyword",
+                "type": "TSTypeAnnotation",
                 "start": 24,
                 "end": 30,
                 "loc": {
@@ -196,6 +211,21 @@
                   "end": {
                     "line": 2,
                     "column": 8
+                  }
+                },
+                "typeAnnotation": {
+                  "type": "TSNumberKeyword",
+                  "start": 24,
+                  "end": 30,
+                  "loc": {
+                    "start": {
+                      "line": 2,
+                      "column": 2
+                    },
+                    "end": {
+                      "line": 2,
+                      "column": 8
+                    }
                   }
                 }
               }

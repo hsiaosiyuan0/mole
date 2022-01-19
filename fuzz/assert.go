@@ -5,7 +5,18 @@ import (
 	"testing"
 )
 
+func IsNilPtr(v interface{}) bool {
+	if v == nil {
+		return true
+	}
+	vv := reflect.ValueOf(v)
+	return vv.Kind() == reflect.Ptr && vv.IsNil()
+}
+
 func AssertEqual(t *testing.T, except, actual interface{}, msg string) {
+	if except == nil && IsNilPtr(actual) {
+		return
+	}
 	if !reflect.DeepEqual(except, actual) {
 		t.Fatalf("%s Except: \n%v\nActual: \n%v", msg, except, actual)
 	}

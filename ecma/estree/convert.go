@@ -946,6 +946,24 @@ func convert(node parser.Node) Node {
 		}
 	case parser.N_STMT_CLASS:
 		stmt := node.(*parser.ClassDec)
+		superTypArgs := stmt.SuperTypArgs()
+		typParams := stmt.TypParams()
+		implements := stmt.Implements()
+		if superTypArgs != nil || typParams != nil || implements != nil {
+			return &TSClassDeclaration{
+				Type:                "ClassDeclaration",
+				Start:               start(stmt.Loc()),
+				End:                 end(stmt.Loc()),
+				Loc:                 loc(stmt.Loc()),
+				Id:                  convert(stmt.Id()),
+				TypeParameters:      convertTsTyp(typParams),
+				SuperClass:          convert(stmt.Super()),
+				SuperTypeParameters: convertTsTyp(superTypArgs),
+				Implements:          elems(implements),
+				Body:                convert(stmt.Body()),
+				Abstract:            stmt.Abstract(),
+			}
+		}
 		return &ClassDeclaration{
 			Type:       "ClassDeclaration",
 			Start:      start(stmt.Loc()),
@@ -958,6 +976,24 @@ func convert(node parser.Node) Node {
 		}
 	case parser.N_EXPR_CLASS:
 		stmt := node.(*parser.ClassDec)
+		superTypArgs := stmt.SuperTypArgs()
+		typParams := stmt.TypParams()
+		implements := stmt.Implements()
+		if superTypArgs != nil || typParams != nil || implements != nil {
+			return &TSClassExpression{
+				Type:                "ClassExpression",
+				Start:               start(stmt.Loc()),
+				End:                 end(stmt.Loc()),
+				Loc:                 loc(stmt.Loc()),
+				Id:                  convert(stmt.Id()),
+				TypeParameters:      convertTsTyp(typParams),
+				SuperClass:          convert(stmt.Super()),
+				SuperTypeParameters: convertTsTyp(superTypArgs),
+				Implements:          elems(implements),
+				Body:                convert(stmt.Body()),
+				Abstract:            stmt.Abstract(),
+			}
+		}
 		return &ClassExpression{
 			Type:       "ClassExpression",
 			Start:      start(stmt.Loc()),

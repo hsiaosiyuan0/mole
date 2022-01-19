@@ -1,5 +1,7 @@
 package parser
 
+import "github.com/hsiaosiyuan0/mole/fuzz"
+
 type TsTypAnnot struct {
 	typ   NodeType
 	loc   *Loc
@@ -77,6 +79,14 @@ type TsNsName struct {
 	lhs Node
 	dot *Loc
 	rhs Node
+}
+
+func (n *TsNsName) Lhs() Node {
+	return n.lhs
+}
+
+func (n *TsNsName) Rhs() Node {
+	return n.rhs
 }
 
 func (n *TsNsName) Type() NodeType {
@@ -624,4 +634,49 @@ func (n *TsNoNull) Loc() *Loc {
 
 func (n *TsNoNull) Arg() Node {
 	return n.arg
+}
+
+// ClassDec
+func (n *ClassDec) Implements() []Node {
+	if fuzz.IsNilPtr(n.ti) {
+		return nil
+	}
+	return n.ti.Implements()
+}
+
+func (n *ClassDec) Abstract() bool {
+	if fuzz.IsNilPtr(n.ti) {
+		return false
+	}
+	return n.ti.Abstract()
+}
+
+func (n *ClassDec) SuperTypArgs() Node {
+	super := n.super
+	if super == nil {
+		return nil
+	}
+
+	wt, ok := super.(NodeWithTypInfo)
+	if !ok {
+		return nil
+	}
+
+	st := wt.TypInfo()
+	if st == nil {
+		return nil
+	}
+
+	switch super.Type() {
+	case N_EXPR_CALL:
+		return st.SuperTypArgs()
+	}
+	return st.TypArgs()
+}
+
+func (n *ClassDec) TypParams() Node {
+	if fuzz.IsNilPtr(n.ti) {
+		return nil
+	}
+	return n.ti.typParams
 }

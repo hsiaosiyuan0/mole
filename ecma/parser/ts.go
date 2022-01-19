@@ -181,16 +181,16 @@ func (p *Parser) tsNodeTypAnnot(binding Node, typAnnot Node, accMod ACC_MOD, abs
 		}
 
 		if typAnnot != nil {
-			ti.typAnnot = typAnnot
+			ti.SetTypAnnot(typAnnot)
 		}
 		if ques != nil {
-			ti.ques = ques
+			ti.SetQues(ques)
 		}
-		ti.accMod = accMod
-		ti.abstractLoc = abstract
-		ti.readonlyLoc = readonly
-		ti.overrideLoc = override
-		ti.declareLoc = declare
+		ti.SetAccMod(accMod)
+		ti.SetAbstractLoc(abstract)
+		ti.SetReadonlyLoc(readonly)
+		ti.SetOverrideLoc(override)
+		ti.SetDeclareLoc(declare)
 		return true
 	}
 	return false
@@ -234,7 +234,7 @@ func (p *Parser) tsRoughParamToParam(node Node) (Node, error) {
 	n := node
 	if node.Type() == N_TS_ROUGH_PARAM {
 		param := node.(*TsRoughParam)
-		if param.name.Type() == N_TS_THIS && param.ti.typAnnot == nil {
+		if param.name.Type() == N_TS_THIS && param.ti.TypAnnot() == nil {
 			return nil, p.errorAtLoc(param.Loc(), ERR_UNEXPECTED_TOKEN)
 		}
 
@@ -244,7 +244,8 @@ func (p *Parser) tsRoughParamToParam(node Node) (Node, error) {
 		}
 
 		ti := param.ti
-		if ok := p.tsNodeTypAnnot(fp, ti.typAnnot, ti.accMod, ti.abstractLoc, ti.readonlyLoc, ti.overrideLoc, ti.declareLoc, ti.ques); !ok {
+		if ok := p.tsNodeTypAnnot(fp, ti.TypAnnot(), ti.AccMod(),
+			ti.AbstractLoc(), ti.ReadonlyLoc(), ti.OverrideLoc(), ti.DeclareLoc(), ti.Ques()); !ok {
 			return nil, p.errorAtLoc(fp.Loc(), ERR_UNEXPECTED_TOKEN)
 		}
 
@@ -255,7 +256,7 @@ func (p *Parser) tsRoughParamToParam(node Node) (Node, error) {
 	case N_TS_ANY, N_TS_NUM, N_TS_BOOL, N_TS_STR, N_TS_SYM:
 		d := n.(*TsPredef)
 		ti := p.newTypInfo()
-		ti.ques = d.ques
+		ti.SetQues(d.ques)
 		return &Ident{N_NAME, d.loc, d.loc.Text(), false, false, nil, false, ti}, nil
 	case N_TS_VOID:
 		return nil, p.errorAtLoc(n.Loc(), ERR_UNEXPECTED_TOKEN)
@@ -332,14 +333,14 @@ func (p *Parser) tsPropToIdxSig(prop *TsProp) (Node, error) {
 		return nil, p.errorAtLoc(prop.key.Loc(), ERR_UNEXPECTED_TOKEN)
 	}
 	name := prop.key.(*Ident)
-	if name.ti.typAnnot == nil {
+	if name.ti.TypAnnot() == nil {
 		return nil, p.errorAtLoc(name.loc, ERR_UNEXPECTED_TOKEN)
 	}
-	switch name.ti.typAnnot.(*TsTypAnnot).tsTyp.Type() {
+	switch name.ti.TypAnnot().tsTyp.Type() {
 	case N_TS_NUM, N_TS_STR, N_TS_SYM:
 		break
 	default:
-		return nil, p.errorAtLoc(name.ti.typAnnot.Loc(), ERR_UNEXPECTED_TOKEN)
+		return nil, p.errorAtLoc(name.ti.TypAnnot().Loc(), ERR_UNEXPECTED_TOKEN)
 	}
 	vt := prop.val.Type()
 	if vt < N_TS_ANY || vt > N_TS_ROUGH_PARAM {
@@ -349,7 +350,7 @@ func (p *Parser) tsPropToIdxSig(prop *TsProp) (Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &TsIdxSig{N_TS_IDX_SIG, prop.loc, name, name.ti.typAnnot, typAnnot}, nil
+	return &TsIdxSig{N_TS_IDX_SIG, prop.loc, name, name.ti.TypAnnot(), typAnnot}, nil
 }
 
 // `RoughParam` is something like `a:b` which `a` is a rough-type and `b` is typAnnot
@@ -920,20 +921,23 @@ func (p *Parser) tsTypParams() (Node, error) {
 	loc := p.locFromTok(p.lexer.Next())
 	ps := make([]Node, 0, 1)
 	for {
+		ahead := p.lexer.Peek()
+		av := ahead.value
+		if av == T_GT {
+			p.lexer.Next()
+			break
+		} else if av == T_COMMA {
+			p.lexer.Next()
+		}
+
 		pa, err := p.tsTypParam()
 		if err != nil {
 			return nil, err
 		}
 		ps = append(ps, pa)
-
-		ahead := p.lexer.Peek()
-		av := ahead.value
-		if av == T_COMMA {
-			p.lexer.Next()
-		} else if av == T_GT {
-			p.lexer.Next()
-			break
-		}
+	}
+	if len(ps) == 0 {
+		return nil, p.errorAtLoc(loc, ERR_EMPTY_TYPE_PARAM_LIST)
 	}
 	return &TsParamsDec{N_TS_PARAM_DEC, p.finLoc(loc), ps}, nil
 }
@@ -1159,8 +1163,8 @@ func (p *Parser) tsTypDec() (Node, error) {
 	}
 
 	ti := p.newTypInfo()
-	ti.typParams = params
-	ti.typAnnot = typAnnot
+	ti.SetTypParams(params)
+	ti.SetTypAnnot(typAnnot)
 	return &TsTypDec{N_TS_TYP_DEC, p.finLoc(loc), name, ti}, nil
 }
 
@@ -1536,4 +1540,28 @@ func (p *Parser) tsModifierOrder(overrideLoc, readonlyLoc, accessLoc *Loc, accMo
 		}
 	}
 	return nil
+}
+
+// process the implementation list in the class declaration
+func (p *Parser) tsImplements() ([]Node, error) {
+	ahead := p.lexer.Peek()
+	av := ahead.value
+	if av != T_IMPLEMENTS {
+		return nil, nil
+	}
+	p.lexer.Next()
+	impl := []Node{}
+	for {
+		ahead = p.lexer.Peek()
+		av = ahead.value
+		if av == T_BRACE_L {
+			break
+		}
+		typ, err := p.tsTyp(false)
+		if err != nil {
+			return nil, err
+		}
+		impl = append(impl, typ)
+	}
+	return impl, nil
 }

@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/hsiaosiyuan0/mole/fuzz"
 	span "github.com/hsiaosiyuan0/mole/span"
 )
 
@@ -568,78 +569,13 @@ func (a ACC_MOD) String() string {
 	return ""
 }
 
-type TypInfo struct {
-	accMod      ACC_MOD
-	ques        *Loc
-	typAnnot    Node
-	typParams   Node
-	typArgs     Node
-	abstractLoc *Loc
-	readonlyLoc *Loc
-	overrideLoc *Loc
-	declareLoc  *Loc
-}
-
-func NewTypInfo() *TypInfo {
-	return &TypInfo{
-		ACC_MOD_PUB, nil, nil, nil, nil, nil, nil, nil, nil,
-	}
-}
-
-func (ti *TypInfo) AccMod() ACC_MOD {
-	return ti.accMod
-}
-
-func (ti *TypInfo) Readonly() bool {
-	return ti.readonlyLoc != nil
-}
-
-func (ti *TypInfo) Override() bool {
-	return ti.overrideLoc != nil
-}
-
-func (ti *TypInfo) Ques() *Loc {
-	return ti.ques
-}
-
-func (ti *TypInfo) Optional() bool {
-	return ti.ques != nil
-}
-
-func (ti *TypInfo) Abstract() bool {
-	return ti.abstractLoc != nil
-}
-
-func (ti *TypInfo) Declare() bool {
-	return ti.declareLoc != nil
-}
-
-func (ti *TypInfo) TypAnnot() Node {
-	return ti.typAnnot
-}
-
-func (ti *TypInfo) SetTypAnnot(node Node) {
-	if node.Type() != N_TS_TYP_ANNOT {
-		node = NewTsTypAnnot(node)
-	}
-	ti.typAnnot = node
-}
-
-func (ti *TypInfo) TypParams() Node {
-	return ti.typParams
-}
-
-func (ti *TypInfo) TypArgs() Node {
-	return ti.typArgs
-}
-
 type NodeWithTypInfo interface {
 	TypInfo() *TypInfo
 	SetTypInfo(*TypInfo)
 }
 
 func locOfNode(node Node) *Loc {
-	if node == nil {
+	if fuzz.IsNilPtr(node) {
 		return nil
 	}
 	return node.Loc()
@@ -690,7 +626,7 @@ func LocWithTypeInfo(node Node, includeParamProp bool) *Loc {
 
 	starLocList := []*Loc{locOfNode(ti.TypParams()), locOfNode(node)}
 	if includeParamProp {
-		starLocList = append(starLocList, []*Loc{ti.readonlyLoc, ti.overrideLoc}...)
+		starLocList = append(starLocList, []*Loc{ti.ReadonlyLoc(), ti.OverrideLoc()}...)
 	}
 	start := startOf(starLocList...)
 	loc.begin.line = start.begin.line
@@ -1416,7 +1352,7 @@ func (n *RestPat) TypInfo() *TypInfo {
 }
 
 func (n *RestPat) Optional() bool {
-	return n.ti.ques != nil
+	return n.ti.Ques() != nil
 }
 
 func (n *RestPat) hoistTypInfo() {
@@ -2089,12 +2025,12 @@ func (n *WithStmt) Loc() *Loc {
 }
 
 type ClassDec struct {
-	typ      NodeType
-	loc      *Loc
-	id       Node
-	super    Node
-	body     Node
-	abstract bool
+	typ   NodeType
+	loc   *Loc
+	id    Node
+	super Node
+	body  Node
+	ti    *TypInfo
 }
 
 func (n *ClassDec) Id() Node {
@@ -2103,10 +2039,6 @@ func (n *ClassDec) Id() Node {
 
 func (n *ClassDec) Super() Node {
 	return n.super
-}
-
-func (n *ClassDec) Abstract() bool {
-	return n.abstract
 }
 
 func (n *ClassDec) Body() Node {
@@ -2119,6 +2051,14 @@ func (n *ClassDec) Type() NodeType {
 
 func (n *ClassDec) Loc() *Loc {
 	return n.loc
+}
+
+func (n *ClassDec) TypInfo() *TypInfo {
+	return n.ti
+}
+
+func (n *ClassDec) SetTypInfo(ti *TypInfo) {
+	n.ti = ti
 }
 
 type ClassBody struct {
