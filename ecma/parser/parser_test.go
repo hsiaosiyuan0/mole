@@ -818,7 +818,7 @@ func TestClassMethod(t *testing.T) {
 	cls := ast.(*Prog).stmts[0].(*ClassDec)
 	elem0 := cls.body.(*ClassBody).elems[0].(*Method)
 	AssertEqual(t, "a", elem0.key.(*Ident).Text(), "should be a")
-	AssertEqual(t, "b", elem0.value.(*FnDec).params[0].(*Ident).Text(), "should be b")
+	AssertEqual(t, "b", elem0.val.(*FnDec).params[0].(*Ident).Text(), "should be b")
 
 	elem1 := cls.body.(*ClassBody).elems[1].(*Field)
 	AssertEqual(t, "e", elem1.key.(*Ident).Text(), "should be e")
@@ -922,7 +922,7 @@ func TestTplExprMember(t *testing.T) {
 func TestSuper(t *testing.T) {
 	ast, err := compile("class a extends b { constructor() { super() } }", nil)
 	AssertEqual(t, nil, err, "should be prog ok")
-	ctor := ast.(*Prog).stmts[0].(*ClassDec).body.(*ClassBody).elems[0].(*Method).value.(*FnDec)
+	ctor := ast.(*Prog).stmts[0].(*ClassDec).body.(*ClassBody).elems[0].(*Method).val.(*FnDec)
 	expr := ctor.body.(*BlockStmt).body[0].(*ExprStmt).expr
 	call := expr.(*CallExpr)
 	AssertEqual(t, N_SUPER, call.callee.Type(), "should be tag")

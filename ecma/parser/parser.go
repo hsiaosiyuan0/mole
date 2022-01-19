@@ -1038,7 +1038,7 @@ func (p *Parser) modifiers() (begin, static, access, abstract, readonly, overrid
 
 func (p *Parser) classElem(inDeclare bool) (Node, error) {
 	beginLoc, staticLoc, accLoc, abstractLoc, readonlyLoc, overrideLoc, declareLoc, isField, escape, fieldName, fieldLoc, accMod, ahead := p.modifiers()
-	if err := p.tsModifierOrder(overrideLoc, readonlyLoc, accLoc, accMod); err != nil {
+	if err := p.tsModifierOrder(staticLoc, overrideLoc, readonlyLoc, accLoc, accMod); err != nil {
 		return nil, err
 	}
 
@@ -2741,7 +2741,7 @@ func (p *Parser) accMod() (accMod ACC_MOD, accLoc *Loc, abstractLoc, readonlyLoc
 
 	var staticLoc *Loc
 	beginLoc, staticLoc, accLoc, abstractLoc, readonlyLoc, overrideLoc, declareLoc, isField, escape, name, fieldLoc, accMod, _ = p.modifiers()
-	if err = p.tsModifierOrder(overrideLoc, readonlyLoc, accLoc, accMod); err != nil {
+	if err = p.tsModifierOrder(staticLoc, overrideLoc, readonlyLoc, accLoc, accMod); err != nil {
 		return
 	}
 

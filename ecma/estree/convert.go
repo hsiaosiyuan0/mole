@@ -1032,6 +1032,7 @@ func convert(node parser.Node) Node {
 				ReturnType:     typAnnot(ti),
 				Optional:       ti.Optional(),
 				Abstract:       ti.Abstract(),
+				Readonly:       ti.Readonly(),
 			}
 		}
 		return &MethodDefinition{
@@ -1049,6 +1050,24 @@ func convert(node parser.Node) Node {
 		n := node.(*parser.Field)
 		if n.TypInfo() != nil {
 			ti := n.TypInfo()
+
+			if n.IsTsSig() {
+				return &TSIndexSignature{
+					Type:           "TSIndexSignature",
+					Start:          start(n.Loc()),
+					End:            end(n.Loc()),
+					Loc:            loc(n.Loc()),
+					Static:         n.Static(),
+					Abstract:       ti.Abstract(),
+					Optional:       ti.Optional(),
+					Declare:        ti.Declare(),
+					Readonly:       ti.Readonly(),
+					Accessibility:  ti.AccMod().String(),
+					Parameters:     elems([]parser.Node{n.Key()}),
+					TypeAnnotation: typAnnot(ti),
+				}
+			}
+
 			return &TSPropertyDefinition{
 				Type:           "PropertyDefinition",
 				Start:          start(n.Loc()),
@@ -1060,6 +1079,7 @@ func convert(node parser.Node) Node {
 				Static:         n.Static(),
 				Abstract:       ti.Abstract(),
 				Optional:       ti.Optional(),
+				Readonly:       ti.Readonly(),
 				Declare:        ti.Declare(),
 				Accessibility:  ti.AccMod().String(),
 				TypeAnnotation: typAnnot(ti),

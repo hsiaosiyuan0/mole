@@ -199,6 +199,10 @@ type TsObj struct {
 	props []Node
 }
 
+func (n *TsObj) Props() []Node {
+	return n.props
+}
+
 func (n *TsObj) Type() NodeType {
 	return n.typ
 }
@@ -214,6 +218,22 @@ type TsProp struct {
 	val        Node
 	ques       *Loc
 	computeLoc *Loc
+}
+
+func (n *TsProp) Key() Node {
+	return n.key
+}
+
+func (n *TsProp) Val() Node {
+	return n.val
+}
+
+func (n *TsProp) Optional() bool {
+	return n.ques != nil
+}
+
+func (n *TsProp) Computed() bool {
+	return n.computeLoc != nil
 }
 
 func (n *TsProp) Type() NodeType {
@@ -679,4 +699,9 @@ func (n *ClassDec) TypParams() Node {
 		return nil
 	}
 	return n.ti.typParams
+}
+
+// Field
+func (n *Field) IsTsSig() bool {
+	return n.ti != nil && n.val == nil && n.computed
 }

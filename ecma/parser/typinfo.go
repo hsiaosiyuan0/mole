@@ -123,7 +123,7 @@ func (ti *TypInfo) ReadonlyLoc() *Loc {
 
 func (ti *TypInfo) SetReadonlyLoc(loc *Loc) {
 	ti.intiClsTyp()
-	ti.clsTyp.abstractLoc = loc
+	ti.clsTyp.readonlyLoc = loc
 }
 
 func (ti *TypInfo) OverrideLoc() *Loc {

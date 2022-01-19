@@ -68,6 +68,13 @@ func convertTsTyp(node parser.Node) Node {
 			End:   end(node.Loc()),
 			Loc:   loc(node.Loc()),
 		}
+	case parser.N_TS_OBJ:
+		return &TSObjectKeyword{
+			Type:  "TSObjectKeyword",
+			Start: start(node.Loc()),
+			End:   end(node.Loc()),
+			Loc:   loc(node.Loc()),
+		}
 	case parser.N_TS_REF:
 		n := node.(*parser.TsRef)
 		return &TSTypeReference{
@@ -115,6 +122,27 @@ func convertTsTyp(node parser.Node) Node {
 			End:         end(node.Loc()),
 			Loc:         loc(node.Loc()),
 			ElementType: convertTsTyp(n.Arg()),
+		}
+	case parser.N_TS_LIT_OBJ:
+		n := node.(*parser.TsObj)
+		return &TSTypeLiteral{
+			Type:    "TSTypeLiteral",
+			Start:   start(node.Loc()),
+			End:     end(node.Loc()),
+			Loc:     loc(node.Loc()),
+			Members: elems(n.Props()),
+		}
+	case parser.N_TS_PROP:
+		n := node.(*parser.TsProp)
+		return &TSPropertySignature{
+			Type:           "TSPropertySignature",
+			Start:          start(node.Loc()),
+			End:            end(node.Loc()),
+			Loc:            loc(node.Loc()),
+			Key:            convertTsTyp(n.Key()),
+			Optional:       n.Optional(),
+			Computed:       n.Computed(),
+			TypeAnnotation: convertTsTyp(n.Val()),
 		}
 	case parser.N_TS_TYP_PREDICATE:
 		n := node.(*parser.TsTypPredicate)

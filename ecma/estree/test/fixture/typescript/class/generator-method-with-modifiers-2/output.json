@@ -1,0 +1,3 @@
+{
+  "throws": "Method cannot have an implementation because it's marked abstract at (2:2)"
+}

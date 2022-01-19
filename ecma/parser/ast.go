@@ -2086,7 +2086,7 @@ type Method struct {
 	static   bool
 	computed bool
 	kind     PropKind
-	value    Node
+	val      Node
 	ti       *TypInfo
 }
 
@@ -2099,7 +2099,7 @@ func (n *Method) Key() Node {
 }
 
 func (n *Method) Value() Node {
-	return n.value
+	return n.val
 }
 
 func (n *Method) Computed() bool {
@@ -2119,7 +2119,7 @@ func (n *Method) Loc() *Loc {
 }
 
 func (n *Method) Declare() bool {
-	fn := n.value.(*FnDec)
+	fn := n.val.(*FnDec)
 	return fn.body == nil
 }
 
@@ -2137,7 +2137,7 @@ type Field struct {
 	key      Node
 	static   bool
 	computed bool
-	value    Node
+	val      Node
 	ti       *TypInfo
 }
 
@@ -2146,7 +2146,7 @@ func (n *Field) Key() Node {
 }
 
 func (n *Field) Value() Node {
-	return n.value
+	return n.val
 }
 
 func (n *Field) Static() bool {

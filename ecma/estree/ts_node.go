@@ -25,6 +25,13 @@ type TSNumberKeyword struct {
 	Loc   *SrcLoc `json:"loc"`
 }
 
+type TSObjectKeyword struct {
+	Type  string  `json:"type"`
+	Start int     `json:"start"`
+	End   int     `json:"end"`
+	Loc   *SrcLoc `json:"loc"`
+}
+
 type TSStringKeyword struct {
 	Type  string  `json:"type"`
 	Start int     `json:"start"`
@@ -175,6 +182,26 @@ type TSArrayType struct {
 	ElementType Node    `json:"elementType"`
 }
 
+type TSTypeLiteral struct {
+	Type    string  `json:"type"`
+	Start   int     `json:"start"`
+	End     int     `json:"end"`
+	Loc     *SrcLoc `json:"loc"`
+	Members Node    `json:"members"`
+}
+
+// used as the member of `TSTypeLiteral`
+type TSPropertySignature struct {
+	Type           string  `json:"type"`
+	Start          int     `json:"start"`
+	End            int     `json:"end"`
+	Loc            *SrcLoc `json:"loc"`
+	Key            Node    `json:"key"`
+	Computed       bool    `json:"computed"`
+	Optional       bool    `json:"optional"`
+	TypeAnnotation Node    `json:"typeAnnotation"`
+}
+
 type TSObjectPattern struct {
 	Type           string  `json:"type"`
 	Start          int     `json:"start"`
@@ -223,6 +250,7 @@ type TSMethodDefinition struct {
 	ReturnType     Node       `json:"returnType"`
 	Optional       bool       `json:"optional"`
 	Abstract       bool       `json:"abstract"`
+	Readonly       bool       `json:"readonly"`
 }
 
 type TSParameterProperty struct {
@@ -246,6 +274,7 @@ type TSPropertyDefinition struct {
 	Static         bool       `json:"static"`
 	Abstract       bool       `json:"abstract"`
 	Optional       bool       `json:"optional"`
+	Readonly       bool       `json:"readonly"`
 	Declare        bool       `json:"declare"`
 	Accessibility  string     `json:"accessibility"`
 	TypeAnnotation Node       `json:"typeAnnotation"`
@@ -256,6 +285,12 @@ type TSIndexSignature struct {
 	Start          int     `json:"start"`
 	End            int     `json:"end"`
 	Loc            *SrcLoc `json:"loc"`
+	Static         bool    `json:"static"`
+	Abstract       bool    `json:"abstract"`
+	Optional       bool    `json:"optional"`
+	Readonly       bool    `json:"readonly"`
+	Declare        bool    `json:"declare"`
+	Accessibility  string  `json:"accessibility"`
 	Parameters     []Node  `json:"parameters"`
 	TypeAnnotation Node    `json:"typeAnnotation"`
 }

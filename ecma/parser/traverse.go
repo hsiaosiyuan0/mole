@@ -708,14 +708,14 @@ func VisitMethod(n Node, v interface{}, ctx *TraverseCtx) ContOrStop {
 	if !VisitNode(an.key, v, ctx, false) {
 		return TRAVERSE_STOP
 	}
-	return VisitNode(an.value, v, ctx, false)
+	return VisitNode(an.val, v, ctx, false)
 }
 func VisitField(n Node, v interface{}, ctx *TraverseCtx) ContOrStop {
 	an := n.(*Field)
 	if !VisitNode(an.key, v, ctx, false) {
 		return TRAVERSE_STOP
 	}
-	return VisitNode(an.value, v, ctx, false)
+	return VisitNode(an.val, v, ctx, false)
 }
 func VisitSuper(n Node, v interface{}, ctx *TraverseCtx) ContOrStop {
 	return TRAVERSE_CONT
@@ -1266,7 +1266,7 @@ func ListenMethod(n Node, v interface{}, ctx *TraverseCtx) ContOrStop {
 	an := n.(*Method)
 	callNodeFn(n, N_METHOD_BEFORE, v, ctx)
 	VisitNode(an.key, v, ctx, true)
-	VisitNode(an.value, v, ctx, true)
+	VisitNode(an.val, v, ctx, true)
 	callNodeFn(n, N_METHOD_AFTER, v, ctx)
 	return TRAVERSE_CONT
 }
@@ -1274,7 +1274,7 @@ func ListenField(n Node, v interface{}, ctx *TraverseCtx) ContOrStop {
 	an := n.(*Field)
 	callNodeFn(n, N_FIELD_BEFORE, v, ctx)
 	VisitNode(an.key, v, ctx, true)
-	VisitNode(an.value, v, ctx, true)
+	VisitNode(an.val, v, ctx, true)
 	callNodeFn(n, N_FIELD_AFTER, v, ctx)
 	return TRAVERSE_CONT
 }

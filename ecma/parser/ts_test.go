@@ -56,7 +56,7 @@ func TestTs3(t *testing.T) {
 
 	tsFn := dec.id.(*Ident).ti.TypAnnot().tsTyp.(*TsFnTyp)
 	AssertEqual(t, "a", tsFn.params[0].(*ObjPat).props[0].(*Prop).key.(*Ident).Text(), "should be ok")
-	AssertEqual(t, N_TS_OBJ, tsFn.params[0].(*ObjPat).ti.TypAnnot().tsTyp.Type(), "should be ok")
+	AssertEqual(t, N_TS_LIT_OBJ, tsFn.params[0].(*ObjPat).ti.TypAnnot().tsTyp.Type(), "should be ok")
 }
 
 func TestTs4(t *testing.T) {
@@ -77,7 +77,7 @@ func TestTs6(t *testing.T) {
 	prog := ast.(*Prog)
 	dec := prog.stmts[0].(*VarDecStmt).decList[0].(*VarDec)
 	AssertEqual(t, "a", dec.id.(*Ident).Text(), "should be ok")
-	AssertEqual(t, N_TS_OBJ, dec.id.(*Ident).ti.TypAnnot().tsTyp.Type(), "should be ok")
+	AssertEqual(t, N_TS_LIT_OBJ, dec.id.(*Ident).ti.TypAnnot().tsTyp.Type(), "should be ok")
 
 	prop := dec.id.(*Ident).ti.TypAnnot().tsTyp.(*TsObj).props[0].(*TsProp)
 	AssertEqual(t, "b", prop.key.(*Ident).Text(), "should be ok")
@@ -96,7 +96,7 @@ func TestTs8(t *testing.T) {
 	prog := ast.(*Prog)
 	dec := prog.stmts[0].(*VarDecStmt).decList[0].(*VarDec)
 	AssertEqual(t, "a", dec.id.(*Ident).Text(), "should be ok")
-	AssertEqual(t, N_TS_OBJ, dec.id.(*Ident).ti.TypAnnot().tsTyp.Type(), "should be ok")
+	AssertEqual(t, N_TS_LIT_OBJ, dec.id.(*Ident).ti.TypAnnot().tsTyp.Type(), "should be ok")
 
 	p0 := dec.id.(*Ident).ti.TypAnnot().tsTyp.(*TsObj).props[0]
 	AssertEqual(t, N_TS_IDX_SIG, p0.Type(), "should be ok")
@@ -238,7 +238,7 @@ func TestTs20(t *testing.T) {
 	md := dec.Body().(*ClassBody).elems[0].(*Method)
 	AssertEqual(t, PK_CTOR, md.kind, "should be ok")
 
-	ti := md.value.(*FnDec).params[0].(*Ident).ti
+	ti := md.val.(*FnDec).params[0].(*Ident).ti
 	AssertEqual(t, ACC_MOD_PUB, ti.AccMod(), "should be ok")
 }
 
@@ -265,7 +265,7 @@ func TestTs22(t *testing.T) {
 	fn := dec.init.(*ArrowFn)
 	param0 := fn.params[0].(*ObjPat)
 	ti := param0.ti
-	AssertEqual(t, N_TS_OBJ, ti.TypAnnot().tsTyp.Type(), "should be ok")
+	AssertEqual(t, N_TS_LIT_OBJ, ti.TypAnnot().tsTyp.Type(), "should be ok")
 
 	param1 := fn.params[1].(*Ident)
 	ti = param1.ti
@@ -302,7 +302,7 @@ func TestTs25(t *testing.T) {
 
 	prog := ast.(*Prog)
 	fn := prog.stmts[0].(*FnDec)
-	AssertEqual(t, N_TS_OBJ, fn.ti.TypAnnot().tsTyp.Type(), "should be ok")
+	AssertEqual(t, N_TS_LIT_OBJ, fn.ti.TypAnnot().tsTyp.Type(), "should be ok")
 }
 
 func TestTs26(t *testing.T) {
@@ -334,7 +334,7 @@ func TestTs27(t *testing.T) {
 	AssertEqual(t, "A", dec.id.(*Ident).Text(), "should be ok")
 
 	m := dec.body.(*ClassBody).elems[0].(*Method)
-	AssertEqual(t, N_TS_VOID, m.value.(*FnDec).ti.TypAnnot().tsTyp.Type(), "should be ok")
+	AssertEqual(t, N_TS_VOID, m.val.(*FnDec).ti.TypAnnot().tsTyp.Type(), "should be ok")
 }
 
 func TestTs28(t *testing.T) {
@@ -350,7 +350,7 @@ func TestTs28(t *testing.T) {
 
 	m := dec.body.(*ClassBody).elems[0].(*Method)
 	AssertEqual(t, PK_GETTER, m.kind, "should be ok")
-	AssertEqual(t, N_TS_STR, m.value.(*FnDec).ti.TypAnnot().tsTyp.Type(), "should be ok")
+	AssertEqual(t, N_TS_STR, m.val.(*FnDec).ti.TypAnnot().tsTyp.Type(), "should be ok")
 }
 
 func TestTs29(t *testing.T) {
@@ -367,7 +367,7 @@ func TestTs29(t *testing.T) {
 	m := dec.body.(*ClassBody).elems[0].(*Method)
 	AssertEqual(t, PK_SETTER, m.kind, "should be ok")
 
-	param0 := m.value.(*FnDec).params[0].(*Ident)
+	param0 := m.val.(*FnDec).params[0].(*Ident)
 	AssertEqual(t, N_TS_STR, param0.ti.TypAnnot().tsTyp.Type(), "should be ok")
 }
 
@@ -442,9 +442,9 @@ func TestTs34(t *testing.T) {
 
 	m := dec.body.(*ClassBody).elems[0].(*Method)
 	AssertEqual(t, PK_METHOD, m.kind, "should be ok")
-	AssertEqual(t, N_TS_VOID, m.value.(*FnDec).ti.TypAnnot().tsTyp.Type(), "should be ok")
+	AssertEqual(t, N_TS_VOID, m.val.(*FnDec).ti.TypAnnot().tsTyp.Type(), "should be ok")
 
-	tp := m.value.(*FnDec).ti.TypParams()
+	tp := m.val.(*FnDec).ti.TypParams()
 	AssertEqual(t, 2, len(tp.(*TsParamsDec).params), "should be ok")
 	AssertEqual(t, "R", tp.(*TsParamsDec).params[1].(*TsParam).name.(*Ident).Text(), "should be ok")
 }
@@ -510,10 +510,10 @@ func TestTs38(t *testing.T) {
 
 	m := dec.body.(*ClassBody).elems[0].(*Method)
 	AssertEqual(t, PK_METHOD, m.kind, "should be ok")
-	typAnnot := m.value.(*FnDec).ti.TypAnnot()
+	typAnnot := m.val.(*FnDec).ti.TypAnnot()
 	AssertEqual(t, nil, typAnnot, "should be ok")
 
-	tp := m.value.(*FnDec).ti.TypParams()
+	tp := m.val.(*FnDec).ti.TypParams()
 	AssertEqual(t, 1, len(tp.(*TsParamsDec).params), "should be ok")
 	AssertEqual(t, "T", tp.(*TsParamsDec).params[0].(*TsParam).name.(*Ident).Text(), "should be ok")
 }
@@ -534,9 +534,9 @@ func TestTs39(t *testing.T) {
 	m := dec.body.(*ClassBody).elems[0].(*Method)
 	AssertEqual(t, PK_SETTER, m.kind, "should be ok")
 	AssertEqual(t, "a", m.key.(*Ident).Text(), "should be ok")
-	AssertEqual(t, nil, m.value.(*FnDec).ti.TypAnnot(), "should be ok")
+	AssertEqual(t, nil, m.val.(*FnDec).ti.TypAnnot(), "should be ok")
 
-	tp := m.value.(*FnDec).ti.TypParams()
+	tp := m.val.(*FnDec).ti.TypParams()
 	AssertEqual(t, 1, len(tp.(*TsParamsDec).params), "should be ok")
 	AssertEqual(t, "T", tp.(*TsParamsDec).params[0].(*TsParam).name.(*Ident).Text(), "should be ok")
 }
@@ -765,7 +765,7 @@ func TestTs51(t *testing.T) {
 
 	prop := dec.id.(*ObjPat).props[0].(*Prop)
 	AssertEqual(t, "a", prop.key.(*Ident).Text(), "should be ok")
-	AssertEqual(t, N_TS_OBJ, dec.id.(*ObjPat).ti.TypAnnot().tsTyp.Type(), "should be ok")
+	AssertEqual(t, N_TS_LIT_OBJ, dec.id.(*ObjPat).ti.TypAnnot().tsTyp.Type(), "should be ok")
 
 	tsProp := dec.id.(*ObjPat).ti.TypAnnot().tsTyp.(*TsObj).props[0].(*TsProp)
 	AssertEqual(t, "a", tsProp.key.(*Ident).Text(), "should be ok")
@@ -1104,7 +1104,7 @@ func TestTs74(t *testing.T) {
 	AssertEqual(t, "T", dec.ti.TypParams().(*TsParamsDec).params[0].(*TsParam).name.(*Ident).Text(), "should be ok")
 
 	m := dec.body.(*ClassBody).elems[0].(*Method)
-	AssertEqual(t, N_TS_VOID, m.value.(*FnDec).ti.TypAnnot().tsTyp.Type(), "should be ok")
+	AssertEqual(t, N_TS_VOID, m.val.(*FnDec).ti.TypAnnot().tsTyp.Type(), "should be ok")
 }
 
 func TestTs75(t *testing.T) {
@@ -1137,7 +1137,7 @@ func TestTs76(t *testing.T) {
 
 	m := cls.body.(*ClassBody).elems[0].(*Method)
 	AssertEqual(t, PK_METHOD, m.kind, "should be ok")
-	AssertEqual(t, N_TS_ANY, m.value.(*FnDec).ti.TypAnnot().tsTyp.Type(), "should be ok")
+	AssertEqual(t, N_TS_ANY, m.val.(*FnDec).ti.TypAnnot().tsTyp.Type(), "should be ok")
 }
 
 func TestTs77(t *testing.T) {

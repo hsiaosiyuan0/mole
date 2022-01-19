@@ -11,6 +11,7 @@ var builtinTyp = map[string]NodeType{
 	"boolean":   N_TS_BOOL,
 	"string":    N_TS_STR,
 	"symbol":    N_TS_SYM,
+	"object":    N_TS_OBJ,
 	"void":      N_TS_VOID,
 	"never":     N_TS_NEVER,
 	"unknown":   N_TS_UNKNOWN,
@@ -266,7 +267,7 @@ func (p *Parser) tsRoughParamToParam(node Node) (Node, error) {
 			return nil, p.errorAtLoc(r.lt, ERR_UNEXPECTED_TOKEN)
 		}
 		return p.tsRoughParamToParam(r.name)
-	case N_TS_OBJ:
+	case N_TS_LIT_OBJ:
 		o := n.(*TsObj)
 		props := make([]Node, len(o.props))
 		for i, pn := range o.props {
@@ -376,7 +377,7 @@ func (p *Parser) tsRoughParamToTyp(node Node, raise bool) (Node, error) {
 			return &TsPredef{typ, n.loc, nil}, nil
 		}
 		return &TsRef{N_TS_REF, n.Loc().Clone(), n, nil, nil}, nil
-	case N_TS_OBJ:
+	case N_TS_LIT_OBJ:
 		obj := n.(*TsObj)
 		for i, prop := range obj.props {
 			obj.props[i], err = p.tsRoughParamToTyp(prop, raise)
@@ -738,7 +739,7 @@ func (p *Parser) tsObj(rough bool) (Node, error) {
 			p.lexer.Next()
 		}
 	}
-	return &TsObj{N_TS_OBJ, p.finLoc(loc), props}, nil
+	return &TsObj{N_TS_LIT_OBJ, p.finLoc(loc), props}, nil
 }
 
 func (p *Parser) tsNewSig(loc *Loc) (Node, error) {
@@ -899,15 +900,22 @@ func (p *Parser) tsTypParam() (Node, error) {
 		return nil, err
 	}
 
-	var cons Node
+	var cons, val Node
 	if p.lexer.Peek().value == T_EXTENDS {
 		p.lexer.Next()
 		cons, err = p.tsTyp(false)
 		if err != nil {
 			return nil, err
 		}
+		if p.lexer.Peek().value == T_ASSIGN {
+			p.lexer.Next()
+			val, err = p.tsTyp(false)
+			if err != nil {
+				return nil, err
+			}
+		}
 	}
-	return &TsParam{N_TS_PARAM, p.finLoc(id.loc.Clone()), id, cons, nil}, nil
+	return &TsParam{N_TS_PARAM, p.finLoc(id.loc.Clone()), id, cons, val}, nil
 }
 
 func (p *Parser) tsTryTypParams() (Node, error) {
@@ -1529,25 +1537,39 @@ type ModifierNameLoc struct {
 	loc  *Loc
 }
 
-func (p *Parser) tsModifierOrder(overrideLoc, readonlyLoc, accessLoc *Loc, accMod ACC_MOD) error {
-	order := []ModifierNameLoc{
+func (p *Parser) tsCheckLabeledOrder(orders []ModifierNameLoc) error {
+	stuff := []ModifierNameLoc{}
+	for _, od := range orders {
+		if od.loc != nil {
+			stuff = append(stuff, od)
+		}
+	}
+	for i := 0; i < len(stuff)-1; i++ {
+		a := stuff[i]
+		b := stuff[i+1]
+		if !a.loc.Before(b.loc) {
+			return p.errorAtLoc(a.loc, fmt.Sprintf(ERR_TPL_INVALID_MODIFIER_ORDER, a.name, b.name))
+		}
+	}
+	return nil
+}
+
+func (p *Parser) tsModifierOrder(staticLoc, overrideLoc, readonlyLoc, accessLoc *Loc, accMod ACC_MOD) error {
+	orders := []ModifierNameLoc{
 		{accMod.String(), accessLoc},
 		{"override", overrideLoc},
 		{"readonly", readonlyLoc},
 	}
-	for i := 0; i < len(order)-1; i++ {
-		for j := i + 1; j < len(order); j++ {
-			a := order[i]
-			b := order[j]
-			if a.loc == nil || b.loc == nil {
-				continue
-			}
-			if !a.loc.Before(b.loc) {
-				return p.errorAtLoc(a.loc, fmt.Sprintf(ERR_TPL_INVALID_MODIFIER_ORDER, a.name, b.name))
-			}
-		}
+	if err := p.tsCheckLabeledOrder(orders); err != nil {
+		return err
 	}
-	return nil
+
+	orders = []ModifierNameLoc{
+		{"static", staticLoc},
+		{"override", overrideLoc},
+		{"readonly", readonlyLoc},
+	}
+	return p.tsCheckLabeledOrder(orders)
 }
 
 // process the implementation list in the class declaration
