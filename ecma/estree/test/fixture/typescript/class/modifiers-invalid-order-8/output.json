@@ -1,0 +1,3 @@
+{
+  "throws": "`protected` modifier must precede `static` modifier at (3:9)"
+}

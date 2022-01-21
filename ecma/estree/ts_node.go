@@ -249,8 +249,11 @@ type TSMethodDefinition struct {
 	TypeParameters Node       `json:"typeParameters"`
 	ReturnType     Node       `json:"returnType"`
 	Optional       bool       `json:"optional"`
+	Definite       bool       `json:"definite"`
+	Override       bool       `json:"override"`
 	Abstract       bool       `json:"abstract"`
 	Readonly       bool       `json:"readonly"`
+	Accessibility  string     `json:"accessibility"`
 }
 
 type TSParameterProperty struct {
@@ -274,7 +277,9 @@ type TSPropertyDefinition struct {
 	Static         bool       `json:"static"`
 	Abstract       bool       `json:"abstract"`
 	Optional       bool       `json:"optional"`
+	Definite       bool       `json:"definite"`
 	Readonly       bool       `json:"readonly"`
+	Override       bool       `json:"override"`
 	Declare        bool       `json:"declare"`
 	Accessibility  string     `json:"accessibility"`
 	TypeAnnotation Node       `json:"typeAnnotation"`

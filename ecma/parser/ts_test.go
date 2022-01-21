@@ -1152,9 +1152,9 @@ func TestTs77(t *testing.T) {
 	cls := dec.inner.(*ClassDec)
 	AssertEqual(t, "a", cls.id.(*Ident).Text(), "should be ok")
 
-	idx := cls.body.(*ClassBody).elems[0].(*TsIdxSig)
-	AssertEqual(t, "k", idx.id.(*Ident).Text(), "should be ok")
-	AssertEqual(t, N_TS_NUM, idx.val.(*TsTypAnnot).tsTyp.Type(), "should be ok")
+	idx := cls.body.(*ClassBody).elems[0].(*Field)
+	AssertEqual(t, "k", idx.key.(*Ident).Text(), "should be ok")
+	AssertEqual(t, N_TS_NUM, idx.ti.typAnnot.tsTyp.Type(), "should be ok")
 }
 
 func TestTs78(t *testing.T) {

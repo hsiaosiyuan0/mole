@@ -1,0 +1,3 @@
+{
+  "throws": "Class methods cannot have the `readonly` modifier at (2:4)"
+}

@@ -149,7 +149,7 @@
             "key": {
               "type": "Identifier",
               "start": 29,
-              "end": 44,
+              "end": 35,
               "loc": {
                 "start": {
                   "line": 3,
@@ -157,7 +157,7 @@
                 },
                 "end": {
                   "line": 3,
-                  "column": 17
+                  "column": 8
                 }
               },
               "name": "async"

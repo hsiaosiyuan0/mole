@@ -166,12 +166,15 @@ func (p *Parser) tsExprHasTypAnnot(node Node) bool {
 	return false
 }
 
-func (p *Parser) tsQues() *Loc {
-	var ques *Loc
-	if p.lexer.Peek().value == T_HOOK {
+func (p *Parser) tsAdvanceHook(ep bool) (ques, not *Loc) {
+	ahead := p.lexer.Peek()
+	av := ahead.value
+	if av == T_HOOK {
 		ques = p.locFromTok(p.lexer.Next())
+	} else if ep && av == T_NOT {
+		not = p.locFromTok(p.lexer.Next())
 	}
-	return ques
+	return
 }
 
 func (p *Parser) tsNodeTypAnnot(binding Node, typAnnot Node, accMod ACC_MOD, abstract, readonly, override, declare *Loc, ques *Loc) bool {
@@ -217,14 +220,6 @@ func (p *Parser) tsTypAssert(node Node, typArgs Node) (Node, error) {
 	}
 
 	return &TsTypAssert{N_TS_TYP_ASSERT, p.finLoc(typArgs.Loc().Clone()), args[0], node}, nil
-}
-
-func (p *Parser) tsAdvanceHook() *Loc {
-	var loc *Loc
-	if p.lexer.Peek().value == T_HOOK {
-		loc = p.locFromTok(p.lexer.Next())
-	}
-	return loc
 }
 
 // `RoughParam` is something like `a:b` which `a` is a rough-type and `b` is typAnnot
@@ -1535,6 +1530,7 @@ func (p *Parser) tsAheadIsAbstract(tok *Token, prop bool, pvt bool) bool {
 type ModifierNameLoc struct {
 	name string
 	loc  *Loc
+	skip []string
 }
 
 func (p *Parser) tsCheckLabeledOrder(orders []ModifierNameLoc) error {
@@ -1548,26 +1544,37 @@ func (p *Parser) tsCheckLabeledOrder(orders []ModifierNameLoc) error {
 		a := stuff[i]
 		b := stuff[i+1]
 		if !a.loc.Before(b.loc) {
-			return p.errorAtLoc(a.loc, fmt.Sprintf(ERR_TPL_INVALID_MODIFIER_ORDER, a.name, b.name))
+			skipped := false
+			if a.skip != nil {
+				for _, s := range a.skip {
+					if s == b.name {
+						skipped = true
+						break
+					}
+				}
+			}
+			if !skipped {
+				return p.errorAtLoc(a.loc, fmt.Sprintf(ERR_TPL_INVALID_MODIFIER_ORDER, a.name, b.name))
+			}
 		}
 	}
 	return nil
 }
 
-func (p *Parser) tsModifierOrder(staticLoc, overrideLoc, readonlyLoc, accessLoc *Loc, accMod ACC_MOD) error {
-	orders := []ModifierNameLoc{
-		{accMod.String(), accessLoc},
-		{"override", overrideLoc},
-		{"readonly", readonlyLoc},
+func (p *Parser) tsModifierOrder(staticLoc, overrideLoc, readonlyLoc, accessLoc, abstractLoc, declareLoc *Loc, accMod ACC_MOD) error {
+	if staticLoc != nil && abstractLoc != nil {
+		return p.errorAtLoc(abstractLoc, ERR_ABSTRACT_MIXED_WITH_STATIC)
 	}
-	if err := p.tsCheckLabeledOrder(orders); err != nil {
-		return err
+	if declareLoc != nil && overrideLoc != nil {
+		return p.errorAtLoc(overrideLoc, ERR_DECLARE_MIXED_WITH_OVERRIDE)
 	}
 
-	orders = []ModifierNameLoc{
-		{"static", staticLoc},
-		{"override", overrideLoc},
-		{"readonly", readonlyLoc},
+	orders := []ModifierNameLoc{
+		{accMod.String(), accessLoc, nil},
+		{"abstract", abstractLoc, []string{"readonly"}},
+		{"static", staticLoc, nil},
+		{"override", overrideLoc, nil},
+		{"readonly", readonlyLoc, nil},
 	}
 	return p.tsCheckLabeledOrder(orders)
 }

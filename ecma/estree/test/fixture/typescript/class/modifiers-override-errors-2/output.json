@@ -1,0 +1,3 @@
+{
+  "throws": "Index signatures cannot have the `override` modifier at (2:2)"
+}

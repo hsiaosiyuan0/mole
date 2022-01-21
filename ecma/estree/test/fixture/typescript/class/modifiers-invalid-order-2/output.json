@@ -1,0 +1,3 @@
+{
+  "throws": "`override` modifier must precede `readonly` modifier at (3:11)"
+}

@@ -1,0 +1,3 @@
+{
+  "throws": "`declare` modifier cannot be used with `override` modifier at (2:2)"
+}

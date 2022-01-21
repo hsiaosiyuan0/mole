@@ -1,0 +1,447 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 256,
+  "loc": {
+    "start": {
+      "line": 1,
+      "column": 0
+    },
+    "end": {
+      "line": 11,
+      "column": 1
+    }
+  },
+  "body": [
+    {
+      "type": "ClassDeclaration",
+      "start": 42,
+      "end": 256,
+      "loc": {
+        "start": {
+          "line": 2,
+          "column": 0
+        },
+        "end": {
+          "line": 11,
+          "column": 1
+        }
+      },
+      "abstract": true,
+      "id": {
+        "type": "Identifier",
+        "start": 57,
+        "end": 58,
+        "loc": {
+          "start": {
+            "line": 2,
+            "column": 15
+          },
+          "end": {
+            "line": 2,
+            "column": 16
+          }
+        },
+        "name": "C"
+      },
+      "superClass": null,
+      "body": {
+        "type": "ClassBody",
+        "start": 59,
+        "end": 256,
+        "loc": {
+          "start": {
+            "line": 2,
+            "column": 17
+          },
+          "end": {
+            "line": 11,
+            "column": 1
+          }
+        },
+        "body": [
+          {
+            "type": "MethodDefinition",
+            "start": 65,
+            "end": 84,
+            "loc": {
+              "start": {
+                "line": 3,
+                "column": 4
+              },
+              "end": {
+                "line": 3,
+                "column": 23
+              }
+            },
+            "abstract": true,
+            "static": false,
+            "key": {
+              "type": "Identifier",
+              "start": 80,
+              "end": 81,
+              "loc": {
+                "start": {
+                  "line": 3,
+                  "column": 19
+                },
+                "end": {
+                  "line": 3,
+                  "column": 20
+                }
+              },
+              "name": "a"
+            },
+            "computed": false,
+            "kind": "method",
+            "id": null,
+            "value": {
+              "type": "FunctionExpression",
+              "params": [],
+              "async": true,
+              "generator": false
+            }
+          },
+          {
+            "type": "MethodDefinition",
+            "start": 89,
+            "end": 108,
+            "loc": {
+              "start": {
+                "line": 4,
+                "column": 4
+              },
+              "end": {
+                "line": 4,
+                "column": 23
+              }
+            },
+            "static": true,
+            "key": {
+              "type": "Identifier",
+              "start": 102,
+              "end": 103,
+              "loc": {
+                "start": {
+                  "line": 4,
+                  "column": 17
+                },
+                "end": {
+                  "line": 4,
+                  "column": 18
+                }
+              },
+              "name": "s"
+            },
+            "computed": false,
+            "kind": "method",
+            "id": null,
+            "value": {
+              "type": "FunctionExpression",
+              "params": [],
+              "body": {
+                "type": "BlockStatement",
+                "start": 106,
+                "end": 108,
+                "loc": {
+                  "start": {
+                    "line": 4,
+                    "column": 21
+                  },
+                  "end": {
+                    "line": 4,
+                    "column": 23
+                  }
+                },
+                "body": [],
+                "directives": []
+              },
+              "async": true,
+              "generator": false
+            }
+          },
+          {
+            "type": "MethodDefinition",
+            "start": 113,
+            "end": 141,
+            "loc": {
+              "start": {
+                "line": 5,
+                "column": 4
+              },
+              "end": {
+                "line": 5,
+                "column": 32
+              }
+            },
+            "accessibility": "public",
+            "abstract": true,
+            "static": false,
+            "key": {
+              "type": "Identifier",
+              "start": 135,
+              "end": 138,
+              "loc": {
+                "start": {
+                  "line": 5,
+                  "column": 26
+                },
+                "end": {
+                  "line": 5,
+                  "column": 29
+                }
+              },
+              "name": "pua"
+            },
+            "computed": false,
+            "kind": "method",
+            "id": null,
+            "value": {
+              "type": "FunctionExpression",
+              "params": [],
+              "async": true,
+              "generator": false
+            }
+          },
+          {
+            "type": "MethodDefinition",
+            "start": 146,
+            "end": 174,
+            "loc": {
+              "start": {
+                "line": 6,
+                "column": 4
+              },
+              "end": {
+                "line": 6,
+                "column": 32
+              }
+            },
+            "accessibility": "public",
+            "static": true,
+            "key": {
+              "type": "Identifier",
+              "start": 166,
+              "end": 169,
+              "loc": {
+                "start": {
+                  "line": 6,
+                  "column": 24
+                },
+                "end": {
+                  "line": 6,
+                  "column": 27
+                }
+              },
+              "name": "pus"
+            },
+            "computed": false,
+            "kind": "method",
+            "id": null,
+            "value": {
+              "type": "FunctionExpression",
+              "params": [],
+              "body": {
+                "type": "BlockStatement",
+                "start": 172,
+                "end": 174,
+                "loc": {
+                  "start": {
+                    "line": 6,
+                    "column": 30
+                  },
+                  "end": {
+                    "line": 6,
+                    "column": 32
+                  }
+                },
+                "body": [],
+                "directives": []
+              },
+              "async": true,
+              "generator": false
+            }
+          },
+          {
+            "type": "MethodDefinition",
+            "start": 180,
+            "end": 200,
+            "loc": {
+              "start": {
+                "line": 8,
+                "column": 4
+              },
+              "end": {
+                "line": 8,
+                "column": 24
+              }
+            },
+            "accessibility": "public",
+            "static": false,
+            "key": {
+              "type": "Identifier",
+              "start": 193,
+              "end": 195,
+              "loc": {
+                "start": {
+                  "line": 8,
+                  "column": 17
+                },
+                "end": {
+                  "line": 8,
+                  "column": 19
+                }
+              },
+              "name": "pu"
+            },
+            "computed": false,
+            "kind": "method",
+            "id": null,
+            "value": {
+              "type": "FunctionExpression",
+              "params": [],
+              "body": {
+                "type": "BlockStatement",
+                "start": 198,
+                "end": 200,
+                "loc": {
+                  "start": {
+                    "line": 8,
+                    "column": 22
+                  },
+                  "end": {
+                    "line": 8,
+                    "column": 24
+                  }
+                },
+                "body": [],
+                "directives": []
+              },
+              "async": true,
+              "generator": false
+            }
+          },
+          {
+            "type": "MethodDefinition",
+            "start": 205,
+            "end": 228,
+            "loc": {
+              "start": {
+                "line": 9,
+                "column": 4
+              },
+              "end": {
+                "line": 9,
+                "column": 27
+              }
+            },
+            "accessibility": "protected",
+            "static": false,
+            "key": {
+              "type": "Identifier",
+              "start": 221,
+              "end": 223,
+              "loc": {
+                "start": {
+                  "line": 9,
+                  "column": 20
+                },
+                "end": {
+                  "line": 9,
+                  "column": 22
+                }
+              },
+              "name": "po"
+            },
+            "computed": false,
+            "kind": "method",
+            "id": null,
+            "value": {
+              "type": "FunctionExpression",
+              "params": [],
+              "body": {
+                "type": "BlockStatement",
+                "start": 226,
+                "end": 228,
+                "loc": {
+                  "start": {
+                    "line": 9,
+                    "column": 25
+                  },
+                  "end": {
+                    "line": 9,
+                    "column": 27
+                  }
+                },
+                "body": [],
+                "directives": []
+              },
+              "async": true,
+              "generator": false
+            }
+          },
+          {
+            "type": "MethodDefinition",
+            "start": 233,
+            "end": 254,
+            "loc": {
+              "start": {
+                "line": 10,
+                "column": 4
+              },
+              "end": {
+                "line": 10,
+                "column": 25
+              }
+            },
+            "accessibility": "private",
+            "static": false,
+            "key": {
+              "type": "Identifier",
+              "start": 247,
+              "end": 249,
+              "loc": {
+                "start": {
+                  "line": 10,
+                  "column": 18
+                },
+                "end": {
+                  "line": 10,
+                  "column": 20
+                }
+              },
+              "name": "pi"
+            },
+            "computed": false,
+            "kind": "method",
+            "id": null,
+            "value": {
+              "type": "FunctionExpression",
+              "params": [],
+              "body": {
+                "type": "BlockStatement",
+                "start": 252,
+                "end": 254,
+                "loc": {
+                  "start": {
+                    "line": 10,
+                    "column": 23
+                  },
+                  "end": {
+                    "line": 10,
+                    "column": 25
+                  }
+                },
+                "body": [],
+                "directives": []
+              },
+              "async": true,
+              "generator": false
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "directives": []
+}

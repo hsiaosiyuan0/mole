@@ -8,6 +8,7 @@ import (
 
 type TypInfo struct {
 	ques      *Loc
+	not       *Loc
 	typAnnot  *TsTypAnnot
 	typParams Node
 	typArgs   Node
@@ -18,12 +19,30 @@ func NewTypInfo() *TypInfo {
 	return &TypInfo{}
 }
 
+func (ti *TypInfo) Clone() *TypInfo {
+	return &TypInfo{
+		ques:     ti.ques,
+		not:      ti.not,
+		typAnnot: ti.typAnnot,
+		typArgs:  ti.typArgs,
+		clsTyp:   ti.clsTyp,
+	}
+}
+
 func (ti *TypInfo) Ques() *Loc {
 	return ti.ques
 }
 
 func (ti *TypInfo) SetQues(loc *Loc) {
 	ti.ques = loc
+}
+
+func (ti *TypInfo) Not(loc *Loc) {
+	ti.ques = loc
+}
+
+func (ti *TypInfo) SetNot(loc *Loc) {
+	ti.not = loc
 }
 
 func (ti *TypInfo) TypAnnot() *TsTypAnnot {
@@ -59,6 +78,10 @@ func (ti *TypInfo) SetTypArgs(node Node) {
 
 func (ti *TypInfo) Optional() bool {
 	return ti.ques != nil
+}
+
+func (ti *TypInfo) Definite() bool {
+	return ti.not != nil
 }
 
 type ClsTypInfo struct {

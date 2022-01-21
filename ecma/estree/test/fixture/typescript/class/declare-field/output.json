@@ -111,7 +111,7 @@
             "key": {
               "type": "Identifier",
               "start": 35,
-              "end": 46,
+              "end": 38,
               "loc": {
                 "start": {
                   "line": 3,
@@ -119,7 +119,7 @@
                 },
                 "end": {
                   "line": 3,
-                  "column": 21
+                  "column": 13
                 }
               },
               "name": "bar"

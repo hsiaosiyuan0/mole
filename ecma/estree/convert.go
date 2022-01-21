@@ -1031,8 +1031,11 @@ func convert(node parser.Node) Node {
 				TypeParameters: typParams(ti),
 				ReturnType:     typAnnot(ti),
 				Optional:       ti.Optional(),
+				Definite:       ti.Definite(),
 				Abstract:       ti.Abstract(),
+				Override:       ti.Override(),
 				Readonly:       ti.Readonly(),
+				Accessibility:  ti.AccMod().String(),
 			}
 		}
 		return &MethodDefinition{
@@ -1079,7 +1082,9 @@ func convert(node parser.Node) Node {
 				Static:         n.Static(),
 				Abstract:       ti.Abstract(),
 				Optional:       ti.Optional(),
+				Definite:       ti.Definite(),
 				Readonly:       ti.Readonly(),
+				Override:       ti.Override(),
 				Declare:        ti.Declare(),
 				Accessibility:  ti.AccMod().String(),
 				TypeAnnotation: typAnnot(ti),
