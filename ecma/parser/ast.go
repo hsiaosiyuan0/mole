@@ -626,7 +626,7 @@ func LocWithTypeInfo(node Node, includeParamProp bool) *Loc {
 
 	starLocList := []*Loc{locOfNode(ti.TypParams()), locOfNode(node)}
 	if includeParamProp {
-		starLocList = append(starLocList, []*Loc{ti.ReadonlyLoc(), ti.OverrideLoc()}...)
+		starLocList = append(starLocList, []*Loc{ti.BeginLoc()}...)
 	}
 	start := startOf(starLocList...)
 	loc.begin.line = start.begin.line
@@ -990,6 +990,7 @@ type AssignExpr struct {
 	lhs        Node
 	rhs        Node
 	outerParen *Loc
+	ti         *TypInfo
 }
 
 func (n *AssignExpr) Op() TokenValue {
@@ -1022,6 +1023,14 @@ func (n *AssignExpr) OuterParen() *Loc {
 
 func (n *AssignExpr) SetOuterParen(loc *Loc) {
 	n.outerParen = loc
+}
+
+func (n *AssignExpr) TypInfo() *TypInfo {
+	return n.ti
+}
+
+func (n *AssignExpr) SetTypInfo(ti *TypInfo) {
+	n.ti = ti
 }
 
 type ThisExpr struct {
@@ -1297,6 +1306,7 @@ type AssignPat struct {
 	lhs        Node
 	rhs        Node
 	outerParen *Loc
+	ti         *TypInfo
 }
 
 func (n *AssignPat) Left() Node {
@@ -1317,6 +1327,20 @@ func (n *AssignPat) Loc() *Loc {
 
 func (n *AssignPat) OuterParen() *Loc {
 	return n.outerParen
+}
+
+func (n *AssignPat) TypInfo() *TypInfo {
+	return n.ti
+}
+
+func (n *AssignPat) SetTypInfo(ti *TypInfo) {
+	n.ti = ti
+}
+
+func (n *AssignPat) hoistTypInfo() {
+	if wt, ok := n.lhs.(NodeWithTypInfo); ok {
+		n.ti = wt.TypInfo()
+	}
 }
 
 type RestPat struct {
@@ -2100,6 +2124,10 @@ func (n *Method) Key() Node {
 
 func (n *Method) Value() Node {
 	return n.val
+}
+
+func (n *Method) HasBody() bool {
+	return n.val != nil && n.val.(*FnDec).body != nil
 }
 
 func (n *Method) Computed() bool {

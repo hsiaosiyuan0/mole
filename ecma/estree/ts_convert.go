@@ -333,13 +333,14 @@ func tsParamProp(node parser.Node) Node {
 
 	lc := parser.LocWithTypeInfo(node, true)
 	return &TSParameterProperty{
-		Type:      "TSParameterProperty",
-		Start:     start(lc),
-		End:       end(lc),
-		Loc:       loc(lc),
-		Parameter: convert(node),
-		Readonly:  ti.Readonly(),
-		Override:  ti.Override(),
+		Type:          "TSParameterProperty",
+		Start:         start(lc),
+		End:           end(lc),
+		Loc:           loc(lc),
+		Parameter:     convert(node),
+		Readonly:      ti.Readonly(),
+		Override:      ti.Override(),
+		Accessibility: ti.AccMod().String(),
 	}
 }
 
@@ -352,5 +353,5 @@ func isTyParamProp(node parser.Node) (*parser.TypInfo, bool) {
 	if ti == nil {
 		return nil, false
 	}
-	return ti, ti.Readonly() || ti.Override()
+	return ti, ti.Readonly() || ti.Override() || ti.AccMod() != parser.ACC_MOD_NONE
 }

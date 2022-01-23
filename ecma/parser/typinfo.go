@@ -88,10 +88,11 @@ type ClsTypInfo struct {
 	accMod       ACC_MOD
 	superTypArgs Node
 	implements   []Node
-	abstractLoc  *Loc
-	readonlyLoc  *Loc
-	overrideLoc  *Loc
-	declareLoc   *Loc
+	beginLoc     *Loc
+	abstract     bool
+	readonly     bool
+	override     bool
+	declare      bool
 }
 
 func (ti *TypInfo) intiClsTyp() {
@@ -125,52 +126,64 @@ func (ti *TypInfo) SetSuperTypArgs(node Node) {
 	ti.clsTyp.superTypArgs = node
 }
 
-func (ti *TypInfo) AbstractLoc() *Loc {
+func (ti *TypInfo) BeginLoc() *Loc {
 	if fuzz.IsNilPtr(ti.clsTyp) {
 		return nil
 	}
-	return ti.clsTyp.abstractLoc
+	return ti.clsTyp.beginLoc
 }
 
-func (ti *TypInfo) SetAbstractLoc(loc *Loc) {
+func (ti *TypInfo) SetBeginLoc(loc *Loc) {
 	ti.intiClsTyp()
-	ti.clsTyp.abstractLoc = loc
+	ti.clsTyp.beginLoc = loc
 }
 
-func (ti *TypInfo) ReadonlyLoc() *Loc {
+func (ti *TypInfo) Abstract() bool {
 	if fuzz.IsNilPtr(ti.clsTyp) {
-		return nil
+		return false
 	}
-	return ti.clsTyp.readonlyLoc
+	return ti.clsTyp.abstract
 }
 
-func (ti *TypInfo) SetReadonlyLoc(loc *Loc) {
+func (ti *TypInfo) SetAbstract(flag bool) {
 	ti.intiClsTyp()
-	ti.clsTyp.readonlyLoc = loc
+	ti.clsTyp.abstract = flag
 }
 
-func (ti *TypInfo) OverrideLoc() *Loc {
+func (ti *TypInfo) Readonly() bool {
 	if fuzz.IsNilPtr(ti.clsTyp) {
-		return nil
+		return false
 	}
-	return ti.clsTyp.overrideLoc
+	return ti.clsTyp.readonly
 }
 
-func (ti *TypInfo) SetOverrideLoc(loc *Loc) {
+func (ti *TypInfo) SetReadonly(flag bool) {
 	ti.intiClsTyp()
-	ti.clsTyp.overrideLoc = loc
+	ti.clsTyp.readonly = flag
 }
 
-func (ti *TypInfo) DeclareLoc() *Loc {
+func (ti *TypInfo) Override() bool {
 	if fuzz.IsNilPtr(ti.clsTyp) {
-		return nil
+		return false
 	}
-	return ti.clsTyp.declareLoc
+	return ti.clsTyp.override
 }
 
-func (ti *TypInfo) SetDeclareLoc(loc *Loc) {
+func (ti *TypInfo) SetOverride(flag bool) {
 	ti.intiClsTyp()
-	ti.clsTyp.declareLoc = loc
+	ti.clsTyp.override = flag
+}
+
+func (ti *TypInfo) Declare() bool {
+	if fuzz.IsNilPtr(ti.clsTyp) {
+		return false
+	}
+	return ti.clsTyp.declare
+}
+
+func (ti *TypInfo) SetDeclare(flag bool) {
+	ti.intiClsTyp()
+	ti.clsTyp.declare = flag
 }
 
 func (ti *TypInfo) Implements() []Node {
@@ -183,32 +196,4 @@ func (ti *TypInfo) Implements() []Node {
 func (ti *TypInfo) SetImplements(nodes []Node) {
 	ti.intiClsTyp()
 	ti.clsTyp.implements = nodes
-}
-
-func (ti *TypInfo) Abstract() bool {
-	if fuzz.IsNilPtr(ti.clsTyp) {
-		return false
-	}
-	return ti.clsTyp.abstractLoc != nil
-}
-
-func (ti *TypInfo) Readonly() bool {
-	if fuzz.IsNilPtr(ti.clsTyp) {
-		return false
-	}
-	return ti.clsTyp.readonlyLoc != nil
-}
-
-func (ti *TypInfo) Override() bool {
-	if fuzz.IsNilPtr(ti.clsTyp) {
-		return false
-	}
-	return ti.clsTyp.overrideLoc != nil
-}
-
-func (ti *TypInfo) Declare() bool {
-	if fuzz.IsNilPtr(ti.clsTyp) {
-		return false
-	}
-	return ti.clsTyp.declareLoc != nil
 }

@@ -256,14 +256,16 @@ type TSMethodDefinition struct {
 	Accessibility  string     `json:"accessibility"`
 }
 
+// represets the properties defined via constructor params
 type TSParameterProperty struct {
-	Type      string  `json:"type"`
-	Start     int     `json:"start"`
-	End       int     `json:"end"`
-	Loc       *SrcLoc `json:"loc"`
-	Parameter Node    `json:"parameter"`
-	Readonly  bool    `json:"readonly"`
-	Override  bool    `json:"override"`
+	Type          string  `json:"type"`
+	Start         int     `json:"start"`
+	End           int     `json:"end"`
+	Loc           *SrcLoc `json:"loc"`
+	Parameter     Node    `json:"parameter"`
+	Readonly      bool    `json:"readonly"`
+	Accessibility string  `json:"accessibility"`
+	Override      bool    `json:"override"`
 }
 
 type TSPropertyDefinition struct {

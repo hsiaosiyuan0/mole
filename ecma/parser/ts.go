@@ -43,11 +43,19 @@ func (p *Parser) tsTypAnnot() (Node, error) {
 	return nil, nil
 }
 
-// for dealing with the ambiguous between `ParenthesizedType` and the `formalParamList`:
-// `var a: ({a = c}:string|number,a:string) => number = 1`
+// for dealing with the ambiguous between `ParenthesizedType` and the `formalParamList`, eg:
 //
-// set `rough` to `true` to parse `{a = c, b?: number}` as a super set consists of `tsTyp`
-// and `bindingPattern`, the parsed result will be judged by later process by the time
+// ```ts
+// var a: ({ a = c }: string | number) => number = 1
+// var a: (string | number) = 1
+// ```
+//
+// the ambiguous in above code is that the `(` can be either the leading token of `formalParamList`
+// or `ParenthesizedType`
+//
+// the manner used here is by setting the `rough` argument to `true` to parse `{a = c, b?: number}`
+// as a superset consists of `tsTyp` and `bindingPattern`, the parsed result will be judged by later
+// process by the time via method such as `tsRoughParamToParam`
 func (p *Parser) tsTyp(rough bool) (Node, error) {
 	if p.lexer.Peek().value == T_NEW {
 		return p.tsConstructTyp()
@@ -177,7 +185,8 @@ func (p *Parser) tsAdvanceHook(ep bool) (ques, not *Loc) {
 	return
 }
 
-func (p *Parser) tsNodeTypAnnot(binding Node, typAnnot Node, accMod ACC_MOD, abstract, readonly, override, declare *Loc, ques *Loc) bool {
+func (p *Parser) tsNodeTypAnnot(binding Node, typAnnot Node, accMod ACC_MOD,
+	beginLoc *Loc, abstract, readonly, override, declare bool, ques *Loc) bool {
 	if wt, ok := binding.(NodeWithTypInfo); ok {
 		ti := wt.TypInfo()
 		if ti == nil {
@@ -191,10 +200,11 @@ func (p *Parser) tsNodeTypAnnot(binding Node, typAnnot Node, accMod ACC_MOD, abs
 			ti.SetQues(ques)
 		}
 		ti.SetAccMod(accMod)
-		ti.SetAbstractLoc(abstract)
-		ti.SetReadonlyLoc(readonly)
-		ti.SetOverrideLoc(override)
-		ti.SetDeclareLoc(declare)
+		ti.SetBeginLoc(beginLoc)
+		ti.SetAbstract(abstract)
+		ti.SetReadonly(readonly)
+		ti.SetOverride(override)
+		ti.SetDeclare(declare)
 		return true
 	}
 	return false
@@ -240,8 +250,8 @@ func (p *Parser) tsRoughParamToParam(node Node) (Node, error) {
 		}
 
 		ti := param.ti
-		if ok := p.tsNodeTypAnnot(fp, ti.TypAnnot(), ti.AccMod(),
-			ti.AbstractLoc(), ti.ReadonlyLoc(), ti.OverrideLoc(), ti.DeclareLoc(), ti.Ques()); !ok {
+		if ok := p.tsNodeTypAnnot(fp, ti.TypAnnot(), ti.AccMod(), ti.BeginLoc(),
+			ti.Abstract(), ti.Readonly(), ti.Override(), ti.Declare(), ti.Ques()); !ok {
 			return nil, p.errorAtLoc(fp.Loc(), ERR_UNEXPECTED_TOKEN)
 		}
 
@@ -694,6 +704,13 @@ func (p *Parser) tsPrimary(rough bool) (Node, error) {
 		// this type
 		p.lexer.Next()
 		node = &TsThis{N_TS_THIS, p.finLoc(loc)}
+		ahead := p.lexer.Peek()
+		if ahead.value == T_NAME && ahead.Text() == "is" {
+			node, err = p.tsTypPredicate(node, false, false)
+			if err != nil {
+				return nil, err
+			}
+		}
 	}
 
 	if node != nil {

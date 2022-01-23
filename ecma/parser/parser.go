@@ -740,9 +740,8 @@ func (p *Parser) importNS() ([]Node, error) {
 func (p *Parser) classDec(expr bool, canNameOmitted bool, declare bool, abstract bool) (Node, error) {
 	loc := p.locFromTok(p.lexer.Next())
 
-	var abstractLoc *Loc
 	if abstract {
-		abstractLoc = p.locFromTok(p.lexer.Next())
+		p.lexer.Next()
 	}
 
 	ps := p.scope()
@@ -804,7 +803,7 @@ func (p *Parser) classDec(expr bool, canNameOmitted bool, declare bool, abstract
 	}
 
 	if p.ts {
-		ti.SetAbstractLoc(abstractLoc)
+		ti.SetAbstract(abstract)
 		impl, err := p.tsImplements()
 		if err != nil {
 			return nil, err
@@ -891,24 +890,26 @@ func (p *Parser) classBody(declare bool, hasSuper bool) (Node, error) {
 				if prev != nil && prev.Type() == N_METHOD && elem.Type() == N_METHOD {
 					a := elem.(*Method)
 					b := prev.(*Method)
-					if (a.kind == PK_SETTER || a.kind == PK_GETTER) && (b.kind == PK_SETTER || b.kind == PK_GETTER) {
+					if a.HasBody() && (a.kind == PK_SETTER || a.kind == PK_GETTER) && (b.kind == PK_SETTER || b.kind == PK_GETTER) {
 						dup = a.static != b.static ||
 							(a.kind == PK_GETTER && b.kind == PK_GETTER || a.kind == PK_SETTER && b.kind == PK_SETTER)
 					}
 				}
 				if dup {
-					return nil, p.errorAtLoc(key.Loc(), fmt.Sprintf(ERR_TPL_ID_ALREADY_DEF, name))
+					return nil, p.errorAtLoc(key.Loc(), fmt.Sprintf(ERR_TPL_ID_DUP_DEF, name))
 				}
 			}
-			pvtNames[name] = elem
+			if elem.Type() == N_FIELD || elem.(*Method).HasBody() {
+				pvtNames[name] = elem
 
-			ref := NewRef()
-			ref.Node = key.(*Ident)
-			ref.TargetType = TT_PVT_FIELD
-			ref.BindKind = BK_PVT_FIELD
-			// skip check dup since getter/setter is dup but legal
-			if err := p.addLocalBinding(nil, ref, false, name); err != nil {
-				return nil, err
+				ref := NewRef()
+				ref.Node = key.(*Ident)
+				ref.TargetType = TT_PVT_FIELD
+				ref.BindKind = BK_PVT_FIELD
+				// skip check dup since getter/setter is dup but legal
+				if err := p.addLocalBinding(nil, ref, false, name); err != nil {
+					return nil, err
+				}
 			}
 		}
 		if p.ts {
@@ -923,10 +924,26 @@ func (p *Parser) classBody(declare bool, hasSuper bool) (Node, error) {
 				if m.ti != nil && m.ti.Abstract() && !scope.IsKind(SPK_ABSTRACT_CLASS) {
 					return nil, p.errorAtLoc(m.Loc(), ERR_BARE_ABSTRACT_PROPERTY)
 				}
+				if m.key != nil && m.key.Type() == N_NAME && m.key.(*Ident).pvt {
+					if m.ti.Abstract() {
+						return nil, p.errorAtLoc(m.loc, ERR_PVT_ELEM_WITH_ABSTRACT)
+					}
+					if m.ti.AccMod() != ACC_MOD_NONE {
+						return nil, p.errorAtLoc(m.loc, fmt.Sprintf(ERR_TPL_PVT_ELEM_WITH_ACCESS_MODIFIER, m.ti.AccMod().String()))
+					}
+				}
 			} else if elem.Type() == N_FIELD {
 				f := elem.(*Field)
 				if f.ti != nil && f.ti.Abstract() && !scope.IsKind(SPK_ABSTRACT_CLASS) {
 					return nil, p.errorAtLoc(f.Loc(), ERR_BARE_ABSTRACT_PROPERTY)
+				}
+				if f.key != nil && f.key.Type() == N_NAME && f.key.(*Ident).pvt {
+					if f.ti.Abstract() {
+						return nil, p.errorAtLoc(f.loc, ERR_PVT_ELEM_WITH_ABSTRACT)
+					}
+					if f.ti.AccMod() != ACC_MOD_NONE {
+						return nil, p.errorAtLoc(f.loc, fmt.Sprintf(ERR_TPL_PVT_ELEM_WITH_ACCESS_MODIFIER, f.ti.AccMod().String()))
+					}
 				}
 			}
 		}
@@ -940,7 +957,8 @@ func (p *Parser) classBody(declare bool, hasSuper bool) (Node, error) {
 	return &ClassBody{N_ClASS_BODY, p.finLoc(loc), elems}, nil
 }
 
-func (p *Parser) modifiers() (begin, static, access, abstract, readonly, override, declare *Loc, isField, escape bool, name string, fieldLoc *Loc, accMod ACC_MOD, ahead *Token) {
+func (p *Parser) modifiers() (begin, static, access, abstract, readonly, override, declare *Loc,
+	isField, escape bool, name string, fieldLoc *Loc, accMod ACC_MOD, ahead *Token) {
 	for {
 		ahead = p.lexer.Peek()
 		av := ahead.value
@@ -1058,13 +1076,17 @@ func (p *Parser) classElem(inDeclare bool) (Node, error) {
 	}
 
 	static := staticLoc != nil
+	abstract := abstractLoc != nil
+	override := overrideLoc != nil
+	declare := declareLoc != nil
+
 	if static {
 		if ahead.value == T_BRACE_L {
 			return p.staticBlock(beginLoc)
 		}
 		if p.aheadIsArgList(ahead) {
 			key := &Ident{N_NAME, fieldLoc, fieldName, false, escape, nil, true, p.newTypInfo()}
-			return p.method(beginLoc, key, accMod, nil, false, PK_METHOD, false, false, false, true, false, nil, nil, nil, nil)
+			return p.method(beginLoc, key, accMod, nil, false, PK_METHOD, false, false, false, true, false, beginLoc, false, false, false, nil)
 		}
 	} else if isField {
 		ti := p.newTypInfo()
@@ -1072,7 +1094,7 @@ func (p *Parser) classElem(inDeclare bool) (Node, error) {
 		if ti != nil {
 			ti.ques, ti.not = p.tsAdvanceHook(true)
 		}
-		return p.field(key, beginLoc, nil, accMod, abstractLoc, readonlyLoc, overrideLoc, declareLoc, inDeclare)
+		return p.field(key, beginLoc, nil, accMod, beginLoc, abstractLoc, readonlyLoc, overrideLoc, declareLoc, inDeclare)
 	}
 
 	if p.aheadIsAsync(ahead, true, true) {
@@ -1082,10 +1104,10 @@ func (p *Parser) classElem(inDeclare bool) (Node, error) {
 		if ahead.ContainsEscape() {
 			return nil, p.errorAt(ahead.value, &ahead.begin, ERR_ESCAPE_IN_KEYWORD)
 		}
-		return p.method(beginLoc, nil, accMod, nil, false, PK_METHOD, false, true, true, true, static, declareLoc, abstractLoc, overrideLoc, nil)
+		return p.method(beginLoc, nil, accMod, nil, false, PK_METHOD, false, true, true, true, static, beginLoc, declare, abstract, override, nil)
 	} else if p.aheadIsArgList(ahead) {
 		key := &Ident{N_NAME, fieldLoc, fieldName, false, escape, nil, true, p.newTypInfo()}
-		return p.method(beginLoc, key, accMod, nil, false, PK_METHOD, false, false, false, true, false, nil, nil, nil, nil)
+		return p.method(beginLoc, key, accMod, nil, false, PK_METHOD, false, false, false, true, false, beginLoc, false, false, false, nil)
 	} else if ahead.value == T_MUL {
 		if !isField && readonlyLoc != nil {
 			return nil, p.errorAtLoc(readonlyLoc, ERR_METHOD_CANNOT_READONLY)
@@ -1093,7 +1115,7 @@ func (p *Parser) classElem(inDeclare bool) (Node, error) {
 		if p.feat&FEAT_ASYNC_GENERATOR == 0 {
 			return nil, p.errorTok(ahead)
 		}
-		return p.method(beginLoc, nil, accMod, nil, false, PK_METHOD, true, false, true, true, static, declareLoc, abstractLoc, overrideLoc, nil)
+		return p.method(beginLoc, nil, accMod, nil, false, PK_METHOD, true, false, true, true, static, beginLoc, declare, abstract, override, nil)
 	}
 
 	propLoc := p.locFromTok(ahead)
@@ -1122,7 +1144,7 @@ func (p *Parser) classElem(inDeclare bool) (Node, error) {
 
 		isField, ahead = p.isField(false, name == "get" || name == "set")
 		if isField {
-			return p.field(key, beginLoc, staticLoc, accMod, abstractLoc, readonlyLoc, overrideLoc, declareLoc, inDeclare)
+			return p.field(key, beginLoc, staticLoc, accMod, beginLoc, abstractLoc, readonlyLoc, overrideLoc, declareLoc, inDeclare)
 		}
 
 		if beginLoc != nil {
@@ -1142,7 +1164,7 @@ func (p *Parser) classElem(inDeclare bool) (Node, error) {
 			if declareLoc != nil {
 				return nil, p.errorAtLoc(beginLoc, ERR_ILLEGAL_DECLARE_IN_CLASS)
 			}
-			return p.method(propLoc, key, accMod, nil, false, kd, false, false, true, true, static, declareLoc, abstractLoc, overrideLoc, nil)
+			return p.method(propLoc, key, accMod, nil, false, kd, false, false, true, true, static, beginLoc, declareLoc != nil, abstractLoc != nil, overrideLoc != nil, nil)
 		}
 
 		if name == "get" {
@@ -1160,10 +1182,10 @@ func (p *Parser) classElem(inDeclare bool) (Node, error) {
 		if !isField && readonlyLoc != nil {
 			return nil, p.errorAtLoc(readonlyLoc, ERR_METHOD_CANNOT_READONLY)
 		}
-		return p.method(propLoc, nil, accMod, nil, false, kd, false, false, true, true, static, declareLoc, abstractLoc, overrideLoc, nil)
+		return p.method(propLoc, nil, accMod, nil, false, kd, false, false, true, true, static, beginLoc, declareLoc != nil, abstractLoc != nil, overrideLoc != nil, nil)
 	}
 
-	return p.field(nil, beginLoc, staticLoc, accMod, abstractLoc, readonlyLoc, overrideLoc, declareLoc, inDeclare)
+	return p.field(nil, beginLoc, staticLoc, accMod, beginLoc, abstractLoc, readonlyLoc, overrideLoc, declareLoc, inDeclare)
 }
 
 func (p *Parser) isName(node Node, name string, canContainsEscape bool, str bool) bool {
@@ -1188,7 +1210,7 @@ func (p *Parser) isName(node Node, name string, canContainsEscape bool, str bool
 	return true
 }
 
-func (p *Parser) field(key Node, begin, static *Loc, accMod ACC_MOD, abstract, readonly, override, declare *Loc, inDeclare bool) (Node, error) {
+func (p *Parser) field(key Node, begin, static *Loc, accMod ACC_MOD, beginLoc, abstract, readonly, override, declare *Loc, inDeclare bool) (Node, error) {
 	var loc *Loc
 	var err error
 	var compute *Loc
@@ -1202,7 +1224,7 @@ func (p *Parser) field(key Node, begin, static *Loc, accMod ACC_MOD, abstract, r
 		if ti != nil {
 			// computed prop can also be optional in ts, eg:
 			// `class C { [Symbol.iterator]?(): void; }`
-			ti.ques, _ = p.tsAdvanceHook(false)
+			ti.ques, ti.not = p.tsAdvanceHook(true)
 		}
 	} else if p.ts {
 		if wt, ok := key.(NodeWithTypInfo); ok {
@@ -1224,12 +1246,13 @@ func (p *Parser) field(key Node, begin, static *Loc, accMod ACC_MOD, abstract, r
 		if err != nil {
 			return nil, err
 		}
+		ti.SetBeginLoc(beginLoc)
 		ti.SetAccMod(accMod)
 		ti.SetTypAnnot(typAnnot)
-		ti.SetAbstractLoc(abstract)
-		ti.SetDeclareLoc(declare)
-		ti.SetReadonlyLoc(readonly)
-		ti.SetOverrideLoc(override)
+		ti.SetAbstract(abstract != nil)
+		ti.SetDeclare(declare != nil)
+		ti.SetReadonly(readonly != nil)
+		ti.SetOverride(override != nil)
 	}
 
 	var value Node
@@ -1249,7 +1272,7 @@ func (p *Parser) field(key Node, begin, static *Loc, accMod ACC_MOD, abstract, r
 		if static != nil {
 			loc = static
 		}
-		return p.method(loc, key, accMod, compute, false, PK_METHOD, false, false, true, true, static != nil, declare, abstract, override, ti)
+		return p.method(loc, key, accMod, compute, false, PK_METHOD, false, false, true, true, static != nil, beginLoc, declare != nil, abstract != nil, override != nil, ti)
 	}
 	p.advanceIfSemi(false)
 
@@ -1384,7 +1407,7 @@ func (p *Parser) tryStmt() (Node, error) {
 			if err != nil {
 				return nil, err
 			}
-			p.tsNodeTypAnnot(param, typAnnot, ACC_MOD_NONE, nil, nil, nil, nil, nil)
+			p.tsNodeTypAnnot(param, typAnnot, ACC_MOD_NONE, nil, false, false, false, false, nil)
 
 			if _, err := p.nextMustTok(T_PAREN_R); err != nil {
 				return nil, err
@@ -2594,7 +2617,7 @@ func (p *Parser) addLocalBinding(s *Scope, ref *Ref, checkDup bool, name string)
 		return nil
 	}
 	if !ok {
-		return p.errorAtLoc(ref.Node.loc, fmt.Sprintf(ERR_ID_DUP_DEF, name))
+		return p.errorAtLoc(ref.Node.loc, fmt.Sprintf(ERR_TPL_ID_DUP_DEF, name))
 	}
 	return nil
 }
@@ -2686,7 +2709,7 @@ func (p *Parser) varDec(lexical bool) (*VarDec, error) {
 	if err != nil {
 		return nil, err
 	}
-	p.tsNodeTypAnnot(binding, typAnnot, ACC_MOD_NONE, nil, nil, nil, nil, nil)
+	p.tsNodeTypAnnot(binding, typAnnot, ACC_MOD_NONE, nil, false, false, false, false, nil)
 
 	var init Node
 	if p.lexer.Peek().value == T_ASSIGN {
@@ -2776,7 +2799,8 @@ func (p *Parser) ident(scope *Scope, binding bool) (*Ident, error) {
 	return id.(*Ident), nil
 }
 
-func (p *Parser) accMod() (accMod ACC_MOD, accLoc *Loc, abstractLoc, readonlyLoc, overrideLoc, declareLoc *Loc, beginLoc *Loc, isField, escape bool, name string, fieldLoc *Loc, err error) {
+func (p *Parser) accMod() (accMod ACC_MOD, accLoc *Loc, abstractLoc, readonlyLoc, overrideLoc, declareLoc *Loc, beginLoc *Loc,
+	isField, escape bool, name string, fieldLoc *Loc, err error) {
 	if !p.ts {
 		return
 	}
@@ -2799,18 +2823,23 @@ func (p *Parser) accMod() (accMod ACC_MOD, accLoc *Loc, abstractLoc, readonlyLoc
 }
 
 func (p *Parser) roughParam(ctor bool) (Node, error) {
-	accMod, accLoc, abstract, readonlyLoc, overrideLoc, declareLoc, _, isField, escape, fieldName, fieldLoc, err := p.accMod()
+	accMod, accLoc, abstract, readonlyLoc, overrideLoc, declareLoc, beginLoc, isField, escape, fieldName, fieldLoc, err := p.accMod()
 	if err != nil {
 		return nil, err
-	}
-	if accLoc != nil && !ctor {
-		return nil, p.errorAtLoc(accLoc, ERR_ILLEGAL_PARAMETER_MODIFIER)
 	}
 
 	var name Node
 	if isField {
 		name = &Ident{N_NAME, fieldLoc, fieldName, false, escape, nil, false, p.newTypInfo()}
 	} else {
+		if p.ts && !ctor {
+			if accMod != ACC_MOD_NONE {
+				return nil, p.errorAtLoc(accLoc, ERR_ILLEGAL_PARAMETER_MODIFIER)
+			}
+			if readonlyLoc != nil {
+				return nil, p.errorAtLoc(readonlyLoc, ERR_ILLEGAL_PARAMETER_MODIFIER)
+			}
+		}
 		name, err = p.tsTyp(true)
 		if err != nil {
 			return nil, err
@@ -2830,10 +2859,11 @@ func (p *Parser) roughParam(ctor bool) (Node, error) {
 	ti := p.newTypInfo()
 	ti.SetTypAnnot(typAnnot)
 	ti.SetAccMod(accMod)
-	ti.SetReadonlyLoc(readonlyLoc)
-	ti.SetOverrideLoc(overrideLoc)
-	ti.SetDeclareLoc(declareLoc)
-	ti.SetAbstractLoc(abstract)
+	ti.SetBeginLoc(beginLoc)
+	ti.SetReadonly(readonlyLoc != nil)
+	ti.SetOverride(overrideLoc != nil)
+	ti.SetDeclare(declareLoc != nil)
+	ti.SetAbstract(abstract != nil)
 	ti.SetQues(ques)
 
 	var colonLoc *Loc
@@ -2844,18 +2874,33 @@ func (p *Parser) roughParam(ctor bool) (Node, error) {
 }
 
 func (p *Parser) param(ctor bool) (Node, error) {
-	accMod, accLoc, abstract, readonly, override, declare, _, isField, escape, fieldName, fieldLoc, err := p.accMod()
+	accMod, accLoc, abstract, readonly, override, declare, beginLoc, isField, escape, fieldName, fieldLoc, err := p.accMod()
 	if err != nil {
 		return nil, err
-	}
-	if accLoc != nil && !ctor {
-		return nil, p.errorAtLoc(accLoc, ERR_ILLEGAL_PARAMETER_MODIFIER)
 	}
 
 	var binding Node
 	if isField {
 		binding = &Ident{N_NAME, fieldLoc, fieldName, false, escape, nil, false, p.newTypInfo()}
 	} else {
+		if p.ts {
+			if accMod != ACC_MOD_NONE {
+				ahead := p.lexer.Peek()
+				av := ahead.value
+				if av == T_BRACE_L || av == T_BRACKET_L {
+					return nil, p.errorAtLoc(accLoc, ERR_PARAM_PROP_WITH_BINDING_PATTERN)
+				}
+			}
+			if !ctor {
+				if accMod != ACC_MOD_NONE {
+					return nil, p.errorAtLoc(accLoc, ERR_ILLEGAL_PARAMETER_MODIFIER)
+				}
+				if readonly != nil {
+					return nil, p.errorAtLoc(readonly, ERR_ILLEGAL_PARAMETER_MODIFIER)
+				}
+			}
+		}
+
 		binding, err = p.bindingPattern()
 		if err != nil {
 			return nil, err
@@ -2879,7 +2924,7 @@ func (p *Parser) param(ctor bool) (Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	p.tsNodeTypAnnot(binding, typAnnot, accMod, abstract, readonly, override, declare, nil)
+	p.tsNodeTypAnnot(binding, typAnnot, accMod, beginLoc, abstract != nil, readonly != nil, override != nil, declare != nil, nil)
 
 	if p.lexer.Peek().value == T_ASSIGN {
 		p.lexer.Next()
@@ -2899,12 +2944,17 @@ func (p *Parser) param(ctor bool) (Node, error) {
 			r := binding.(*RestPat)
 			return nil, p.errorAtLoc(r.arg.Loc(), ERR_REST_CANNOT_SET_DEFAULT)
 		}
-		binding = &AssignPat{
+		ap := &AssignPat{
 			typ: N_PAT_ASSIGN,
 			loc: p.finLoc(loc),
 			lhs: binding,
 			rhs: value,
+			ti:  p.newTypInfo(),
 		}
+		if p.ts {
+			ap.hoistTypInfo()
+		}
+		binding = ap
 	}
 
 	return binding, nil
@@ -3201,7 +3251,7 @@ func (p *Parser) propName(allowNamePVT bool, maybeMethod bool, tsRough bool) (No
 		}
 	}
 
-	m, err := p.method(loc, key, ACC_MOD_NONE, computeLoc, false, kd, false, false, false, false, false, nil, nil, nil, nil)
+	m, err := p.method(loc, key, ACC_MOD_NONE, computeLoc, false, kd, false, false, false, false, false, nil, false, false, false, nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -3297,7 +3347,7 @@ func (p *Parser) patternAssign(ident Node, asProp bool) (Node, error) {
 	}
 
 	loc := ident.Loc()
-	val := &AssignPat{N_PAT_ASSIGN, p.finLoc(loc.Clone()), ident, init, nil}
+	val := &AssignPat{N_PAT_ASSIGN, p.finLoc(loc.Clone()), ident, init, nil, p.newTypInfo()}
 	if !asProp {
 		return val, nil
 	}
@@ -3331,7 +3381,7 @@ func (p *Parser) patternRest(arrPat bool, allowNotLast bool) (Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	p.tsNodeTypAnnot(arg, typAnnot, ACC_MOD_NONE, nil, nil, nil, nil, nil)
+	p.tsNodeTypAnnot(arg, typAnnot, ACC_MOD_NONE, nil, false, false, false, false, nil)
 
 	if !allowNotLast {
 		tok = p.lexer.Peek()
@@ -3463,7 +3513,7 @@ func (p *Parser) assignExpr(checkLhs bool, notGT bool, notHook bool) (Node, erro
 		if err != nil {
 			return nil, err
 		}
-		p.tsNodeTypAnnot(lhs, typAnnot, ACC_MOD_NONE, nil, nil, nil, nil, ques)
+		p.tsNodeTypAnnot(lhs, typAnnot, ACC_MOD_NONE, nil, false, false, false, false, ques)
 	}
 
 	tok := p.lexer.Peek()
@@ -3502,7 +3552,7 @@ func (p *Parser) assignExpr(checkLhs bool, notGT bool, notHook bool) (Node, erro
 		return nil, err
 	}
 
-	node := &AssignExpr{N_EXPR_ASSIGN, p.finLoc(loc), op, opLoc, lhs, rhs, nil}
+	node := &AssignExpr{N_EXPR_ASSIGN, p.finLoc(loc), op, opLoc, lhs, rhs, nil, p.newTypInfo()}
 	return node, nil
 }
 
@@ -4321,6 +4371,7 @@ func (p *Parser) argToParam(arg Node, depth int, prop bool, destruct bool, inPar
 				loc: n.loc,
 				lhs: n.key,
 				rhs: n.value,
+				ti:  p.newTypInfo(),
 			}
 		}
 		return n, nil
@@ -5366,12 +5417,12 @@ func (p *Parser) objProp() (Node, error) {
 		if p.feat&FEAT_ASYNC_GENERATOR == 0 {
 			return nil, p.errorTok(tok)
 		}
-		return p.method(nil, nil, ACC_MOD_NONE, nil, false, PK_INIT, true, false, false, false, false, nil, nil, nil, nil)
+		return p.method(nil, nil, ACC_MOD_NONE, nil, false, PK_INIT, true, false, false, false, false, nil, false, false, false, nil)
 	} else if p.aheadIsAsync(tok, true, false) {
 		if tok.ContainsEscape() {
 			return nil, p.errorAt(tok.value, &tok.begin, ERR_ESCAPE_IN_KEYWORD)
 		}
-		return p.method(nil, nil, ACC_MOD_NONE, nil, false, PK_INIT, false, true, false, false, false, nil, nil, nil, nil)
+		return p.method(nil, nil, ACC_MOD_NONE, nil, false, PK_INIT, false, true, false, false, false, nil, false, false, false, nil)
 	}
 	return p.propData()
 }
@@ -5402,7 +5453,7 @@ func (p *Parser) propData() (Node, error) {
 			return nil, err
 		}
 	} else if p.aheadIsArgList(tok) {
-		return p.method(loc, key, ACC_MOD_NONE, compute, false, PK_INIT, false, false, false, false, false, nil, nil, nil, nil)
+		return p.method(loc, key, ACC_MOD_NONE, compute, false, PK_INIT, false, false, false, false, false, nil, false, false, false, nil)
 	} else if compute != nil {
 		return nil, p.errorAt(tok.value, &tok.begin, ERR_COMPUTE_PROP_MISSING_INIT)
 	}
@@ -5421,7 +5472,7 @@ func (p *Parser) propData() (Node, error) {
 }
 
 func (p *Parser) method(loc *Loc, key Node, accMode ACC_MOD, compute *Loc, shorthand bool, kind PropKind,
-	gen, async, allowNamePVT, inclass, static bool, declare, abstract, override *Loc, ti *TypInfo) (Node, error) {
+	gen, async, allowNamePVT, inclass, static bool, beginLoc *Loc, declare, abstract, override bool, ti *TypInfo) (Node, error) {
 
 	if !inclass && compute != nil {
 		loc = compute
@@ -5481,10 +5532,11 @@ func (p *Parser) method(loc *Loc, key Node, accMode ACC_MOD, compute *Loc, short
 	}
 
 	if ti != nil {
+		ti.SetBeginLoc(beginLoc)
 		ti.SetAccMod(accMode)
-		ti.SetAbstractLoc(abstract)
-		ti.SetDeclareLoc(declare)
-		ti.SetOverrideLoc(override)
+		ti.SetAbstract(abstract)
+		ti.SetDeclare(declare)
+		ti.SetOverride(override)
 	}
 
 	ctor := false
@@ -5552,7 +5604,7 @@ func (p *Parser) method(loc *Loc, key Node, accMode ACC_MOD, compute *Loc, short
 	ahead := p.lexer.Peek()
 	opt := false
 	if ahead.value == T_BRACE_L {
-		if abstract != nil {
+		if abstract {
 			return nil, p.errorAtLoc(loc, ERR_ABSTRACT_METHOD_WITH_IMPL)
 		}
 		body, err = p.fnBody()
@@ -5602,7 +5654,7 @@ func (p *Parser) method(loc *Loc, key Node, accMode ACC_MOD, compute *Loc, short
 					return nil, p.errorAtLoc(fnLoc, ERR_OVERRIDE_METHOD_DYNAMIC_NAME)
 				}
 
-				if abstract == nil {
+				if !abstract {
 					sig := &FnDec{N_EXPR_FN, p.finLoc(fnLoc), key, gen, async, params, nil, nil, ti}
 					p.lastTsFnSig = sig
 				}
