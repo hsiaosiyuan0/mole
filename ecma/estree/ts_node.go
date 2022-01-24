@@ -381,3 +381,13 @@ type TSQualifiedName struct {
 	Left  Expression `json:"left"`
 	Right Expression `json:"right"`
 }
+
+type TSVariableDeclaration struct {
+	Type         string                `json:"type"`
+	Start        int                   `json:"start"`
+	End          int                   `json:"end"`
+	Loc          *SrcLoc               `json:"loc"`
+	Kind         string                `json:"kind"`
+	Declarations []*VariableDeclarator `json:"declarations"`
+	Declare      bool                  `json:"declare"`
+}

@@ -2651,7 +2651,7 @@ func (p *Parser) varDecStmt(kind TokenValue, asExpr bool) (Node, error) {
 		}
 		lvs = append(lvs, dec.id)
 
-		if isConst && dec.init == nil && !p.scope().IsKind(SPK_NOT_IN) {
+		if isConst && dec.init == nil && !p.scope().IsKind(SPK_NOT_IN) && !(p.ts && p.scope().IsKind(SPK_TS_DECLARE)) {
 			return nil, p.errorAtLoc(dec.loc, ERR_CONST_DEC_INIT_REQUIRED)
 		}
 
@@ -2720,7 +2720,7 @@ func (p *Parser) varDec(lexical bool) (*VarDec, error) {
 		}
 	}
 
-	if binding.Type() != N_NAME && init == nil && !p.scope().IsKind(SPK_NOT_IN) {
+	if binding.Type() != N_NAME && init == nil && !p.scope().IsKind(SPK_NOT_IN) && !(p.ts && p.scope().IsKind(SPK_TS_DECLARE)) {
 		return nil, p.errorAtLoc(p.loc(), ERR_COMPLEX_BINDING_MISSING_INIT)
 	}
 
@@ -2840,7 +2840,7 @@ func (p *Parser) roughParam(ctor bool) (Node, error) {
 				return nil, p.errorAtLoc(readonlyLoc, ERR_ILLEGAL_PARAMETER_MODIFIER)
 			}
 		}
-		name, err = p.tsTyp(true)
+		name, err = p.tsTyp(true, false)
 		if err != nil {
 			return nil, err
 		}
@@ -4841,7 +4841,7 @@ func (p *Parser) binExpr(lhs Node, minPcd int, logic bool, nullish bool, notGT b
 		if op != T_TS_AS {
 			rhs, err = p.unaryExpr(nil, nil)
 		} else {
-			rhs, err = p.tsTyp(false)
+			rhs, err = p.tsTyp(false, true)
 		}
 		if err != nil {
 			return nil, err

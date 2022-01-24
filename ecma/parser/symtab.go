@@ -31,6 +31,7 @@ const (
 	SPK_PROP_NAME          ScopeKind = 1 << iota
 	SPK_FORMAL_PARAMS      ScopeKind = 1 << iota
 	SPK_ABSTRACT_CLASS     ScopeKind = 1 << iota
+	SPK_TS_DECLARE         ScopeKind = 1 << iota
 )
 
 type BindKind uint8

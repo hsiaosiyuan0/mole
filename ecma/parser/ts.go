@@ -34,7 +34,7 @@ func (p *Parser) tsTypAnnot() (Node, error) {
 	av := ahead.value
 	if av == T_COLON {
 		loc := p.locFromTok(p.lexer.Next())
-		node, err := p.tsTyp(false)
+		node, err := p.tsTyp(false, false)
 		if err != nil {
 			return nil, err
 		}
@@ -56,17 +56,17 @@ func (p *Parser) tsTypAnnot() (Node, error) {
 // the manner used here is by setting the `rough` argument to `true` to parse `{a = c, b?: number}`
 // as a superset consists of `tsTyp` and `bindingPattern`, the parsed result will be judged by later
 // process by the time via method such as `tsRoughParamToParam`
-func (p *Parser) tsTyp(rough bool) (Node, error) {
+func (p *Parser) tsTyp(rough bool, canConst bool) (Node, error) {
 	if p.lexer.Peek().value == T_NEW {
 		return p.tsConstructTyp()
 	}
-	return p.tsUnionOrIntersecType(nil, 0, rough)
+	return p.tsUnionOrIntersecType(nil, 0, rough, canConst)
 }
 
-func (p *Parser) tsUnionOrIntersecType(lhs Node, minPcd int, rough bool) (Node, error) {
+func (p *Parser) tsUnionOrIntersecType(lhs Node, minPcd int, rough bool, canConst bool) (Node, error) {
 	var err error
 	if lhs == nil {
-		lhs, err = p.tsPrimary(rough)
+		lhs, err = p.tsPrimary(rough, canConst)
 		if err != nil {
 			return nil, err
 		}
@@ -108,7 +108,7 @@ func (p *Parser) tsUnionOrIntersecType(lhs Node, minPcd int, rough bool) (Node, 
 			elems = []Node{lhs}
 		}
 
-		rhs, err = p.tsPrimary(rough)
+		rhs, err = p.tsPrimary(rough, canConst)
 		if err != nil {
 			return nil, err
 		}
@@ -118,7 +118,7 @@ func (p *Parser) tsUnionOrIntersecType(lhs Node, minPcd int, rough bool) (Node, 
 		kind = TokenKinds[av]
 		for (av == T_BIT_OR || av == T_BIT_AND) && kind.Pcd > pcd {
 			pcd = kind.Pcd
-			rhs, err = p.tsUnionOrIntersecType(rhs, pcd, rough)
+			rhs, err = p.tsUnionOrIntersecType(rhs, pcd, rough, canConst)
 			if err != nil {
 				return nil, err
 			}
@@ -148,7 +148,7 @@ func (p *Parser) tsConstructTyp() (Node, error) {
 	if _, err = p.nextMustTok(T_ARROW); err != nil {
 		return nil, err
 	}
-	retTyp, err := p.tsTyp(false)
+	retTyp, err := p.tsTyp(false, false)
 	if err != nil {
 		return nil, err
 	}
@@ -493,7 +493,7 @@ func (p *Parser) tsFnTyp(params []Node, parenL *Loc) (Node, error) {
 		return nil, err
 	}
 
-	retTyp, err := p.tsTyp(false)
+	retTyp, err := p.tsTyp(false, false)
 	if err != nil {
 		return nil, err
 	}
@@ -546,7 +546,7 @@ func (p *Parser) tsTypPredicate(name Node, asserts bool, this bool) (Node, error
 	if av == T_NAME && ahead.Text() == "is" {
 		p.lexer.Next()
 
-		typ, err = p.tsTyp(false)
+		typ, err = p.tsTyp(false, false)
 		if err != nil {
 			return nil, err
 		}
@@ -574,7 +574,7 @@ func (p *Parser) tsRef(ns Node) (Node, error) {
 		return &TsRef{N_TS_REF, p.finLoc(name.Loc().Clone()), name, nil, nil}, nil
 	}
 
-	args, err := p.tsTypArgs()
+	args, err := p.tsTypArgs(false)
 	if err != nil {
 		return nil, err
 	}
@@ -612,7 +612,7 @@ func (p *Parser) tsTuple(rough bool) (Node, error) {
 		} else if av == T_DOT_TRI {
 			arg, err = p.patternRest(true, true)
 		} else {
-			arg, err = p.tsTyp(rough)
+			arg, err = p.tsTyp(rough, false)
 		}
 		if err != nil {
 			return nil, err
@@ -657,7 +657,7 @@ func (p *Parser) tsPredefOrRef(tok *Token) (Node, error) {
 
 // returns `FunctionType` or `PrimaryType` since `FunctionType`
 // is conflicts with `ParenthesizedType`
-func (p *Parser) tsPrimary(rough bool) (Node, error) {
+func (p *Parser) tsPrimary(rough bool, canConst bool) (Node, error) {
 	ahead := p.lexer.Peek()
 	loc := p.locFromTok(ahead)
 	av := ahead.value
@@ -668,7 +668,7 @@ func (p *Parser) tsPrimary(rough bool) (Node, error) {
 
 	var err error
 	var node Node
-	if av == T_NAME || av == T_VOID || av == T_CONST {
+	if av == T_NAME || av == T_VOID || (av == T_CONST && canConst) {
 		node, err = p.tsPredefOrRef(ahead)
 		if err != nil {
 			return nil, err
@@ -779,7 +779,7 @@ func (p *Parser) tsIdxSig(loc *Loc) (Node, error) {
 	if _, err = p.nextMustTok(T_COLON); err != nil {
 		return nil, err
 	}
-	key, err := p.tsTyp(false)
+	key, err := p.tsTyp(false, false)
 	if err != nil {
 		return nil, err
 	}
@@ -872,7 +872,7 @@ func (p *Parser) tsProp(rough bool) (Node, error) {
 	var value Node
 	if tok.value == T_COLON {
 		p.lexer.Next()
-		value, err = p.tsTyp(rough)
+		value, err = p.tsTyp(rough, false)
 		if err != nil {
 			return nil, err
 		}
@@ -915,13 +915,13 @@ func (p *Parser) tsTypParam() (Node, error) {
 	var cons, val Node
 	if p.lexer.Peek().value == T_EXTENDS {
 		p.lexer.Next()
-		cons, err = p.tsTyp(false)
+		cons, err = p.tsTyp(false, false)
 		if err != nil {
 			return nil, err
 		}
 		if p.lexer.Peek().value == T_ASSIGN {
 			p.lexer.Next()
-			val, err = p.tsTyp(false)
+			val, err = p.tsTyp(false, false)
 			if err != nil {
 				return nil, err
 			}
@@ -988,7 +988,7 @@ func (p *Parser) tsTryTypArgs(asyncLoc *Loc) (Node, error) {
 	if asyncLoc != nil {
 		return p.tsTryTypArgsAfterAsync(asyncLoc)
 	}
-	return p.tsTypArgs()
+	return p.tsTypArgs(true)
 }
 
 // consider ambiguity of the first `<` in below example:
@@ -1096,7 +1096,7 @@ func (p *Parser) tsPredefToName(node Node) (Node, error) {
 
 var errTypArgMissingGT = errors.New("missing the closing `>`")
 
-func (p *Parser) tsTypArgs() (Node, error) {
+func (p *Parser) tsTypArgs(canConst bool) (Node, error) {
 	loc := p.locFromTok(p.lexer.Next()) // `<`
 	args := make([]Node, 0, 1)
 	for {
@@ -1114,7 +1114,7 @@ func (p *Parser) tsTypArgs() (Node, error) {
 			return nil, errTypArgMissingGT
 		}
 
-		arg, err := p.tsTyp(false)
+		arg, err := p.tsTyp(false, canConst)
 		if p.lexer.Peek().value == T_EXTENDS {
 			id, err := p.tsPredefToName(arg)
 			if err != nil {
@@ -1122,7 +1122,7 @@ func (p *Parser) tsTypArgs() (Node, error) {
 			}
 
 			p.lexer.Next()
-			cons, err := p.tsTyp(false)
+			cons, err := p.tsTyp(false, false)
 			if err != nil {
 				return nil, err
 			}
@@ -1173,7 +1173,7 @@ func (p *Parser) tsTypDec() (Node, error) {
 		return nil, err
 	}
 
-	typAnnot, err := p.tsTyp(false)
+	typAnnot, err := p.tsTyp(false, false)
 	if err != nil {
 		return nil, err
 	}
@@ -1388,7 +1388,7 @@ func (p *Parser) tsNS() (Node, error) {
 }
 
 func (p *Parser) aheadIsTsDec(tok *Token) bool {
-	if !(p.ts && tok.value == T_NAME && tok.Text() == "declare") {
+	if !p.ts || tok.value != T_NAME || tok.Text() != "declare" {
 		return false
 	}
 	ahead := p.lexer.Peek2nd()
@@ -1421,6 +1421,9 @@ func (p *Parser) tsDec() (Node, error) {
 
 	tok := p.lexer.Peek()
 	tv := tok.value
+
+	scope := p.scope()
+	scope.AddKind(SPK_TS_DECLARE)
 
 	var err error
 	typ := N_ILLEGAL
@@ -1474,6 +1477,7 @@ func (p *Parser) tsDec() (Node, error) {
 
 	dec.typ = typ
 	dec.loc = p.finLoc(loc)
+	scope.EraseKind(SPK_TS_DECLARE)
 
 	return dec, nil
 }
@@ -1611,7 +1615,7 @@ func (p *Parser) tsImplements() ([]Node, error) {
 		if av == T_BRACE_L {
 			break
 		}
-		typ, err := p.tsTyp(false)
+		typ, err := p.tsTyp(false, false)
 		if err != nil {
 			return nil, err
 		}

@@ -251,6 +251,18 @@ func convertTsTyp(node parser.Node) Node {
 			Left:  convertTsTyp(n.Lhs()),
 			Right: convertTsTyp(n.Rhs()),
 		}
+	case parser.N_TS_DEC_VAR_DEC:
+		n := node.(*parser.TsDec)
+		varDec := n.Inner().(*parser.VarDecStmt)
+		return &TSVariableDeclaration{
+			Type:         "VariableDeclaration",
+			Start:        start(n.Loc()),
+			End:          end(n.Loc()),
+			Loc:          loc(n.Loc()),
+			Kind:         varDec.Kind(),
+			Declarations: declarations(varDec.DecList()),
+			Declare:      true,
+		}
 	}
 
 	return nil
