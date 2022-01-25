@@ -1,0 +1,3 @@
+{
+  "throws": "This syntax is reserved in `JSX`. Use an `as` expression instead. at (1:0)"
+}

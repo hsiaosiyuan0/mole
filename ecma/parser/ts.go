@@ -574,7 +574,7 @@ func (p *Parser) tsRef(ns Node) (Node, error) {
 		return &TsRef{N_TS_REF, p.finLoc(name.Loc().Clone()), name, nil, nil}, nil
 	}
 
-	args, err := p.tsTypArgs(false)
+	args, _, err := p.tsTypArgs(false)
 	if err != nil {
 		return nil, err
 	}
@@ -982,13 +982,25 @@ func (p *Parser) tsTypParams() (Node, error) {
 // async<T>() == 0;
 // ```
 func (p *Parser) tsTryTypArgs(asyncLoc *Loc) (Node, error) {
-	if !p.ts || p.lexer.Peek().value != T_LT {
+	ahead := p.lexer.Peek()
+	if !p.ts || ahead.value != T_LT {
 		return nil, nil
 	}
 	if asyncLoc != nil {
 		return p.tsTryTypArgsAfterAsync(asyncLoc)
 	}
-	return p.tsTypArgs(true)
+
+	loc := p.locFromTok(ahead)
+	node, trailingComma, err := p.tsTypArgs(true)
+	if err != nil {
+		return nil, err
+	}
+
+	args := node.(*TsParamsInst).params
+	if p.feat&FEAT_JSX != 0 && !(len(args) > 1 || trailingComma) {
+		return nil, p.errorAtLoc(loc, ERR_JSX_TS_LT_AMBIGUITY)
+	}
+	return node, nil
 }
 
 // consider ambiguity of the first `<` in below example:
@@ -1096,44 +1108,47 @@ func (p *Parser) tsPredefToName(node Node) (Node, error) {
 
 var errTypArgMissingGT = errors.New("missing the closing `>`")
 
-func (p *Parser) tsTypArgs(canConst bool) (Node, error) {
+func (p *Parser) tsTypArgs(canConst bool) (Node, bool, error) {
 	loc := p.locFromTok(p.lexer.Next()) // `<`
 	args := make([]Node, 0, 1)
+	trailingComma := false
 	for {
 		ahead := p.lexer.Peek()
 		av := ahead.value
-		if av == T_COMMA {
-			p.lexer.Next()
-			continue
-		} else if av == T_GT {
+		if av == T_GT {
 			p.lexer.Next()
 			break
 		} else if av == T_NAME || ahead.IsLit(true) || ahead.IsCtxKw() {
 			// next is typ
 		} else {
-			return nil, errTypArgMissingGT
+			return nil, trailingComma, errTypArgMissingGT
 		}
 
 		arg, err := p.tsTyp(false, canConst)
 		if p.lexer.Peek().value == T_EXTENDS {
 			id, err := p.tsPredefToName(arg)
 			if err != nil {
-				return nil, err
+				return nil, trailingComma, err
 			}
 
 			p.lexer.Next()
 			cons, err := p.tsTyp(false, false)
 			if err != nil {
-				return nil, err
+				return nil, trailingComma, err
 			}
 			arg = &TsParam{N_TS_PARAM, p.finLoc(id.Loc().Clone()), id, cons, nil}
 		}
 		if err != nil {
-			return nil, err
+			return nil, trailingComma, err
 		}
 		args = append(args, arg)
+
+		if p.lexer.Peek().value == T_COMMA {
+			p.lexer.Next()
+			trailingComma = true
+		}
 	}
-	return &TsParamsInst{N_TS_PARAM_INST, p.finLoc(loc), args}, nil
+	return &TsParamsInst{N_TS_PARAM_INST, p.finLoc(loc), args}, trailingComma, nil
 }
 
 func (p *Parser) tsCallSig(typParams Node, loc *Loc) (Node, error) {

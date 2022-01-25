@@ -11,6 +11,7 @@ func compileTs(code string, opts *ParserOpts) (Node, error) {
 		opts = NewParserOpts()
 	}
 	opts.Feature = opts.Feature.On(FEAT_TS)
+	opts.Feature = opts.Feature.Off(FEAT_JSX)
 	p := newParser(code, opts)
 	return p.Prog()
 }

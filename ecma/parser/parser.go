@@ -3837,10 +3837,10 @@ func (p *Parser) lhs() (Node, error) {
 	} else {
 		node, _, err = p.callExpr(nil, true, false, nil)
 	}
-	node = p.tsNoNull(node)
 	if err != nil {
 		return nil, err
 	}
+	node = p.tsNoNull(node)
 	return node, nil
 }
 

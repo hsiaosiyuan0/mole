@@ -171,4 +171,5 @@ const (
 	ERR_PARAM_PROP_WITH_BINDING_PATTERN   = "A parameter property may not be declared using a binding pattern"
 	ERR_PVT_ELEM_WITH_ABSTRACT            = "Private elements cannot have the `abstract` modifier"
 	ERR_TPL_PVT_ELEM_WITH_ACCESS_MODIFIER = "Private elements cannot have an accessibility modifier `%s`"
+	ERR_JSX_TS_LT_AMBIGUITY               = "This syntax is reserved in `JSX`. Use an `as` expression instead."
 )

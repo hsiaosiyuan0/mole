@@ -14,11 +14,13 @@ func TestFixture_es2015(t *testing.T) {
 func TestFixture_ts(t *testing.T) {
 	opts := parser.NewParserOpts()
 	opts.Feature = opts.Feature.On(parser.FEAT_TS)
+	opts.Feature = opts.Feature.Off(parser.FEAT_JSX)
 	RunFixtures(t, "typescript", opts)
 }
 
 func TestFixture_tsManually(t *testing.T) {
 	opts := parser.NewParserOpts()
 	opts.Feature = opts.Feature.On(parser.FEAT_TS)
-	RunFixtures(t, "typescript/declare/pattern-parameters", opts)
+	opts.Feature = opts.Feature.Off(parser.FEAT_JSX)
+	RunFixtures(t, "typescript/disallow-jsx-ambiguity/type-parameter-unambiguous-2", opts)
 }
