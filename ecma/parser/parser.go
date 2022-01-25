@@ -5377,7 +5377,7 @@ func (p *Parser) spread() (Node, error) {
 	// is parsed as spread-expr firstly then applied a arg-to-param
 	// transform to become obj-pattern, that behavior is caused by the
 	// left-most paren, it leads the state of parser to fulfill the rule
-	// of paren-expr and then the inner `{...obj1,}` is parsed as obj-expr
+	// of paren-expr and therefor the inner `{...obj1,}` was parsed as obj-expr
 	//
 	// keep the loc of tailing comma for reporting the `tailing comma after rest-expr`
 	// err in the arg-to-param transform
