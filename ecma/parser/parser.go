@@ -5153,8 +5153,7 @@ func (p *Parser) arrowFn(loc *Loc, args []Node, params []Node, ti *TypInfo) (Nod
 		ref := NewRef()
 		ref.Node = paramName.(*Ident)
 		ref.BindKind = BK_PARAM
-		// duplicate-checking is enable in strict mode so here skip doing checking,
-		// checking is delegated to below `checkParams`
+		// duplicate-checking is enable in strict mode by below `checkParams`
 		p.addLocalBinding(nil, ref, false, ref.Node.Text())
 	}
 
