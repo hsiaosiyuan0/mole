@@ -20,5 +20,5 @@ func TestFixture_ts(t *testing.T) {
 func TestFixture_tsManually(t *testing.T) {
 	opts := parser.NewParserOpts()
 	opts.Feature = opts.Feature.On(parser.FEAT_TS)
-	RunFixtures(t, "typescript/declare/destructure-new-line", opts)
+	RunFixtures(t, "typescript/declare/pattern-parameters", opts)
 }

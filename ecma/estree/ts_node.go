@@ -202,6 +202,17 @@ type TSPropertySignature struct {
 	TypeAnnotation Node    `json:"typeAnnotation"`
 }
 
+type TSMethodSignature struct {
+	Type     string     `json:"type"`
+	Start    int        `json:"start"`
+	End      int        `json:"end"`
+	Loc      *SrcLoc    `json:"loc"`
+	Key      Node       `json:"key"`
+	Value    Expression `json:"value"`
+	Computed bool       `json:"computed"`
+	Optional bool       `json:"optional"`
+}
+
 type TSObjectPattern struct {
 	Type           string  `json:"type"`
 	Start          int     `json:"start"`
@@ -237,23 +248,21 @@ type TSDeclareFunction struct {
 }
 
 type TSMethodDefinition struct {
-	Type           string     `json:"type"`
-	Start          int        `json:"start"`
-	End            int        `json:"end"`
-	Loc            *SrcLoc    `json:"loc"`
-	Key            Expression `json:"key"`
-	Value          Expression `json:"value"`
-	Kind           string     `json:"kind"` // "constructor" | "method" | "get" | "set"
-	Computed       bool       `json:"computed"`
-	Static         bool       `json:"static"`
-	TypeParameters Node       `json:"typeParameters"`
-	ReturnType     Node       `json:"returnType"`
-	Optional       bool       `json:"optional"`
-	Definite       bool       `json:"definite"`
-	Override       bool       `json:"override"`
-	Abstract       bool       `json:"abstract"`
-	Readonly       bool       `json:"readonly"`
-	Accessibility  string     `json:"accessibility"`
+	Type          string     `json:"type"`
+	Start         int        `json:"start"`
+	End           int        `json:"end"`
+	Loc           *SrcLoc    `json:"loc"`
+	Key           Expression `json:"key"`
+	Value         Expression `json:"value"`
+	Kind          string     `json:"kind"` // "constructor" | "method" | "get" | "set"
+	Computed      bool       `json:"computed"`
+	Static        bool       `json:"static"`
+	Optional      bool       `json:"optional"`
+	Definite      bool       `json:"definite"`
+	Override      bool       `json:"override"`
+	Abstract      bool       `json:"abstract"`
+	Readonly      bool       `json:"readonly"`
+	Accessibility string     `json:"accessibility"`
 }
 
 // represets the properties defined via constructor params
@@ -390,4 +399,42 @@ type TSVariableDeclaration struct {
 	Kind         string                `json:"kind"`
 	Declarations []*VariableDeclarator `json:"declarations"`
 	Declare      bool                  `json:"declare"`
+}
+
+type TSInterfaceDeclaration struct {
+	Type           string     `json:"type"`
+	Start          int        `json:"start"`
+	End            int        `json:"end"`
+	Loc            *SrcLoc    `json:"loc"`
+	Id             Expression `json:"id"`
+	TypeParameters Node       `json:"typeParameters"`
+	Extends        []Node     `json:"extends"`
+	Body           Expression `json:"body"`
+	Declare        bool       `json:"declare"`
+}
+
+type TSInterfaceBody struct {
+	Type  string  `json:"type"`
+	Start int     `json:"start"`
+	End   int     `json:"end"`
+	Loc   *SrcLoc `json:"loc"`
+	Body  []Node  `json:"body"`
+}
+
+type TSExpressionWithTypeArguments struct {
+	Type           string  `json:"type"`
+	Start          int     `json:"start"`
+	End            int     `json:"end"`
+	Loc            *SrcLoc `json:"loc"`
+	Expression     Node    `json:"expression"`
+	TypeParameters Node    `json:"typeParameters"`
+}
+
+type TSArrayPattern struct {
+	Type     string  `json:"type"`
+	Start    int     `json:"start"`
+	End      int     `json:"end"`
+	Loc      *SrcLoc `json:"loc"`
+	Elements []Node  `json:"elements"`
+	Optional bool    `json:"optional"`
 }

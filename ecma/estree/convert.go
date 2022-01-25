@@ -609,6 +609,18 @@ func convert(node parser.Node) Node {
 		}
 	case parser.N_PAT_ARRAY:
 		n := node.(*parser.ArrPat)
+		ti := n.TypInfo()
+		if ti != nil {
+			lc := parser.LocWithTypeInfo(n, false)
+			return &TSArrayPattern{
+				Type:     "ArrayPattern",
+				Start:    start(lc),
+				End:      end(lc),
+				Loc:      loc(lc),
+				Elements: elems(n.Elems()),
+				Optional: ti.Optional(),
+			}
+		}
 		return &ArrayPattern{
 			Type:     "ArrayPattern",
 			Start:    start(n.Loc()),
@@ -1015,27 +1027,25 @@ func convert(node parser.Node) Node {
 		}
 	case parser.N_METHOD:
 		n := node.(*parser.Method)
-		f := n.Value().(*parser.FnDec)
+		f := n.Val().(*parser.FnDec)
 		if f.TypInfo() != nil {
 			ti := f.TypInfo()
 			return &TSMethodDefinition{
-				Type:           "MethodDefinition",
-				Start:          start(n.Loc()),
-				End:            end(n.Loc()),
-				Loc:            loc(n.Loc()),
-				Key:            convert(n.Key()),
-				Value:          convert(n.Value()),
-				Kind:           n.Kind(),
-				Computed:       n.Computed(),
-				Static:         n.Static(),
-				TypeParameters: typParams(ti),
-				ReturnType:     typAnnot(ti),
-				Optional:       ti.Optional(),
-				Definite:       ti.Definite(),
-				Abstract:       ti.Abstract(),
-				Override:       ti.Override(),
-				Readonly:       ti.Readonly(),
-				Accessibility:  ti.AccMod().String(),
+				Type:          "MethodDefinition",
+				Start:         start(n.Loc()),
+				End:           end(n.Loc()),
+				Loc:           loc(n.Loc()),
+				Key:           convert(n.Key()),
+				Value:         convert(n.Val()),
+				Kind:          n.Kind(),
+				Computed:      n.Computed(),
+				Static:        n.Static(),
+				Optional:      ti.Optional(),
+				Definite:      ti.Definite(),
+				Abstract:      ti.Abstract(),
+				Override:      ti.Override(),
+				Readonly:      ti.Readonly(),
+				Accessibility: ti.AccMod().String(),
 			}
 		}
 		return &MethodDefinition{
@@ -1044,7 +1054,7 @@ func convert(node parser.Node) Node {
 			End:      end(n.Loc()),
 			Loc:      loc(n.Loc()),
 			Key:      convert(n.Key()),
-			Value:    convert(n.Value()),
+			Value:    convert(n.Val()),
 			Kind:     n.Kind(),
 			Computed: n.Computed(),
 			Static:   n.Static(),

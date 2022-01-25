@@ -288,6 +288,9 @@ func (s *SymTab) EnterScope(fn bool, arrow bool) *Scope {
 	if s.Cur.IsKind(SPK_FORMAL_PARAMS) && !fn {
 		scope.Kind |= SPK_FORMAL_PARAMS
 	}
+	if s.Cur.IsKind(SPK_TS_DECLARE) {
+		scope.Kind |= SPK_TS_DECLARE
+	}
 
 	// `(class A extends B { constructor() { (() => { super() }); } })` is legal
 	// `(class A extends B { constructor() { function f() { super() } } })` is illegal

@@ -1295,8 +1295,10 @@ func (p *Parser) field(key Node, begin, static *Loc, accMod ACC_MOD, beginLoc, a
 		}
 		p.checkName = false
 
-		if inDeclare || declare != nil {
-			return nil, p.errorAtLoc(assignLoc, ERR_INIT_IN_ALLOWED_CTX)
+		if p.ts {
+			if inDeclare || declare != nil || p.scope().IsKind(SPK_TS_DECLARE) {
+				return nil, p.errorAtLoc(assignLoc, ERR_INIT_IN_ALLOWED_CTX)
+			}
 		}
 	}
 
@@ -2224,6 +2226,8 @@ func (p *Parser) fnDec(expr bool, async *Token, canNameOmitted bool, declare boo
 		} else if (tok.value == T_SEMI || tok.afterLineTerm) && declare {
 			// AmbientFunctionDeclaration
 			// `declare function a();`
+		} else if p.ts && scope.IsKind(SPK_TS_DECLARE) {
+			// declare function foo(...args: any[] )
 		} else {
 			return nil, p.errorTok(tok)
 		}
@@ -2296,6 +2300,10 @@ func (p *Parser) fnDec(expr bool, async *Token, canNameOmitted bool, declare boo
 
 	if err := p.checkParams(paramNames, firstComplicated, isStrict, directStrict); err != nil {
 		return nil, err
+	}
+
+	if p.ts && scope.IsKind(SPK_TS_DECLARE) && body != nil {
+		return nil, p.errorAtLoc(body.Loc(), ERR_IMPL_IN_AMBIENT_CTX)
 	}
 
 	p.symtab.LeaveScope()
@@ -2913,9 +2921,12 @@ func (p *Parser) param(ctor bool) (Node, error) {
 	loc := binding.Loc().Clone()
 
 	if ques, _ := p.tsAdvanceHook(false); ques != nil {
-		if binding.Type() == N_NAME {
-			binding.(*Ident).ti.SetQues(ques)
-		} else {
+		if wt, ok := binding.(NodeWithTypInfo); ok {
+			wt.TypInfo().SetQues(ques)
+		}
+		if binding.Type() != N_NAME && !p.scope().IsKind(SPK_TS_DECLARE) {
+			// `[]?` in `declare function foo([]?): void` is legal
+			// `[]?` in `function foo([]?): void {}` is illegal
 			return nil, p.errorAtLoc(ques, ERR_UNEXPECTED_TOKEN)
 		}
 	}
@@ -3067,6 +3078,11 @@ func (p *Parser) patternObj() (Node, error) {
 
 	props := make([]Node, 0, 1)
 	for {
+		if p.lexer.Peek().value == T_BRACE_R {
+			p.lexer.Next()
+			break
+		}
+
 		node, err := p.patternProp()
 		if err != nil {
 			return nil, err
@@ -3383,14 +3399,15 @@ func (p *Parser) patternRest(arrPat bool, allowNotLast bool) (Node, error) {
 	}
 	p.tsNodeTypAnnot(arg, typAnnot, ACC_MOD_NONE, nil, false, false, false, false, nil)
 
-	if !allowNotLast {
+	// always allow the trailing comma in typescript
+	if !allowNotLast && !p.ts {
 		tok = p.lexer.Peek()
 		if tok.value == T_COMMA {
 			return nil, p.errorAt(tok.value, &tok.begin, ERR_REST_ELEM_MUST_LAST)
 		}
 	}
 
-	rest := &RestPat{N_PAT_REST, p.finLoc(loc), arg, nil, nil}
+	rest := &RestPat{N_PAT_REST, p.finLoc(loc), arg, nil, p.newTypInfo()}
 	if p.ts {
 		rest.hoistTypInfo()
 	}

@@ -2122,7 +2122,7 @@ func (n *Method) Key() Node {
 	return n.key
 }
 
-func (n *Method) Value() Node {
+func (n *Method) Val() Node {
 	return n.val
 }
 

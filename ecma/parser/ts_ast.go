@@ -236,6 +236,20 @@ func (n *TsProp) Computed() bool {
 	return n.computeLoc != nil
 }
 
+func (n *TsProp) Method() *TsCallSig {
+	if n.val == nil {
+		return nil
+	}
+	return n.val.(*TsCallSig)
+}
+
+func (n *TsProp) IsMethod() bool {
+	if n.val == nil {
+		return false
+	}
+	return n.val.Type() == N_TS_CALL_SIG
+}
+
 func (n *TsProp) Type() NodeType {
 	return n.typ
 }
@@ -250,6 +264,18 @@ type TsCallSig struct {
 	typParams Node
 	params    []Node
 	retTyp    Node
+}
+
+func (n *TsCallSig) TypParams() Node {
+	return n.typParams
+}
+
+func (n *TsCallSig) Params() []Node {
+	return n.params
+}
+
+func (n *TsCallSig) RetTyp() Node {
+	return n.retTyp
 }
 
 func (n *TsCallSig) Type() NodeType {
@@ -485,11 +511,45 @@ type TsInferface struct {
 	body   Node
 }
 
+func (n *TsInferface) Id() Node {
+	return n.name
+}
+
+func (n *TsInferface) TypParams() Node {
+	return n.params
+}
+
+func (n *TsInferface) Supers() []Node {
+	return n.supers
+}
+
+func (n *TsInferface) Body() Node {
+	return n.body
+}
+
 func (n *TsInferface) Type() NodeType {
 	return n.typ
 }
 
 func (n *TsInferface) Loc() *Loc {
+	return n.loc
+}
+
+type TsInferfaceBody struct {
+	typ  NodeType
+	loc  *Loc
+	body []Node
+}
+
+func (n *TsInferfaceBody) Body() []Node {
+	return n.body
+}
+
+func (n *TsInferfaceBody) Type() NodeType {
+	return n.typ
+}
+
+func (n *TsInferfaceBody) Loc() *Loc {
 	return n.loc
 }
 

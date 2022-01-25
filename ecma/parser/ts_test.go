@@ -826,7 +826,7 @@ func TestTs55(t *testing.T) {
 	prog := ast.(*Prog)
 	itf := prog.stmts[0].(*TsInferface)
 	AssertEqual(t, 2, len(itf.supers), "should be ok")
-	AssertEqual(t, "b", itf.body.(*TsObj).props[0].(*TsProp).key.(*Ident).Text(), "should be ok")
+	AssertEqual(t, "b", itf.body.(*TsInferfaceBody).body[0].(*TsProp).key.(*Ident).Text(), "should be ok")
 }
 
 func TestTs56(t *testing.T) {
@@ -944,7 +944,7 @@ func TestTs63(t *testing.T) {
 	ep := prog.stmts[0].(*ExportDec)
 	itf := ep.dec.(*TsInferface)
 	AssertEqual(t, 2, len(itf.supers), "should be ok")
-	AssertEqual(t, "b", itf.body.(*TsObj).props[0].(*TsProp).key.(*Ident).Text(), "should be ok")
+	AssertEqual(t, "b", itf.body.(*TsInferfaceBody).body[0].(*TsProp).key.(*Ident).Text(), "should be ok")
 }
 
 func TestTs64(t *testing.T) {

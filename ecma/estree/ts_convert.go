@@ -132,8 +132,31 @@ func convertTsTyp(node parser.Node) Node {
 			Loc:     loc(node.Loc()),
 			Members: elems(n.Props()),
 		}
+	case parser.N_TS_CALL_SIG:
+		n := node.(*parser.TsCallSig)
+		return &TSFunctionDeclaration{
+			Type:           "FunctionExpression",
+			Start:          start(n.Loc()),
+			End:            end(n.Loc()),
+			Loc:            loc(n.Loc()),
+			Params:         fnParams(n.Params()),
+			TypeParameters: convertTsTyp(n.TypParams()),
+			ReturnType:     convertTsTyp(n.RetTyp()),
+		}
 	case parser.N_TS_PROP:
 		n := node.(*parser.TsProp)
+		if n.IsMethod() {
+			return &TSMethodSignature{
+				Type:     "TSMethodSignature",
+				Start:    start(node.Loc()),
+				End:      end(node.Loc()),
+				Loc:      loc(node.Loc()),
+				Key:      convert(n.Key()),
+				Value:    convert(n.Val()),
+				Computed: n.Computed(),
+				Optional: n.Optional(),
+			}
+		}
 		return &TSPropertySignature{
 			Type:           "TSPropertySignature",
 			Start:          start(node.Loc()),
@@ -263,9 +286,75 @@ func convertTsTyp(node parser.Node) Node {
 			Declarations: declarations(varDec.DecList()),
 			Declare:      true,
 		}
+	case parser.N_TS_INTERFACE_BODY:
+		n := node.(*parser.TsInferfaceBody)
+		return &TSInterfaceBody{
+			Type:  "TSInterfaceBody",
+			Start: start(n.Loc()),
+			End:   end(n.Loc()),
+			Loc:   loc(n.Loc()),
+			Body:  elems(n.Body()),
+		}
+	case parser.N_TS_DEC_INTERFACE:
+		n := node.(*parser.TsDec)
+		itf := n.Inner().(*parser.TsInferface)
+		return &TSInterfaceDeclaration{
+			Type:           "TSInterfaceDeclaration",
+			Start:          start(n.Loc()),
+			End:            end(n.Loc()),
+			Loc:            loc(n.Loc()),
+			Id:             convert(itf.Id()),
+			TypeParameters: convertTsTyp(itf.TypParams()),
+			Extends:        extends(itf.Supers()),
+			Body:           convert(itf.Body()),
+			Declare:        true,
+		}
+	case parser.N_TS_INTERFACE:
+		n := node.(*parser.TsInferface)
+		return &TSInterfaceDeclaration{
+			Type:           "TSInterfaceDeclaration",
+			Start:          start(n.Loc()),
+			End:            end(n.Loc()),
+			Loc:            loc(n.Loc()),
+			Id:             convert(n.Id()),
+			TypeParameters: convertTsTyp(n.TypParams()),
+			Extends:        extends(n.Supers()),
+			Body:           convert(n.Body()),
+			Declare:        false,
+		}
 	}
 
 	return nil
+}
+
+func extends(exts []parser.Node) []Node {
+	if exts == nil {
+		return nil
+	}
+	ret := make([]Node, len(exts))
+	for i, ext := range exts {
+		ret[i] = exprWithTypArg(ext)
+	}
+	return ret
+}
+
+func exprWithTypArg(node parser.Node) Node {
+	var typParams Node
+	if wt, ok := node.(parser.NodeWithTypInfo); ok {
+		ti := wt.TypInfo()
+		if ti != nil {
+			typParams = typAnnot(ti)
+		}
+	}
+	lc := parser.LocWithTypeInfo(node, false)
+	return &TSExpressionWithTypeArguments{
+		Type:           "TSExpressionWithTypeArguments",
+		Start:          start(lc),
+		End:            end(lc),
+		Loc:            loc(lc),
+		Expression:     convert(node),
+		TypeParameters: typParams,
+	}
 }
 
 func typAnnot(ti *parser.TypInfo) Node {

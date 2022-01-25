@@ -1148,6 +1148,7 @@ func (p *Parser) tsCallSig(typParams Node, loc *Loc) (Node, error) {
 	if tp != nil {
 		typParams = tp
 	}
+	p.advanceIfSemi(false)
 	return &TsCallSig{N_TS_CALL_SIG, p.finLoc(loc), typParams, params, typAnnot}, nil
 }
 
@@ -1276,7 +1277,13 @@ func (p *Parser) tsItf() (Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &TsInferface{N_TS_INTERFACE, p.finLoc(loc), name, params, supers, body}, nil
+
+	itfBody := &TsInferfaceBody{
+		typ:  N_TS_INTERFACE_BODY,
+		loc:  body.(*TsObj).loc,
+		body: body.(*TsObj).props,
+	}
+	return &TsInferface{N_TS_INTERFACE, p.finLoc(loc), name, params, supers, itfBody}, nil
 }
 
 func (p *Parser) tsEnumBody() ([]Node, error) {
@@ -1402,18 +1409,24 @@ func (p *Parser) aheadIsModDec(tok *Token) bool {
 func (p *Parser) tsModDec() (*TsDec, error) {
 	p.lexer.Next() // `module`
 
-	tok := p.lexer.Next()
-	if tok.value != T_STRING {
-		return nil, p.errorAt(tok.value, &tok.begin, ERR_UNEXPECTED_TOKEN)
+	tok := p.lexer.Peek()
+	var name Node
+	var err error
+	if tok.value == T_STRING {
+		p.lexer.Next()
+		name = &StrLit{N_LIT_STR, p.finLoc(p.locFromTok(tok)), tok.Text(), tok.HasLegacyOctalEscapeSeq(), nil, nil}
+	} else {
+		name, err = p.identStrict(nil, false, false, false)
+		if err != nil {
+			return nil, err
+		}
 	}
-
-	name := &StrLit{N_LIT_STR, p.finLoc(p.locFromTok(tok)), tok.Text(), tok.HasLegacyOctalEscapeSeq(), nil, nil}
 
 	blk, err := p.blockStmt(true)
 	if err != nil {
 		return nil, err
 	}
-	return &TsDec{N_TS_DEC_MODULE, p.finLoc(name.loc.Clone()), name, blk}, nil
+	return &TsDec{N_TS_DEC_MODULE, p.finLoc(name.Loc().Clone()), name, blk}, nil
 }
 
 func (p *Parser) tsDec() (Node, error) {
