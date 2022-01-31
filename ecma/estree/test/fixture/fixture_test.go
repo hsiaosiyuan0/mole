@@ -22,5 +22,5 @@ func TestFixture_tsManually(t *testing.T) {
 	opts := parser.NewParserOpts()
 	opts.Feature = opts.Feature.On(parser.FEAT_TS)
 	opts.Feature = opts.Feature.Off(parser.FEAT_JSX)
-	RunFixtures(t, "typescript/disallow-jsx-ambiguity/type-parameter-unambiguous-2", opts)
+	RunFixtures(t, "typescript/disallow-jsx-ambiguity/type-parameter", opts)
 }

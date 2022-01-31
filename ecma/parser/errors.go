@@ -135,8 +135,8 @@ const (
 	ERR_ILLEGAL_IMPORT_PROP                        = "The only valid meta property for import is `import.meta`"
 	ERR_META_PROP_CONTAINS_ESCAPE                  = "Meta property can not contain escaped characters"
 	ERR_DYNAMIC_IMPORT_CANNOT_NEW                  = "Cannot use new with `import()`"
-	ERR_UNTERMINATED_JSX_CONTENTS                  = "Unterminated JSX contents."
-	ERR_TPL_UNBALANCED_JSX_TAG                     = "Expected corresponding JSX closing tag for <%s>."
+	ERR_UNTERMINATED_JSX_CONTENTS                  = "Unterminated JSX contents"
+	ERR_TPL_UNBALANCED_JSX_TAG                     = "Expected corresponding JSX closing tag for <%s>"
 	ERR_JSX_ADJACENT_ELEM_SHOULD_BE_WRAPPED        = "Adjacent JSX elements must be wrapped in an enclosing tag"
 	ERR_TPL_JSX_HTML_UNESCAPED_ENTITY              = "Unexpected `%s`, HTML entity "
 	ERR_TPL_JSX_UNDEFINED_HTML_ENTITY              = "Undefined HTML entity `%s`"
@@ -171,5 +171,5 @@ const (
 	ERR_PARAM_PROP_WITH_BINDING_PATTERN   = "A parameter property may not be declared using a binding pattern"
 	ERR_PVT_ELEM_WITH_ABSTRACT            = "Private elements cannot have the `abstract` modifier"
 	ERR_TPL_PVT_ELEM_WITH_ACCESS_MODIFIER = "Private elements cannot have an accessibility modifier `%s`"
-	ERR_JSX_TS_LT_AMBIGUITY               = "This syntax is reserved in `JSX`. Use an `as` expression instead."
+	ERR_JSX_TS_LT_AMBIGUITY               = "This syntax is reserved in `JSX`. Use an `as` expression instead"
 )

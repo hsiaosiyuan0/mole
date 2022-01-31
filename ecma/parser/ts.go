@@ -19,6 +19,13 @@ var builtinTyp = map[string]NodeType{
 	"null":      N_TS_NULL,
 }
 
+// indicates the closing `>` is missing, so the processed `<` should be considered
+// as the LessThan operator. produced in `tsTypArgs`
+var errTypArgMissingGT = errors.New("missing the closing `>`")
+
+// indicates the current position should be re-entered as `jsx`. produced in `tsTypArgs`
+var errTypArgMaybeJsx = errors.New("maybe jsx")
+
 func (p *Parser) newTypInfo() *TypInfo {
 	if p.ts {
 		return NewTypInfo()
@@ -574,7 +581,7 @@ func (p *Parser) tsRef(ns Node) (Node, error) {
 		return &TsRef{N_TS_REF, p.finLoc(name.Loc().Clone()), name, nil, nil}, nil
 	}
 
-	args, _, err := p.tsTypArgs(false)
+	args, err := p.tsTypArgs(false)
 	if err != nil {
 		return nil, err
 	}
@@ -962,15 +969,18 @@ func (p *Parser) tsTypParams() (Node, error) {
 	return &TsParamsDec{N_TS_PARAM_DEC, p.finLoc(loc), ps}, nil
 }
 
-// returned nodes are the superset of typeArgs which also includes `Constraint`
+// returned nodes maybe:
+// - the superset of typeArgs which also includes `Constraint`
+// - jsxELem if the `FEAT_JSX` is turned on
 //
-// the caller maybe required to check the returned nodes are:
-// - valid type args, by further doing a `tsCheckTypArgs` subroutine
-// - valid type params, by further doing a `tsTypArgsToTypParams` subroutine
+// the caller maybe required to check if the returned node is one of:
+// - valid typeArgs, by further doing a `tsCheckTypArgs` subroutine
+// - valid typeParams, by further doing a `tsTypArgsToTypParams` subroutine
+// - jsxElem
 //
-// this method returns type params instead of type args since the former is
+// this method returns typeParams instead of typeArgs since the former is
 // a superset of the later and in the calling point of this method, there is
-// no enough information to determine whether the type params or args is satisfied
+// no enough information to determine whether the typeParams or typeArgs is satisfied
 // so like others method to resolve the ambiguities in the grammar - a rough firstly
 // parsing is introduced and construct rough nodes to let the later processes to
 // do checking or transformation to produce more precise results
@@ -981,25 +991,60 @@ func (p *Parser) tsTypParams() (Node, error) {
 // async < a, b;
 // async<T>() == 0;
 // ```
-func (p *Parser) tsTryTypArgs(asyncLoc *Loc) (Node, error) {
+//
+// `typArg` specifies whether the current position should be typArgs or not,
+// for below exprStmt:
+// ```
+// a<T>()
+// ```
+// the `<T>` will be processed as typeArgs by specifying the `typArg` argument as `true`
+//
+// if `typArg` is `false`, then the node will be processed as a rough one described above
+// and further be transformed to jsxElem:
+// ````
+// <T>() => {}
+// <T,>() => {}
+// ```
+// first `<T>` will be processed as jsxElem, so the first stmt is illegal since it's missing the
+// closing tag
+// second `<T,>` will be processed as an arrowExpr with typeParams since the `T,` cannot be
+// transformed to the jsx tag-name
+func (p *Parser) tsTryTypArgs(asyncLoc *Loc, typArg bool) (Node, error) {
 	ahead := p.lexer.Peek()
-	if !p.ts || ahead.value != T_LT {
+	if ahead.value != T_LT {
 		return nil, nil
+	}
+	if !p.ts && p.feat&FEAT_JSX != 0 {
+		return p.jsx(true, false)
 	}
 	if asyncLoc != nil {
 		return p.tsTryTypArgsAfterAsync(asyncLoc)
 	}
 
+	p.pushState()
 	loc := p.locFromTok(ahead)
-	node, trailingComma, err := p.tsTypArgs(true)
+	node, err := p.tsTypArgs(true)
 	if err != nil {
-		return nil, err
-	}
+		if err != errTypArgMaybeJsx {
+			return nil, err
+		}
 
-	args := node.(*TsParamsInst).params
-	if p.feat&FEAT_JSX != 0 && !(len(args) > 1 || trailingComma) {
-		return nil, p.errorAtLoc(loc, ERR_JSX_TS_LT_AMBIGUITY)
+		p.popState()
+		jsx, err := p.jsx(true, true)
+		if err != nil {
+			if pe, ok := err.(*ParserError); ok {
+				if pe.msg == ERR_UNTERMINATED_JSX_CONTENTS {
+					pe.msg = ERR_JSX_TS_LT_AMBIGUITY
+					pe.line = loc.begin.line
+					pe.col = loc.begin.col
+				}
+			}
+			return nil, err
+		}
+		return jsx, nil
 	}
+	p.discardState()
+
 	return node, nil
 }
 
@@ -1015,10 +1060,10 @@ func (p *Parser) tsTryTypArgs(asyncLoc *Loc) (Node, error) {
 func (p *Parser) tsTryTypArgsAfterAsync(asyncLoc *Loc) (Node, error) {
 	name := &Ident{N_NAME, asyncLoc, asyncLoc.Text(), false, false, nil, true, p.newTypInfo()}
 	binExpr, err := p.binExpr(name, 0, false, false, true)
-	ltLoc := binExpr.(*BinExpr).opLoc.Clone()
 	if err != nil {
 		return nil, err
 	}
+	ltLoc := binExpr.(*BinExpr).opLoc.Clone()
 	seq, err := p.seqExpr(binExpr, true)
 	if err != nil {
 		return nil, err
@@ -1106,12 +1151,10 @@ func (p *Parser) tsPredefToName(node Node) (Node, error) {
 	return node, nil
 }
 
-var errTypArgMissingGT = errors.New("missing the closing `>`")
-
-func (p *Parser) tsTypArgs(canConst bool) (Node, bool, error) {
+func (p *Parser) tsTypArgs(canConst bool) (Node, error) {
 	loc := p.locFromTok(p.lexer.Next()) // `<`
 	args := make([]Node, 0, 1)
-	trailingComma := false
+	jsx := p.feat&FEAT_JSX != 0
 	for {
 		ahead := p.lexer.Peek()
 		av := ahead.value
@@ -1119,36 +1162,41 @@ func (p *Parser) tsTypArgs(canConst bool) (Node, bool, error) {
 			p.lexer.Next()
 			break
 		} else if av == T_NAME || ahead.IsLit(true) || ahead.IsCtxKw() {
-			// next is typ
+			// next is typ， fallthrough to below `p.tsTyp` to handle this branch
 		} else {
-			return nil, trailingComma, errTypArgMissingGT
+			return nil, errTypArgMissingGT
 		}
 
 		arg, err := p.tsTyp(false, canConst)
-		if p.lexer.Peek().value == T_EXTENDS {
+		if err != nil {
+			return nil, err
+		}
+
+		ahead = p.lexer.Peek()
+		av = ahead.value
+		if av == T_EXTENDS {
 			id, err := p.tsPredefToName(arg)
 			if err != nil {
-				return nil, trailingComma, err
+				return nil, err
 			}
 
-			p.lexer.Next()
+			p.lexer.Next() // consume `extends`
 			cons, err := p.tsTyp(false, false)
 			if err != nil {
-				return nil, trailingComma, err
+				return nil, err
 			}
 			arg = &TsParam{N_TS_PARAM, p.finLoc(id.Loc().Clone()), id, cons, nil}
+		} else if jsx && (av == T_NAME || ahead.IsKw() || av == T_DIV || av == T_BRACE_L || av == T_GT) {
+			return nil, errTypArgMaybeJsx
 		}
-		if err != nil {
-			return nil, trailingComma, err
-		}
+
 		args = append(args, arg)
 
 		if p.lexer.Peek().value == T_COMMA {
 			p.lexer.Next()
-			trailingComma = true
 		}
 	}
-	return &TsParamsInst{N_TS_PARAM_INST, p.finLoc(loc), args}, trailingComma, nil
+	return &TsParamsInst{N_TS_PARAM_INST, p.finLoc(loc), args}, nil
 }
 
 func (p *Parser) tsCallSig(typParams Node, loc *Loc) (Node, error) {

@@ -235,6 +235,8 @@ func (p *Parser) jsxWsTxt() Node {
 	return &JsxText{N_JSX_TXT, loc, loc.Text()}
 }
 
+// `opening` indicates the opening of the tag has presented, so the
+// closing tag is deserved to be appearing
 func (p *Parser) jsx(root bool, opening bool) (Node, error) {
 	tok := p.lexer.Next() // `<`
 	loc := p.locFromTok(tok)

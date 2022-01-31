@@ -16,8 +16,5 @@
     "GOOS": "js",
     "GOARCH": "wasm"
   },
-  "go.testEnvVars": {
-    "GOOS": "darwin",
-    "GOARCH": "amd64"
-  }
+  "go.testEnvFile": "${workspaceFolder}/.env"
 }

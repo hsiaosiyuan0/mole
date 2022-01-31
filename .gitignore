@@ -6,3 +6,4 @@ lint.exe
 /mole
 /mole.wasm
 /test.mjs
+.env

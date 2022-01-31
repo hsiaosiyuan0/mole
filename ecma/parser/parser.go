@@ -3696,9 +3696,12 @@ func (p *Parser) awaitExpr(tok *Token) (Node, error) {
 func (p *Parser) unaryExpr(typArgs Node, typArgsLoc *Loc) (Node, error) {
 	var err error
 	if typArgs == nil {
-		typArgs, err = p.tsTryTypArgs(nil)
+		typArgs, err = p.tsTryTypArgs(nil, true)
 		if err != nil {
 			return nil, err
+		}
+		if typArgs != nil && typArgs.Type() == N_JSX_ELEM {
+			return typArgs, nil
 		}
 	}
 
@@ -4709,7 +4712,7 @@ func (p *Parser) checkArgs(args []Node, spread bool, simplicity bool) error {
 }
 
 func (p *Parser) argList(check bool, incall bool, asyncLoc *Loc) ([]Node, *Loc, Node, Node, error) {
-	typArgs, err := p.tsTryTypArgs(asyncLoc)
+	typArgs, err := p.tsTryTypArgs(asyncLoc, false)
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
@@ -5112,12 +5115,16 @@ func (p *Parser) primaryExpr() (Node, error) {
 	case T_TPL_HEAD:
 		return p.tplExpr(nil)
 	case T_LT:
-		if p.feat&FEAT_JSX != 0 {
+		if p.feat&FEAT_JSX != 0 && p.feat&FEAT_TS == 0 {
 			return p.jsx(true, false)
-		} else if p.feat&FEAT_TS != 0 {
-			typArgs, err := p.tsTryTypArgs(nil)
+		}
+		if p.feat&FEAT_TS != 0 {
+			typArgs, err := p.tsTryTypArgs(nil, false)
 			if err != nil {
 				return nil, err
+			}
+			if typArgs != nil && typArgs.Type() == N_JSX_ELEM {
+				return typArgs, nil
 			}
 			ahead := p.lexer.Peek()
 			av := ahead.value
