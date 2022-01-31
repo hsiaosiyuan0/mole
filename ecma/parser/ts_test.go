@@ -1506,10 +1506,42 @@ func TestTs100(t *testing.T) {
 func TestTs101(t *testing.T) {
 	// jsx
 	opts := NewParserOpts()
+	// jsx is turned on within default options
+	opts.Feature = opts.Feature.On(FEAT_TS)
+	p := newParser(`<T extends string>() => 1;`, opts)
+
+	ast, err := p.Prog()
+	AssertEqual(t, nil, err, "should be prog ok")
+	AssertEqual(t, true, ast != nil, "should be prog ok")
+
+	prog := ast.(*Prog)
+	expr := prog.stmts[0].(*ExprStmt).expr
+	AssertEqual(t, N_EXPR_ARROW, expr.Type(), "should be ok")
+}
+
+func TestTs102(t *testing.T) {
+	// jsx
+	opts := NewParserOpts()
 	// jsx feature is turned on within the default options
 	opts.Feature = opts.Feature.On(FEAT_TS)
 	p := newParser(`<T>() => 1;`, opts)
 
 	_, err := p.Prog()
 	AssertEqual(t, true, err != nil, "should not pass")
+}
+
+func TestTs103(t *testing.T) {
+	// jsx
+	opts := NewParserOpts()
+	// jsx feature is turned on within the default options
+	opts.Feature = opts.Feature.On(FEAT_TS)
+	p := newParser(`let a = <T>t</T>`, opts)
+
+	ast, err := p.Prog()
+	AssertEqual(t, nil, err, "should be prog ok")
+	AssertEqual(t, true, ast != nil, "should be prog ok")
+
+	prog := ast.(*Prog)
+	expr := prog.stmts[0].(*VarDecStmt).decList[0].(*VarDec).init
+	AssertEqual(t, N_JSX_ELEM, expr.Type(), "should be ok")
 }
