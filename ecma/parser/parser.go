@@ -81,6 +81,9 @@ func (o *ParserOpts) MergeJson(obj map[string]interface{}) {
 	if jsx, ok := obj["jsx"]; ok && jsx == true {
 		o.Feature = o.Feature.On(FEAT_JSX)
 	}
+	if dts, ok := obj["dts"]; ok && dts == true {
+		o.Feature = o.Feature.On(FEAT_DTS)
+	}
 }
 
 func NewParser(src *span.Source, opts *ParserOpts) *Parser {
@@ -738,6 +741,7 @@ func (p *Parser) importNS() ([]Node, error) {
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-functions-and-classes.html#prod-ClassDeclaration
 func (p *Parser) classDec(expr bool, canNameOmitted bool, declare bool, abstract bool) (Node, error) {
+	declare = declare || p.feat&FEAT_DTS != 0
 	loc := p.locFromTok(p.lexer.Next())
 
 	if abstract {
@@ -2046,6 +2050,7 @@ func (p *Parser) aheadIsAsync(tok *Token, prop bool, pvt bool) bool {
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-statements-and-declarations.html#prod-HoistableDeclaration
 func (p *Parser) fnDec(expr bool, async *Token, canNameOmitted bool, declare bool) (Node, error) {
+	declare = declare || p.feat&FEAT_DTS != 0
 	loc := p.loc()
 
 	// below value cache is needed since token is saved in the ring-buffer
@@ -2223,11 +2228,9 @@ func (p *Parser) fnDec(expr bool, async *Token, canNameOmitted bool, declare boo
 			if err = p.tsIsFnSigValid(fnRef.Node.Text()); err != nil {
 				return nil, err
 			}
-		} else if (tok.value == T_SEMI || tok.afterLineTerm) && declare {
+		} else if (tok.value == T_SEMI || tok.afterLineTerm || tok.value == T_EOF) && p.ts {
 			// AmbientFunctionDeclaration
 			// `declare function a();`
-		} else if p.ts && scope.IsKind(SPK_TS_DECLARE) {
-			// declare function foo(...args: any[] )
 		} else {
 			return nil, p.errorTok(tok)
 		}
@@ -2302,8 +2305,19 @@ func (p *Parser) fnDec(expr bool, async *Token, canNameOmitted bool, declare boo
 		return nil, err
 	}
 
-	if p.ts && scope.IsKind(SPK_TS_DECLARE) && body != nil {
-		return nil, p.errorAtLoc(body.Loc(), ERR_IMPL_IN_AMBIENT_CTX)
+	if p.ts {
+		if body == nil {
+			ps.DelLocal(fnRef)
+			p.advanceIfSemi(false)
+		}
+
+		if (scope.IsKind(SPK_TS_DECLARE) || p.feat&FEAT_DTS != 0) && body != nil {
+			return nil, p.errorAtLoc(body.Loc(), ERR_IMPL_IN_AMBIENT_CTX)
+		}
+
+		if err = p.tsCheckParams(params, body != nil); err != nil {
+			return nil, err
+		}
 	}
 
 	p.symtab.LeaveScope()
@@ -2923,11 +2937,6 @@ func (p *Parser) param(ctor bool) (Node, error) {
 	if ques, _ := p.tsAdvanceHook(false); ques != nil {
 		if wt, ok := binding.(NodeWithTypInfo); ok {
 			wt.TypInfo().SetQues(ques)
-		}
-		if binding.Type() != N_NAME && !p.scope().IsKind(SPK_TS_DECLARE) {
-			// `[]?` in `declare function foo([]?): void` is legal
-			// `[]?` in `function foo([]?): void {}` is illegal
-			return nil, p.errorAtLoc(ques, ERR_UNEXPECTED_TOKEN)
 		}
 	}
 
@@ -4200,7 +4209,7 @@ func (p *Parser) argsToParams(args []Node) ([]Node, error) {
 	return params, nil
 }
 
-// `yield` indicates whether is yield-expr is permitted
+// `yield` indicates whether the yield-expr is permitted
 func (p *Parser) checkDefaultVal(val Node, yield bool, destruct bool, field bool) error {
 	switch val.Type() {
 	case N_EXPR_YIELD:
@@ -4616,7 +4625,7 @@ func (p *Parser) nameOfProp(propOrField Node) (string, Node, bool) {
 
 // check the `arg` is legal as argument
 // `spread` means whether the spread is permitted
-// `simplicity` means whether check simplicity of lhs of the assignExpr
+// `simplicity` means whether to check simplicity of lhs of the assignExpr
 func (p *Parser) checkArg(arg Node, spread bool, simplicity bool) error {
 	if wt, ok := arg.(NodeWithTypInfo); ok {
 		ti := wt.TypInfo()
@@ -5652,6 +5661,10 @@ func (p *Parser) method(loc *Loc, key Node, accMode ACC_MOD, compute *Loc, short
 	if p.ts {
 		if body == nil {
 			p.advanceIfSemi(false)
+		}
+
+		if err = p.tsCheckParams(params, body != nil); err != nil {
+			return nil, err
 		}
 	}
 

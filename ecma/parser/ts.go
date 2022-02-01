@@ -1702,3 +1702,26 @@ func (p *Parser) tsImplements() ([]Node, error) {
 	}
 	return impl, nil
 }
+
+func (p *Parser) tsCheckParams(params []Node, impl bool) error {
+	inDeclare := p.scope().IsKind(SPK_TS_DECLARE)
+	for _, param := range params {
+		if err := p.tsCheckParam(param, inDeclare, impl); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (p *Parser) tsCheckParam(node Node, inDeclare bool, impl bool) error {
+	switch node.Type() {
+	case N_PAT_ARRAY:
+		// `[]?` in `declare function foo([]?): void` is legal
+		// `[]?` in `function foo([]?): void {}` is illegal
+		n := node.(*ArrPat)
+		if n.ti.ques != nil && (!inDeclare || impl) {
+			p.errorAtLoc(n.ti.ques, ERR_UNEXPECTED_TOKEN)
+		}
+	}
+	return nil
+}
