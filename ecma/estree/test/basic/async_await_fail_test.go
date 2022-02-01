@@ -383,22 +383,22 @@ func TestAsyncAwaitFail73(t *testing.T) {
 
 func TestAsyncAwaitFail74(t *testing.T) {
 	TestFail(t, "(async() => { await 4 ** 2 })()",
-		"Unary operator used immediately before exponentiation expression at (1:20)", nil)
+		"Unary operator `await` used immediately before exponentiation expression at (1:20)", nil)
 }
 
 func TestAsyncAwaitFail75(t *testing.T) {
 	TestFail(t, "async() => (await 1 ** 3)",
-		"Unary operator used immediately before exponentiation expression at (1:18)", nil)
+		"Unary operator `await` used immediately before exponentiation expression at (1:18)", nil)
 }
 
 func TestAsyncAwaitFail76(t *testing.T) {
 	TestFail(t, "async() => await 5 ** 6",
-		"Unary operator used immediately before exponentiation expression at (1:17)", nil)
+		"Unary operator `await` used immediately before exponentiation expression at (1:17)", nil)
 }
 
 func TestAsyncAwaitFail77(t *testing.T) {
 	TestFail(t, "async() => await (5) ** 6",
-		"Unary operator used immediately before exponentiation expression at (1:18)", nil)
+		"Unary operator `await` used immediately before exponentiation expression at (1:18)", nil)
 }
 
 func TestAsyncAwaitFail78(t *testing.T) {
@@ -411,5 +411,5 @@ func TestAsyncAwaitFail79(t *testing.T) {
 
 func TestAsyncAwaitFail80(t *testing.T) {
 	TestFail(t, "console.log( -2 ** 4 )",
-		"Unary operator used immediately before exponentiation expression at (1:14)", nil)
+		"Unary operator `-` used immediately before exponentiation expression at (1:14)", nil)
 }

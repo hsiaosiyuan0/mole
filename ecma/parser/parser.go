@@ -4892,7 +4892,8 @@ func (p *Parser) binExpr(lhs Node, minPcd int, logic bool, nullish bool, notGT b
 
 		// deal with expr like: `console.log( -2 ** 4 )`
 		if lhs.Type() == N_EXPR_UNARY && op == T_POW {
-			return nil, p.errorAtLoc(p.UnParen(lhs.(*UnaryExpr).arg).Loc(), ERR_UNARY_OPERATOR_IMMEDIATELY_BEFORE_POW)
+			n := lhs.(*UnaryExpr)
+			return nil, p.errorAtLoc(p.UnParen(lhs.(*UnaryExpr).arg).Loc(), fmt.Sprintf(ERR_TPL_UNARY_IMMEDIATELY_BEFORE_POW, n.OpText()))
 		}
 
 		// deal with expr like: `4 + async() => 2`

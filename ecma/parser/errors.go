@@ -120,7 +120,7 @@ const (
 	ERR_IMPORT_EXPORT_SHOULD_AT_TOP_LEVEL          = "'import' and 'export' may only appear at the top level"
 	ERR_COMPLEX_BINDING_MISSING_INIT               = "Complex binding patterns require an initialization value"
 	ERR_LHS_OF_FOR_OF_CANNOT_ASYNC                 = "The left-hand side of a for-of loop may not be 'async'"
-	ERR_UNARY_OPERATOR_IMMEDIATELY_BEFORE_POW      = "Unary operator used immediately before exponentiation expression"
+	ERR_TPL_UNARY_IMMEDIATELY_BEFORE_POW           = "Unary operator `%s` used immediately before exponentiation expression"
 	ERR_TPL_ID_DUP_DEF                             = "Identifier `%s` has already been declared"
 	ERR_UNEXPECTED_PVT_FIELD                       = "Unexpected private field"
 	ERR_DELETE_PVT_FIELD                           = "Private fields can not be deleted"

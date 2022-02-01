@@ -21,47 +21,47 @@ func TestEs7thFail2(t *testing.T) {
 
 func TestEs7thFail3(t *testing.T) {
 	TestFail(t, "delete o.p ** 2;",
-		"Unary operator used immediately before exponentiation expression at (1:7)", nil)
+		"Unary operator `delete` used immediately before exponentiation expression at (1:7)", nil)
 }
 
 func TestEs7thFail4(t *testing.T) {
 	TestFail(t, "void 2 ** 2;",
-		"Unary operator used immediately before exponentiation expression at (1:5)", nil)
+		"Unary operator `void` used immediately before exponentiation expression at (1:5)", nil)
 }
 
 func TestEs7thFail5(t *testing.T) {
 	TestFail(t, "typeof 2 ** 2;",
-		"Unary operator used immediately before exponentiation expression at (1:7)", nil)
+		"Unary operator `typeof` used immediately before exponentiation expression at (1:7)", nil)
 }
 
 func TestEs7thFail6(t *testing.T) {
 	TestFail(t, "~3 ** 2;",
-		"Unary operator used immediately before exponentiation expression at (1:1)", nil)
+		"Unary operator `~` used immediately before exponentiation expression at (1:1)", nil)
 }
 
 func TestEs7thFail7(t *testing.T) {
 	TestFail(t, "!1 ** 2;",
-		"Unary operator used immediately before exponentiation expression at (1:1)", nil)
+		"Unary operator `!` used immediately before exponentiation expression at (1:1)", nil)
 }
 
 func TestEs7thFail8(t *testing.T) {
 	TestFail(t, "-2** 2;",
-		"Unary operator used immediately before exponentiation expression at (1:1)", nil)
+		"Unary operator `-` used immediately before exponentiation expression at (1:1)", nil)
 }
 
 func TestEs7thFail9(t *testing.T) {
 	TestFail(t, "+2** 2;",
-		"Unary operator used immediately before exponentiation expression at (1:1)", nil)
+		"Unary operator `+` used immediately before exponentiation expression at (1:1)", nil)
 }
 
 func TestEs7thFail10(t *testing.T) {
 	TestFail(t, "-(i--) ** 2",
-		"Unary operator used immediately before exponentiation expression at (1:2)", nil)
+		"Unary operator `-` used immediately before exponentiation expression at (1:2)", nil)
 }
 
 func TestEs7thFail11(t *testing.T) {
 	TestFail(t, "+(i--) ** 2",
-		"Unary operator used immediately before exponentiation expression at (1:2)", nil)
+		"Unary operator `+` used immediately before exponentiation expression at (1:2)", nil)
 }
 
 func TestEs7thFail12(t *testing.T) {

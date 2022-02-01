@@ -1,0 +1,3 @@
+{
+  "throws": "Unary operator `+` used immediately before exponentiation expression at (1:8)"
+}
