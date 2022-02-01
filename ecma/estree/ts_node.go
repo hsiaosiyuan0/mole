@@ -438,3 +438,23 @@ type TSArrayPattern struct {
 	Elements []Node  `json:"elements"`
 	Optional bool    `json:"optional"`
 }
+
+type TSEnumDeclaration struct {
+	Type    string     `json:"type"`
+	Start   int        `json:"start"`
+	End     int        `json:"end"`
+	Loc     *SrcLoc    `json:"loc"`
+	Id      Expression `json:"id"`
+	Members []Node     `json:"members"`
+	Const   bool       `json:"const"`
+	Declare bool       `json:"declare"`
+}
+
+type TSEnumMember struct {
+	Type        string     `json:"type"`
+	Start       int        `json:"start"`
+	End         int        `json:"end"`
+	Loc         *SrcLoc    `json:"loc"`
+	Id          Expression `json:"id"`
+	Initializer Node       `json:"initializer"`
+}

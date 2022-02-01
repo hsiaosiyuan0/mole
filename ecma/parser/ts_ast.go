@@ -561,6 +561,18 @@ type TsEnum struct {
 	cons  bool
 }
 
+func (n *TsEnum) Const() bool {
+	return n.cons
+}
+
+func (n *TsEnum) Id() Node {
+	return n.name
+}
+
+func (n *TsEnum) Members() []Node {
+	return n.items
+}
+
 func (n *TsEnum) Type() NodeType {
 	return n.typ
 }
@@ -574,6 +586,14 @@ type TsEnumMember struct {
 	loc *Loc
 	key Node
 	val Node
+}
+
+func (n *TsEnumMember) Key() Node {
+	return n.key
+}
+
+func (n *TsEnumMember) Val() Node {
+	return n.val
 }
 
 func (n *TsEnumMember) Type() NodeType {

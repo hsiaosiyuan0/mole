@@ -910,6 +910,10 @@ func (p *Parser) tsPropName() (Node, error) {
 	case T_NAME:
 		return p.ident(nil, false)
 	}
+	if keyName, kw, ok := tok.CanBePropKey(); ok {
+		p.lexer.Next()
+		return &Ident{N_NAME, p.finLoc(loc), keyName, false, tok.ContainsEscape(), nil, kw, p.newTypInfo()}, nil
+	}
 	return nil, p.errorTok(tok)
 }
 
@@ -1507,6 +1511,9 @@ func (p *Parser) tsDec() (Node, error) {
 	if ok, kind := p.aheadIsVarDec(tok); ok {
 		dec.inner, err = p.varDecStmt(kind, false)
 		typ = N_TS_DEC_VAR_DEC
+		if dec.inner.Type() == N_TS_ENUM {
+			typ = N_TS_DEC_ENUM
+		}
 	} else if tv == T_FUNC {
 		dec.inner, err = p.fnDec(false, nil, false, true)
 		typ = N_TS_DEC_FN

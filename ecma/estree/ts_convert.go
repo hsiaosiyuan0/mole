@@ -322,6 +322,40 @@ func convertTsTyp(node parser.Node) Node {
 			Body:           convert(n.Body()),
 			Declare:        false,
 		}
+	case parser.N_TS_ENUM:
+		n := node.(*parser.TsEnum)
+		return &TSEnumDeclaration{
+			Type:    "TSEnumDeclaration",
+			Start:   start(n.Loc()),
+			End:     end(n.Loc()),
+			Loc:     loc(n.Loc()),
+			Id:      convert(n.Id()),
+			Const:   n.Const(),
+			Members: elems(n.Members()),
+		}
+	case parser.N_TS_DEC_ENUM:
+		n := node.(*parser.TsDec)
+		enum := n.Inner().(*parser.TsEnum)
+		return &TSEnumDeclaration{
+			Type:    "TSEnumDeclaration",
+			Start:   start(n.Loc()),
+			End:     end(n.Loc()),
+			Loc:     loc(n.Loc()),
+			Id:      convert(enum.Id()),
+			Const:   enum.Const(),
+			Members: elems(enum.Members()),
+			Declare: true,
+		}
+	case parser.N_TS_ENUM_MEMBER:
+		n := node.(*parser.TsEnumMember)
+		return &TSEnumMember{
+			Type:        "TSEnumMember",
+			Start:       start(n.Loc()),
+			End:         end(n.Loc()),
+			Loc:         loc(n.Loc()),
+			Id:          convert(n.Key()),
+			Initializer: convert(n.Val()),
+		}
 	}
 
 	return nil

@@ -1,0 +1,129 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 35,
+  "loc": {
+    "start": {
+      "line": 1,
+      "column": 0
+    },
+    "end": {
+      "line": 4,
+      "column": 1
+    }
+  },
+  "body": [
+    {
+      "type": "TSEnumDeclaration",
+      "start": 0,
+      "end": 35,
+      "loc": {
+        "start": {
+          "line": 1,
+          "column": 0
+        },
+        "end": {
+          "line": 4,
+          "column": 1
+        }
+      },
+      "id": {
+        "type": "Identifier",
+        "start": 5,
+        "end": 6,
+        "loc": {
+          "start": {
+            "line": 1,
+            "column": 5
+          },
+          "end": {
+            "line": 1,
+            "column": 6
+          }
+        },
+        "name": "E"
+      },
+      "members": [
+        {
+          "type": "TSEnumMember",
+          "start": 13,
+          "end": 18,
+          "loc": {
+            "start": {
+              "line": 2,
+              "column": 4
+            },
+            "end": {
+              "line": 2,
+              "column": 9
+            }
+          },
+          "id": {
+            "type": "Literal",
+            "start": 13,
+            "end": 18,
+            "loc": {
+              "start": {
+                "line": 2,
+                "column": 4
+              },
+              "end": {
+                "line": 2,
+                "column": 9
+              }
+            },
+            "value": "foo"
+          }
+        },
+        {
+          "type": "TSEnumMember",
+          "start": 24,
+          "end": 33,
+          "loc": {
+            "start": {
+              "line": 3,
+              "column": 4
+            },
+            "end": {
+              "line": 3,
+              "column": 13
+            }
+          },
+          "id": {
+            "type": "Literal",
+            "start": 24,
+            "end": 29,
+            "loc": {
+              "start": {
+                "line": 3,
+                "column": 4
+              },
+              "end": {
+                "line": 3,
+                "column": 9
+              }
+            },
+            "value": "bar"
+          },
+          "initializer": {
+            "start": 32,
+            "end": 33,
+            "loc": {
+              "start": {
+                "line": 3,
+                "column": 12
+              },
+              "end": {
+                "line": 3,
+                "column": 13
+              }
+            },
+            "value": 1,
+            "type": "Literal"
+          }
+        }
+      ]
+    }
+  ],
+  "directives": []
+}
