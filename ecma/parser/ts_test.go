@@ -958,7 +958,7 @@ func TestTs64(t *testing.T) {
 
 	prog := ast.(*Prog)
 	n := prog.stmts[0].(*TsImportRequire)
-	AssertEqual(t, "test", n.args[0].(*StrLit).Text(), "should be ok")
+	AssertEqual(t, "test", n.expr.(*CallExpr).args[0].(*StrLit).Text(), "should be ok")
 }
 
 func TestTs65(t *testing.T) {
@@ -973,7 +973,7 @@ func TestTs65(t *testing.T) {
 	ep := prog.stmts[0].(*ExportDec)
 	n := ep.dec.(*TsImportRequire)
 	AssertEqual(t, 1, len(prog.stmts), "should be ok")
-	AssertEqual(t, "test", n.args[0].(*StrLit).Text(), "should be ok")
+	AssertEqual(t, "test", n.expr.(*CallExpr).args[0].(*StrLit).Text(), "should be ok")
 }
 
 func TestTs66(t *testing.T) {

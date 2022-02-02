@@ -1,0 +1,81 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 27,
+  "loc": {
+    "start": {
+      "line": 1,
+      "column": 0
+    },
+    "end": {
+      "line": 1,
+      "column": 27
+    }
+  },
+  "body": [
+    {
+      "type": "TSImportEqualsDeclaration",
+      "start": 0,
+      "end": 27,
+      "loc": {
+        "start": {
+          "line": 1,
+          "column": 0
+        },
+        "end": {
+          "line": 1,
+          "column": 27
+        }
+      },
+      "isExport": false,
+      "id": {
+        "type": "Identifier",
+        "start": 7,
+        "end": 11,
+        "loc": {
+          "start": {
+            "line": 1,
+            "column": 7
+          },
+          "end": {
+            "line": 1,
+            "column": 11
+          }
+        },
+        "name": "type"
+      },
+      "moduleReference": {
+        "type": "TSExternalModuleReference",
+        "start": 14,
+        "end": 26,
+        "loc": {
+          "start": {
+            "line": 1,
+            "column": 14
+          },
+          "end": {
+            "line": 1,
+            "column": 26
+          }
+        },
+        "expression": {
+          "start": 22,
+          "end": 25,
+          "loc": {
+            "start": {
+              "line": 1,
+              "column": 22
+            },
+            "end": {
+              "line": 1,
+              "column": 25
+            }
+          },
+          "value": "A",
+          "type": "Literal"
+        }
+      }
+    }
+  ],
+  "directives": []
+}

@@ -175,4 +175,6 @@ const (
 	ERR_EXPORT_DECLARE_MISSING_DECLARATION = "`export declare` must be followed by an ambient declaration"
 	ERR_GETTER_SETTER_WITH_THIS_PARAM      = "`get` and `set` accessors cannot declare `this` parameters."
 	ERR_BINDING_PATTERN_REQUIRE_IN_IMPL    = "A binding pattern parameter cannot be optional in an implementation signature"
+	ERR_IMPORT_REQUIRE_STR_LIT_DESERVED    = "String literal expected"
+	ERR_IMPORT_TYPE_IN_IMPORT_ALIAS        = "An import alias can not use `import type`"
 )

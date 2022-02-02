@@ -1422,8 +1422,21 @@ func (p *Parser) tsEnum(loc *Loc) (Node, error) {
 	return &TsEnum{N_TS_ENUM, p.finLoc(loc), name, mems, cons}, nil
 }
 
-// `ImportAliasDeclaration` or `ImportRequireDeclaration`
+// produces either `ImportAliasDeclaration` or `ImportRequireDeclaration`
+//
+// `typ` means the caller has met the `type` keyword: `export import type A = B.C;`
 func (p *Parser) tsImportAlias(loc *Loc, name Node, export bool) (Node, error) {
+	var err error
+	ahead := p.lexer.Peek()
+	var typ *Loc
+	if ahead.value == T_NAME && name.(*Ident).Text() == "type" {
+		typ = name.Loc()
+		name, err = p.ident(nil, true)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	p.lexer.Next() // `=`
 
 	val, err := p.tsTypName(nil)
@@ -1437,14 +1450,38 @@ func (p *Parser) tsImportAlias(loc *Loc, name Node, export bool) (Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		node = &TsImportRequire{N_TS_IMPORT_REQUIRE, p.finLoc(loc), name, call.(*CallExpr).args}
+
+		// the arguments count of `require` should be one with type `StrLit`
+		ce := call.(*CallExpr)
+		if len(ce.args) == 0 {
+			return nil, p.errorAt(p.lexer.PrevTok(), p.lexer.PrevTokBegin(), ERR_IMPORT_REQUIRE_STR_LIT_DESERVED)
+		}
+		if ce.args[0].Type() != N_LIT_STR {
+			return nil, p.errorAtLoc(ce.args[0].Loc(), ERR_IMPORT_REQUIRE_STR_LIT_DESERVED)
+		}
+
+		if err := p.advanceIfSemi(true); err != nil {
+			return nil, err
+		}
+		node = &TsImportRequire{N_TS_IMPORT_REQUIRE, p.finLoc(loc), name, call}
 	} else {
+		if typ != nil {
+			// `export import type A = B.C;`
+			return nil, p.errorAtLoc(typ, ERR_IMPORT_TYPE_IN_IMPORT_ALIAS)
+		}
+		if err := p.advanceIfSemi(true); err != nil {
+			return nil, err
+		}
 		node = &TsImportAlias{N_TS_IMPORT_ALIAS, p.finLoc(loc), name, val, export}
 	}
 
-	if err := p.advanceIfSemi(true); err != nil {
+	ref := NewRef()
+	ref.Node = name.(*Ident)
+	ref.BindKind = BK_LET
+	if err := p.addLocalBinding(nil, ref, true, ref.Node.Text()); err != nil {
 		return nil, err
 	}
+
 	return node, nil
 }
 

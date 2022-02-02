@@ -624,6 +624,18 @@ type TsImportAlias struct {
 	export bool
 }
 
+func (n *TsImportAlias) Name() Node {
+	return n.name
+}
+
+func (n *TsImportAlias) Val() Node {
+	return n.val
+}
+
+func (n *TsImportAlias) Export() bool {
+	return n.export
+}
+
 func (n *TsImportAlias) Type() NodeType {
 	return n.typ
 }
@@ -664,7 +676,15 @@ type TsImportRequire struct {
 	typ  NodeType
 	loc  *Loc
 	name Node
-	args []Node
+	expr Node
+}
+
+func (n *TsImportRequire) Name() Node {
+	return n.name
+}
+
+func (n *TsImportRequire) Expr() Node {
+	return n.expr
 }
 
 func (n *TsImportRequire) Type() NodeType {

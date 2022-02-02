@@ -412,7 +412,7 @@ func (p *Parser) exportDec() (Node, error) {
 			return nil, err
 		}
 	} else if p.ts && tv == T_IMPORT {
-		loc := p.locFromTok(p.lexer.Next())
+		p.lexer.Next()
 		id, err := p.ident(nil, true)
 		if err != nil {
 			return nil, err
@@ -666,8 +666,10 @@ func (p *Parser) importDec() (Node, error) {
 			specs = append(specs, ss...)
 		}
 
-		if p.ts && p.lexer.Peek().value == T_ASSIGN && id != nil {
-			return p.tsImportAlias(p.locFromTok(tok), id, false)
+		ahead := p.lexer.Peek()
+		av := ahead.value
+		if p.ts && (av == T_ASSIGN || (av == T_NAME && ahead.Text() != "from")) && id != nil {
+			return p.tsImportAlias(loc, id, false)
 		}
 
 		_, err = p.nextMustName("from", false)

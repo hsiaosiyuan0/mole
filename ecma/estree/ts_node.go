@@ -502,3 +502,21 @@ type TSLiteralType struct {
 	Loc     *SrcLoc `json:"loc"`
 	Literal Node    `json:"literal"`
 }
+
+type TSImportEqualsDeclaration struct {
+	Type            string  `json:"type"`
+	Start           int     `json:"start"`
+	End             int     `json:"end"`
+	Loc             *SrcLoc `json:"loc"`
+	Id              Node    `json:"id"`
+	ModuleReference Node    `json:"moduleReference"`
+	IsExport        bool    `json:"isExport"`
+}
+
+type TSExternalModuleReference struct {
+	Type       string  `json:"type"`
+	Start      int     `json:"start"`
+	End        int     `json:"end"`
+	Loc        *SrcLoc `json:"loc"`
+	Expression Node    `json:"expression"`
+}

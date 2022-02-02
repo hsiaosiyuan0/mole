@@ -1,0 +1,1 @@
+import type B = C;

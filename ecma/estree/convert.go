@@ -1164,16 +1164,23 @@ func convert(node parser.Node) Node {
 		if stmt.Default() {
 			return exportDefault(stmt)
 		}
-		if stmt.Dec() != nil && stmt.Dec().Type() == parser.N_TS_NAMESPACE {
-			n := stmt.Dec().(*parser.TsNS)
-			if n.Alias() {
-				return &TSNamespaceExportDeclaration{
-					Type:  "TSNamespaceExportDeclaration",
-					Start: start(node.Loc()),
-					End:   end(node.Loc()),
-					Loc:   loc(node.Loc()),
-					Id:    convert(n.Id()),
+		if stmt.Dec() != nil {
+			if stmt.Dec().Type() == parser.N_TS_NAMESPACE {
+				n := stmt.Dec().(*parser.TsNS)
+				if n.Alias() {
+					return &TSNamespaceExportDeclaration{
+						Type:  "TSNamespaceExportDeclaration",
+						Start: start(node.Loc()),
+						End:   end(node.Loc()),
+						Loc:   loc(node.Loc()),
+						Id:    convert(n.Id()),
+					}
 				}
+			}
+			if stmt.Dec().Type() == parser.N_TS_IMPORT_REQUIRE {
+				n := convertTsTyp(stmt.Dec()).(*TSImportEqualsDeclaration)
+				n.IsExport = true
+				return n
 			}
 		}
 		return exportNamed(stmt)

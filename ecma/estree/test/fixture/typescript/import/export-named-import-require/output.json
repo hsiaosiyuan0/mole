@@ -1,0 +1,147 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 38,
+  "loc": {
+    "start": {
+      "line": 1,
+      "column": 0
+    },
+    "end": {
+      "line": 2,
+      "column": 13
+    }
+  },
+  "body": [
+    {
+      "type": "TSImportEqualsDeclaration",
+      "start": 0,
+      "end": 24,
+      "loc": {
+        "start": {
+          "line": 1,
+          "column": 0
+        },
+        "end": {
+          "line": 1,
+          "column": 24
+        }
+      },
+      "isExport": false,
+      "id": {
+        "type": "Identifier",
+        "start": 7,
+        "end": 8,
+        "loc": {
+          "start": {
+            "line": 1,
+            "column": 7
+          },
+          "end": {
+            "line": 1,
+            "column": 8
+          }
+        },
+        "name": "a"
+      },
+      "moduleReference": {
+        "type": "TSExternalModuleReference",
+        "start": 11,
+        "end": 23,
+        "loc": {
+          "start": {
+            "line": 1,
+            "column": 11
+          },
+          "end": {
+            "line": 1,
+            "column": 23
+          }
+        },
+        "expression": {
+          "start": 19,
+          "end": 22,
+          "loc": {
+            "start": {
+              "line": 1,
+              "column": 19
+            },
+            "end": {
+              "line": 1,
+              "column": 22
+            }
+          },
+          "value": "a",
+          "type": "Literal"
+        }
+      }
+    },
+    {
+      "type": "ExportNamedDeclaration",
+      "start": 25,
+      "end": 38,
+      "loc": {
+        "start": {
+          "line": 2,
+          "column": 0
+        },
+        "end": {
+          "line": 2,
+          "column": 13
+        }
+      },
+      "specifiers": [
+        {
+          "type": "ExportSpecifier",
+          "start": 34,
+          "end": 35,
+          "loc": {
+            "start": {
+              "line": 2,
+              "column": 9
+            },
+            "end": {
+              "line": 2,
+              "column": 10
+            }
+          },
+          "local": {
+            "type": "Identifier",
+            "start": 34,
+            "end": 35,
+            "loc": {
+              "start": {
+                "line": 2,
+                "column": 9
+              },
+              "end": {
+                "line": 2,
+                "column": 10
+              }
+            },
+            "name": "a"
+          },
+          "exported": {
+            "type": "Identifier",
+            "start": 34,
+            "end": 35,
+            "loc": {
+              "start": {
+                "line": 2,
+                "column": 9
+              },
+              "end": {
+                "line": 2,
+                "column": 10
+              }
+            },
+            "name": "a"
+          }
+        }
+      ],
+      "source": null,
+      "declaration": null
+    }
+  ],
+  "directives": []
+}

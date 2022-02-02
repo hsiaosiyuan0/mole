@@ -431,6 +431,35 @@ func convertTsTyp(node parser.Node) Node {
 			Loc:     loc(n.Loc()),
 			Literal: convert(n.Lit()),
 		}
+	case parser.N_TS_IMPORT_ALIAS:
+		n := node.(*parser.TsImportAlias)
+		return &TSImportEqualsDeclaration{
+			Type:            "TSImportEqualsDeclaration",
+			Start:           start(n.Loc()),
+			End:             end(n.Loc()),
+			Loc:             loc(n.Loc()),
+			Id:              convert(n.Name()),
+			ModuleReference: convert(n.Val()),
+			IsExport:        n.Export(),
+		}
+	case parser.N_TS_IMPORT_REQUIRE:
+		n := node.(*parser.TsImportRequire)
+		expr := n.Expr().(*parser.CallExpr)
+		return &TSImportEqualsDeclaration{
+			Type:  "TSImportEqualsDeclaration",
+			Start: start(n.Loc()),
+			End:   end(n.Loc()),
+			Loc:   loc(n.Loc()),
+			Id:    convert(n.Name()),
+			ModuleReference: &TSExternalModuleReference{
+				Type:       "TSExternalModuleReference",
+				Start:      start(expr.Loc()),
+				End:        end(expr.Loc()),
+				Loc:        loc(expr.Loc()),
+				Expression: convert(expr.Args()[0]),
+			},
+			IsExport: false,
+		}
 	}
 
 	return nil
