@@ -1226,12 +1226,19 @@ func (p *Parser) aheadIsTsTypDec(tok *Token) bool {
 	return false
 }
 
-func (p *Parser) tsTypDec() (Node, error) {
-	loc := p.locFromTok(p.lexer.Next())
+func (p *Parser) tsTypDec(loc *Loc) (Node, error) {
 	name, err := p.ident(nil, true)
 	if err != nil {
 		return nil, err
 	}
+
+	ref := NewRef()
+	ref.Node = name
+	ref.BindKind = BK_TYPE
+	if err := p.addLocalBinding(nil, ref, true, ref.Node.Text()); err != nil {
+		return nil, err
+	}
+
 	params, err := p.tsTryTypParams()
 	if err != nil {
 		return nil, err
@@ -1442,23 +1449,39 @@ func (p *Parser) tsImportAlias(loc *Loc, name Node, export bool) (Node, error) {
 }
 
 func (p *Parser) aheadIsTsNS(tok *Token) bool {
-	return p.ts && tok.value == T_NAME && tok.Text() == "namespace"
+	if !p.ts || tok.value != T_NAME {
+		return false
+	}
+	txt := tok.Text()
+	return txt == "namespace" || txt == "as"
 }
 
 func (p *Parser) tsNS() (Node, error) {
-	loc := p.locFromTok(p.lexer.Next()) // `namespace`
+	tok := p.lexer.Next()
+	loc := p.locFromTok(tok) // `namespace` or `as`
+	as := tok.Text() == "as"
+	if as {
+		if _, err := p.nextMustName("namespace", false); err != nil {
+			return nil, err
+		}
+	}
 
 	name, err := p.tsTypName(nil)
 	if err != nil {
 		return nil, err
 	}
 
-	blk, err := p.blockStmt(true)
-	if err != nil {
-		return nil, err
+	var blk Node
+	if !as {
+		blk, err = p.blockStmt(true, SPK_TS_MODULE)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		p.advanceIfSemi(false)
 	}
 
-	return &TsNS{N_TS_IMPORT_ALIAS, p.finLoc(loc), name, blk.body}, nil
+	return &TsNS{N_TS_NAMESPACE, p.finLoc(loc), name, blk, as}, nil
 }
 
 func (p *Parser) aheadIsTsDec(tok *Token) bool {
@@ -1489,7 +1512,7 @@ func (p *Parser) tsModDec() (*TsDec, error) {
 		}
 	}
 
-	blk, err := p.blockStmt(true)
+	blk, err := p.blockStmt(true, SPK_TS_MODULE)
 	if err != nil {
 		return nil, err
 	}
@@ -1532,7 +1555,8 @@ func (p *Parser) tsDec() (Node, error) {
 		dec.inner, err = p.tsItf()
 		typ = N_TS_DEC_INTERFACE
 	} else if p.aheadIsTsTypDec(tok) {
-		dec.inner, err = p.tsTypDec()
+		loc := p.locFromTok(p.lexer.Next())
+		dec.inner, err = p.tsTypDec(loc)
 		typ = N_TS_DEC_TYP_DEC
 	} else if p.aheadIsTsEnum(tok) {
 		dec.inner, err = p.tsEnum(nil)
@@ -1547,7 +1571,7 @@ func (p *Parser) tsDec() (Node, error) {
 		dec.inner, err = p.classDec(false, false, true, true)
 		typ = N_TS_DEC_CLASS
 	} else {
-		return nil, p.errorAt(tok.value, &tok.begin, ERR_UNEXPECTED_TOKEN)
+		return nil, p.errorAt(tok.value, &tok.begin, ERR_EXPORT_DECLARE_MISSING_DECLARATION)
 	}
 
 	if err != nil {

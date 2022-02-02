@@ -1,0 +1,99 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 31,
+  "loc": {
+    "start": {
+      "line": 1,
+      "column": 0
+    },
+    "end": {
+      "line": 1,
+      "column": 31
+    }
+  },
+  "body": [
+    {
+      "type": "ExportNamedDeclaration",
+      "start": 0,
+      "end": 31,
+      "loc": {
+        "start": {
+          "line": 1,
+          "column": 0
+        },
+        "end": {
+          "line": 1,
+          "column": 31
+        }
+      },
+      "specifiers": [
+        {
+          "type": "ExportSpecifier",
+          "start": 14,
+          "end": 15,
+          "loc": {
+            "start": {
+              "line": 1,
+              "column": 14
+            },
+            "end": {
+              "line": 1,
+              "column": 15
+            }
+          },
+          "local": {
+            "type": "Identifier",
+            "start": 14,
+            "end": 15,
+            "loc": {
+              "start": {
+                "line": 1,
+                "column": 14
+              },
+              "end": {
+                "line": 1,
+                "column": 15
+              }
+            },
+            "name": "T"
+          },
+          "exported": {
+            "type": "Identifier",
+            "start": 14,
+            "end": 15,
+            "loc": {
+              "start": {
+                "line": 1,
+                "column": 14
+              },
+              "end": {
+                "line": 1,
+                "column": 15
+              }
+            },
+            "name": "T"
+          }
+        }
+      ],
+      "source": {
+        "start": 23,
+        "end": 30,
+        "loc": {
+          "start": {
+            "line": 1,
+            "column": 23
+          },
+          "end": {
+            "line": 1,
+            "column": 30
+          }
+        },
+        "value": "./mod",
+        "type": "Literal"
+      },
+      "declaration": null
+    }
+  ],
+  "directives": []
+}

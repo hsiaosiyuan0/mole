@@ -900,7 +900,7 @@ func TestTs60(t *testing.T) {
 
 	prog := ast.(*Prog)
 	ns := prog.stmts[0].(*TsNS)
-	AssertEqual(t, 1, len(ns.stmts), "should be ok")
+	AssertEqual(t, 1, len(ns.body.(*BlockStmt).body), "should be ok")
 }
 
 func TestTs61(t *testing.T) {
@@ -914,7 +914,7 @@ func TestTs61(t *testing.T) {
 	prog := ast.(*Prog)
 	ep := prog.stmts[0].(*ExportDec)
 	ns := ep.dec.(*TsNS)
-	AssertEqual(t, 1, len(ns.stmts), "should be ok")
+	AssertEqual(t, 1, len(ns.body.(*BlockStmt).body), "should be ok")
 }
 
 func TestTs62(t *testing.T) {
@@ -986,7 +986,7 @@ func TestTs66(t *testing.T) {
 
 	prog := ast.(*Prog)
 	ep := prog.stmts[0].(*TsExportAssign)
-	AssertEqual(t, "a", ep.name.(*Ident).Text(), "should be ok")
+	AssertEqual(t, "a", ep.expr.(*Ident).Text(), "should be ok")
 }
 
 func TestTs67(t *testing.T) {
@@ -1087,7 +1087,7 @@ func TestTs73(t *testing.T) {
 	td := prog.stmts[0].(*TsDec)
 	AssertEqual(t, N_TS_DEC_NS, td.Type(), "should be ok")
 
-	dec := td.inner.(*TsNS).stmts[0].(*TsTypDec)
+	dec := td.inner.(*TsNS).body.(*BlockStmt).body[0].(*TsTypDec)
 	AssertEqual(t, "a", dec.name.(*Ident).Text(), "should be ok")
 	AssertEqual(t, N_TS_NUM, dec.ti.TypAnnot().tsTyp.Type(), "should be ok")
 }

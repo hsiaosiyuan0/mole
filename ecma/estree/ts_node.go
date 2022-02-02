@@ -458,3 +458,47 @@ type TSEnumMember struct {
 	Id          Expression `json:"id"`
 	Initializer Node       `json:"initializer"`
 }
+
+type TSTypeAliasDeclaration struct {
+	Type           string     `json:"type"`
+	Start          int        `json:"start"`
+	End            int        `json:"end"`
+	Loc            *SrcLoc    `json:"loc"`
+	Id             Expression `json:"id"`
+	TypeAnnotation Node       `json:"typeAnnotation"`
+	Declare        bool       `json:"declare"`
+}
+
+type TSModuleDeclaration struct {
+	Type    string     `json:"type"`
+	Start   int        `json:"start"`
+	End     int        `json:"end"`
+	Loc     *SrcLoc    `json:"loc"`
+	Id      Expression `json:"id"`
+	Body    Node       `json:"body"`
+	Declare bool       `json:"declare"`
+}
+
+type TSNamespaceExportDeclaration struct {
+	Type  string     `json:"type"`
+	Start int        `json:"start"`
+	End   int        `json:"end"`
+	Loc   *SrcLoc    `json:"loc"`
+	Id    Expression `json:"id"`
+}
+
+type TSExportAssignment struct {
+	Type       string     `json:"type"`
+	Start      int        `json:"start"`
+	End        int        `json:"end"`
+	Loc        *SrcLoc    `json:"loc"`
+	Expression Expression `json:"expression"`
+}
+
+type TSLiteralType struct {
+	Type    string  `json:"type"`
+	Start   int     `json:"start"`
+	End     int     `json:"end"`
+	Loc     *SrcLoc `json:"loc"`
+	Literal Node    `json:"literal"`
+}

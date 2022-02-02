@@ -1,0 +1,3 @@
+{
+  "throws": "`export declare` must be followed by an ambient declaration at (1:15)"
+}

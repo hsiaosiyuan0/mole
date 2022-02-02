@@ -356,6 +356,81 @@ func convertTsTyp(node parser.Node) Node {
 			Id:          convert(n.Key()),
 			Initializer: convert(n.Val()),
 		}
+	case parser.N_TS_TYP_DEC:
+		n := node.(*parser.TsTypDec)
+		return &TSTypeAliasDeclaration{
+			Type:           "TSTypeAliasDeclaration",
+			Start:          start(n.Loc()),
+			End:            end(n.Loc()),
+			Loc:            loc(n.Loc()),
+			Id:             convert(n.Id()),
+			TypeAnnotation: typAnnot(n.TypInfo()),
+			Declare:        false,
+		}
+	case parser.N_TS_DEC_TYP_DEC:
+		n := node.(*parser.TsDec)
+		dec := n.Inner().(*parser.TsTypDec)
+		return &TSTypeAliasDeclaration{
+			Type:           "TSTypeAliasDeclaration",
+			Start:          start(n.Loc()),
+			End:            end(n.Loc()),
+			Loc:            loc(n.Loc()),
+			Id:             convert(dec.Id()),
+			TypeAnnotation: typAnnot(dec.TypInfo()),
+			Declare:        true,
+		}
+	case parser.N_TS_DEC_MODULE:
+		n := node.(*parser.TsDec)
+		return &TSModuleDeclaration{
+			Type:    "TSModuleDeclaration",
+			Start:   start(n.Loc()),
+			End:     end(n.Loc()),
+			Loc:     loc(n.Loc()),
+			Id:      convert(n.Name()),
+			Body:    convert(n.Inner()),
+			Declare: true,
+		}
+	case parser.N_TS_DEC_NS:
+		n := node.(*parser.TsDec)
+		ns := n.Inner().(*parser.TsNS)
+		return &TSModuleDeclaration{
+			Type:    "TSModuleDeclaration",
+			Start:   start(n.Loc()),
+			End:     end(n.Loc()),
+			Loc:     loc(n.Loc()),
+			Id:      convert(ns.Id()),
+			Body:    convert(ns.Body()),
+			Declare: true,
+		}
+	case parser.N_TS_NAMESPACE:
+		n := node.(*parser.TsNS)
+		return &TSModuleDeclaration{
+			Type:    "TSModuleDeclaration",
+			Start:   start(n.Loc()),
+			End:     end(n.Loc()),
+			Loc:     loc(n.Loc()),
+			Id:      convert(n.Id()),
+			Body:    convert(n.Body()),
+			Declare: false,
+		}
+	case parser.N_TS_EXPORT_ASSIGN:
+		n := node.(*parser.TsExportAssign)
+		return &TSExportAssignment{
+			Type:       "TSExportAssignment",
+			Start:      start(n.Loc()),
+			End:        end(n.Loc()),
+			Loc:        loc(n.Loc()),
+			Expression: convert(n.Expr()),
+		}
+	case parser.N_TS_LIT:
+		n := node.(*parser.TsLit)
+		return &TSLiteralType{
+			Type:    "TSLiteralType",
+			Start:   start(n.Loc()),
+			End:     end(n.Loc()),
+			Loc:     loc(n.Loc()),
+			Literal: convert(n.Lit()),
+		}
 	}
 
 	return nil

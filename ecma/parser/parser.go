@@ -21,7 +21,6 @@ type Parser struct {
 	symtab          *SymTab
 	feat            Feature
 	imp             map[string]*Ident
-	exp             []*ExportDec
 	checkName       bool
 	danglingPvtRefs []*Ref
 
@@ -102,7 +101,6 @@ func (p *Parser) Setup(src *span.Source, opts *ParserOpts) {
 
 	p.feat = opts.Feature
 	p.imp = map[string]*Ident{}
-	p.exp = []*ExportDec{}
 	p.checkName = true
 	p.danglingPvtRefs = make([]*Ref, 0)
 
@@ -139,7 +137,7 @@ func (p *Parser) Prog() (Node, error) {
 	pg.loc.end.col = p.lexer.src.Col()
 	pg.loc.rng.end = p.lexer.src.Ofst()
 
-	if err := p.checkExp(); err != nil {
+	if err := p.checkExp(scope.Exports); err != nil {
 		return nil, err
 	}
 
@@ -188,10 +186,10 @@ func (p *Parser) namesInNode(node Node) []Node {
 }
 
 // check the exports
-func (p *Parser) checkExp() error {
+func (p *Parser) checkExp(exps []*ExportDec) error {
 	names := map[string]bool{}
 	// check duplication
-	for _, exp := range p.exp {
+	for _, exp := range exps {
 		var subnames []Node
 		if exp.def != nil {
 			subnames = []Node{&Ident{N_NAME, exp.def, "default", false, false, nil, true, p.newTypInfo()}}
@@ -221,7 +219,7 @@ func (p *Parser) checkExp() error {
 	// here separate the definition cheking into two checks since
 	// their errors needed to be reported independently - firstly report
 	// the duplication then the definition
-	for _, exp := range p.exp {
+	for _, exp := range exps {
 		if exp.src != nil {
 			continue
 		}
@@ -290,7 +288,7 @@ func (p *Parser) stmt() (node Node, err error) {
 			node, err = p.tsEnum(nil)
 		}
 	} else if tok.value == T_BRACE_L {
-		node, err = p.blockStmt(true)
+		node, err = p.blockStmt(true, SPK_NONE)
 	} else if ok, kind := p.aheadIsVarDec(tok); ok {
 		if allowDec {
 			node, err = p.varDecStmt(kind, false)
@@ -303,7 +301,8 @@ func (p *Parser) stmt() (node Node, err error) {
 	} else if p.aheadIsLabel(tok) {
 		node, err = p.labelStmt()
 	} else if p.aheadIsTsTypDec(tok) {
-		node, err = p.tsTypDec()
+		loc := p.locFromTok(p.lexer.Next())
+		node, err = p.tsTypDec(loc)
 	} else if p.aheadIsTsItf(tok) {
 		node, err = p.tsItf()
 	} else if p.aheadIsTsNS(tok) {
@@ -437,9 +436,22 @@ func (p *Parser) exportDec() (Node, error) {
 			return nil, err
 		}
 	} else if p.aheadIsTsTypDec(tok) {
-		node.dec, err = p.tsTypDec()
-		if err != nil {
-			return nil, err
+		loc := p.locFromTok(p.lexer.Next())
+		// `export type { A };`
+		if p.lexer.Peek().value == T_BRACE_L {
+			ss, all, src, err := p.exportFrom()
+			node.src = src
+			node.all = all
+			specs = append(specs, ss...)
+			if err != nil {
+				return nil, err
+			}
+			p.advanceIfSemi(false)
+		} else {
+			node.dec, err = p.tsTypDec(loc)
+			if err != nil {
+				return nil, err
+			}
 		}
 	} else if p.aheadIsTsEnum(tok) {
 		node.dec, err = p.tsEnum(nil)
@@ -463,7 +475,7 @@ func (p *Parser) exportDec() (Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		loc := p.locFromTok(tok)
+		p.advanceIfSemi(false)
 		return &TsExportAssign{N_TS_EXPORT_ASSIGN, p.finLoc(loc), id}, nil
 	} else {
 		return nil, p.errorTok(tok)
@@ -471,8 +483,29 @@ func (p *Parser) exportDec() (Node, error) {
 
 	node.loc = p.finLoc(loc)
 	node.specs = specs
-	p.exp = append(p.exp, node)
+
+	if err = p.addExp(node); err != nil {
+		return nil, err
+	}
 	return node, nil
+}
+
+// add exp to its nearest upper scope whose type is one of:
+// - top level scope
+// - ts namespace
+// - ts module
+func (p *Parser) addExp(exp *ExportDec) error {
+	scope := p.scope()
+	if scope.IsKind(SPK_GLOBAL) ||
+		(scope.IsKind(SPK_TS_MODULE) && !scope.IsKind(SPK_TS_MODULE_INDIRECT)) {
+		if scope.Exports == nil {
+			scope.Exports = make([]*ExportDec, 0, 1)
+		}
+		scope.Exports = append(scope.Exports, exp)
+		return nil
+	}
+
+	return p.errorAtLoc(exp.Loc(), ERR_IMPORT_EXPORT_SHOULD_AT_TOP_LEVEL)
 }
 
 func (p *Parser) exportFrom() ([]Node, bool, Node, error) {
@@ -1321,7 +1354,7 @@ func (p *Parser) classElemName() (Node, *Loc, error) {
 }
 
 func (p *Parser) staticBlock(static *Loc) (Node, error) {
-	block, err := p.blockStmt(true)
+	block, err := p.blockStmt(true, SPK_NONE)
 	if err != nil {
 		return nil, err
 	}
@@ -1384,7 +1417,7 @@ func (p *Parser) tryStmt() (Node, error) {
 	loc := p.loc()
 	p.lexer.Next()
 
-	try, err := p.blockStmt(true)
+	try, err := p.blockStmt(true, SPK_NONE)
 	if err != nil {
 		return nil, err
 	}
@@ -1441,7 +1474,7 @@ func (p *Parser) tryStmt() (Node, error) {
 			}
 		}
 
-		body, err := p.blockStmt(false)
+		body, err := p.blockStmt(false, SPK_NONE)
 		p.symtab.LeaveScope()
 
 		if err != nil {
@@ -1454,7 +1487,7 @@ func (p *Parser) tryStmt() (Node, error) {
 	var fin Node
 	if p.lexer.Peek().value == T_FINALLY {
 		p.lexer.Next()
-		fin, err = p.blockStmt(true)
+		fin, err = p.blockStmt(true, SPK_NONE)
 		if err != nil {
 			return nil, err
 		}
@@ -2472,7 +2505,7 @@ func (p *Parser) namesInPattern(node Node, kw bool) ([]Node, error) {
 }
 
 func (p *Parser) fnBody() (Node, error) {
-	return p.blockStmt(false)
+	return p.blockStmt(false, SPK_NONE)
 }
 
 func (p *Parser) scope() *Scope {
@@ -2568,13 +2601,16 @@ func (p *Parser) stmts(terminal TokenValue) ([]Node, error) {
 	return stmts, nil
 }
 
-func (p *Parser) blockStmt(newScope bool) (*BlockStmt, error) {
+func (p *Parser) blockStmt(newScope bool, scopeKind ScopeKind) (*BlockStmt, error) {
 	tok, err := p.nextMustTok(T_BRACE_L)
 	if err != nil {
 		return nil, err
 	}
+
+	var scope *Scope
 	if newScope {
-		p.symtab.EnterScope(false, false)
+		scope = p.symtab.EnterScope(false, false)
+		scope.AddKind(scopeKind)
 	}
 	loc := p.locFromTok(tok)
 
@@ -2584,6 +2620,14 @@ func (p *Parser) blockStmt(newScope bool) (*BlockStmt, error) {
 	}
 
 	if newScope {
+		if scope.IsKind(SPK_GLOBAL) ||
+			(scope.IsKind(SPK_TS_MODULE) && !scope.IsKind(SPK_TS_MODULE_INDIRECT)) {
+			if scope.Exports != nil {
+				if err := p.checkExp(scope.Exports); err != nil {
+					return nil, err
+				}
+			}
+		}
 		p.symtab.LeaveScope()
 	}
 	return &BlockStmt{N_STMT_BLOCK, p.finLoc(loc), stmts}, nil

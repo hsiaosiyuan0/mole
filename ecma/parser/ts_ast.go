@@ -52,6 +52,10 @@ type TsLit struct {
 	lit Node
 }
 
+func (n *TsLit) Lit() Node {
+	return n.lit
+}
+
 func (n *TsLit) Type() NodeType {
 	return n.typ
 }
@@ -494,6 +498,14 @@ type TsTypDec struct {
 	ti   *TypInfo
 }
 
+func (n *TsTypDec) Id() Node {
+	return n.name
+}
+
+func (n *TsTypDec) TypInfo() *TypInfo {
+	return n.ti
+}
+
 func (n *TsTypDec) Type() NodeType {
 	return n.typ
 }
@@ -624,7 +636,20 @@ type TsNS struct {
 	typ   NodeType
 	loc   *Loc
 	name  Node
-	stmts []Node
+	body  Node
+	alias bool
+}
+
+func (n *TsNS) Id() Node {
+	return n.name
+}
+
+func (n *TsNS) Body() Node {
+	return n.body
+}
+
+func (n *TsNS) Alias() bool {
+	return n.alias
 }
 
 func (n *TsNS) Type() NodeType {
@@ -653,7 +678,11 @@ func (n *TsImportRequire) Loc() *Loc {
 type TsExportAssign struct {
 	typ  NodeType
 	loc  *Loc
-	name Node
+	expr Node
+}
+
+func (n *TsExportAssign) Expr() Node {
+	return n.expr
 }
 
 func (n *TsExportAssign) Type() NodeType {

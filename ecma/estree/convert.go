@@ -554,6 +554,21 @@ func convert(node parser.Node) Node {
 		n := node.(*parser.FnDec)
 		if n.TypInfo() != nil {
 			ti := n.TypInfo()
+			if n.Body() == nil {
+				return &TSDeclareFunction{
+					Type:           "TSDeclareFunction",
+					Start:          start(n.Loc()),
+					End:            end(n.Loc()),
+					Loc:            loc(n.Loc()),
+					Id:             convert(n.Id()),
+					Params:         fnParams(n.Params()),
+					Body:           convert(n.Body()),
+					Generator:      false,
+					Async:          n.Async(),
+					TypeParameters: typParams(ti),
+					ReturnType:     typAnnot(ti),
+				}
+			}
 			return &TSFunctionDeclaration{
 				Type:           "FunctionDeclaration",
 				Start:          start(n.Loc()),
@@ -1145,8 +1160,21 @@ func convert(node parser.Node) Node {
 		stmt := node.(*parser.ExportDec)
 		if stmt.All() {
 			return exportAll(stmt)
-		} else if stmt.Default() {
+		}
+		if stmt.Default() {
 			return exportDefault(stmt)
+		}
+		if stmt.Dec() != nil && stmt.Dec().Type() == parser.N_TS_NAMESPACE {
+			n := stmt.Dec().(*parser.TsNS)
+			if n.Alias() {
+				return &TSNamespaceExportDeclaration{
+					Type:  "TSNamespaceExportDeclaration",
+					Start: start(node.Loc()),
+					End:   end(node.Loc()),
+					Loc:   loc(node.Loc()),
+					Id:    convert(n.Id()),
+				}
+			}
 		}
 		return exportNamed(stmt)
 	case parser.N_STATIC_BLOCK:

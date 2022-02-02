@@ -93,7 +93,7 @@
           }
         }
       },
-      "type": "FunctionDeclaration"
+      "type": "TSDeclareFunction"
     }
   ],
   "directives": []

@@ -32,6 +32,8 @@ const (
 	SPK_FORMAL_PARAMS      ScopeKind = 1 << iota
 	SPK_ABSTRACT_CLASS     ScopeKind = 1 << iota
 	SPK_TS_DECLARE         ScopeKind = 1 << iota
+	SPK_TS_MODULE          ScopeKind = 1 << iota
+	SPK_TS_MODULE_INDIRECT ScopeKind = 1 << iota
 )
 
 type BindKind uint8
@@ -43,6 +45,7 @@ const (
 	BK_LET
 	BK_CONST
 	BK_PVT_FIELD
+	BK_TYPE
 )
 
 type TargetType int
@@ -56,9 +59,17 @@ const (
 type Ref struct {
 	Node  *Ident
 	Scope *Scope
-	// points to the ref referenced by this one
+
+	// points to the ref referenced by this one, eg:
+	//
+	// ```
+	// A -> B // A points to B
+	// ```
+	//
+	// `B` is the value of `Target` of `A`
 	Target     *Ref
 	TargetType TargetType
+
 	// ref with bind kind not none means it's a variable binding
 	BindKind BindKind
 	Props    map[string][]*Ref
@@ -99,6 +110,9 @@ type Scope struct {
 	// `IsBind` of the elems of the `scope.Refs` are all `true`,
 	// `IsBind` of their children are `true` means `rebind`
 	Refs map[string]*Ref
+
+	// exports declared at this scope
+	Exports []*ExportDec
 }
 
 func NewScope() *Scope {
@@ -290,6 +304,9 @@ func (s *SymTab) EnterScope(fn bool, arrow bool) *Scope {
 	}
 	if s.Cur.IsKind(SPK_TS_DECLARE) {
 		scope.Kind |= SPK_TS_DECLARE
+	}
+	if s.Cur.IsKind(SPK_TS_MODULE) || s.Cur.IsKind(SPK_TS_MODULE_INDIRECT) {
+		scope.Kind |= SPK_TS_MODULE_INDIRECT
 	}
 
 	// `(class A extends B { constructor() { (() => { super() }); } })` is legal
