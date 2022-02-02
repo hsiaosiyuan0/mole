@@ -248,7 +248,7 @@ func (p *Parser) stmt() (node Node, err error) {
 		case T_VAR:
 			node, err = p.varDecStmt(T_VAR, false)
 		case T_FUNC:
-			node, err = p.fnDec(false, nil, false, false)
+			node, err = p.fnDec(false, nil, false)
 		case T_IF:
 			node, err = p.ifStmt()
 		case T_FOR:
@@ -297,7 +297,7 @@ func (p *Parser) stmt() (node Node, err error) {
 		if tok.ContainsEscape() {
 			return nil, p.errorAt(tok.value, &tok.begin, ERR_ESCAPE_IN_KEYWORD)
 		}
-		node, err = p.fnDec(false, tok, false, false)
+		node, err = p.fnDec(false, tok, false)
 	} else if p.aheadIsLabel(tok) {
 		node, err = p.labelStmt()
 	} else if p.aheadIsTsTypDec(tok) {
@@ -369,7 +369,7 @@ func (p *Parser) exportDec() (Node, error) {
 			return nil, err
 		}
 	} else if tv == T_FUNC {
-		node.dec, err = p.fnDec(false, nil, false, false)
+		node.dec, err = p.fnDec(false, nil, false)
 		if err != nil {
 			return nil, err
 		}
@@ -377,7 +377,7 @@ func (p *Parser) exportDec() (Node, error) {
 		if tok.ContainsEscape() {
 			return nil, p.errorAt(tv, &tok.begin, ERR_ESCAPE_IN_KEYWORD)
 		}
-		node.dec, err = p.fnDec(false, tok, false, false)
+		node.dec, err = p.fnDec(false, tok, false)
 		if err != nil {
 			return nil, err
 		}
@@ -392,12 +392,12 @@ func (p *Parser) exportDec() (Node, error) {
 		tv = tok.value
 		node.def = p.locFromTok(def)
 		if tv == T_FUNC {
-			node.dec, err = p.fnDec(false, nil, true, false)
+			node.dec, err = p.fnDec(false, nil, true)
 		} else if p.aheadIsAsync(tok, false, false) {
 			if tok.ContainsEscape() {
 				return nil, p.errorAt(tv, &tok.begin, ERR_ESCAPE_IN_KEYWORD)
 			}
-			node.dec, err = p.fnDec(false, tok, true, false)
+			node.dec, err = p.fnDec(false, tok, true)
 		} else if tv == T_CLASS {
 			node.dec, err = p.classDec(false, true, false, false)
 		} else if p.tsAheadIsAbstract(tok, false, false) {
@@ -495,6 +495,10 @@ func (p *Parser) exportDec() (Node, error) {
 // - ts namespace
 // - ts module
 func (p *Parser) addExp(exp *ExportDec) error {
+	// skip to record the method overloads as export
+	if exp.dec != nil && exp.dec.Type() == N_STMT_FN && exp.dec.(*FnDec).body == nil {
+		return nil
+	}
 	scope := p.scope()
 	if scope.IsKind(SPK_GLOBAL) ||
 		(scope.IsKind(SPK_TS_MODULE) && !scope.IsKind(SPK_TS_MODULE_INDIRECT)) {
@@ -2082,8 +2086,7 @@ func (p *Parser) aheadIsAsync(tok *Token, prop bool, pvt bool) bool {
 }
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-statements-and-declarations.html#prod-HoistableDeclaration
-func (p *Parser) fnDec(expr bool, async *Token, canNameOmitted bool, declare bool) (Node, error) {
-	declare = declare || p.feat&FEAT_DTS != 0
+func (p *Parser) fnDec(expr bool, async *Token, canNameOmitted bool) (Node, error) {
 	loc := p.loc()
 
 	// below value cache is needed since token is saved in the ring-buffer
@@ -2167,7 +2170,7 @@ func (p *Parser) fnDec(expr bool, async *Token, canNameOmitted bool, declare boo
 		args = make([]Node, 1)
 		args[0] = id
 	} else if fn {
-		args, typArgs, _, err = p.paramList(false, false, true)
+		args, typArgs, _, err = p.paramList(false, PK_INIT, true)
 		if err != nil {
 			return nil, err
 		}
@@ -2340,7 +2343,9 @@ func (p *Parser) fnDec(expr bool, async *Token, canNameOmitted bool, declare boo
 
 	if p.ts {
 		if body == nil {
-			ps.DelLocal(fnRef)
+			if fnRef != nil {
+				ps.DelLocal(fnRef)
+			}
 			p.advanceIfSemi(false)
 		}
 
@@ -2939,13 +2944,14 @@ func (p *Parser) roughParam(ctor bool) (Node, error) {
 	return &TsRoughParam{N_TS_ROUGH_PARAM, p.finLoc(name.Loc().Clone()), name, colonLoc, ti}, nil
 }
 
-func (p *Parser) param(ctor bool) (Node, error) {
+func (p *Parser) param(methodKind PropKind) (Node, error) {
 	accMod, accLoc, abstract, readonly, override, declare, beginLoc, isField, escape, fieldName, fieldLoc, err := p.accMod()
 	if err != nil {
 		return nil, err
 	}
 
 	var binding Node
+	var this bool
 	if isField {
 		binding = &Ident{N_NAME, fieldLoc, fieldName, false, escape, nil, false, p.newTypInfo()}
 	} else {
@@ -2957,7 +2963,7 @@ func (p *Parser) param(ctor bool) (Node, error) {
 					return nil, p.errorAtLoc(accLoc, ERR_PARAM_PROP_WITH_BINDING_PATTERN)
 				}
 			}
-			if !ctor {
+			if methodKind != PK_CTOR {
 				if accMod != ACC_MOD_NONE {
 					return nil, p.errorAtLoc(accLoc, ERR_ILLEGAL_PARAMETER_MODIFIER)
 				}
@@ -2967,9 +2973,17 @@ func (p *Parser) param(ctor bool) (Node, error) {
 			}
 		}
 
-		binding, err = p.bindingPattern()
-		if err != nil {
-			return nil, err
+		ahead := p.lexer.Peek()
+		this = p.scope().IsKind(SPK_METHOD) && ahead.value == T_THIS
+		if this {
+			if methodKind == PK_GETTER || methodKind == PK_SETTER {
+				return nil, p.errorAt(ahead.value, &ahead.begin, ERR_GETTER_SETTER_WITH_THIS_PARAM)
+			}
+		} else {
+			binding, err = p.bindingPattern()
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -2982,6 +2996,9 @@ func (p *Parser) param(ctor bool) (Node, error) {
 		if wt, ok := binding.(NodeWithTypInfo); ok {
 			wt.TypInfo().SetQues(ques)
 		}
+		if this {
+			return nil, p.errorAtLoc(ques, ERR_THIS_CANNOT_BE_OPTIONAL)
+		}
 	}
 
 	typAnnot, err := p.tsTypAnnot()
@@ -2990,7 +3007,8 @@ func (p *Parser) param(ctor bool) (Node, error) {
 	}
 	p.tsNodeTypAnnot(binding, typAnnot, accMod, beginLoc, abstract != nil, readonly != nil, override != nil, declare != nil, nil)
 
-	if p.lexer.Peek().value == T_ASSIGN {
+	// default value
+	if !this && p.lexer.Peek().value == T_ASSIGN {
 		p.lexer.Next()
 		value, err := p.assignExpr(true, false, false)
 		if err != nil {
@@ -3025,10 +3043,11 @@ func (p *Parser) param(ctor bool) (Node, error) {
 }
 
 // `ctor` indicates this method is called when processing the constructor method of class,
-// in that case the access modifier is needed to be considered as long as TS is enabled
-func (p *Parser) paramList(firstRough bool, ctor bool, typParams bool) ([]Node, Node, *Loc, error) {
+// in that case the access modifier is needed to be considered if TS is enabled
+func (p *Parser) paramList(firstRough bool, methodKind PropKind, typParams bool) ([]Node, Node, *Loc, error) {
 	scope := p.scope()
 	p.checkName = false
+	ctor := methodKind == PK_CTOR
 	scope.AddKind(SPK_FORMAL_PARAMS)
 
 	var tp Node
@@ -3064,7 +3083,7 @@ func (p *Parser) paramList(firstRough bool, ctor bool, typParams bool) ([]Node, 
 		if firstRough && i == 0 {
 			param, err = p.roughParam(ctor)
 		} else {
-			param, err = p.param(ctor)
+			param, err = p.param(methodKind)
 		}
 		if err != nil {
 			return nil, nil, nil, err
@@ -5111,7 +5130,7 @@ func (p *Parser) primaryExpr() (Node, error) {
 			if tok.ContainsEscape() {
 				return nil, p.errorAt(tok.value, &tok.begin, ERR_ESCAPE_IN_KEYWORD)
 			}
-			return p.fnDec(true, tok, false, false)
+			return p.fnDec(true, tok, false)
 		} else if p.tsAheadIsAbstract(tok, false, false) {
 			return p.classDec(true, false, false, true)
 		}
@@ -5139,7 +5158,7 @@ func (p *Parser) primaryExpr() (Node, error) {
 	case T_BRACE_L:
 		return p.objLit()
 	case T_FUNC:
-		return p.fnDec(true, nil, false, false)
+		return p.fnDec(true, nil, false)
 	case T_REGEXP:
 		p.lexer.Next()
 		ext := tok.ext.(*TokExtRegexp)
@@ -5629,7 +5648,7 @@ func (p *Parser) method(loc *Loc, key Node, accMode ACC_MOD, compute *Loc, short
 	}
 
 	fnLoc := p.loc()
-	params, typParams, _, err := p.paramList(false, ctor && p.ts, true)
+	params, typParams, _, err := p.paramList(false, kind, true)
 	if err != nil {
 		return nil, err
 	}

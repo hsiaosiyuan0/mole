@@ -148,7 +148,7 @@ func (p *Parser) tsUnionOrIntersecType(lhs Node, minPcd int, rough bool, canCons
 
 func (p *Parser) tsConstructTyp() (Node, error) {
 	loc := p.locFromTok(p.lexer.Next())
-	params, typParams, _, err := p.paramList(false, false, true)
+	params, typParams, _, err := p.paramList(false, PK_NONE, true)
 	if err != nil {
 		return nil, err
 	}
@@ -431,7 +431,7 @@ func (p *Parser) tsRoughParamToTyp(node Node, raise bool) (Node, error) {
 
 // `ParenthesizedType` or`FunctionType`
 func (p *Parser) tsParen(keepParen bool) (Node, error) {
-	params, _, loc, err := p.paramList(true, false, false)
+	params, _, loc, err := p.paramList(true, PK_NONE, false)
 	if err != nil {
 		return nil, err
 	}
@@ -490,7 +490,7 @@ func (p *Parser) tsFnTyp(params []Node, parenL *Loc) (Node, error) {
 		loc = parenL
 	}
 	if params == nil {
-		params, typParams, _, err = p.paramList(false, false, true)
+		params, typParams, _, err = p.paramList(false, PK_NONE, true)
 		if err != nil {
 			return nil, err
 		}
@@ -763,7 +763,7 @@ func (p *Parser) tsObj(rough bool) (Node, error) {
 
 func (p *Parser) tsNewSig(loc *Loc) (Node, error) {
 	p.lexer.Next()
-	params, typParams, _, err := p.paramList(false, false, true)
+	params, typParams, _, err := p.paramList(false, PK_NONE, true)
 	if err != nil {
 		return nil, err
 	}
@@ -1204,7 +1204,7 @@ func (p *Parser) tsTypArgs(canConst bool) (Node, error) {
 }
 
 func (p *Parser) tsCallSig(typParams Node, loc *Loc) (Node, error) {
-	params, tp, _, err := p.paramList(false, false, typParams == nil && loc == nil)
+	params, tp, _, err := p.paramList(false, PK_NONE, typParams == nil && loc == nil)
 	if err != nil {
 		return nil, err
 	}
@@ -1538,7 +1538,7 @@ func (p *Parser) tsDec() (Node, error) {
 			typ = N_TS_DEC_ENUM
 		}
 	} else if tv == T_FUNC {
-		dec.inner, err = p.fnDec(false, nil, false, true)
+		dec.inner, err = p.fnDec(false, nil, false)
 		typ = N_TS_DEC_FN
 		if err := p.advanceIfSemi(true); err != nil {
 			return nil, err
@@ -1735,7 +1735,7 @@ func (p *Parser) tsImplements() ([]Node, error) {
 }
 
 func (p *Parser) tsCheckParams(params []Node, impl bool) error {
-	inDeclare := p.scope().IsKind(SPK_TS_DECLARE)
+	inDeclare := p.scope().IsKind(SPK_TS_DECLARE) || p.feat&FEAT_DTS != 0
 	for _, param := range params {
 		if err := p.tsCheckParam(param, inDeclare, impl); err != nil {
 			return err
@@ -1751,7 +1751,7 @@ func (p *Parser) tsCheckParam(node Node, inDeclare bool, impl bool) error {
 		// `[]?` in `function foo([]?): void {}` is illegal
 		n := node.(*ArrPat)
 		if n.ti.ques != nil && (!inDeclare || impl) {
-			p.errorAtLoc(n.ti.ques, ERR_UNEXPECTED_TOKEN)
+			return p.errorAtLoc(n.ti.ques, ERR_BINDING_PATTERN_REQUIRE_IN_IMPL)
 		}
 	}
 	return nil

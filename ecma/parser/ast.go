@@ -1425,7 +1425,8 @@ func (n *ObjPat) SetTypInfo(ti *TypInfo) {
 type PropKind uint8
 
 const (
-	PK_INIT PropKind = iota
+	PK_NONE PropKind = iota
+	PK_INIT
 	PK_GETTER
 	PK_SETTER
 	PK_CTOR
