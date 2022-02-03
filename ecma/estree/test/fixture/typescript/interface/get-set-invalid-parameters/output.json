@@ -1,0 +1,3 @@
+{
+  "throws": "A `get` accessor cannot have parameters at (2:10)"
+}

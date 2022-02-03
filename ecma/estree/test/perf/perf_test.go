@@ -20,7 +20,7 @@ func compileToESTree(code string, toEstree bool) error {
 	}
 
 	if toEstree {
-		estree.ConvertProg(ast.(*parser.Prog))
+		estree.ConvertProg(ast.(*parser.Prog), estree.NewConvertCtx())
 	}
 	return nil
 }

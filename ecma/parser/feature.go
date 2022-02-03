@@ -63,3 +63,10 @@ func (f Feature) On(flag Feature) Feature {
 func (f Feature) Off(flag Feature) Feature {
 	return f & ^flag
 }
+
+func (f Feature) Turn(flag Feature, on bool) Feature {
+	if on {
+		return f.On(flag)
+	}
+	return f.Off(flag)
+}

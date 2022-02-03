@@ -1,0 +1,3 @@
+{
+  "throws": "`get` and `set` accessors cannot declare `this` parameters at (2:10)"
+}

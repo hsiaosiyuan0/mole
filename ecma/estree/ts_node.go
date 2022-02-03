@@ -103,6 +103,45 @@ type TSFunctionDeclaration struct {
 	ReturnType     Node    `json:"returnType"`
 }
 
+type TSCallSignatureDeclaration struct {
+	Type           string  `json:"type"`
+	Start          int     `json:"start"`
+	End            int     `json:"end"`
+	Loc            *SrcLoc `json:"loc"`
+	Id             Node    `json:"id"`
+	Params         []Node  `json:"params"`
+	Generator      bool    `json:"generator"`
+	Async          bool    `json:"async"`
+	TypeParameters Node    `json:"typeParameters"`
+	ReturnType     Node    `json:"returnType"`
+}
+
+type TSConstructSignatureDeclaration struct {
+	Type           string  `json:"type"`
+	Start          int     `json:"start"`
+	End            int     `json:"end"`
+	Loc            *SrcLoc `json:"loc"`
+	Id             Node    `json:"id"`
+	Params         []Node  `json:"params"`
+	Generator      bool    `json:"generator"`
+	Async          bool    `json:"async"`
+	TypeParameters Node    `json:"typeParameters"`
+	ReturnType     Node    `json:"returnType"`
+}
+
+type TSFunctionType struct {
+	Type           string  `json:"type"`
+	Start          int     `json:"start"`
+	End            int     `json:"end"`
+	Loc            *SrcLoc `json:"loc"`
+	Id             Node    `json:"id"`
+	Params         []Node  `json:"params"`
+	Generator      bool    `json:"generator"`
+	Async          bool    `json:"async"`
+	TypeParameters Node    `json:"typeParameters"`
+	ReturnType     Node    `json:"returnType"`
+}
+
 type TSArrowFunctionExpression struct {
 	Type           string      `json:"type"`
 	Start          int         `json:"start"`
@@ -200,6 +239,8 @@ type TSPropertySignature struct {
 	Computed       bool    `json:"computed"`
 	Optional       bool    `json:"optional"`
 	TypeAnnotation Node    `json:"typeAnnotation"`
+	Kind           string  `json:"kind"`
+	Readonly       bool    `json:"readonly"`
 }
 
 type TSMethodSignature struct {
@@ -211,6 +252,7 @@ type TSMethodSignature struct {
 	Value    Expression `json:"value"`
 	Computed bool       `json:"computed"`
 	Optional bool       `json:"optional"`
+	Kind     string     `json:"kind"`
 }
 
 type TSObjectPattern struct {

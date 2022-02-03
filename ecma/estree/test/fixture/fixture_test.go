@@ -22,5 +22,5 @@ func TestFixture_tsManually(t *testing.T) {
 	opts := parser.NewParserOpts()
 	opts.Feature = opts.Feature.On(parser.FEAT_TS)
 	opts.Feature = opts.Feature.Off(parser.FEAT_JSX)
-	RunFixtures(t, "typescript/import/type-equals", opts)
+	RunFixtures(t, "typescript/interface/property-computed", opts)
 }

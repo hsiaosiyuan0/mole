@@ -52,7 +52,7 @@ func printJsAst(src, file string) (string, error) {
 		return "", err
 	}
 
-	b, err := json.Marshal(estree.ConvertProg(ast.(*parser.Prog)))
+	b, err := json.Marshal(estree.ConvertProg(ast.(*parser.Prog), estree.NewConvertCtx()))
 	if err != nil {
 		return "", err
 	}

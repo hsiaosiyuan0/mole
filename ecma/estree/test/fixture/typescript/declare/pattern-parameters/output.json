@@ -90,7 +90,7 @@
             },
             "computed": false,
             "value": {
-              "type": "FunctionExpression",
+              "type": "TSCallSignatureDeclaration",
               "params": [
                 {
                   "type": "ArrayPattern",
@@ -174,7 +174,7 @@
             },
             "computed": false,
             "value": {
-              "type": "FunctionExpression",
+              "type": "TSCallSignatureDeclaration",
               "params": [
                 {
                   "type": "ObjectPattern",
@@ -274,7 +274,7 @@
             },
             "computed": false,
             "value": {
-              "type": "FunctionExpression",
+              "type": "TSCallSignatureDeclaration",
               "params": [
                 {
                   "type": "Identifier",

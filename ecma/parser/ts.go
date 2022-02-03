@@ -152,14 +152,19 @@ func (p *Parser) tsConstructTyp() (Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	if _, err = p.nextMustTok(T_ARROW); err != nil {
+
+	arrow, err := p.nextMustTok(T_ARROW)
+	if err != nil {
 		return nil, err
 	}
+	tiLoc := p.locFromTok(arrow)
+
 	retTyp, err := p.tsTyp(false, false)
 	if err != nil {
 		return nil, err
 	}
-	return &TsNewSig{N_TS_NEW_SIG, p.finLoc(loc), typParams, params, retTyp}, nil
+	ti := &TsTypAnnot{N_TS_TYP_ANNOT, p.finLoc(tiLoc), retTyp}
+	return &TsNewSig{N_TS_NEW_SIG, p.finLoc(loc), typParams, params, ti}, nil
 }
 
 func (p *Parser) tsIsPrimitive(typ NodeType) bool {
@@ -363,7 +368,7 @@ func (p *Parser) tsPropToIdxSig(prop *TsProp) (Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &TsIdxSig{N_TS_IDX_SIG, prop.loc, name, name.ti.TypAnnot(), typAnnot}, nil
+	return &TsIdxSig{N_TS_IDX_SIG, prop.loc, name, typAnnot, nil}, nil
 }
 
 // `RoughParam` is something like `a:b` which `a` is a rough-type and `b` is typAnnot
@@ -431,6 +436,11 @@ func (p *Parser) tsRoughParamToTyp(node Node, raise bool) (Node, error) {
 
 // `ParenthesizedType` or`FunctionType`
 func (p *Parser) tsParen(keepParen bool) (Node, error) {
+	typParams, err := p.tsTryTypParams()
+	if err != nil {
+		return nil, err
+	}
+
 	params, _, loc, err := p.paramList(true, PK_NONE, false)
 	if err != nil {
 		return nil, err
@@ -446,7 +456,7 @@ func (p *Parser) tsParen(keepParen bool) (Node, error) {
 				return nil, err
 			}
 		}
-		typ, err := p.tsFnTyp(params, loc)
+		typ, err := p.tsFnTyp(typParams, params, loc)
 		if err != nil {
 			return nil, err
 		}
@@ -472,7 +482,7 @@ func (p *Parser) tsParen(keepParen bool) (Node, error) {
 	}
 
 	if len(params) == 0 {
-		typ := &TsFnTyp{N_TS_FN_TYP, p.finLoc(loc), nil, params, nil}
+		typ := &TsFnTyp{N_TS_FN_TYP, p.finLoc(loc), typParams, params, nil}
 		if !keepParen {
 			return typ, nil
 		}
@@ -482,12 +492,14 @@ func (p *Parser) tsParen(keepParen bool) (Node, error) {
 }
 
 // returns `PrimaryType` or `FunctionType`
-func (p *Parser) tsFnTyp(params []Node, parenL *Loc) (Node, error) {
-	var typParams Node
+func (p *Parser) tsFnTyp(typParams Node, params []Node, parenL *Loc) (Node, error) {
 	var err error
 	var loc *Loc
 	if parenL != nil {
 		loc = parenL
+	}
+	if typParams != nil {
+		loc = typParams.Loc().Clone()
 	}
 	if params == nil {
 		params, typParams, _, err = p.paramList(false, PK_NONE, true)
@@ -496,16 +508,19 @@ func (p *Parser) tsFnTyp(params []Node, parenL *Loc) (Node, error) {
 		}
 	}
 
-	if _, err := p.nextMustTok(T_ARROW); err != nil {
+	arrow, err := p.nextMustTok(T_ARROW)
+	if err != nil {
 		return nil, err
 	}
+	tiLoc := p.locFromTok(arrow)
 
 	retTyp, err := p.tsTyp(false, false)
 	if err != nil {
 		return nil, err
 	}
 
-	return &TsFnTyp{N_TS_FN_TYP, p.finLoc(loc), typParams, params, retTyp}, nil
+	ti := &TsTypAnnot{N_TS_TYP_ANNOT, p.finLoc(tiLoc), retTyp}
+	return &TsFnTyp{N_TS_FN_TYP, p.finLoc(loc), typParams, params, ti}, nil
 }
 
 func (p *Parser) tsTypName(ns Node) (Node, error) {
@@ -668,7 +683,7 @@ func (p *Parser) tsPrimary(rough bool, canConst bool) (Node, error) {
 	ahead := p.lexer.Peek()
 	loc := p.locFromTok(ahead)
 	av := ahead.value
-	if av == T_PAREN_L {
+	if av == T_PAREN_L || av == T_LT {
 		// paren type
 		return p.tsParen(rough)
 	}
@@ -771,34 +786,82 @@ func (p *Parser) tsNewSig(loc *Loc) (Node, error) {
 	if err != nil {
 		return nil, err
 	}
+	p.advanceIfSemi(false)
 	return &TsNewSig{N_TS_NEW_SIG, p.finLoc(loc), typParams, params, retTyp}, nil
 }
 
 func (p *Parser) tsIdxSig(loc *Loc) (Node, error) {
 	tok := p.lexer.Next()
+	bracketL := p.locFromTok(tok)
+
 	if loc == nil {
 		loc = p.locFromTok(tok)
 	}
-	id, err := p.ident(nil, false)
+	key, err := p.binExpr(nil, 0, false, false, false)
 	if err != nil {
 		return nil, err
 	}
-	if _, err = p.nextMustTok(T_COLON); err != nil {
-		return nil, err
-	}
-	key, err := p.tsTyp(false, false)
+	typAnnot, err := p.tsTypAnnot()
 	if err != nil {
 		return nil, err
+	}
+	if typAnnot != nil {
+		if wt, ok := key.(NodeWithTypInfo); ok {
+			wt.TypInfo().SetTypAnnot(typAnnot)
+		} else {
+			return nil, p.errorAtLoc(typAnnot.Loc(), ERR_UNEXPECTED_TOKEN)
+		}
 	}
 	if _, err = p.nextMustTok(T_BRACKET_R); err != nil {
 		return nil, err
 	}
+
+	// callSig can be optional, eg:
+	//
+	// ```
+	// interface I {
+	//   [Symbol.iterator]?(): number; // legal
+	//   [a: string]?(): number;       // `?` is illegal
+	// }
+	// ```
+	ques, _ := p.tsAdvanceHook(false)
+	if ques != nil {
+		if typAnnot != nil {
+			return nil, p.errorAtLoc(ques, ERR_UNEXPECTED_TOKEN)
+		}
+	}
+
 	val, err := p.tsTypAnnot()
 	if err != nil {
 		return nil, err
 	}
+
+	// handle the callSig: `[Symbol.iterator](): void;`
+	if val == nil {
+		ahead := p.lexer.Peek()
+		if p.aheadIsArgList(ahead) {
+			val, err = p.tsCallSig(nil, p.locFromTok(ahead), PK_INIT)
+			if err != nil {
+				return nil, err
+			}
+			return &TsProp{N_TS_PROP, p.finLoc(loc), key, val, ques, PK_METHOD, nil}, nil
+		}
+	}
 	p.advanceIfSemi(false)
-	return &TsIdxSig{N_TS_IDX_SIG, p.finLoc(loc), id, key, val}, nil
+
+	if typAnnot != nil {
+		return &TsIdxSig{N_TS_IDX_SIG, p.finLoc(loc), key, val, ques}, nil
+	}
+	return &TsProp{N_TS_PROP, p.finLoc(loc), key, val, ques, PK_INIT, bracketL}, nil
+}
+
+var modifiers = map[string]int{
+	"private":   1,
+	"public":    1,
+	"protected": 1,
+	"static":    1,
+	"declare":   1,
+	"abstract":  1,
 }
 
 func (p *Parser) tsProp(rough bool) (Node, error) {
@@ -811,7 +874,7 @@ func (p *Parser) tsProp(rough bool) (Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		return p.tsCallSig(ps, loc)
+		return p.tsCallSig(ps, loc, PK_NONE)
 	}
 	if av == T_NEW {
 		// ConstructSignature
@@ -823,7 +886,7 @@ func (p *Parser) tsProp(rough bool) (Node, error) {
 	}
 	if av == T_PAREN_L {
 		// CallSignature
-		return p.tsCallSig(nil, loc)
+		return p.tsCallSig(nil, loc, PK_NONE)
 	}
 	if rough && av == T_DOT_TRI {
 		binding, err := p.patternRest(false, true)
@@ -839,26 +902,71 @@ func (p *Parser) tsProp(rough bool) (Node, error) {
 		if err != nil {
 			return nil, err
 		}
+
 		var ques *Loc
 		if p.lexer.Peek().value == T_HOOK {
 			ques = p.locFromTok(p.lexer.Next())
 		}
+
+		kind := PK_INIT
+		var ro *Loc
+		if ques == nil && name.Type() == N_NAME {
+			s := name.(*Ident).Text()
+			ahead := p.lexer.Peek()
+			if ahead.value == T_NAME && !ahead.afterLineTerm {
+				if s == "set" || s == "get" {
+					if s == "set" {
+						kind = PK_SETTER
+					} else {
+						kind = PK_GETTER
+					}
+
+					// accessor should be followed by propName
+					name, err = p.tsPropName()
+					if err != nil {
+						return nil, err
+					}
+				} else if _, ok := modifiers[s]; ok {
+					return nil, p.errorAtLoc(name.Loc(), fmt.Sprintf(ERR_TPL_MODIFIER_ON_TYPE_MEMBER, s))
+				} else if s == "readonly" {
+					ro = name.Loc()
+					name, err = p.tsPropName()
+					if err != nil {
+						return nil, err
+					}
+					name.(NodeWithTypInfo).TypInfo().SetReadonly(true)
+				}
+			}
+		}
+
 		typAnnot, err := p.tsTypAnnot()
 		if err != nil {
 			return nil, err
 		}
 
-		av := p.lexer.Peek().value
+		ahead := p.lexer.Peek()
+		av := ahead.value
 		if av != T_PAREN_L && av != T_LT {
-			return &TsProp{N_TS_PROP, p.finLoc(name.Loc().Clone()), name, typAnnot, ques, nil}, nil
+			p.advanceIfSemi(false)
+			return &TsProp{N_TS_PROP, p.finLoc(loc), name, typAnnot, ques, kind, nil}, nil
 		}
 
 		// MethodSignature is deserved
-		callSig, err := p.tsCallSig(nil, p.locFromTok(p.lexer.Peek()))
+		if ro != nil {
+			// method cannot be decorated by `readonly`
+			return nil, p.errorAtLoc(ro, fmt.Sprintf(ERR_TPL_MODIFIER_ON_TYPE_MEMBER, "readonly"))
+		}
+
+		if kind == PK_INIT {
+			kind = PK_METHOD
+		}
+
+		callSig, err := p.tsCallSig(nil, p.locFromTok(p.lexer.Peek()), kind)
 		if err != nil {
 			return nil, err
 		}
-		return &TsProp{N_TS_PROP, p.finLoc(name.Loc().Clone()), name, callSig, ques, nil}, nil
+
+		return &TsProp{N_TS_PROP, p.finLoc(loc), name, callSig, ques, kind, nil}, nil
 	}
 
 	key, compute, err := p.propName(false, true, true)
@@ -889,7 +997,7 @@ func (p *Parser) tsProp(rough bool) (Node, error) {
 		}
 		return nil, p.errorTok(tok)
 	}
-	return &TsProp{N_TS_PROP, p.finLoc(key.Loc().Clone()), key, value, ques, compute}, nil
+	return &TsProp{N_TS_PROP, p.finLoc(key.Loc().Clone()), key, value, ques, PK_INIT, compute}, nil
 }
 
 func (p *Parser) tsPropName() (Node, error) {
@@ -938,7 +1046,7 @@ func (p *Parser) tsTypParam() (Node, error) {
 			}
 		}
 	}
-	return &TsParam{N_TS_PARAM, p.finLoc(id.loc.Clone()), id, cons, val}, nil
+	return &TsParam{N_TS_PARAM, p.finLoc(id.Loc().Clone()), id, cons, val}, nil
 }
 
 func (p *Parser) tsTryTypParams() (Node, error) {
@@ -1203,15 +1311,35 @@ func (p *Parser) tsTypArgs(canConst bool) (Node, error) {
 	return &TsParamsInst{N_TS_PARAM_INST, p.finLoc(loc), args}, nil
 }
 
-func (p *Parser) tsCallSig(typParams Node, loc *Loc) (Node, error) {
-	params, tp, _, err := p.paramList(false, PK_NONE, typParams == nil && loc == nil)
+func (p *Parser) tsCallSig(typParams Node, loc *Loc, kind PropKind) (Node, error) {
+	if kind == PK_METHOD || kind == PK_GETTER || kind == PK_SETTER {
+		p.scope().AddKind(SPK_METHOD)
+	}
+
+	params, tp, _, err := p.paramList(false, kind, typParams == nil)
 	if err != nil {
 		return nil, err
 	}
+	if tp != nil && (kind == PK_GETTER || kind == PK_SETTER) {
+		return nil, p.errorAtLoc(tp.Loc(), ERR_ACCESSOR_WITH_TYPE_PARAMS)
+	}
+
+	opts := NewTsCheckParamOpts()
+	opts.getter = kind == PK_GETTER
+	opts.setter = kind == PK_SETTER
+	opts.loc = loc
+	if err = p.tsCheckParams(params, opts); err != nil {
+		return nil, err
+	}
+
 	typAnnot, err := p.tsTypAnnot()
 	if err != nil {
 		return nil, err
 	}
+	if typAnnot != nil && opts.setter {
+		return nil, p.errorAtLoc(typAnnot.Loc(), ERR_SETTER_WITH_RET_TYP)
+	}
+
 	if tp != nil {
 		typParams = tp
 	}
@@ -1288,7 +1416,11 @@ func (p *Parser) tsIsFnImplValid(id Node) error {
 }
 
 func (p *Parser) aheadIsTsItf(tok *Token) bool {
-	return p.ts && tok.value == T_INTERFACE
+	if !p.ts || tok.value != T_INTERFACE {
+		return false
+	}
+	ahead := p.lexer.Peek2nd()
+	return !ahead.afterLineTerm
 }
 
 func (p *Parser) tsItfExtClause() ([]Node, error) {
@@ -1347,10 +1479,13 @@ func (p *Parser) tsItf() (Node, error) {
 		return nil, err
 	}
 
+	scope := p.symtab.EnterScope(false, false)
+	scope.AddKind(SPK_TS_INTERFACE)
 	body, err := p.tsObj(false)
 	if err != nil {
 		return nil, err
 	}
+	p.symtab.LeaveScope()
 
 	itfBody := &TsInferfaceBody{
 		typ:  N_TS_INTERFACE_BODY,
@@ -1604,7 +1739,10 @@ func (p *Parser) tsDec() (Node, error) {
 	} else if p.aheadIsModDec(tok) {
 		dec, err = p.tsModDec()
 		typ = N_TS_DEC_MODULE
-	} else if p.tsAheadIsAbstract(tok, false, false) {
+	} else if ok, itf := p.tsAheadIsAbstract(tok, false, false); ok {
+		if itf {
+			return nil, p.errorAtLoc(p.locFromTok(tok), ERR_ABSTRACT_AT_INVALID_POSITION)
+		}
 		dec.inner, err = p.classDec(false, false, true, true)
 		typ = N_TS_DEC_CLASS
 	} else {
@@ -1664,32 +1802,33 @@ func (p *Parser) isTsLhs(node Node) bool {
 	return nt == N_TS_NO_NULL || nt == N_TS_TYP_ASSERT
 }
 
-func (p *Parser) tsAheadIsAbstract(tok *Token, prop bool, pvt bool) bool {
+func (p *Parser) tsAheadIsAbstract(tok *Token, prop bool, pvt bool) (bool, bool) {
 	if p.ts && IsName(tok, "abstract", false) {
 		ahead := p.lexer.Peek2nd()
 		if ahead.afterLineTerm {
-			return false
+			return false, false
 		}
 		if ahead.value == T_CLASS ||
+			ahead.value == T_INTERFACE ||
 			(p.aheadIsArgList(ahead) && !prop) ||
 			ahead.value == T_MUL {
-			return true
+			return true, ahead.value == T_INTERFACE
 		}
 		_, _, canProp := ahead.CanBePropKey()
 		if prop && (ahead.value == T_BRACKET_L || ahead.value == T_NAME || ahead.value == T_STRING || canProp) {
-			return true
+			return true, false
 		}
 		if pvt && ahead.value == T_NAME_PVT {
-			return true
+			return true, false
 		}
 		if ahead.value == T_NAME {
 			if p.scope().IsKind(SPK_NOT_IN) && (IsName(ahead, "in", false) || IsName(ahead, "of", false)) {
-				return false
+				return false, false
 			}
-			return true
+			return true, false
 		}
 	}
-	return false
+	return false, false
 }
 
 type ModifierNameLoc struct {
@@ -1771,24 +1910,63 @@ func (p *Parser) tsImplements() ([]Node, error) {
 	return impl, nil
 }
 
-func (p *Parser) tsCheckParams(params []Node, impl bool) error {
-	inDeclare := p.scope().IsKind(SPK_TS_DECLARE) || p.feat&FEAT_DTS != 0
+func (p *Parser) tsCheckParams(params []Node, opts *TsCheckParamOpts) error {
+	if opts.setter && len(params) == 0 {
+		return p.errorAtLoc(opts.loc, ERR_SETTER_MISSING_PARAM)
+	}
+
+	scope := p.scope()
+	opts.inDeclare = scope.IsKind(SPK_TS_DECLARE) || scope.IsKind(SPK_TS_INTERFACE) || p.feat&FEAT_DTS != 0
 	for _, param := range params {
-		if err := p.tsCheckParam(param, inDeclare, impl); err != nil {
+		if err := p.tsCheckParam(param, opts); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (p *Parser) tsCheckParam(node Node, inDeclare bool, impl bool) error {
+type TsCheckParamOpts struct {
+	// in ts declaration scope
+	inDeclare bool
+	// has implementation
+	impl bool
+	// setter
+	setter bool
+	// getter
+	getter bool
+	// raise error at this LoC
+	loc *Loc
+}
+
+func NewTsCheckParamOpts() *TsCheckParamOpts {
+	return &TsCheckParamOpts{}
+}
+
+func (p *Parser) tsCheckParam(node Node, opts *TsCheckParamOpts) error {
+	var ti *TypInfo
+	if wt, ok := node.(NodeWithTypInfo); ok {
+		ti = wt.TypInfo()
+	}
+
+	if opts.getter {
+		return p.errorAtLoc(node.Loc(), ERR_GETTER_WITH_PARAMS)
+	}
+
+	if opts.setter && ti != nil && ti.Optional() {
+		return p.errorAtLoc(ti.Ques(), ERR_SETTER_WITH_PARAM_OPTIONAL)
+	}
+
 	switch node.Type() {
 	case N_PAT_ARRAY:
 		// `[]?` in `declare function foo([]?): void` is legal
 		// `[]?` in `function foo([]?): void {}` is illegal
 		n := node.(*ArrPat)
-		if n.ti.ques != nil && (!inDeclare || impl) {
+		if n.ti.ques != nil && (!opts.inDeclare || opts.impl) {
 			return p.errorAtLoc(n.ti.ques, ERR_BINDING_PATTERN_REQUIRE_IN_IMPL)
+		}
+	case N_PAT_REST:
+		if opts.setter {
+			return p.errorAtLoc(node.Loc(), ERR_SETTER_WITH_REST_PARAM)
 		}
 	}
 	return nil

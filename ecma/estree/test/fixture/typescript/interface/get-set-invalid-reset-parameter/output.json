@@ -1,0 +1,3 @@
+{
+  "throws": "A `set` accessor cannot have rest parameter at (2:10)"
+}

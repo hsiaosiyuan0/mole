@@ -221,7 +221,12 @@ type TsProp struct {
 	key        Node
 	val        Node
 	ques       *Loc
+	kind       PropKind
 	computeLoc *Loc
+}
+
+func (n *TsProp) Kind() PropKind {
+	return n.kind
 }
 
 func (n *TsProp) Key() Node {
@@ -234,6 +239,13 @@ func (n *TsProp) Val() Node {
 
 func (n *TsProp) Optional() bool {
 	return n.ques != nil
+}
+
+func (n *TsProp) Readonly() bool {
+	if wt, ok := n.key.(NodeWithTypInfo); ok {
+		return wt.TypInfo().Readonly()
+	}
+	return false
 }
 
 func (n *TsProp) Computed() bool {
@@ -298,6 +310,18 @@ type TsNewSig struct {
 	retTyp    Node
 }
 
+func (n *TsNewSig) TypParams() Node {
+	return n.typParams
+}
+
+func (n *TsNewSig) Params() []Node {
+	return n.params
+}
+
+func (n *TsNewSig) RetTyp() Node {
+	return n.retTyp
+}
+
 func (n *TsNewSig) Type() NodeType {
 	return n.typ
 }
@@ -307,19 +331,23 @@ func (n *TsNewSig) Loc() *Loc {
 }
 
 type TsIdxSig struct {
-	typ NodeType
-	loc *Loc
-	id  Node
-	key Node
-	val Node
+	typ  NodeType
+	loc  *Loc
+	key  Node
+	val  Node
+	ques *Loc
 }
 
 func (n *TsIdxSig) Key() Node {
-	return n.id
+	return n.key
 }
 
 func (n *TsIdxSig) KeyType() Node {
-	return n.key
+	return n.key.(NodeWithTypInfo).TypInfo().typAnnot
+}
+
+func (n *TsIdxSig) Optional() bool {
+	return n.ques != nil
 }
 
 func (n *TsIdxSig) Value() Node {
@@ -420,6 +448,18 @@ type TsFnTyp struct {
 	typParams Node
 	params    []Node
 	retTyp    Node
+}
+
+func (n *TsFnTyp) TypParams() Node {
+	return n.typParams
+}
+
+func (n *TsFnTyp) Params() []Node {
+	return n.params
+}
+
+func (n *TsFnTyp) RetTyp() Node {
+	return n.retTyp
 }
 
 func (n *TsFnTyp) Type() NodeType {

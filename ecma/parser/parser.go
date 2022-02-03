@@ -74,14 +74,17 @@ func (o *ParserOpts) MergeJson(obj map[string]interface{}) {
 			o.Feature = o.Feature.On(FEAT_MODULE)
 		}
 	}
-	if ts, ok := obj["typescript"]; ok && ts == true {
-		o.Feature = o.Feature.On(FEAT_TS)
+	if on, ok := obj["typescript"]; ok {
+		o.Feature = o.Feature.Turn(FEAT_TS, on == true)
 	}
-	if jsx, ok := obj["jsx"]; ok && jsx == true {
-		o.Feature = o.Feature.On(FEAT_JSX)
+	if on, ok := obj["jsx"]; ok {
+		o.Feature = o.Feature.Turn(FEAT_JSX, on == true)
 	}
-	if dts, ok := obj["dts"]; ok && dts == true {
-		o.Feature = o.Feature.On(FEAT_DTS)
+	if on, ok := obj["dts"]; ok {
+		o.Feature = o.Feature.Turn(FEAT_DTS, on == true)
+	}
+	if on, ok := obj["strict"]; ok {
+		o.Feature = o.Feature.Turn(FEAT_STRICT, on == true)
 	}
 }
 
@@ -309,7 +312,10 @@ func (p *Parser) stmt() (node Node, err error) {
 		node, err = p.tsNS()
 	} else if p.aheadIsTsDec(tok) {
 		node, err = p.tsDec()
-	} else if p.tsAheadIsAbstract(tok, false, false) {
+	} else if ok, itf := p.tsAheadIsAbstract(tok, false, false); ok {
+		if itf {
+			return nil, p.errorAtLoc(p.locFromTok(tok), ERR_ABSTRACT_AT_INVALID_POSITION)
+		}
 		node, err = p.classDec(false, false, false, true)
 	} else if tok.value == T_SEMI {
 		node, err = p.emptyStmt()
@@ -400,8 +406,16 @@ func (p *Parser) exportDec() (Node, error) {
 			node.dec, err = p.fnDec(false, tok, true)
 		} else if tv == T_CLASS {
 			node.dec, err = p.classDec(false, true, false, false)
-		} else if p.tsAheadIsAbstract(tok, false, false) {
+		} else if ok, itf := p.tsAheadIsAbstract(tok, false, false); ok {
+			if itf {
+				return nil, p.errorAtLoc(p.locFromTok(tok), ERR_ABSTRACT_AT_INVALID_POSITION)
+			}
 			node.dec, err = p.classDec(false, true, false, true)
+		} else if p.aheadIsTsItf(tok) {
+			node.dec, err = p.tsItf()
+			if err != nil {
+				return nil, err
+			}
 		} else {
 			node.dec, err = p.assignExpr(true, false, false)
 			if err := p.advanceIfSemi(false); err != nil {
@@ -425,7 +439,10 @@ func (p *Parser) exportDec() (Node, error) {
 			return n, nil
 		}
 		node.dec = n
-	} else if p.tsAheadIsAbstract(tok, false, false) {
+	} else if ok, itf := p.tsAheadIsAbstract(tok, false, false); ok {
+		if itf {
+			return nil, p.errorAtLoc(p.locFromTok(tok), ERR_ABSTRACT_AT_INVALID_POSITION)
+		}
 		node.dec, err = p.classDec(false, true, false, true)
 		if err != nil {
 			return nil, err
@@ -2355,7 +2372,9 @@ func (p *Parser) fnDec(expr bool, async *Token, canNameOmitted bool) (Node, erro
 			return nil, p.errorAtLoc(body.Loc(), ERR_IMPL_IN_AMBIENT_CTX)
 		}
 
-		if err = p.tsCheckParams(params, body != nil); err != nil {
+		opts := NewTsCheckParamOpts()
+		opts.impl = body != nil
+		if err = p.tsCheckParams(params, opts); err != nil {
 			return nil, err
 		}
 	}
@@ -2981,6 +3000,8 @@ func (p *Parser) param(methodKind PropKind) (Node, error) {
 			if methodKind == PK_GETTER || methodKind == PK_SETTER {
 				return nil, p.errorAt(ahead.value, &ahead.begin, ERR_GETTER_SETTER_WITH_THIS_PARAM)
 			}
+			loc := p.locFromTok(p.lexer.Next())
+			binding = &Ident{N_NAME, p.finLoc(loc), "this", false, false, nil, true, p.newTypInfo()}
 		} else {
 			binding, err = p.bindingPattern()
 			if err != nil {
@@ -3510,6 +3531,7 @@ func (p *Parser) expr() (Node, error) {
 	return p.seqExpr(nil, false)
 }
 
+// `notGT` is `true` tells the later subroutine does NOT treat the `>` symbol as the greatThen operator
 func (p *Parser) seqExpr(expr Node, notGT bool) (Node, error) {
 	loc := p.loc()
 
@@ -5133,7 +5155,11 @@ func (p *Parser) primaryExpr() (Node, error) {
 				return nil, p.errorAt(tok.value, &tok.begin, ERR_ESCAPE_IN_KEYWORD)
 			}
 			return p.fnDec(true, tok, false)
-		} else if p.tsAheadIsAbstract(tok, false, false) {
+		}
+		if ok, itf := p.tsAheadIsAbstract(tok, false, false); ok {
+			if itf {
+				return nil, p.errorAtLoc(p.locFromTok(tok), ERR_ABSTRACT_AT_INVALID_POSITION)
+			}
 			return p.classDec(true, false, false, true)
 		}
 
@@ -5729,7 +5755,9 @@ func (p *Parser) method(loc *Loc, key Node, accMode ACC_MOD, compute *Loc, short
 			p.advanceIfSemi(false)
 		}
 
-		if err = p.tsCheckParams(params, body != nil); err != nil {
+		opts := NewTsCheckParamOpts()
+		opts.impl = body != nil
+		if err = p.tsCheckParams(params, opts); err != nil {
 			return nil, err
 		}
 	}
