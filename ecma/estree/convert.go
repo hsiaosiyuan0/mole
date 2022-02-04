@@ -670,12 +670,13 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 		if ti != nil {
 			lc := parser.LocWithTypeInfo(n, false)
 			return &TSArrayPattern{
-				Type:     "ArrayPattern",
-				Start:    start(lc),
-				End:      end(lc),
-				Loc:      loc(lc),
-				Elements: elems(n.Elems(), ctx),
-				Optional: ti.Optional(),
+				Type:           "ArrayPattern",
+				Start:          start(lc),
+				End:            end(lc),
+				Loc:            loc(lc),
+				Elements:       elems(n.Elems(), ctx),
+				Optional:       ti.Optional(),
+				TypeAnnotation: typAnnot(ti, ctx),
 			}
 		}
 		return &ArrayPattern{

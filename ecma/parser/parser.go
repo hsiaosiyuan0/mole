@@ -3900,10 +3900,10 @@ func (p *Parser) updateExpr(typArgs Node, typArgsLoc *Loc) (Node, error) {
 	postfix := !tok.afterLineTerm && (tok.value == T_INC || tok.value == T_DEC)
 	if !postfix {
 		// for the type info before the arrow fn in this stmt `let a = <T, R>(a: T): void => { a++ }`,
-		// it's typeParams of the arrowFn rather than typeAssert
+		// the type info `<T, R>` is the typeParams of the arrowFn rather than typeAssert
 		if arg.Type() == N_EXPR_ARROW {
 			ti := arg.(NodeWithTypInfo).TypInfo()
-			if ti != nil {
+			if ti != nil && typArgs != nil {
 				typArgs, err = p.tsTypArgsToTypParams(typArgs)
 				if err != nil {
 					return nil, err

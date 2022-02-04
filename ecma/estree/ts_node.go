@@ -473,12 +473,13 @@ type TSExpressionWithTypeArguments struct {
 }
 
 type TSArrayPattern struct {
-	Type     string  `json:"type"`
-	Start    int     `json:"start"`
-	End      int     `json:"end"`
-	Loc      *SrcLoc `json:"loc"`
-	Elements []Node  `json:"elements"`
-	Optional bool    `json:"optional"`
+	Type           string  `json:"type"`
+	Start          int     `json:"start"`
+	End            int     `json:"end"`
+	Loc            *SrcLoc `json:"loc"`
+	Elements       []Node  `json:"elements"`
+	Optional       bool    `json:"optional"`
+	TypeAnnotation Node    `json:"typeAnnotation"`
 }
 
 type TSEnumDeclaration struct {
