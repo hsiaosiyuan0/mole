@@ -2062,12 +2062,17 @@ func (n *WithStmt) Loc() *Loc {
 }
 
 type ClassDec struct {
-	typ   NodeType
-	loc   *Loc
-	id    Node
-	super Node
-	body  Node
-	ti    *TypInfo
+	typ     NodeType
+	loc     *Loc
+	id      Node
+	super   Node
+	body    Node
+	declare bool
+	ti      *TypInfo
+}
+
+func (n *ClassDec) Declare() bool {
+	return n.declare
 }
 
 func (n *ClassDec) Id() Node {

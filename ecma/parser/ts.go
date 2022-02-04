@@ -1361,9 +1361,10 @@ func (p *Parser) tsTypDec(loc *Loc) (Node, error) {
 	}
 
 	ref := NewRef()
-	ref.Node = name
-	ref.BindKind = BK_TYPE
-	if err := p.addLocalBinding(nil, ref, true, ref.Node.Text()); err != nil {
+	ref.Def = name
+	ref.BindKind = BK_LET
+	ref.Typ = RDT_TYPE
+	if err := p.addLocalBinding(nil, ref, true, ref.Def.Text()); err != nil {
 		return nil, err
 	}
 
@@ -1395,7 +1396,6 @@ func (p *Parser) tsIsFnSigValid(name string) error {
 	if p.lastTsFnSig == nil {
 		return nil
 	}
-
 	if p.lastTsFnSig.id.(*Ident).Text() == name {
 		return nil
 	}
@@ -1468,6 +1468,13 @@ func (p *Parser) tsItf() (Node, error) {
 	if err != nil {
 		return nil, err
 	}
+	ref := NewRef()
+	ref.Def = name
+	ref.BindKind = BK_CONST
+	ref.Typ = RDT_ITF | RDT_TYPE
+	if err := p.addLocalBinding(nil, ref, true, ref.Def.Text()); err != nil {
+		return nil, err
+	}
 
 	params, err := p.tsTryTypParams()
 	if err != nil {
@@ -1538,7 +1545,7 @@ func (p *Parser) aheadIsTsEnum(tok *Token) bool {
 }
 
 // `loc` is the loc of the preceding `const`
-func (p *Parser) tsEnum(loc *Loc) (Node, error) {
+func (p *Parser) tsEnum(loc *Loc, cst bool) (Node, error) {
 	cons := loc != nil
 	tok := p.lexer.Next() // enum
 	if loc == nil {
@@ -1547,6 +1554,18 @@ func (p *Parser) tsEnum(loc *Loc) (Node, error) {
 
 	name, err := p.ident(nil, true)
 	if err != nil {
+		return nil, err
+	}
+	ref := NewRef()
+	ref.Def = name
+	ref.BindKind = BK_CONST
+	ref.Typ = RDT_TYPE
+	if cst {
+		ref.Typ = ref.Typ.On(RDT_CONST_ENUM)
+	} else {
+		ref.Typ = ref.Typ.On(RDT_ENUM)
+	}
+	if err := p.addLocalBinding(nil, ref, true, ref.Def.Text()); err != nil {
 		return nil, err
 	}
 
@@ -1611,9 +1630,10 @@ func (p *Parser) tsImportAlias(loc *Loc, name Node, export bool) (Node, error) {
 	}
 
 	ref := NewRef()
-	ref.Node = name.(*Ident)
+	ref.Def = name.(*Ident)
 	ref.BindKind = BK_LET
-	if err := p.addLocalBinding(nil, ref, true, ref.Node.Text()); err != nil {
+	ref.Typ = RDT_TYPE
+	if err := p.addLocalBinding(nil, ref, true, ref.Def.Text()); err != nil {
 		return nil, err
 	}
 
@@ -1659,9 +1679,10 @@ func (p *Parser) tsNS() (Node, error) {
 	// a tree structure whose children keep the order in that
 	// qualified name
 	n := name
+	var mod *TsNS
 	if n.Type() == N_TS_NS_NAME {
 		modChain := make([]Node, 0, 2)
-		var mod *TsNS
+
 		for {
 			ns := n.(*TsNsName)
 			nestName := ns.rhs
@@ -1685,9 +1706,23 @@ func (p *Parser) tsNS() (Node, error) {
 				modChain = append(modChain, mod)
 			}
 		}
-		return mod, nil
 	}
 
+	def := name
+	if mod != nil {
+		def = mod.name
+	}
+	ref := NewRef()
+	ref.Def = def.(*Ident)
+	ref.BindKind = BK_CONST
+	ref.Typ = RDT_NS | RDT_TYPE
+	if err := p.addLocalBinding(nil, ref, true, ref.Def.Text()); err != nil {
+		return nil, err
+	}
+
+	if mod != nil {
+		return mod, nil
+	}
 	return &TsNS{N_TS_NAMESPACE, p.finLoc(loc), name, blk, as}, nil
 }
 
@@ -1770,6 +1805,9 @@ func (p *Parser) tsDec() (Node, error) {
 		}
 	} else if tv == T_FUNC {
 		dec.inner, err = p.fnDec(false, nil, false)
+		if err != nil {
+			return nil, err
+		}
 		typ = N_TS_DEC_FN
 		if err := p.advanceIfSemi(true); err != nil {
 			return nil, err
@@ -1790,7 +1828,7 @@ func (p *Parser) tsDec() (Node, error) {
 		dec.inner, err = p.tsTypDec(loc)
 		typ = N_TS_DEC_TYP_DEC
 	} else if p.aheadIsTsEnum(tok) {
-		dec.inner, err = p.tsEnum(nil)
+		dec.inner, err = p.tsEnum(nil, false)
 		typ = N_TS_DEC_ENUM
 	} else if p.aheadIsTsNS(tok) {
 		dec.inner, err = p.tsNS()

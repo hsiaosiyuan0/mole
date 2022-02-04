@@ -1,0 +1,118 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 36,
+  "loc": {
+    "start": {
+      "line": 1,
+      "column": 0
+    },
+    "end": {
+      "line": 2,
+      "column": 16
+    }
+  },
+  "body": [
+    {
+      "type": "ClassDeclaration",
+      "start": 0,
+      "end": 19,
+      "loc": {
+        "start": {
+          "line": 1,
+          "column": 0
+        },
+        "end": {
+          "line": 1,
+          "column": 19
+        }
+      },
+      "declare": true,
+      "id": {
+        "type": "Identifier",
+        "start": 14,
+        "end": 15,
+        "loc": {
+          "start": {
+            "line": 1,
+            "column": 14
+          },
+          "end": {
+            "line": 1,
+            "column": 15
+          }
+        },
+        "name": "C"
+      },
+      "superClass": null,
+      "body": {
+        "type": "ClassBody",
+        "start": 16,
+        "end": 19,
+        "loc": {
+          "start": {
+            "line": 1,
+            "column": 16
+          },
+          "end": {
+            "line": 1,
+            "column": 19
+          }
+        },
+        "body": []
+      }
+    },
+    {
+      "type": "FunctionDeclaration",
+      "start": 20,
+      "end": 36,
+      "loc": {
+        "start": {
+          "line": 2,
+          "column": 0
+        },
+        "end": {
+          "line": 2,
+          "column": 16
+        }
+      },
+      "id": {
+        "type": "Identifier",
+        "start": 29,
+        "end": 30,
+        "loc": {
+          "start": {
+            "line": 2,
+            "column": 9
+          },
+          "end": {
+            "line": 2,
+            "column": 10
+          }
+        },
+        "name": "C"
+      },
+      "generator": false,
+      "async": false,
+      "params": [],
+      "body": {
+        "type": "BlockStatement",
+        "start": 33,
+        "end": 36,
+        "loc": {
+          "start": {
+            "line": 2,
+            "column": 13
+          },
+          "end": {
+            "line": 2,
+            "column": 16
+          }
+        },
+        "body": [],
+        "directives": []
+      }
+    }
+  ],
+  "directives": []
+}

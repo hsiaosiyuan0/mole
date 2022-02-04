@@ -1032,6 +1032,7 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 				Implements:          elems(implements, ctx),
 				Body:                Convert(stmt.Body(), ctx),
 				Abstract:            stmt.Abstract(),
+				Declare:             stmt.Declare(),
 			}
 		}
 		return &ClassDeclaration{
@@ -1043,6 +1044,7 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 			SuperClass: Convert(stmt.Super(), ctx),
 			Body:       Convert(stmt.Body(), ctx),
 			Abstract:   stmt.Abstract(),
+			Declare:    stmt.Declare(),
 		}
 	case parser.N_EXPR_CLASS:
 		stmt := node.(*parser.ClassDec)

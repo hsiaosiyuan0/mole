@@ -676,6 +676,7 @@ type ClassDeclaration struct {
 	SuperClass Expression `json:"superClass"`
 	Body       Expression `json:"body"`
 	Abstract   bool       `json:"abstract"`
+	Declare    bool       `json:"declare"`
 }
 
 // https://github.com/estree/estree/blob/master/es2015.md#classexpression

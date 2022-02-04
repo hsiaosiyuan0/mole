@@ -153,13 +153,13 @@ func (p *Parser) Prog() (Node, error) {
 
 func (p *Parser) resolvingDanglingPvtRefs() error {
 	for _, ref := range p.danglingPvtRefs {
-		if ref.TargetType == TT_PVT_FIELD {
-			name := "#" + ref.Node.Text()
+		if ref.Typ == RDT_PVT_FIELD {
+			name := "#" + ref.Def.Text()
 			target := ref.Scope.BindingOf(name)
 			if target != nil {
 				target.RetainBy(ref)
 			} else {
-				return p.errorAtLoc(ref.Node.Loc(), fmt.Sprintf(ERR_TPL_ALONE_PVT_FIELD, name))
+				return p.errorAtLoc(ref.Def.Loc(), fmt.Sprintf(ERR_TPL_ALONE_PVT_FIELD, name))
 			}
 		}
 	}
@@ -288,7 +288,7 @@ func (p *Parser) stmt() (node Node, err error) {
 			node, err = p.exprStmt()
 		}
 		if p.aheadIsTsEnum(tok) {
-			node, err = p.tsEnum(nil)
+			node, err = p.tsEnum(nil, false)
 		}
 	} else if tok.value == T_BRACE_L {
 		node, err = p.blockStmt(true, SPK_NONE)
@@ -473,7 +473,7 @@ func (p *Parser) exportDec() (Node, error) {
 			}
 		}
 	} else if p.aheadIsTsEnum(tok) {
-		node.dec, err = p.tsEnum(nil)
+		node.dec, err = p.tsEnum(nil, false)
 		if err != nil {
 			return nil, err
 		}
@@ -843,9 +843,10 @@ func (p *Parser) classDec(expr bool, canNameOmitted bool, declare bool, abstract
 
 		if id != nil {
 			ref := NewRef()
-			ref.Node = id.(*Ident)
+			ref.Def = id.(*Ident)
 			ref.BindKind = BK_CONST
-			if err := p.addLocalBinding(ps, ref, true, ref.Node.Text()); err != nil {
+			ref.Typ = RDT_CLASS | RDT_TYPE
+			if err := p.addLocalBinding(ps, ref, true, ref.Def.Text()); err != nil {
 				return nil, err
 			}
 		}
@@ -904,7 +905,7 @@ func (p *Parser) classDec(expr bool, canNameOmitted bool, declare bool, abstract
 	if expr {
 		typ = N_EXPR_CLASS
 	}
-	return &ClassDec{typ, p.finLoc(loc), id, super, body, ti}, nil
+	return &ClassDec{typ, p.finLoc(loc), id, super, body, declare, ti}, nil
 }
 
 func (p *Parser) classBody(declare bool, hasSuper bool) (Node, error) {
@@ -970,8 +971,8 @@ func (p *Parser) classBody(declare bool, hasSuper bool) (Node, error) {
 				pvtNames[name] = elem
 
 				ref := NewRef()
-				ref.Node = key.(*Ident)
-				ref.TargetType = TT_PVT_FIELD
+				ref.Def = key.(*Ident)
+				ref.Typ = RDT_PVT_FIELD
 				ref.BindKind = BK_PVT_FIELD
 				// skip check dup since getter/setter is dup but legal
 				if err := p.addLocalBinding(nil, ref, false, name); err != nil {
@@ -1496,7 +1497,7 @@ func (p *Parser) tryStmt() (Node, error) {
 					return nil, p.errorAtLoc(id.loc, fmt.Sprintf(ERR_TPL_UNEXPECTED_TOKEN_TYPE, id.val))
 				}
 				ref := NewRef()
-				ref.Node = id
+				ref.Def = id
 				ref.BindKind = BK_LET
 				if err := p.addLocalBinding(nil, ref, true, id.Text()); err != nil {
 					return nil, err
@@ -2163,13 +2164,16 @@ func (p *Parser) fnDec(expr bool, async *Token, canNameOmitted bool) (Node, erro
 		// name of the function expression will not add a ref record
 		if !expr {
 			fnRef = NewRef()
-			fnRef.Node = id.(*Ident)
+			fnRef.Def = id.(*Ident)
 			fnRef.BindKind = BK_VAR
-			fnRef.TargetType = TT_FN
+			fnRef.Typ = RDT_FN
 			if ps.IsKind(SPK_STRICT) {
 				fnRef.BindKind = BK_LET
 			}
-			if err := p.addLocalBinding(ps, fnRef, ps.IsKind(SPK_STRICT), fnRef.Node.Text()); err != nil {
+			if ps.IsKind(SPK_TS_DECLARE) {
+				fnRef.Typ = fnRef.Typ.On(RDT_TYPE)
+			}
+			if err := p.addLocalBinding(ps, fnRef, ps.IsKind(SPK_STRICT), fnRef.Def.Text()); err != nil {
 				return nil, err
 			}
 		}
@@ -2268,10 +2272,10 @@ func (p *Parser) fnDec(expr bool, async *Token, canNameOmitted bool) (Node, erro
 
 		for _, paramName := range paramNames {
 			ref := NewRef()
-			ref.Node = paramName.(*Ident)
+			ref.Def = paramName.(*Ident)
 			ref.BindKind = BK_PARAM
 			// duplicate-checking for params is enable in strict and delegated to below `checkParams`
-			p.addLocalBinding(nil, ref, false, ref.Node.Text())
+			p.addLocalBinding(nil, ref, false, ref.Def.Text())
 		}
 
 		if tok.value == T_BRACE_L {
@@ -2286,8 +2290,7 @@ func (p *Parser) fnDec(expr bool, async *Token, canNameOmitted bool) (Node, erro
 			// ts func overloads:
 			// `function f(a:number)`
 			// `function f(): any {}`
-			ps.DelLocal(fnRef) // suppress the dup-checking of binding name
-			if err = p.tsIsFnSigValid(fnRef.Node.Text()); err != nil {
+			if err = p.tsIsFnSigValid(fnRef.Def.Text()); err != nil {
 				return nil, err
 			}
 		} else if (tok.value == T_SEMI || tok.afterLineTerm || tok.value == T_EOF) && p.ts {
@@ -2370,7 +2373,10 @@ func (p *Parser) fnDec(expr bool, async *Token, canNameOmitted bool) (Node, erro
 	if p.ts {
 		if body == nil {
 			if fnRef != nil {
-				ps.DelLocal(fnRef)
+				if !scope.IsKind(SPK_TS_DECLARE) {
+					// suppress the dup-checking of the binding name on the func overloads
+					ps.DelLocal(fnRef)
+				}
 			}
 			p.advanceIfSemi(false)
 		}
@@ -2717,7 +2723,7 @@ func (p *Parser) addLocalBinding(s *Scope, ref *Ref, checkDup bool, name string)
 		return nil
 	}
 	if !ok {
-		return p.errorAtLoc(ref.Node.loc, fmt.Sprintf(ERR_TPL_ID_DUP_DEF, name))
+		return p.errorAtLoc(ref.Def.loc, fmt.Sprintf(ERR_TPL_ID_DUP_DEF, name))
 	}
 	return nil
 }
@@ -2740,7 +2746,7 @@ func (p *Parser) varDecStmt(kind TokenValue, asExpr bool) (Node, error) {
 	}
 
 	if p.aheadIsTsEnum(nil) {
-		return p.tsEnum(loc)
+		return p.tsEnum(loc, isConst)
 	}
 
 	lvs := make([]Node, 0)
@@ -2776,9 +2782,9 @@ func (p *Parser) varDecStmt(kind TokenValue, asExpr bool) (Node, error) {
 		}
 
 		ref := NewRef()
-		ref.Node = id
+		ref.Def = id
 		ref.BindKind = bindKind
-		if err := p.addLocalBinding(nil, ref, true, ref.Node.Text()); err != nil {
+		if err := p.addLocalBinding(nil, ref, true, ref.Def.Text()); err != nil {
 			return nil, err
 		}
 	}
@@ -5121,8 +5127,8 @@ func (p *Parser) memberExprPropDot(obj Node, opt bool) (Node, error) {
 				return nil, p.errorAtLoc(loc, fmt.Sprintf(ERR_TPL_ALONE_PVT_FIELD, "#"+tok.Text()))
 			}
 			ref := NewRef()
-			ref.Node = id
-			ref.TargetType = TT_PVT_FIELD
+			ref.Def = id
+			ref.Typ = RDT_PVT_FIELD
 			ref.Scope = scope
 			p.danglingPvtRefs = append(p.danglingPvtRefs, ref)
 		}
@@ -5266,10 +5272,10 @@ func (p *Parser) arrowFn(loc *Loc, args []Node, params []Node, ti *TypInfo) (Nod
 
 	for _, paramName := range paramNames {
 		ref := NewRef()
-		ref.Node = paramName.(*Ident)
+		ref.Def = paramName.(*Ident)
 		ref.BindKind = BK_PARAM
 		// duplicate-checking is enable in strict mode by below `checkParams`
-		p.addLocalBinding(nil, ref, false, ref.Node.Text())
+		p.addLocalBinding(nil, ref, false, ref.Def.Text())
 	}
 
 	if ti == nil {
@@ -5695,11 +5701,11 @@ func (p *Parser) method(loc *Loc, key Node, accMode ACC_MOD, compute *Loc, short
 
 	for _, paramName := range paramNames {
 		ref := NewRef()
-		ref.Node = paramName.(*Ident)
+		ref.Def = paramName.(*Ident)
 		ref.BindKind = BK_PARAM
 		// duplicate-checking is enable in strict mode so here skip doing checking,
 		// checking is delegated to below `checkParams`
-		p.addLocalBinding(nil, ref, false, ref.Node.Text())
+		p.addLocalBinding(nil, ref, false, ref.Def.Text())
 	}
 
 	// the return type of method

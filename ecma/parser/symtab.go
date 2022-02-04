@@ -46,20 +46,53 @@ const (
 	BK_LET
 	BK_CONST
 	BK_PVT_FIELD
-	BK_TYPE
 )
 
-type TargetType int
+type RefDefType uint32
 
 const (
-	TT_NONE      TargetType = 0
-	TT_FN        TargetType = 1 << iota
-	TT_PVT_FIELD TargetType = 1 << iota
+	RDT_NONE       RefDefType = 0
+	RDT_FN         RefDefType = 1 << iota
+	RDT_PVT_FIELD  RefDefType = 1 << iota
+	RDT_CLASS      RefDefType = 1 << iota
+	RDT_ENUM       RefDefType = 1 << iota
+	RDT_CONST_ENUM RefDefType = 1 << iota
+	RDT_ITF        RefDefType = 1 << iota
+	RDT_NS         RefDefType = 1 << iota
+	RDT_TYPE       RefDefType = 1 << iota
 )
 
+func (t RefDefType) On(flag RefDefType) RefDefType {
+	return t | flag
+}
+
+func (t RefDefType) Off(flag RefDefType) RefDefType {
+	return t & ^flag
+}
+
+func (t RefDefType) IsTyp() bool {
+	return t&RDT_TYPE != 0
+}
+
+func (t RefDefType) IsPureTyp() bool {
+	return t&RDT_TYPE != 0 &&
+		t&RDT_CLASS == 0 &&
+		t&RDT_ENUM == 0 &&
+		t&RDT_CONST_ENUM == 0
+}
+
+func (t RefDefType) IsVal() bool {
+	return !t.IsPureTyp()
+}
+
+func (t RefDefType) IsPureVal() bool {
+	return !t.IsPureTyp() && !t.IsTyp()
+}
+
 type Ref struct {
-	Node  *Ident
 	Scope *Scope
+	Def   *Ident
+	Typ   RefDefType
 
 	// points to the ref referenced by this one, eg:
 	//
@@ -67,9 +100,8 @@ type Ref struct {
 	// A -> B // A points to B
 	// ```
 	//
-	// `B` is the value of `Target` of `A`
-	Target     *Ref
-	TargetType TargetType
+	// `B` is the value of `Forward` of `A`
+	Forward *Ref
 
 	// ref with bind kind not none means it's a variable binding
 	BindKind BindKind
@@ -78,18 +110,14 @@ type Ref struct {
 }
 
 func (r *Ref) RetainBy(ref *Ref) {
-	ref.Target = r
+	ref.Forward = r
 	r.Refs = append(r.Refs, ref)
 }
 
 func NewRef() *Ref {
 	return &Ref{
-		Node:     nil,
-		Scope:    nil,
-		Target:   nil,
-		BindKind: BK_NONE,
-		Props:    make(map[string][]*Ref),
-		Refs:     make([]*Ref, 0),
+		Props: make(map[string][]*Ref),
+		Refs:  make([]*Ref, 0),
 	}
 }
 
@@ -201,7 +229,7 @@ func (s *Scope) AddLocal(ref *Ref, name string, checkDup bool) bool {
 		ps := s.UpperFn()
 		localInPs := ps.Refs[name]
 		if localInPs != nil && localInPs.BindKind != BK_VAR {
-			return false
+			return CheckRefDup(localInPs, ref)
 		}
 		ps.Refs[name] = ref
 	}
@@ -214,7 +242,7 @@ func (s *Scope) AddLocal(ref *Ref, name string, checkDup bool) bool {
 
 	bindKind := ref.BindKind
 	if local != nil && (local.BindKind != BK_VAR || bindKind != BK_VAR) {
-		return false
+		return CheckRefDup(local, ref)
 	}
 
 	ref.Scope = s
@@ -222,8 +250,155 @@ func (s *Scope) AddLocal(ref *Ref, name string, checkDup bool) bool {
 	return true
 }
 
+func CheckRefDup(r1, r2 *Ref) bool {
+	if IsCallableClass(r1, r2) {
+		return true
+	}
+	if IsBothFnTypDec(r1, r2) {
+		return true
+	}
+	if IsClsAndIft(r1, r2) {
+		return true
+	}
+	if IsBothEnum(r1, r2) {
+		return true
+	}
+	if IsBothItf(r1, r2) {
+		return true
+	}
+	return !IsBothTyp(r1, r2) && !IsBothVal(r1, r2)
+}
+
+// both `r1` and `r2` should:
+// - are def rather than ref
+// - have the same name
+//
+// this method is used to allow stmts:
+//
+// ```
+// declare class C { }
+// function C() { }
+// ```
+func IsCallableClass(r1, r2 *Ref) bool {
+	var fn *Ref
+	var cls *Ref
+	if r1.Typ&RDT_FN != 0 {
+		fn = r1
+		if r2.Typ&RDT_CLASS != 0 && r2.Typ&RDT_TYPE != 0 {
+			cls = r2
+		}
+	} else if r2.Typ&RDT_FN != 0 {
+		fn = r2
+		if r1.Typ&RDT_CLASS != 0 && r1.Typ&RDT_TYPE != 0 {
+			cls = r1
+		}
+	}
+	return fn != nil && cls != nil
+}
+
+// both `r1` and `r2` should:
+// - are def rather than ref
+// - have the same name
+//
+// this method is used to allow stmts:
+//
+// ```
+// declare function f(): void;
+// declare function f<T>(): T;
+// ```
+func IsBothFnTypDec(r1, r2 *Ref) bool {
+	return r1.Typ&RDT_FN != 0 &&
+		r1.Typ&RDT_TYPE != 0 &&
+		r2.Typ&RDT_FN != 0 &&
+		r2.Typ&RDT_TYPE != 0
+}
+
+// both `r1` and `r2` should:
+// - are def rather than ref
+// - have the same name
+func IsBothTyp(r1, r2 *Ref) bool {
+	typ := 0
+	if r1.Typ.IsTyp() {
+		typ += 1
+	}
+	if r2.Typ.IsTyp() {
+		typ += 1
+	}
+	return typ == 2
+}
+
+// both `r1` and `r2` should:
+// - are def rather than ref
+// - have the same name
+func IsBothVal(r1, r2 *Ref) bool {
+	typ := 0
+	if r1.Typ.IsVal() {
+		typ += 1
+	}
+	if r2.Typ.IsVal() {
+		typ += 1
+	}
+	return typ == 2
+}
+
+// both `r1` and `r2` should:
+// - are def rather than ref
+// - have the same name
+//
+// this method is used to allow stmts:
+//
+// ```
+// class A {}
+// interface A {}
+// ```
+func IsClsAndIft(r1, r2 *Ref) bool {
+	var cls *Ref
+	var itf *Ref
+	if r1.Typ&RDT_CLASS != 0 {
+		cls = r1
+		if r2.Typ&RDT_ITF != 0 {
+			itf = r2
+		}
+	} else if r2.Typ&RDT_CLASS != 0 {
+		cls = r2
+		if r1.Typ&RDT_ITF != 0 {
+			itf = r1
+		}
+	}
+	return cls != nil && itf != nil
+}
+
+// both `r1` and `r2` should:
+// - are def rather than ref
+// - have the same name
+//
+// this method is used to allow stmts:
+//
+// ```
+// const enum Foo {}
+// const enum Foo {}
+// ```
+func IsBothEnum(r1, r2 *Ref) bool {
+	return (r1.Typ&RDT_ENUM != 0 && r2.Typ&RDT_ENUM != 0) ||
+		(r1.Typ&RDT_CONST_ENUM != 0 && r2.Typ&RDT_CONST_ENUM != 0)
+}
+
+// both `r1` and `r2` should:
+// - are def rather than ref
+// - have the same name
+//
+// this method is used to allow stmts:
+//
+// ```
+// interface A {}
+// interface A {}
+// ```
+func IsBothItf(r1, r2 *Ref) bool {
+	return r1.Typ&RDT_ITF != 0 && r2.Typ&RDT_ITF != 0
+}
+
 func (s *Scope) DelLocal(ref *Ref) {
-	s.Refs[ref.Node.Text()] = nil
+	s.Refs[ref.Def.Text()] = nil
 }
 
 func (s *Scope) BindingOf(name string) *Ref {
