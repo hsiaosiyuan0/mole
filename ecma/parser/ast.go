@@ -64,6 +64,18 @@ func NewLoc() *Loc {
 	}
 }
 
+func NewLocFromSpan(start, end Node) *Loc {
+	return &Loc{
+		src:   start.Loc().src,
+		begin: start.Loc().begin.Clone(),
+		end:   end.Loc().end.Clone(),
+		rng: &Range{
+			start: start.Loc().rng.start,
+			end:   end.Loc().rng.end,
+		},
+	}
+}
+
 func (l *Loc) Source() string {
 	return l.src.Path
 }

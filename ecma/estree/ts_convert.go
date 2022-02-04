@@ -386,7 +386,7 @@ func ConvertTsTyp(node parser.Node, ctx *ConvertCtx) Node {
 			TypeAnnotation: typAnnot(dec.TypInfo(), ctx),
 			Declare:        true,
 		}
-	case parser.N_TS_DEC_MODULE:
+	case parser.N_TS_DEC_MODULE, parser.N_TS_DEC_GLOBAL:
 		n := node.(*parser.TsDec)
 		return &TSModuleDeclaration{
 			Type:    "TSModuleDeclaration",
@@ -396,6 +396,7 @@ func ConvertTsTyp(node parser.Node, ctx *ConvertCtx) Node {
 			Id:      Convert(n.Name(), ctx),
 			Body:    Convert(n.Inner(), ctx),
 			Declare: true,
+			Global:  n.Type() == parser.N_TS_DEC_GLOBAL,
 		}
 	case parser.N_TS_DEC_NS:
 		n := node.(*parser.TsDec)

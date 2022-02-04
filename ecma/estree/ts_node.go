@@ -519,6 +519,7 @@ type TSModuleDeclaration struct {
 	Id      Expression `json:"id"`
 	Body    Node       `json:"body"`
 	Declare bool       `json:"declare"`
+	Global  bool       `json:"global"`
 }
 
 type TSNamespaceExportDeclaration struct {

@@ -1624,8 +1624,9 @@ func (p *Parser) aheadIsTsNS(tok *Token) bool {
 	if !p.ts || tok.value != T_NAME {
 		return false
 	}
-	txt := tok.Text()
-	return txt == "namespace" || txt == "as"
+	str := tok.Text()
+	ahead := p.lexer.Peek2nd()
+	return (str == "namespace" || str == "as") && !ahead.afterLineTerm
 }
 
 func (p *Parser) tsNS() (Node, error) {
@@ -1653,6 +1654,40 @@ func (p *Parser) tsNS() (Node, error) {
 		p.advanceIfSemi(false)
 	}
 
+	// for namespace with qualified name, it will be splitted to
+	// multiple modules and those modules will be constructed to
+	// a tree structure whose children keep the order in that
+	// qualified name
+	n := name
+	if n.Type() == N_TS_NS_NAME {
+		modChain := make([]Node, 0, 2)
+		var mod *TsNS
+		for {
+			ns := n.(*TsNsName)
+			nestName := ns.rhs
+			mod = &TsNS{N_TS_NAMESPACE, nil, nestName, nil, false}
+			ml := len(modChain)
+			if ml == 0 {
+				mod.body = blk
+			} else {
+				mc, last := modChain[:ml-1], modChain[ml-1]
+				mod.body = last
+				modChain = mc
+			}
+			mod.loc = NewLocFromSpan(nestName, mod.body)
+			n = ns.lhs
+			if n.Type() == N_NAME {
+				mod = &TsNS{N_TS_NAMESPACE, NewLocFromSpan(n, mod), n, mod, false}
+				mod.loc.begin = loc.begin
+				mod.loc.rng.start = loc.rng.start
+				break
+			} else {
+				modChain = append(modChain, mod)
+			}
+		}
+		return mod, nil
+	}
+
 	return &TsNS{N_TS_NAMESPACE, p.finLoc(loc), name, blk, as}, nil
 }
 
@@ -1665,18 +1700,32 @@ func (p *Parser) aheadIsTsDec(tok *Token) bool {
 }
 
 func (p *Parser) aheadIsModDec(tok *Token) bool {
-	return p.ts && tok.value == T_NAME && tok.Text() == "module"
+	if !p.ts || tok.value != T_NAME {
+		return false
+	}
+	str := tok.Text()
+	ahead := p.lexer.Peek2nd()
+	return (str == "module" || str == "global") && !ahead.afterLineTerm
 }
 
 func (p *Parser) tsModDec() (*TsDec, error) {
-	p.lexer.Next() // `module`
+	tok := p.lexer.Next()
+	loc := p.locFromTok(tok) // `module` or `global`
+	global := tok.Text() == "global"
 
-	tok := p.lexer.Peek()
+	tok = p.lexer.Peek()
 	var name Node
 	var err error
+	var str bool
 	if tok.value == T_STRING {
-		p.lexer.Next()
+		loc := p.locFromTok(p.lexer.Next())
+		if !p.scope().IsKind(SPK_TS_DECLARE) {
+			return nil, p.errorAtLoc(loc, ERR_ONLY_AMBIENT_MOD_WITH_STR_NAME)
+		}
+		str = true
 		name = &StrLit{N_LIT_STR, p.finLoc(p.locFromTok(tok)), tok.Text(), tok.HasLegacyOctalEscapeSeq(), nil, nil}
+	} else if global {
+		name = &Ident{N_NAME, p.finLoc(loc.Clone()), "global", false, false, nil, true, p.newTypInfo()}
 	} else {
 		name, err = p.identStrict(nil, false, false, false)
 		if err != nil {
@@ -1684,11 +1733,21 @@ func (p *Parser) tsModDec() (*TsDec, error) {
 		}
 	}
 
-	blk, err := p.blockStmt(true, SPK_TS_MODULE)
-	if err != nil {
-		return nil, err
+	var blk Node
+	if str && p.lexer.Peek().value != T_BRACE_L {
+		p.advanceIfSemi(false)
+	} else {
+		blk, err = p.blockStmt(true, SPK_TS_MODULE)
+		if err != nil {
+			return nil, err
+		}
 	}
-	return &TsDec{N_TS_DEC_MODULE, p.finLoc(name.Loc().Clone()), name, blk}, nil
+
+	typ := N_TS_DEC_MODULE
+	if global {
+		typ = N_TS_DEC_GLOBAL
+	}
+	return &TsDec{typ, p.finLoc(loc), name, blk}, nil
 }
 
 func (p *Parser) tsDec() (Node, error) {
@@ -1738,7 +1797,9 @@ func (p *Parser) tsDec() (Node, error) {
 		typ = N_TS_DEC_NS
 	} else if p.aheadIsModDec(tok) {
 		dec, err = p.tsModDec()
-		typ = N_TS_DEC_MODULE
+		if dec != nil {
+			typ = dec.typ
+		}
 	} else if ok, itf := p.tsAheadIsAbstract(tok, false, false); ok {
 		if itf {
 			return nil, p.errorAtLoc(p.locFromTok(tok), ERR_ABSTRACT_AT_INVALID_POSITION)

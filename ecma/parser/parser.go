@@ -310,6 +310,8 @@ func (p *Parser) stmt() (node Node, err error) {
 		node, err = p.tsItf()
 	} else if p.aheadIsTsNS(tok) {
 		node, err = p.tsNS()
+	} else if p.aheadIsModDec(tok) {
+		node, err = p.tsModDec()
 	} else if p.aheadIsTsDec(tok) {
 		node, err = p.tsDec()
 	} else if ok, itf := p.tsAheadIsAbstract(tok, false, false); ok {
@@ -482,6 +484,11 @@ func (p *Parser) exportDec() (Node, error) {
 		}
 	} else if p.aheadIsTsDec(tok) {
 		node.dec, err = p.tsDec()
+		if err != nil {
+			return nil, err
+		}
+	} else if p.aheadIsModDec(tok) {
+		node.dec, err = p.tsModDec()
 		if err != nil {
 			return nil, err
 		}
@@ -2635,7 +2642,8 @@ func (p *Parser) blockStmt(newScope bool, scopeKind ScopeKind) (*BlockStmt, erro
 
 	var scope *Scope
 	if newScope {
-		scope = p.symtab.EnterScope(false, false)
+		fn := scopeKind == SPK_TS_MODULE
+		scope = p.symtab.EnterScope(fn, false)
 		scope.AddKind(scopeKind)
 	}
 	loc := p.locFromTok(tok)
@@ -3757,7 +3765,6 @@ func (p *Parser) condExpr(notGT bool, notHook bool) (Node, error) {
 // https://tc39.es/ecma262/multipage/ecmascript-language-functions-and-classes.html#prod-AwaitExpression
 func (p *Parser) awaitExpr(tok *Token) (Node, error) {
 	loc := p.locFromTok(tok)
-
 	scope := p.scope()
 
 	ahead := p.lexer.Peek()
