@@ -982,9 +982,11 @@ func (p *Parser) classBody(declare bool, hasSuper bool) (Node, error) {
 		}
 		if p.ts {
 			// do some TS related checks
-			override := elem.(NodeWithTypInfo).TypInfo().Override()
-			if override && !hasSuper {
-				return nil, p.errorAtLoc(elem.Loc(), ERR_OVERRIDE_IN_NO_EXTEND)
+			if wt, ok := elem.(NodeWithTypInfo); ok {
+				override := wt.TypInfo().Override()
+				if override && !hasSuper {
+					return nil, p.errorAtLoc(elem.Loc(), ERR_OVERRIDE_IN_NO_EXTEND)
+				}
 			}
 
 			if elem.Type() == N_METHOD {
@@ -1013,6 +1015,12 @@ func (p *Parser) classBody(declare bool, hasSuper bool) (Node, error) {
 						return nil, p.errorAtLoc(f.loc, fmt.Sprintf(ERR_TPL_PVT_ELEM_WITH_ACCESS_MODIFIER, f.ti.AccMod().String()))
 					}
 				}
+			} else if elem.Type() == N_STATIC_BLOCK {
+				n := elem.(*StaticBlock)
+				ti := n.ti
+				if ti.clsTyp.accMod != ACC_MOD_NONE || ti.clsTyp.abstract || ti.clsTyp.override {
+					return nil, p.errorAtLoc(n.loc, ERR_STATIC_BLOCK_WITH_MODIFIER)
+				}
 			}
 		}
 		elems = append(elems, elem)
@@ -1026,7 +1034,7 @@ func (p *Parser) classBody(declare bool, hasSuper bool) (Node, error) {
 }
 
 func (p *Parser) modifiers() (begin, static, access, abstract, readonly, override, declare *Loc,
-	isField, escape bool, name string, fieldLoc *Loc, accMod ACC_MOD, ahead *Token) {
+	isField, escape bool, name string, fieldLoc *Loc, accMod ACC_MOD, ahead *Token, mayStaticBlock bool) {
 	for {
 		ahead = p.lexer.Peek()
 		av := ahead.value
@@ -1044,6 +1052,7 @@ func (p *Parser) modifiers() (begin, static, access, abstract, readonly, overrid
 				static = nil
 				return
 			}
+			mayStaticBlock = p.lexer.Peek().value == T_BRACE_L
 			fieldLoc = static.Clone()
 		} else if p.ts && accMod == ACC_MOD_NONE && (av == T_PUBLIC || av == T_PRIVATE || av == T_PROTECTED) {
 			switch av {
@@ -1138,8 +1147,8 @@ func (p *Parser) modifiers() (begin, static, access, abstract, readonly, overrid
 }
 
 func (p *Parser) classElem(inDeclare bool) (Node, error) {
-	beginLoc, staticLoc, accLoc, abstractLoc, readonlyLoc, overrideLoc, declareLoc, isField, escape, fieldName, fieldLoc, accMod, ahead := p.modifiers()
-	if err := p.tsModifierOrder(staticLoc, overrideLoc, readonlyLoc, accLoc, abstractLoc, declareLoc, accMod); err != nil {
+	beginLoc, staticLoc, accLoc, abstractLoc, readonlyLoc, overrideLoc, declareLoc, isField, escape, fieldName, fieldLoc, accMod, ahead, mayStaticBlock := p.modifiers()
+	if err := p.tsModifierOrder(staticLoc, overrideLoc, readonlyLoc, accLoc, abstractLoc, declareLoc, accMod, mayStaticBlock); err != nil {
 		return nil, err
 	}
 
@@ -1150,7 +1159,19 @@ func (p *Parser) classElem(inDeclare bool) (Node, error) {
 
 	if static {
 		if ahead.value == T_BRACE_L {
-			return p.staticBlock(beginLoc)
+			blk, err := p.staticBlock(beginLoc)
+			if err != nil {
+				return nil, err
+			}
+			ti := blk.(*StaticBlock).ti
+			if ti != nil {
+				ti.SetAccMod(accMod)
+				ti.SetAbstract(abstract)
+				ti.SetDeclare(declare)
+				ti.SetReadonly(readonlyLoc != nil)
+				ti.SetOverride(override)
+			}
+			return blk, nil
 		}
 		if p.aheadIsArgList(ahead) {
 			key := &Ident{N_NAME, fieldLoc, fieldName, false, escape, nil, true, p.newTypInfo()}
@@ -1389,7 +1410,7 @@ func (p *Parser) staticBlock(static *Loc) (Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &StaticBlock{N_STATIC_BLOCK, p.finLoc(static), block.body}, nil
+	return &StaticBlock{N_STATIC_BLOCK, p.finLoc(static), block.body, p.newTypInfo()}, nil
 }
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-statements-and-declarations.html#prod-EmptyStatement
@@ -2912,8 +2933,9 @@ func (p *Parser) accMod() (accMod ACC_MOD, accLoc *Loc, abstractLoc, readonlyLoc
 	}
 
 	var staticLoc *Loc
-	beginLoc, staticLoc, accLoc, abstractLoc, readonlyLoc, overrideLoc, declareLoc, isField, escape, name, fieldLoc, accMod, _ = p.modifiers()
-	if err = p.tsModifierOrder(staticLoc, overrideLoc, readonlyLoc, accLoc, abstractLoc, declareLoc, accMod); err != nil {
+	var mayStaticBlock bool
+	beginLoc, staticLoc, accLoc, abstractLoc, readonlyLoc, overrideLoc, declareLoc, isField, escape, name, fieldLoc, accMod, _, mayStaticBlock = p.modifiers()
+	if err = p.tsModifierOrder(staticLoc, overrideLoc, readonlyLoc, accLoc, abstractLoc, declareLoc, accMod, mayStaticBlock); err != nil {
 		return
 	}
 

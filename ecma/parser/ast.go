@@ -2223,6 +2223,7 @@ type StaticBlock struct {
 	typ  NodeType
 	loc  *Loc
 	body []Node
+	ti   *TypInfo
 }
 
 func (n *StaticBlock) Type() NodeType {
@@ -2235,6 +2236,14 @@ func (n *StaticBlock) Loc() *Loc {
 
 func (n *StaticBlock) Body() []Node {
 	return n.body
+}
+
+func (n *StaticBlock) TypInfo() *TypInfo {
+	return n.ti
+}
+
+func (n *StaticBlock) SetTypInfo(ti *TypInfo) {
+	n.ti = ti
 }
 
 type MetaProp struct {

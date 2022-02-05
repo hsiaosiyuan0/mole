@@ -22,5 +22,5 @@ func TestFixture_tsManually(t *testing.T) {
 	opts := parser.NewParserOpts()
 	opts.Feature = opts.Feature.On(parser.FEAT_TS)
 	opts.Feature = opts.Feature.Off(parser.FEAT_JSX)
-	RunFixtures(t, "typescript/scope/redeclaration-interface-var", opts)
+	RunFixtures(t, "typescript/static-blocks/invalid-static-block-with-modifier-override-02", opts)
 }

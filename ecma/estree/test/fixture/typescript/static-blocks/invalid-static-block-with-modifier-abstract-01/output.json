@@ -1,0 +1,3 @@
+{
+  "throws": "`static` modifier cannot be used with `abstract` modifier at (2:2)"
+}

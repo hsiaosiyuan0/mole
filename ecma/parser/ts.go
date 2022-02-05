@@ -1964,12 +1964,20 @@ func (p *Parser) tsCheckLabeledOrder(orders []ModifierNameLoc) error {
 	return nil
 }
 
-func (p *Parser) tsModifierOrder(staticLoc, overrideLoc, readonlyLoc, accessLoc, abstractLoc, declareLoc *Loc, accMod ACC_MOD) error {
+func (p *Parser) tsModifierOrder(staticLoc, overrideLoc, readonlyLoc, accessLoc, abstractLoc, declareLoc *Loc, accMod ACC_MOD, mayStaticBlock bool) error {
 	if staticLoc != nil && abstractLoc != nil {
 		return p.errorAtLoc(abstractLoc, ERR_ABSTRACT_MIXED_WITH_STATIC)
 	}
 	if declareLoc != nil && overrideLoc != nil {
 		return p.errorAtLoc(overrideLoc, ERR_DECLARE_MIXED_WITH_OVERRIDE)
+	}
+
+	if staticLoc != nil && p.lexer.Peek().value == T_BRACE_L &&
+		(accessLoc != nil || overrideLoc != nil || readonlyLoc != nil || declareLoc != nil) {
+		if mayStaticBlock {
+			return p.errorAtLoc(staticLoc, ERR_STATIC_BLOCK_WITH_MODIFIER)
+		}
+		return p.errorAtLoc(p.locFromTok(p.lexer.Peek()), ERR_UNEXPECTED_TOKEN)
 	}
 
 	orders := []ModifierNameLoc{
