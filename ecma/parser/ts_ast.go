@@ -542,6 +542,10 @@ func (n *TsTypDec) Id() Node {
 	return n.name
 }
 
+func (n *TsTypDec) TypParams() Node {
+	return n.ti.typParams
+}
+
 func (n *TsTypDec) TypInfo() *TypInfo {
 	return n.ti
 }

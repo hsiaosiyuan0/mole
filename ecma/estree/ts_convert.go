@@ -371,6 +371,7 @@ func ConvertTsTyp(node parser.Node, ctx *ConvertCtx) Node {
 			End:            end(n.Loc()),
 			Loc:            loc(n.Loc()),
 			Id:             Convert(n.Id(), ctx),
+			TypeParameters: ConvertTsTyp(n.TypParams(), ctx),
 			TypeAnnotation: typAnnot(n.TypInfo(), ctx),
 			Declare:        false,
 		}

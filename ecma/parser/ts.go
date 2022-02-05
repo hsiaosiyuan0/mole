@@ -1344,10 +1344,11 @@ func (p *Parser) tsCallSig(typParams Node, loc *Loc, kind PropKind) (Node, error
 }
 
 func (p *Parser) aheadIsTsTypDec(tok *Token) bool {
-	if p.ts && tok.value == T_NAME {
-		return tok.Text() == "type"
+	if !p.ts || tok.value != T_NAME || tok.Text() != "type" {
+		return false
 	}
-	return false
+	ahead := p.lexer.Peek2nd()
+	return !ahead.afterLineTerm
 }
 
 func (p *Parser) tsTypDec(loc *Loc) (Node, error) {

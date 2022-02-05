@@ -518,6 +518,7 @@ type TSTypeAliasDeclaration struct {
 	End            int        `json:"end"`
 	Loc            *SrcLoc    `json:"loc"`
 	Id             Expression `json:"id"`
+	TypeParameters Node       `json:"typeParameters"`
 	TypeAnnotation Node       `json:"typeAnnotation"`
 	Declare        bool       `json:"declare"`
 }
