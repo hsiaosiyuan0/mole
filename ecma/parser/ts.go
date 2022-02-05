@@ -596,7 +596,7 @@ func (p *Parser) tsRef(ns Node) (Node, error) {
 		return &TsRef{N_TS_REF, p.finLoc(name.Loc().Clone()), name, nil, nil}, nil
 	}
 
-	args, err := p.tsTypArgs(false)
+	args, err := p.tsTypArgs(false, true)
 	if err != nil {
 		return nil, err
 	}
@@ -696,7 +696,7 @@ func (p *Parser) tsPrimary(rough bool, canConst bool) (Node, error) {
 			return nil, err
 		}
 	} else if ahead.IsLit(true) {
-		lit, err := p.primaryExpr()
+		lit, err := p.primaryExpr(false)
 		if err != nil {
 			return nil, err
 		}
@@ -797,7 +797,7 @@ func (p *Parser) tsIdxSig(loc *Loc) (Node, error) {
 	if loc == nil {
 		loc = p.locFromTok(tok)
 	}
-	key, err := p.binExpr(nil, 0, false, false, false)
+	key, err := p.binExpr(nil, 0, false, false, false, false)
 	if err != nil {
 		return nil, err
 	}
@@ -1104,24 +1104,14 @@ func (p *Parser) tsTypParams() (Node, error) {
 // async<T>() == 0;
 // ```
 //
-// `typArg` specifies whether the current position should be typArgs or not,
-// for below exprStmt:
-// ```
-// a<T>()
-// ```
-// the `<T>` will be processed as typeArgs by specifying the `typArg` argument as `true`
+// jsxElem maybe the results, consider below cases:
 //
-// if `typArg` is `false`, then the node will be processed as a rough one described above
-// and further be transformed to jsxElem:
 // ````
-// <T>() => {}
-// <T,>() => {}
+// <T>() => {}         // illegal jsxElem missing the closing tag
+// <T,>() => {}        // arrowExor with typParams `<T,>`
+// <T extends D> => {} // arrowExor with typParams `<T extends D>`
 // ```
-// first `<T>` will be processed as jsxElem, so the first stmt is illegal since it's missing the
-// closing tag
-// second `<T,>` will be processed as an arrowExpr with typeParams since the `T,` cannot be
-// transformed to the jsx tag-name
-func (p *Parser) tsTryTypArgs(asyncLoc *Loc, typArg bool) (Node, error) {
+func (p *Parser) tsTryTypArgs(asyncLoc *Loc) (Node, error) {
 	ahead := p.lexer.Peek()
 	if ahead.value != T_LT {
 		return nil, nil
@@ -1135,7 +1125,7 @@ func (p *Parser) tsTryTypArgs(asyncLoc *Loc, typArg bool) (Node, error) {
 
 	p.pushState()
 	loc := p.locFromTok(ahead)
-	node, err := p.tsTypArgs(true)
+	node, err := p.tsTypArgs(true, p.scope().IsKind(SPK_CLASS_EXTEND_SUPER))
 	if err != nil {
 		if err != errTypArgMaybeJsx {
 			return nil, err
@@ -1171,7 +1161,7 @@ func (p *Parser) tsTryTypArgs(asyncLoc *Loc, typArg bool) (Node, error) {
 // tansform the subtree of seqExpr to typArgs if its followed by `>`
 func (p *Parser) tsTryTypArgsAfterAsync(asyncLoc *Loc) (Node, error) {
 	name := &Ident{N_NAME, asyncLoc, asyncLoc.Text(), false, false, nil, true, p.newTypInfo()}
-	binExpr, err := p.binExpr(name, 0, false, false, true)
+	binExpr, err := p.binExpr(name, 0, false, false, true, false)
 	if err != nil {
 		return nil, err
 	}
@@ -1263,7 +1253,7 @@ func (p *Parser) tsPredefToName(node Node) (Node, error) {
 	return node, nil
 }
 
-func (p *Parser) tsTypArgs(canConst bool) (Node, error) {
+func (p *Parser) tsTypArgs(canConst bool, noJsx bool) (Node, error) {
 	loc := p.locFromTok(p.lexer.Next()) // `<`
 	args := make([]Node, 0, 1)
 	jsx := p.feat&FEAT_JSX != 0
@@ -1298,14 +1288,20 @@ func (p *Parser) tsTypArgs(canConst bool) (Node, error) {
 				return nil, err
 			}
 			arg = &TsParam{N_TS_PARAM, p.finLoc(id.Loc().Clone()), id, cons, nil}
-		} else if jsx && (av == T_NAME || ahead.IsKw() || av == T_DIV || av == T_BRACE_L || av == T_GT) {
+		} else if !noJsx && jsx && (av == T_NAME || ahead.IsKw() || av == T_DIV || av == T_BRACE_L || av == T_GT) {
 			return nil, errTypArgMaybeJsx
 		}
 
 		args = append(args, arg)
 
-		if p.lexer.Peek().value == T_COMMA {
+		ahead = p.lexer.Peek()
+		if ahead.value == T_COMMA {
 			p.lexer.Next()
+		} else if ahead.value == T_GT {
+			p.lexer.Next()
+			break
+		} else {
+			return nil, errTypArgMissingGT
 		}
 	}
 	return &TsParamsInst{N_TS_PARAM_INST, p.finLoc(loc), args}, nil
@@ -1521,7 +1517,7 @@ func (p *Parser) tsEnumBody() ([]Node, error) {
 		var val Node
 		if p.lexer.Peek().value == T_ASSIGN {
 			p.lexer.Next()
-			val, err = p.assignExpr(false, false, false)
+			val, err = p.assignExpr(false, false, false, false)
 			if err != nil {
 				return nil, err
 			}
@@ -1600,7 +1596,7 @@ func (p *Parser) tsImportAlias(loc *Loc, name Node, export bool) (Node, error) {
 
 	var node Node
 	if val.Type() == N_NAME && val.(*Ident).Text() == "require" {
-		call, _, err := p.callExpr(val, true, false, nil)
+		call, _, err := p.callExpr(val, true, false, nil, false)
 		if err != nil {
 			return nil, err
 		}

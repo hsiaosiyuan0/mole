@@ -393,14 +393,25 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 			Expression: expr,
 		}
 	case parser.N_EXPR_NEW:
-		new := node.(*parser.NewExpr)
+		n := node.(*parser.NewExpr)
+		if n.TypInfo() != nil {
+			return &TSNewExpression{
+				Type:           "NewExpression",
+				Start:          start(n.Loc()),
+				End:            end(n.Loc()),
+				Loc:            loc(n.Loc()),
+				Callee:         Convert(n.Callee(), ctx),
+				Arguments:      expressions(n.Args(), ctx),
+				TypeParameters: typArgs(n.TypInfo(), ctx),
+			}
+		}
 		return &NewExpression{
 			Type:      "NewExpression",
 			Start:     start(node.Loc()),
 			End:       end(node.Loc()),
 			Loc:       loc(node.Loc()),
-			Callee:    Convert(new.Callee(), ctx),
-			Arguments: expressions(new.Args(), ctx),
+			Callee:    Convert(n.Callee(), ctx),
+			Arguments: expressions(n.Args(), ctx),
 		}
 	case parser.N_NAME:
 		return ident(node, ctx)

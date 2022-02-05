@@ -856,11 +856,7 @@ func (n *ClassDec) SuperTypArgs() Node {
 		return nil
 	}
 
-	switch super.Type() {
-	case N_EXPR_CALL:
-		return st.SuperTypArgs()
-	}
-	return st.TypArgs()
+	return st.SuperTypArgs()
 }
 
 func (n *ClassDec) TypParams() Node {

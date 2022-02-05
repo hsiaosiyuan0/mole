@@ -203,6 +203,16 @@ type TSCallExpression struct {
 	TypeParameters Node         `json:"typeParameters"`
 }
 
+type TSNewExpression struct {
+	Type           string       `json:"type"`
+	Start          int          `json:"start"`
+	End            int          `json:"end"`
+	Loc            *SrcLoc      `json:"loc"`
+	Callee         Expression   `json:"callee"`
+	Arguments      []Expression `json:"arguments"`
+	TypeParameters Node         `json:"typeParameters"`
+}
+
 type TSRestElement struct {
 	Type           string  `json:"type"`
 	Start          int     `json:"start"`
