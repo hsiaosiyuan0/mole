@@ -720,7 +720,6 @@ func (p *Parser) tsPrimary(rough bool, canConst bool) (Node, error) {
 		if err != nil {
 			return nil, err
 		}
-
 		node = &TsQuery{N_TS_QUERY, p.finLoc(loc), name}
 	} else if av == T_THIS {
 		// this type
@@ -733,6 +732,9 @@ func (p *Parser) tsPrimary(rough bool, canConst bool) (Node, error) {
 				return nil, err
 			}
 		}
+	} else if av == T_IMPORT {
+		// `let a: import("a")<a>;`
+		return p.tsImport()
 	}
 
 	if node != nil {
@@ -749,6 +751,26 @@ func (p *Parser) tsPrimary(rough bool, canConst bool) (Node, error) {
 	}
 
 	return nil, p.errorTok(ahead)
+}
+
+func (p *Parser) tsImport() (Node, error) {
+	loc := p.locFromTok(p.lexer.Next())
+	if _, err := p.nextMustTok(T_PAREN_L); err != nil {
+		return nil, err
+	}
+	tok, err := p.nextMustTok(T_STRING)
+	if err != nil {
+		return nil, err
+	}
+	arg := &StrLit{N_LIT_STR, p.finLoc(loc), tok.Text(), tok.HasLegacyOctalEscapeSeq(), nil, p.newTypInfo()}
+	if _, err := p.nextMustTok(T_PAREN_R); err != nil {
+		return nil, err
+	}
+	typArgs, err := p.tsTypArgs(false, true)
+	if err != nil {
+		return nil, err
+	}
+	return &TsImportType{N_TS_IMPORT_TYP, p.finLoc(loc), arg, typArgs}, nil
 }
 
 func (p *Parser) tsObj(rough bool) (Node, error) {
@@ -1111,7 +1133,7 @@ func (p *Parser) tsTypParams() (Node, error) {
 // <T,>() => {}        // arrowExor with typParams `<T,>`
 // <T extends D> => {} // arrowExor with typParams `<T extends D>`
 // ```
-func (p *Parser) tsTryTypArgs(asyncLoc *Loc) (Node, error) {
+func (p *Parser) tsTryTypArgs(asyncLoc *Loc, noJsx bool) (Node, error) {
 	ahead := p.lexer.Peek()
 	if ahead.value != T_LT {
 		return nil, nil
@@ -1125,7 +1147,7 @@ func (p *Parser) tsTryTypArgs(asyncLoc *Loc) (Node, error) {
 
 	p.pushState()
 	loc := p.locFromTok(ahead)
-	node, err := p.tsTypArgs(true, p.scope().IsKind(SPK_CLASS_EXTEND_SUPER))
+	node, err := p.tsTypArgs(true, noJsx || p.scope().IsKind(SPK_CLASS_EXTEND_SUPER))
 	if err != nil {
 		if err != errTypArgMaybeJsx {
 			return nil, err
@@ -1254,6 +1276,9 @@ func (p *Parser) tsPredefToName(node Node) (Node, error) {
 }
 
 func (p *Parser) tsTypArgs(canConst bool, noJsx bool) (Node, error) {
+	p.lexer.PushMode(LM_TS_TYP_ARG, true)
+	defer p.lexer.PopMode()
+
 	loc := p.locFromTok(p.lexer.Next()) // `<`
 	args := make([]Node, 0, 1)
 	jsx := p.feat&FEAT_JSX != 0
@@ -1303,6 +1328,9 @@ func (p *Parser) tsTypArgs(canConst bool, noJsx bool) (Node, error) {
 		} else {
 			return nil, errTypArgMissingGT
 		}
+	}
+	if len(args) == 0 {
+		return nil, p.errorAtLoc(loc, ERR_TYPE_ARG_EMPTY)
 	}
 	return &TsParamsInst{N_TS_PARAM_INST, p.finLoc(loc), args}, nil
 }

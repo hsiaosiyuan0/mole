@@ -21,6 +21,7 @@ const (
 	LM_CLASS_BODY      LexerModeKind = 1 << iota
 	LM_CLASS_CTOR      LexerModeKind = 1 << iota
 	LM_NEW             LexerModeKind = 1 << iota
+	LM_TS_TYP_ARG      LexerModeKind = 1 << iota
 	LM_JSX             LexerModeKind = 1 << iota
 	LM_JSX_CHILD       LexerModeKind = 1 << iota
 	LM_JSX_ATTR        LexerModeKind = 1 << iota
@@ -625,7 +626,7 @@ func (l *Lexer) readName() *Token {
 }
 
 func (l *Lexer) aheadIsRegexp(afterLineTerm bool) bool {
-	if l.IsMode(LM_JSX) || l.IsMode(LM_JSX_ATTR) {
+	if l.IsMode(LM_JSX) || l.IsMode(LM_JSX_ATTR) || l.IsMode(LM_TS_TYP_ARG) {
 		return false
 	}
 
@@ -752,7 +753,7 @@ func (l *Lexer) readSymbol() *Token {
 		if l.src.AheadIsCh('=') {
 			l.src.Read()
 			val = T_GTE
-		} else if l.src.AheadIsCh('>') {
+		} else if !l.IsMode(LM_TS_TYP_ARG) && l.src.AheadIsCh('>') {
 			l.src.Read()
 			if l.src.AheadIsCh('>') {
 				l.src.Read()
@@ -860,7 +861,6 @@ func (l *Lexer) readSymbol() *Token {
 		} else {
 			val = T_DIV
 		}
-
 	}
 
 	if val == T_DOT_TRI && (l.feat&FEAT_SPREAD == 0 || l.feat&FEAT_BINDING_REST_ELEM == 0) {

@@ -2915,7 +2915,7 @@ func (p *Parser) identStrict(scope *Scope, forceStrict bool, binding bool, jsx b
 		return &Ident{N_NAME, loc, name, false, tok.ContainsEscape(), nil, tok.IsKw(), p.newTypInfo()}, nil
 	}
 
-	return &JsxIdent{N_JSX_ID, loc, name, nil}, nil
+	return &JsxIdent{N_JSX_ID, loc, name, nil, p.newTypInfo()}, nil
 }
 
 func (p *Parser) ident(scope *Scope, binding bool) (*Ident, error) {
@@ -3345,7 +3345,7 @@ func (p *Parser) propName(allowNamePVT bool, maybeMethod bool, tsRough bool) (No
 		if p.scope().IsKind(SPK_STRICT) && legacyOctalEscapeSeq {
 			return nil, nil, p.errorAtLoc(p.locFromTok(tok), ERR_LEGACY_OCTAL_ESCAPE_IN_STRICT_MODE)
 		}
-		key = &StrLit{N_LIT_STR, p.finLoc(loc), tok.Text(), tok.HasLegacyOctalEscapeSeq(), nil, nil}
+		key = &StrLit{N_LIT_STR, p.finLoc(loc), tok.Text(), tok.HasLegacyOctalEscapeSeq(), nil, p.newTypInfo()}
 	} else if tv == T_NUM {
 		key = &NumLit{N_LIT_NUM, p.finLoc(loc), nil}
 	} else if tv == T_BRACKET_L {
@@ -3827,7 +3827,7 @@ func (p *Parser) awaitExpr(tok *Token) (Node, error) {
 func (p *Parser) unaryExpr(typArgs Node, typArgsLoc *Loc, notColon bool) (Node, error) {
 	var err error
 	if typArgs == nil {
-		typArgs, err = p.tsTryTypArgs(nil)
+		typArgs, err = p.tsTryTypArgs(nil, false)
 		if err != nil {
 			if err == errTypArgMissingGT {
 				return nil, p.errorAtLoc(p.loc(), ERR_UNEXPECTED_TOKEN)
@@ -4025,21 +4025,47 @@ func (p *Parser) newExpr() (Node, error) {
 
 	var args []Node
 	var typArgs Node
-	if p.aheadIsArgList(p.lexer.Peek()) {
+	ti := p.newTypInfo()
+	ahead := p.lexer.Peek()
+	line := ahead.begin.line
+	col := ahead.begin.col
+	if p.aheadIsArgList(ahead) {
+		p.pushState()
 		args, _, typArgs, _, err = p.argList(true, true, nil)
 		if err != nil {
+			// `new A < T`
+			if err == errTypArgMissingGT {
+				p.popState()
+				p.addLtTok(line, col)
+				return &NewExpr{N_EXPR_NEW, p.finLoc(loc), expr, nil, nil, ti}, nil
+			}
 			return nil, err
+		}
+		p.discardState()
+
+		if ti != nil {
+			if err = p.tsCheckTypArgs(typArgs); err != nil {
+				return nil, err
+			}
+			ti.SetTypArgs(typArgs)
+		}
+
+		// below is newExpr with callee tplExpr
+		// ```
+		// new C``
+		// ```
+		if len(args) == 0 && p.lexer.Peek().value == T_TPL_HEAD {
+			if wt, ok := expr.(NodeWithTypInfo); ok {
+				wt.SetTypInfo(ti)
+			}
+			expr, err = p.tplExpr(expr)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
 	var ret Node
-	ti := p.newTypInfo()
-	if ti != nil {
-		if err = p.tsCheckTypArgs(typArgs); err != nil {
-			return nil, err
-		}
-		ti.SetTypArgs(typArgs)
-	}
 	ret = &NewExpr{N_EXPR_NEW, p.finLoc(loc), expr, args, nil, ti}
 	root := true
 	for {
@@ -4188,7 +4214,18 @@ func (p *Parser) callExpr(callee Node, root bool, directOpt bool, opt *Loc, notC
 				return nil, nil, err
 			}
 
-			callee = &CallExpr{N_EXPR_CALL, p.finLoc(loc), callee, args, directOpt, nil, ti}
+			// ```
+			// f<T>``;
+			// ```
+			if args == nil && typArgs != nil {
+				if wt, ok := callee.(NodeWithTypInfo); ok {
+					wt.SetTypInfo(ti)
+				} else {
+					return nil, nil, p.errorAtLoc(typArgs.Loc(), ERR_UNEXPECTED_TOKEN)
+				}
+			} else {
+				callee = &CallExpr{N_EXPR_CALL, p.finLoc(loc), callee, args, directOpt, nil, ti}
+			}
 		} else if tv == T_BRACKET_L || tv == T_DOT || tv == T_OPT_CHAIN {
 			callee, fo, err = p.memberExpr(callee, true, root, firstOpt)
 			if err != nil {
@@ -4266,20 +4303,20 @@ func (p *Parser) importCall(tok *Token) (Node, error) {
 }
 
 func (p *Parser) tplExpr(tag Node) (Node, error) {
-	loc := p.loc()
-	if tag != nil {
-		tl := tag.Loc()
-		loc.begin = tl.end.Clone()
-		loc.rng.start = tl.rng.end
 
+	if tag != nil {
 		if tag.Type() == N_EXPR_CHAIN {
 			return nil, p.errorAtLoc(p.locFromTok(p.lexer.Peek()), ERR_OPT_EXPR_IN_TAG)
 		}
 	}
 
+	var loc *Loc
 	elems := make([]Node, 0)
 	for {
 		tok := p.lexer.Peek()
+		if loc == nil {
+			loc = p.locFromTok(tok)
+		}
 		if tok.value >= T_TPL_HEAD && tok.value <= T_TPL_TAIL {
 			cooked := ""
 			ext := tok.ext.(*TokExtTplSpan)
@@ -4846,7 +4883,7 @@ func (p *Parser) checkArgs(args []Node, spread bool, simplicity bool) error {
 }
 
 func (p *Parser) argList(check bool, incall bool, asyncLoc *Loc) ([]Node, *Loc, Node, Node, error) {
-	typArgs, err := p.tsTryTypArgs(asyncLoc)
+	typArgs, err := p.tsTryTypArgs(asyncLoc, false)
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
@@ -4860,11 +4897,16 @@ func (p *Parser) argList(check bool, incall bool, asyncLoc *Loc) ([]Node, *Loc, 
 	ahead := p.lexer.Peek()
 	av := ahead.value
 	if av != T_PAREN_L {
-		// `(class extends f()<T> {})`
+		// ```
+		// (class extends f()<T> {}     // isExtending
+		// f<T>``;                      // av == T_TPL_HEAD
+		// ```
 		isExtending := p.scope().IsKind(SPK_CLASS_EXTEND_SUPER)
 		if p.ts && isExtending {
 			// returns `typArgs` as `superTypArgs`
 			return nil, nil, nil, typArgs, nil
+		} else if av == T_TPL_HEAD {
+			return nil, nil, typArgs, nil, nil
 		}
 		return nil, nil, nil, nil, p.errorTok(ahead)
 	}
@@ -5258,7 +5300,7 @@ func (p *Parser) primaryExpr(notColon bool) (Node, error) {
 			return p.jsx(true, false)
 		}
 		if p.feat&FEAT_TS != 0 {
-			typArgs, err := p.tsTryTypArgs(nil)
+			typArgs, err := p.tsTryTypArgs(nil, false)
 			if err != nil {
 				return nil, err
 			}

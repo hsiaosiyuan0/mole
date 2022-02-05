@@ -575,3 +575,33 @@ type TSExternalModuleReference struct {
 	Loc        *SrcLoc `json:"loc"`
 	Expression Node    `json:"expression"`
 }
+
+type TSTaggedTemplateExpression struct {
+	Type           string     `json:"type"`
+	Start          int        `json:"start"`
+	End            int        `json:"end"`
+	Loc            *SrcLoc    `json:"loc"`
+	Tag            Expression `json:"tag"`
+	Quasi          Expression `json:"quasi"`
+	TypeParameters Node       `json:"typeParameters"`
+}
+
+type TSXOpeningElement struct {
+	Type           string  `json:"type"`
+	Start          int     `json:"start"`
+	End            int     `json:"end"`
+	Loc            *SrcLoc `json:"loc"`
+	Name           Node    `json:"name"`
+	Attributes     []Node  `json:"attributes"`
+	SelfClosing    bool    `json:"selfClosing"`
+	TypeParameters Node    `json:"typeParameters"`
+}
+
+type TSImportType struct {
+	Type           string  `json:"type"`
+	Start          int     `json:"start"`
+	End            int     `json:"end"`
+	Loc            *SrcLoc `json:"loc"`
+	Argument       Node    `json:"argument"`
+	TypeParameters Node    `json:"typeParameters"`
+}

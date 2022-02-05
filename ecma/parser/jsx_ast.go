@@ -5,6 +5,7 @@ type JsxIdent struct {
 	loc        *Loc
 	val        string
 	outerParen *Loc
+	ti         *TypInfo
 }
 
 func (n *JsxIdent) Type() NodeType {
@@ -25,6 +26,14 @@ func (n *JsxIdent) SetOuterParen(loc *Loc) {
 
 func (n *JsxIdent) Text() string {
 	return n.val
+}
+
+func (n *JsxIdent) TypInfo() *TypInfo {
+	return n.ti
+}
+
+func (n *JsxIdent) SetTypInfo(ti *TypInfo) {
+	n.ti = ti
 }
 
 type JsxNsName struct {
@@ -55,6 +64,7 @@ type JsxMemberExpr struct {
 	loc  *Loc
 	obj  Node
 	prop Node
+	ti   *TypInfo
 }
 
 func (n *JsxMemberExpr) Type() NodeType {
@@ -71,6 +81,14 @@ func (n *JsxMemberExpr) Obj() Node {
 
 func (n *JsxMemberExpr) Prop() Node {
 	return n.prop
+}
+
+func (n *JsxMemberExpr) TypInfo() *TypInfo {
+	return n.ti
+}
+
+func (n *JsxMemberExpr) SetTypInfo(ti *TypInfo) {
+	n.ti = ti
 }
 
 type JsxOpen struct {

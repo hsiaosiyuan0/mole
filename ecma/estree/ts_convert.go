@@ -491,6 +491,16 @@ func ConvertTsTyp(node parser.Node, ctx *ConvertCtx) Node {
 			TypeParameters: ConvertTsTyp(n.TypParams(), ctx),
 			ReturnType:     ConvertTsTyp(n.RetTyp(), ctx),
 		}
+	case parser.N_TS_IMPORT_TYP:
+		n := node.(*parser.TsImportType)
+		return &TSImportType{
+			Type:           "TSImportType",
+			Start:          start(n.Loc()),
+			End:            end(n.Loc()),
+			Loc:            loc(n.Loc()),
+			Argument:       Convert(n.Arg(), ctx),
+			TypeParameters: ConvertTsTyp(n.TypArg(), ctx),
+		}
 	}
 
 	return nil

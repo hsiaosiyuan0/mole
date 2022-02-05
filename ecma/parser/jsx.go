@@ -13,7 +13,7 @@ func (p *Parser) jsxMemberExpr(obj Node, path string) (Node, string, error) {
 				return nil, "", err
 			}
 			path = path + "." + prop.Text()
-			obj = &JsxMemberExpr{N_JSX_MEMBER, p.finLoc(obj.Loc().Clone()), obj, prop}
+			obj = &JsxMemberExpr{N_JSX_MEMBER, p.finLoc(obj.Loc().Clone()), obj, prop, p.newTypInfo()}
 		} else {
 			break
 		}
@@ -42,12 +42,37 @@ func (p *Parser) jsxName() (Node, string, error) {
 	jsxName := jsxId.Text()
 	ahead := p.lexer.Peek()
 	av := ahead.value
+
+	var name Node
+	var pth string
 	if av == T_DOT {
-		return p.jsxMemberExpr(id, jsxName)
+		name, pth, err = p.jsxMemberExpr(id, jsxName)
+		if err != nil {
+			return nil, "", err
+		}
 	} else if av == T_COLON && p.feat&FEAT_JSX_NS != 0 {
-		return p.jsxNsExpr(id, jsxName)
+		name, pth, err = p.jsxNsExpr(id, jsxName)
+		if err != nil {
+			return nil, "", err
+		}
+	} else {
+		name = jsxId
+		pth = jsxName
 	}
-	return id, jsxName, nil
+	typArgs, err := p.tsTryTypArgs(nil, true)
+	if err != nil {
+		return nil, "", err
+	}
+	if wt, ok := name.(NodeWithTypInfo); ok {
+		ti := wt.TypInfo()
+		if ti != nil {
+			ti.SetTypArgs(typArgs)
+		}
+	} else if typArgs != nil {
+		return nil, "", p.errorAtLoc(typArgs.Loc(), ERR_UNEXPECTED_TOKEN)
+	}
+
+	return name, pth, nil
 }
 
 func (p *Parser) jsxAttr() (Node, error) {

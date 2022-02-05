@@ -829,6 +829,29 @@ func (n *TsNoNull) Arg() Node {
 	return n.arg
 }
 
+type TsImportType struct {
+	typ     NodeType
+	loc     *Loc
+	arg     Node
+	typArgs Node
+}
+
+func (n *TsImportType) Arg() Node {
+	return n.arg
+}
+
+func (n *TsImportType) TypArg() Node {
+	return n.typArgs
+}
+
+func (n *TsImportType) Type() NodeType {
+	return n.typ
+}
+
+func (n *TsImportType) Loc() *Loc {
+	return n.loc
+}
+
 // ClassDec
 func (n *ClassDec) Implements() []Node {
 	if fuzz.IsNilPtr(n.ti) {

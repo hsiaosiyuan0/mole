@@ -187,4 +187,5 @@ const (
 	ERR_TPL_MODIFIER_ON_TYPE_MEMBER        = "`%s` modifier cannot appear on a type member"
 	ERR_ONLY_AMBIENT_MOD_WITH_STR_NAME     = "Only ambient modules can use quoted names"
 	ERR_STATIC_BLOCK_WITH_MODIFIER         = "Static class blocks cannot have any modifier"
+	ERR_TYPE_ARG_EMPTY                     = "Type argument list cannot be empty"
 )

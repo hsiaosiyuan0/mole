@@ -1194,11 +1194,27 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 		if tpl.Tag() == nil {
 			return tplLiteral(tpl.Loc(), tpl.Elems(), ctx)
 		}
+		locWithTag := tpl.LocWithTag()
+		tag := tpl.Tag()
+		if wt, ok := tag.(parser.NodeWithTypInfo); ok {
+			ti := wt.TypInfo()
+			if ti != nil {
+				return &TSTaggedTemplateExpression{
+					Type:           "TaggedTemplateExpression",
+					Start:          start(locWithTag),
+					End:            end(locWithTag),
+					Loc:            loc(locWithTag),
+					Tag:            Convert(tpl.Tag(), ctx),
+					Quasi:          tplLiteral(tpl.Loc(), tpl.Elems(), ctx),
+					TypeParameters: typArgs(ti, ctx),
+				}
+			}
+		}
 		return &TaggedTemplateExpression{
 			Type:  "TaggedTemplateExpression",
-			Start: start(tpl.LocWithTag()),
-			End:   end(tpl.LocWithTag()),
-			Loc:   loc(tpl.LocWithTag()),
+			Start: start(locWithTag),
+			End:   end(locWithTag),
+			Loc:   loc(locWithTag),
 			Tag:   Convert(tpl.Tag(), ctx),
 			Quasi: tplLiteral(tpl.Loc(), tpl.Elems(), ctx),
 		}
@@ -1323,6 +1339,21 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 		}
 	case parser.N_JSX_OPEN:
 		node := node.(*parser.JsxOpen)
+		if wt, ok := node.Name().(parser.NodeWithTypInfo); ok {
+			ti := wt.TypInfo()
+			if ti != nil {
+				return &TSXOpeningElement{
+					Type:           "JSXOpeningElement",
+					Start:          start(node.Loc()),
+					End:            end(node.Loc()),
+					Loc:            loc(node.Loc()),
+					Name:           Convert(node.Name(), ctx),
+					Attributes:     elems(node.Attrs(), ctx),
+					SelfClosing:    node.Closed(),
+					TypeParameters: typArgs(ti, ctx),
+				}
+			}
+		}
 		return &JSXOpeningElement{
 			Type:        "JSXOpeningElement",
 			Start:       start(node.Loc()),
