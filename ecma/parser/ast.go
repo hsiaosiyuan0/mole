@@ -21,23 +21,23 @@ type Node interface {
 }
 
 type Range struct {
-	start int
-	end   int
+	start uint32
+	end   uint32
 }
 
-func (r *Range) Start() int {
+func (r *Range) Start() uint32 {
 	return r.start
 }
 
-func (r *Range) End() int {
+func (r *Range) End() uint32 {
 	return r.end
 }
 
-func (r *Range) SetStart(n int) {
+func (r *Range) SetStart(n uint32) {
 	r.start = n
 }
 
-func (r *Range) SetEnd(n int) {
+func (r *Range) SetEnd(n uint32) {
 	r.end = n
 }
 
@@ -595,8 +595,8 @@ func locOfNode(node Node) *Loc {
 
 func startOf(locs ...*Loc) *Loc {
 	start := 0
-	line := math.MaxInt
-	col := math.MaxInt
+	line := uint32(math.MaxUint32)
+	col := uint32(math.MaxUint32)
 	for i, loc := range locs {
 		if loc == nil {
 			continue
@@ -612,8 +612,8 @@ func startOf(locs ...*Loc) *Loc {
 
 func endOf(locs ...*Loc) *Loc {
 	end := 0
-	line := -1
-	col := -1
+	line := uint32(0)
+	col := uint32(0)
 	for i, loc := range locs {
 		if loc == nil {
 			continue

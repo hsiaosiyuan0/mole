@@ -30,11 +30,11 @@ func (s *Runes) advance() (rune, int) {
 
 type SourceState struct {
 	runes       Runes
-	ofst        int  // ofst base on byte
-	pos         int  // pos base on rune
-	line        int  // 1-based line number
-	col         int  // 0-based column number
-	metLineTerm bool // whether line terminator appeared
+	ofst        uint32 // ofst base on byte
+	pos         uint32 // pos base on rune
+	line        uint32 // 1-based line number
+	col         uint32 // 0-based column number
+	metLineTerm bool   // whether line terminator appeared
 }
 
 func newSourceState(code string) SourceState {
@@ -105,7 +105,7 @@ func (s *Source) advance() rune {
 		return EOF
 	}
 
-	s.state.ofst += size
+	s.state.ofst += uint32(size)
 	s.state.pos += 1
 	return r
 }
@@ -131,7 +131,7 @@ func (s *Source) AheadIsCh(c rune) bool {
 }
 
 func (s *Source) AheadIsEOF() bool {
-	return s.state.ofst == len(s.code)
+	return s.state.ofst == uint32(len(s.code))
 }
 
 func (s *Source) AdvanceIf(c rune) bool {
@@ -184,20 +184,20 @@ func IsLineTerminator(c rune) bool {
 }
 
 // ofst base on byte
-func (s *Source) Ofst() int {
+func (s *Source) Ofst() uint32 {
 	return s.state.ofst
 }
 
 // pos base on rune
-func (s *Source) Pos() int {
+func (s *Source) Pos() uint32 {
 	return s.state.pos
 }
 
-func (s *Source) Line() int {
+func (s *Source) Line() uint32 {
 	return s.state.line
 }
 
-func (s *Source) Col() int {
+func (s *Source) Col() uint32 {
 	return s.state.col
 }
 
@@ -236,14 +236,14 @@ func (s *Source) SkipSpace() *Source {
 }
 
 // return the string in the span `[start,end)`
-func (s *Source) Text(start, end int) string {
+func (s *Source) Text(start, end uint32) string {
 	return s.code[start:end]
 }
 
 type Range struct {
 	Src *Source
-	Lo  int
-	Hi  int
+	Lo  uint32
+	Hi  uint32
 }
 
 func (r *Range) Text() string {

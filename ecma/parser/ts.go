@@ -21,7 +21,16 @@ var builtinTyp = map[string]NodeType{
 
 // indicates the closing `>` is missing, so the processed `<` should be considered
 // as the LessThan operator. produced in `tsTypArgs`
-var errTypArgMissingGT = errors.New("missing the closing `>`")
+type ErrTypArgMssingGT struct {
+	line uint32
+	col  uint32
+}
+
+func (e *ErrTypArgMssingGT) Error() string {
+	return "missing the closing `>`"
+}
+
+var errTypArgMissingGT = &ErrTypArgMssingGT{}
 
 // indicates the current position should be re-entered as `jsx`. produced in `tsTypArgs`
 var errTypArgMaybeJsx = errors.New("maybe jsx")
@@ -1280,6 +1289,9 @@ func (p *Parser) tsTypArgs(canConst bool, noJsx bool) (Node, error) {
 	defer p.lexer.PopMode()
 
 	loc := p.locFromTok(p.lexer.Next()) // `<`
+	errTypArgMissingGT.line = loc.begin.line
+	errTypArgMissingGT.col = loc.begin.col
+
 	args := make([]Node, 0, 1)
 	jsx := p.feat&FEAT_JSX != 0
 	for {
@@ -1288,7 +1300,7 @@ func (p *Parser) tsTypArgs(canConst bool, noJsx bool) (Node, error) {
 		if av == T_GT {
 			p.lexer.Next()
 			break
-		} else if av == T_NAME || ahead.IsLit(true) || ahead.IsCtxKw() {
+		} else if av == T_NAME || ahead.IsLit(true) || ahead.IsCtxKw() || ahead.value == T_LT {
 			// next is typ， fallthrough to below `p.tsTyp` to handle this branch
 		} else {
 			return nil, errTypArgMissingGT
@@ -1296,6 +1308,9 @@ func (p *Parser) tsTypArgs(canConst bool, noJsx bool) (Node, error) {
 
 		arg, err := p.tsTyp(false, canConst)
 		if err != nil {
+			if av == T_LT {
+				return nil, errTypArgMissingGT
+			}
 			return nil, err
 		}
 

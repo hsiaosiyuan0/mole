@@ -13,7 +13,7 @@ func TestReadName(t *testing.T) {
 	tok := l.Next()
 	AssertEqual(t, true, tok.IsLegal(), "should be ok t")
 	AssertEqual(t, "t", tok.text, "should be t")
-	AssertEqual(t, 6, tok.raw.Hi, "should be t")
+	AssertEqual(t, uint32(6), tok.raw.Hi, "should be t")
 
 	tok = l.Next()
 	AssertEqual(t, true, tok.IsLegal(), "should be ok test")

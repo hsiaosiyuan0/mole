@@ -21,10 +21,11 @@ const (
 	LM_CLASS_BODY      LexerModeKind = 1 << iota
 	LM_CLASS_CTOR      LexerModeKind = 1 << iota
 	LM_NEW             LexerModeKind = 1 << iota
-	LM_TS_TYP_ARG      LexerModeKind = 1 << iota
 	LM_JSX             LexerModeKind = 1 << iota
 	LM_JSX_CHILD       LexerModeKind = 1 << iota
 	LM_JSX_ATTR        LexerModeKind = 1 << iota
+	LM_TS              LexerModeKind = 1 << iota
+	LM_TS_TYP_ARG      LexerModeKind = 1 << iota
 )
 
 type LexerMode struct {
@@ -136,20 +137,33 @@ type Lexer struct {
 	ver  ESVersion
 	feat Feature
 
-	lastCmtLine int
-	lastCmtCol  int
-	comments    map[int]map[int]*span.Range
+	lastCmtLine uint32
+	lastCmtCol  uint32
+	comments    map[uint32]map[uint32]*span.Range
 
 	state LexerState
 	ss    []LexerState // state stack
+
+	// ```
+	// f<<<T>(x)
+	// f<<T
+	//  ^
+	//  |__ ambiguity - either nested typArgs or bitwise LSH operator
+	// ```
+	// for resolving above ambiguity, first try to parse them as typArgs, otherwise
+	// try to parse as LSH one more time
+	maybeLshPos map[uint64]bool
+	lshPos      map[uint64]bool
 }
 
 func NewLexer(src *span.Source) *Lexer {
 	lexer := &Lexer{
-		src:      src,
-		state:    newLexerState(),
-		ss:       make([]LexerState, 0),
-		comments: make(map[int]map[int]*span.Range),
+		src:         src,
+		state:       newLexerState(),
+		ss:          make([]LexerState, 0),
+		comments:    make(map[uint32]map[uint32]*span.Range),
+		maybeLshPos: map[uint64]bool{},
+		lshPos:      map[uint64]bool{},
 	}
 	return lexer
 }
@@ -276,6 +290,7 @@ func (l *Lexer) PushMode(mode LexerModeKind, inherit bool) {
 		v := LM_NONE
 		v |= l.CurMode().kind & LM_STRICT
 		v |= l.CurMode().kind & LM_ASYNC
+		v |= l.CurMode().kind & LM_TS
 		mode |= v
 	}
 	l.state.mode = append(l.state.mode, LexerMode{mode, 0, 0, 0})
@@ -403,7 +418,7 @@ func (l *Lexer) appendCmt(tok *Token) {
 	l.lastCmtLine = tok.begin.line
 	line := l.comments[tok.begin.line]
 	if line == nil {
-		line = make(map[int]*span.Range, 0)
+		line = make(map[uint32]*span.Range, 0)
 		l.comments[tok.begin.line] = line
 	}
 	line[tok.begin.col] = tok.raw.Clone()
@@ -511,8 +526,8 @@ func (l *Lexer) readTplSpan() *Token {
 	return span
 }
 
-func (l *Lexer) readTplChs() (text []rune, fin bool, line, col, ofst, pos int,
-	err string, legacyOctalEscapeSeq bool, errEscape string, errEscapeLine, errEscapeCol int) {
+func (l *Lexer) readTplChs() (text []rune, fin bool, line, col, ofst, pos uint32,
+	err string, legacyOctalEscapeSeq bool, errEscape string, errEscapeLine, errEscapeCol uint32) {
 	text = make([]rune, 0, 10)
 	for {
 		line = l.src.Line()
@@ -649,6 +664,40 @@ func (l *Lexer) aheadIsRegexp(afterLineTerm bool) bool {
 	return be || afterLineTerm
 }
 
+func (l *Lexer) hasMaybeLsh(line, col uint32) bool {
+	key := uint64(line)<<32 | uint64(col)
+	_, ok := l.maybeLshPos[key]
+	return ok
+}
+
+func (l *Lexer) canBeLsh(line, col uint32) bool {
+	key := uint64(line)<<32 | uint64(col)
+	_, ok := l.maybeLshPos[key]
+	return ok
+}
+
+func (l *Lexer) tryLsh(line, col uint32) {
+	key := uint64(line)<<32 | uint64(col)
+	delete(l.maybeLshPos, key)
+	l.lshPos[key] = true
+	l.revisePeekedLsh()
+}
+
+func (l *Lexer) lsh(line, col uint32) bool {
+	key := uint64(line)<<32 | uint64(col)
+	_, ok := l.lshPos[key]
+	return ok
+}
+
+func (l *Lexer) revisePeekedLsh() {
+	tok := l.Peek()
+	if !l.lsh(tok.begin.line, tok.begin.col) {
+		return
+	}
+	tok.value = T_LSH
+	l.lexTok() // advance the second `<`
+}
+
 func (l *Lexer) readSymbol() *Token {
 	tok := l.newToken()
 	c := l.src.Read()
@@ -735,16 +784,31 @@ func (l *Lexer) readSymbol() *Token {
 			val = T_ASSIGN
 		}
 	case '<':
+		line := tok.begin.line
+		col := tok.begin.col
 		if l.src.AheadIsCh('=') {
 			l.src.Read()
 			val = T_LTE
 		} else if l.src.AheadIsCh('<') {
-			l.src.Read()
-			if l.src.AheadIsCh('=') {
-				l.src.Read()
-				val = T_ASSIGN_BIT_LSH
+			c := l.src.Ahead2nd()
+			spaceAhead := unicode.IsSpace(c)
+			if !spaceAhead && (l.IsMode(LM_TS) || l.IsMode(LM_TS_TYP_ARG)) {
+				// prev is lsh, here just advance the second `<` of lsh operator
+				if l.lsh(line, col-1) {
+					val = T_LT
+				} else if !l.hasMaybeLsh(line, col) {
+					key := uint64(line)<<32 | uint64(col)
+					l.maybeLshPos[key] = true
+					val = T_LT
+				}
 			} else {
-				val = T_LSH
+				l.src.Read()
+				if l.src.AheadIsCh('=') {
+					l.src.Read()
+					val = T_ASSIGN_BIT_LSH
+				} else {
+					val = T_LSH
+				}
 			}
 		} else {
 			val = T_LT
@@ -1539,8 +1603,7 @@ func (l *Lexer) readJSXTxt() *Token {
 	entity := make([]rune, 0, MaxHTMLEntityName)
 
 	// loc of the first `&`
-	ampLine := 0
-	ampCol := 0
+	var ampLine, ampCol uint32
 	for {
 		c := l.src.Peek()
 		line := l.src.Line()

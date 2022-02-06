@@ -3,15 +3,15 @@ package parser
 import "github.com/hsiaosiyuan0/mole/span"
 
 type Pos struct {
-	line int
-	col  int
+	line uint32
+	col  uint32
 }
 
-func (p *Pos) Line() int {
+func (p *Pos) Line() uint32 {
 	return p.line
 }
 
-func (p *Pos) Column() int {
+func (p *Pos) Column() uint32 {
 	return p.col
 }
 
@@ -31,7 +31,7 @@ type Token struct {
 
 	// len of the codepoints in token. during the token is processing,
 	// it will store the begin pos of that token
-	len int
+	len uint32
 
 	// whether the token is after a line terminator or not
 	afterLineTerm bool
@@ -47,7 +47,7 @@ func (t *Token) End() *Pos {
 	return &t.end
 }
 
-func (t *Token) Len() int {
+func (t *Token) Len() uint32 {
 	return t.len
 }
 
@@ -178,7 +178,7 @@ type IllegalEscapeInfo struct {
 type TokExtTplSpan struct {
 	// store the internal string
 	str      string
-	strLen   int
+	strLen   uint32
 	strRng   span.Range
 	strBegin Pos
 	strEnd   Pos

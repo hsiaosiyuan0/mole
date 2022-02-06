@@ -37,7 +37,7 @@ type Parser struct {
 
 	// stores the `<` tokens which are resoled as `LT` operator and
 	// identified by their `[line, column]`
-	ltTokens [][2]int
+	ltTokens map[uint64]bool
 }
 
 type ParserOpts struct {
@@ -106,12 +106,15 @@ func (p *Parser) Setup(src *span.Source, opts *ParserOpts) {
 	p.imp = map[string]*Ident{}
 	p.checkName = true
 	p.danglingPvtRefs = make([]*Ref, 0)
-
+	p.ltTokens = map[uint64]bool{}
 	p.symtab = NewSymTab(opts.Externals)
 
 	p.lexer = NewLexer(src)
 	p.lexer.ver = opts.Version
 	p.lexer.feat = opts.Feature
+	if p.feat&FEAT_TS != 0 || p.feat&FEAT_DTS != 0 {
+		p.lexer.AddMode(LM_TS)
+	}
 
 	p.ts = p.feat&FEAT_TS != 0
 }
@@ -4027,8 +4030,6 @@ func (p *Parser) newExpr() (Node, error) {
 	var typArgs Node
 	ti := p.newTypInfo()
 	ahead := p.lexer.Peek()
-	line := ahead.begin.line
-	col := ahead.begin.col
 	if p.aheadIsArgList(ahead) {
 		p.pushState()
 		args, _, typArgs, _, err = p.argList(true, true, nil)
@@ -4036,7 +4037,9 @@ func (p *Parser) newExpr() (Node, error) {
 			// `new A < T`
 			if err == errTypArgMissingGT {
 				p.popState()
-				p.addLtTok(line, col)
+
+				e := err.(*ErrTypArgMssingGT)
+				p.addLtTok(e.line, e.col)
 				return &NewExpr{N_EXPR_NEW, p.finLoc(loc), expr, nil, nil, ti}, nil
 			}
 			return nil, err
@@ -4115,18 +4118,16 @@ func (p *Parser) checkCallee(callee Node, nextLoc *Loc) error {
 func (p *Parser) isLtTok(tok *Token) bool {
 	line := tok.begin.line
 	col := tok.begin.col
-	for _, lc := range p.ltTokens {
-		if lc[0] == line && lc[1] == col {
-			return true
-		}
-	}
-	return false
+	key := uint64(line)<<32 | uint64(col)
+	_, ok := p.ltTokens[key]
+	return ok
 }
 
 // records the `T_LT` at given position should be considered
 // as `less then` operator
-func (p *Parser) addLtTok(line, col int) {
-	p.ltTokens = append(p.ltTokens, [2]int{line, col})
+func (p *Parser) addLtTok(line, col uint32) {
+	key := uint64(line)<<32 | uint64(col)
+	p.ltTokens[key] = true
 }
 
 func (p *Parser) pushState() {
@@ -4175,7 +4176,7 @@ func (p *Parser) callExpr(callee Node, root bool, directOpt bool, opt *Loc, notC
 			// below pair `pushState` and `popState` is used to dealing with
 			// the ambiguity between `<` in typArgs and `<` operator in binExpr
 			lt := tok.value == T_LT
-			var line, col int
+			var line, col uint32
 			if lt {
 				line = tok.begin.line
 				col = tok.begin.col
@@ -4186,7 +4187,13 @@ func (p *Parser) callExpr(callee Node, root bool, directOpt bool, opt *Loc, notC
 			if err != nil {
 				if err == errTypArgMissingGT && firstOpt == nil {
 					p.popState()
-					p.addLtTok(line, col)
+
+					e := err.(*ErrTypArgMssingGT)
+					if p.lexer.canBeLsh(e.line, e.col) {
+						p.lexer.tryLsh(e.line, e.col)
+					} else {
+						p.addLtTok(line, col)
+					}
 					return callee, nil, nil
 				}
 				return nil, nil, err

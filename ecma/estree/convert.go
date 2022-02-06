@@ -5,7 +5,7 @@ import (
 )
 
 func pos(p *parser.Pos) *Position {
-	return &Position{Line: p.Line(), Column: p.Column()}
+	return &Position{Line: int(p.Line()), Column: int(p.Column())}
 }
 
 func loc(s *parser.Loc) *SrcLoc {
@@ -17,11 +17,11 @@ func loc(s *parser.Loc) *SrcLoc {
 }
 
 func start(s *parser.Loc) int {
-	return s.Range().Start()
+	return int(s.Range().Start())
 }
 
 func end(s *parser.Loc) int {
-	return s.Range().End()
+	return int(s.Range().End())
 }
 
 func ConvertProg(n *parser.Prog, ctx *ConvertCtx) *Program {

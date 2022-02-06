@@ -5,11 +5,11 @@ import "fmt"
 type LexerError struct {
 	msg  string
 	file string
-	line int
-	col  int
+	line uint32
+	col  uint32
 }
 
-func newLexerError(msg, file string, line, col int) *LexerError {
+func newLexerError(msg, file string, line, col uint32) *LexerError {
 	return &LexerError{
 		msg:  msg,
 		file: file,
@@ -25,11 +25,11 @@ func (e *LexerError) Error() string {
 type ParserError struct {
 	msg  string
 	file string
-	line int
-	col  int
+	line uint32
+	col  uint32
 }
 
-func newParserError(msg, file string, line, col int) *ParserError {
+func newParserError(msg, file string, line, col uint32) *ParserError {
 	return &ParserError{
 		msg:  msg,
 		file: file,
