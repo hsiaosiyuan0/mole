@@ -188,4 +188,5 @@ const (
 	ERR_ONLY_AMBIENT_MOD_WITH_STR_NAME     = "Only ambient modules can use quoted names"
 	ERR_STATIC_BLOCK_WITH_MODIFIER         = "Static class blocks cannot have any modifier"
 	ERR_TYPE_ARG_EMPTY                     = "Type argument list cannot be empty"
+	ERR_EXPORT_DUP_TYPE_MODIFIER           = "The `type` modifier cannot be used on a named export when `export type` is used on its export statement"
 )

@@ -2274,6 +2274,18 @@ type ImportDec struct {
 	loc   *Loc
 	specs []Node
 	src   Node
+	tsTyp bool
+}
+
+func (n *ImportDec) TsTyp() bool {
+	return n.tsTyp
+}
+
+func (n *ImportDec) Kind() string {
+	if n.tsTyp {
+		return "type"
+	}
+	return "value"
 }
 
 func (n *ImportDec) Specs() []Node {
@@ -2299,6 +2311,18 @@ type ImportSpec struct {
 	ns    bool
 	local Node
 	id    Node
+	tsTyp bool // if represents the ts type
+}
+
+func (n *ImportSpec) TsTyp() bool {
+	return n.tsTyp
+}
+
+func (n *ImportSpec) Kind() string {
+	if n.tsTyp {
+		return "type"
+	}
+	return "value"
 }
 
 func (n *ImportSpec) Default() bool {
@@ -2333,6 +2357,18 @@ type ExportDec struct {
 	dec   Node
 	specs []Node
 	src   Node
+	tsTyp bool
+}
+
+func (n *ExportDec) TsTyp() bool {
+	return n.tsTyp
+}
+
+func (n *ExportDec) Kind() string {
+	if n.tsTyp {
+		return "type"
+	}
+	return "value"
 }
 
 func (n *ExportDec) All() bool {
@@ -2369,6 +2405,18 @@ type ExportSpec struct {
 	ns    bool
 	local Node
 	id    Node // exported
+	tsTyp bool // if represents the ts type
+}
+
+func (n *ExportSpec) Kind() string {
+	if n.tsTyp {
+		return "type"
+	}
+	return "value"
+}
+
+func (n *ExportSpec) TsTyp() bool {
+	return n.tsTyp
 }
 
 func (n *ExportSpec) NameSpace() bool {

@@ -729,16 +729,18 @@ type ImportDeclaration struct {
 	Loc        *SrcLoc    `json:"loc"`
 	Specifiers []Node     `json:"specifiers"` // [ ImportSpecifier | ImportDefaultSpecifier | ImportNamespaceSpecifier ]
 	Source     Expression `json:"source"`
+	ImportKind string     `json:"importKind"`
 }
 
 // https://github.com/estree/estree/blob/master/es2015.md#importspecifier
 type ImportSpecifier struct {
-	Type     string  `json:"type"`
-	Start    int     `json:"start"`
-	End      int     `json:"end"`
-	Loc      *SrcLoc `json:"loc"`
-	Local    Node    `json:"local"`
-	Imported Node    `json:"imported"`
+	Type       string  `json:"type"`
+	Start      int     `json:"start"`
+	End        int     `json:"end"`
+	Loc        *SrcLoc `json:"loc"`
+	Local      Node    `json:"local"`
+	Imported   Node    `json:"imported"`
+	ImportKind string  `json:"importKind"`
 }
 
 // https://github.com/estree/estree/blob/master/es2015.md#importdefaultspecifier
@@ -768,16 +770,18 @@ type ExportNamedDeclaration struct {
 	Declaration Declaration `json:"declaration"` // Declaration | null
 	Specifiers  []Node      `json:"specifiers"`
 	Source      Expression  `json:"source"` // Literal | null
+	ExportKind  string      `json:"exportKind"`
 }
 
 // https://github.com/estree/estree/blob/master/es2015.md#exportspecifier
 type ExportSpecifier struct {
-	Type     string     `json:"type"`
-	Start    int        `json:"start"`
-	End      int        `json:"end"`
-	Loc      *SrcLoc    `json:"loc"`
-	Local    Expression `json:"local"`
-	Exported Expression `json:"exported"`
+	Type       string     `json:"type"`
+	Start      int        `json:"start"`
+	End        int        `json:"end"`
+	Loc        *SrcLoc    `json:"loc"`
+	Local      Expression `json:"local"`
+	Exported   Expression `json:"exported"`
+	ExportKind string     `json:"exportKind"`
 }
 
 type ExportDefaultDeclaration struct {

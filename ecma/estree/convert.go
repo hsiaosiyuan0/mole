@@ -211,12 +211,13 @@ func importSpec(spec *parser.ImportSpec, ctx *ConvertCtx) Node {
 		}
 	}
 	return &ImportSpecifier{
-		Type:     "ImportSpecifier",
-		Start:    start(spec.Loc()),
-		End:      end(spec.Loc()),
-		Loc:      loc(spec.Loc()),
-		Local:    Convert(spec.Local(), ctx),
-		Imported: Convert(spec.Id(), ctx),
+		Type:       "ImportSpecifier",
+		Start:      start(spec.Loc()),
+		End:        end(spec.Loc()),
+		Loc:        loc(spec.Loc()),
+		Local:      Convert(spec.Local(), ctx),
+		Imported:   Convert(spec.Id(), ctx),
+		ImportKind: spec.Kind(),
 	}
 }
 
@@ -258,12 +259,13 @@ func exportSpecs(specs []parser.Node, ctx *ConvertCtx) []Node {
 	for i, spec := range specs {
 		s := spec.(*parser.ExportSpec)
 		ret[i] = &ExportSpecifier{
-			Type:     "ExportSpecifier",
-			Start:    start(s.Loc()),
-			End:      end(s.Loc()),
-			Loc:      loc(s.Loc()),
-			Local:    Convert(s.Local(), ctx),
-			Exported: Convert(s.Id(), ctx),
+			Type:       "ExportSpecifier",
+			Start:      start(s.Loc()),
+			End:        end(s.Loc()),
+			Loc:        loc(s.Loc()),
+			Local:      Convert(s.Local(), ctx),
+			Exported:   Convert(s.Id(), ctx),
+			ExportKind: s.Kind(),
 		}
 	}
 	return ret
@@ -278,6 +280,7 @@ func exportNamed(node *parser.ExportDec, ctx *ConvertCtx) Node {
 		Declaration: Convert(node.Dec(), ctx),
 		Specifiers:  exportSpecs(node.Specs(), ctx),
 		Source:      Convert(node.Src(), ctx),
+		ExportKind:  node.Kind(),
 	}
 }
 
@@ -1227,6 +1230,7 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 			Loc:        loc(stmt.Loc()),
 			Specifiers: importSpecs(stmt.Specs(), ctx),
 			Source:     Convert(stmt.Src(), ctx),
+			ImportKind: stmt.Kind(),
 		}
 	case parser.N_STMT_EXPORT:
 		stmt := node.(*parser.ExportDec)

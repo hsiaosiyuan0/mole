@@ -1,0 +1,166 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 49,
+  "loc": {
+    "start": {
+      "line": 1,
+      "column": 0
+    },
+    "end": {
+      "line": 2,
+      "column": 16
+    }
+  },
+  "body": [
+    {
+      "type": "ImportDeclaration",
+      "start": 0,
+      "end": 32,
+      "loc": {
+        "start": {
+          "line": 1,
+          "column": 0
+        },
+        "end": {
+          "line": 1,
+          "column": 32
+        }
+      },
+      "importKind": "value",
+      "specifiers": [
+        {
+          "type": "ImportSpecifier",
+          "start": 9,
+          "end": 18,
+          "loc": {
+            "start": {
+              "line": 1,
+              "column": 9
+            },
+            "end": {
+              "line": 1,
+              "column": 18
+            }
+          },
+          "imported": {
+            "type": "Identifier",
+            "start": 14,
+            "end": 18,
+            "loc": {
+              "start": {
+                "line": 1,
+                "column": 14
+              },
+              "end": {
+                "line": 1,
+                "column": 18
+              }
+            },
+            "name": "Foo1"
+          },
+          "local": {
+            "type": "Identifier",
+            "start": 14,
+            "end": 18,
+            "loc": {
+              "start": {
+                "line": 1,
+                "column": 14
+              },
+              "end": {
+                "line": 1,
+                "column": 18
+              }
+            },
+            "name": "Foo1"
+          },
+          "importKind": "type"
+        }
+      ],
+      "source": {
+        "start": 26,
+        "end": 31,
+        "loc": {
+          "start": {
+            "line": 1,
+            "column": 26
+          },
+          "end": {
+            "line": 1,
+            "column": 31
+          }
+        },
+        "value": "mod",
+        "type": "Literal"
+      }
+    },
+    {
+      "type": "ExportNamedDeclaration",
+      "start": 33,
+      "end": 49,
+      "loc": {
+        "start": {
+          "line": 2,
+          "column": 0
+        },
+        "end": {
+          "line": 2,
+          "column": 16
+        }
+      },
+      "specifiers": [
+        {
+          "type": "ExportSpecifier",
+          "start": 42,
+          "end": 46,
+          "loc": {
+            "start": {
+              "line": 2,
+              "column": 9
+            },
+            "end": {
+              "line": 2,
+              "column": 13
+            }
+          },
+          "local": {
+            "type": "Identifier",
+            "start": 42,
+            "end": 46,
+            "loc": {
+              "start": {
+                "line": 2,
+                "column": 9
+              },
+              "end": {
+                "line": 2,
+                "column": 13
+              }
+            },
+            "name": "Foo1"
+          },
+          "exported": {
+            "type": "Identifier",
+            "start": 42,
+            "end": 46,
+            "loc": {
+              "start": {
+                "line": 2,
+                "column": 9
+              },
+              "end": {
+                "line": 2,
+                "column": 13
+              }
+            },
+            "name": "Foo1"
+          }
+        }
+      ],
+      "source": null,
+      "declaration": null
+    }
+  ],
+  "directives": []
+}

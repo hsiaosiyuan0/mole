@@ -205,7 +205,7 @@ func (p *Parser) checkExp(exps []*ExportDec) error {
 			subnames = make([]Node, 0, len(exp.specs))
 			for _, spec := range exp.specs {
 				s := spec.(*ExportSpec)
-				if s.id != nil {
+				if s.id != nil && !s.tsTyp {
 					subnames = append(subnames, s.id)
 				}
 			}
@@ -308,7 +308,7 @@ func (p *Parser) stmt() (node Node, err error) {
 		node, err = p.labelStmt()
 	} else if p.aheadIsTsTypDec(tok) {
 		loc := p.locFromTok(p.lexer.Next())
-		node, err = p.tsTypDec(loc)
+		node, err = p.tsTypDec(loc, false, false)
 	} else if p.aheadIsTsItf(tok) {
 		node, err = p.tsItf()
 	} else if p.aheadIsTsNS(tok) {
@@ -359,12 +359,12 @@ func (p *Parser) exportDec() (Node, error) {
 	}
 
 	var err error
-	node := &ExportDec{N_STMT_EXPORT, nil, false, nil, nil, nil, nil}
+	node := &ExportDec{N_STMT_EXPORT, nil, false, nil, nil, nil, nil, false}
 	specs := make([]Node, 0)
 	tok = p.lexer.Peek()
 	tv := tok.value
 	if tv == T_MUL || tv == T_BRACE_L {
-		ss, all, src, err := p.exportFrom()
+		ss, all, src, err := p.exportFrom(false)
 		node.src = src
 		node.all = all
 		specs = append(specs, ss...)
@@ -458,10 +458,11 @@ func (p *Parser) exportDec() (Node, error) {
 			return nil, err
 		}
 	} else if p.aheadIsTsTypDec(tok) {
-		loc := p.locFromTok(p.lexer.Next())
+		node.tsTyp = true
+		loc := p.locFromTok(p.lexer.Next()) // consume `type`
 		// `export type { A };`
 		if p.lexer.Peek().value == T_BRACE_L {
-			ss, all, src, err := p.exportFrom()
+			ss, all, src, err := p.exportFrom(true)
 			node.src = src
 			node.all = all
 			specs = append(specs, ss...)
@@ -470,7 +471,7 @@ func (p *Parser) exportDec() (Node, error) {
 			}
 			p.advanceIfSemi(false)
 		} else {
-			node.dec, err = p.tsTypDec(loc)
+			node.dec, err = p.tsTypDec(loc, false, false)
 			if err != nil {
 				return nil, err
 			}
@@ -539,7 +540,7 @@ func (p *Parser) addExp(exp *ExportDec) error {
 	return p.errorAtLoc(exp.Loc(), ERR_IMPORT_EXPORT_SHOULD_AT_TOP_LEVEL)
 }
 
-func (p *Parser) exportFrom() ([]Node, bool, Node, error) {
+func (p *Parser) exportFrom(typ bool) ([]Node, bool, Node, error) {
 	tok := p.lexer.Next()
 	var specs []Node
 	var err error
@@ -556,10 +557,10 @@ func (p *Parser) exportFrom() ([]Node, bool, Node, error) {
 				return nil, false, nil, err
 			}
 			specs = make([]Node, 1)
-			specs[0] = &ExportSpec{N_EXPORT_SPEC, p.finLoc(p.locFromTok(tok)), true, id, nil}
+			specs[0] = &ExportSpec{N_EXPORT_SPEC, p.finLoc(p.locFromTok(tok)), true, id, nil, false}
 		}
 	} else {
-		specs, err = p.exportNamed()
+		specs, err = p.exportNamed(typ)
 		if err != nil {
 			return nil, false, nil, err
 		}
@@ -591,7 +592,7 @@ func (p *Parser) exportFrom() ([]Node, bool, Node, error) {
 	return specs, ns, src, nil
 }
 
-func (p *Parser) exportNamed() ([]Node, error) {
+func (p *Parser) exportNamed(typ bool) ([]Node, error) {
 	specs := make([]Node, 0)
 	for {
 		tok := p.lexer.Peek()
@@ -600,13 +601,20 @@ func (p *Parser) exportNamed() ([]Node, error) {
 		} else if tok.value == T_EOF {
 			return nil, p.errorTok(tok)
 		}
-		spec, err := p.exportSpec()
+		spec, err := p.exportSpec(typ)
 		if err != nil {
 			return nil, err
 		}
 		specs = append(specs, spec)
-		if p.lexer.Peek().value == T_COMMA {
+
+		ahead := p.lexer.Peek()
+		av := ahead.value
+		if av == T_COMMA {
 			p.lexer.Next()
+		} else if av == T_BRACE_R {
+			break
+		} else {
+			return nil, p.errorAtLoc(p.locFromTok(ahead), ERR_UNEXPECTED_TOKEN)
 		}
 	}
 
@@ -628,11 +636,45 @@ func (p *Parser) identWithKw(scope *Scope, binding bool) (Node, error) {
 	return p.ident(scope, binding)
 }
 
-func (p *Parser) exportSpec() (Node, error) {
+func (p *Parser) exportSpec(typ bool) (Node, error) {
+	var local Node
+	var err error
 	loc := p.loc()
-	local, err := p.identWithKw(nil, false)
-	if err != nil {
-		return nil, err
+	ahead := p.lexer.Peek()
+	if p.aheadIsTsTypDec(ahead) {
+		loc := p.locFromTok(p.lexer.Next()) // consume `type`
+		typLoc := p.finLoc(loc)
+		if typ {
+			return nil, p.errorAtLoc(loc, ERR_EXPORT_DUP_TYPE_MODIFIER)
+		}
+		typ = true
+		local, err = p.tsTypDec(loc, true, false)
+		if err != nil {
+			return nil, err
+		}
+
+		// `export { type as as } from "./mod.js";`
+		if local.Type() == N_NAME && local.(*Ident).Text() == "as" {
+			_, _, canProp := p.lexer.Peek().CanBePropKey()
+			ahead2nd := p.lexer.Peek2nd()
+
+			// if `canProp2` is true, then the stmt may match:
+			// `export { type as as if };`
+			_, _, canProp2 := ahead2nd.CanBePropKey()
+			if canProp && !canProp2 {
+				local = &Ident{N_NAME, typLoc, "type", false, false, nil, false, p.newTypInfo()}
+				id, err := p.identWithKw(nil, false)
+				if err != nil {
+					return nil, err
+				}
+				return &ExportSpec{N_EXPORT_SPEC, p.finLoc(loc.Clone()), false, local, id, false}, nil
+			}
+		}
+	} else {
+		local, err = p.identWithKw(nil, false)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	id := local
@@ -647,7 +689,7 @@ func (p *Parser) exportSpec() (Node, error) {
 		}
 	}
 
-	return &ExportSpec{N_EXPORT_SPEC, p.finLoc(loc), false, local, id}, nil
+	return &ExportSpec{N_EXPORT_SPEC, p.finLoc(loc), false, local, id, typ}, nil
 }
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-scripts-and-modules.html#prod-ImportDeclaration
@@ -660,7 +702,37 @@ func (p *Parser) importDec() (Node, error) {
 
 	specs := make([]Node, 0)
 	tok := p.lexer.Peek()
-	if tok.value != T_STRING {
+	node := &ImportDec{N_STMT_IMPORT, nil, specs, nil, false}
+
+	typDec := p.aheadIsTsTypDec(tok)
+	if typDec {
+		ahead2nd := p.lexer.Peek2nd()
+		typDec = ahead2nd.value != T_NAME && ahead2nd.Text() != "from"
+	}
+
+	if typDec {
+		node.tsTyp = true
+		loc := p.locFromTok(p.lexer.Next()) // consume `type`
+		// `export type { A };`
+		if p.lexer.Peek().value == T_BRACE_L {
+			ss, err := p.importNamed(true)
+			specs = append(specs, ss...)
+			if err != nil {
+				return nil, err
+			}
+			p.advanceIfSemi(false)
+		} else {
+			dec, err := p.tsTypDec(loc, false, true)
+			if err != nil {
+				return nil, err
+			}
+			if dec.Type() != N_NAME {
+				return nil, p.errorAtLoc(dec.Loc(), ERR_IMPORT_TYPE_IN_IMPORT_ALIAS)
+			}
+			spec := &ImportSpec{N_IMPORT_SPEC, p.finLoc(loc.Clone()), false, false, dec, dec, true}
+			specs = append(specs, spec)
+		}
+	} else if tok.value != T_STRING {
 		var id Node
 		var err error
 		if tok.value == T_NAME {
@@ -668,7 +740,7 @@ func (p *Parser) importDec() (Node, error) {
 			if err != nil {
 				return nil, err
 			}
-			spec := &ImportSpec{N_IMPORT_SPEC, p.finLoc(p.locFromTok(tok)), true, false, id, id}
+			spec := &ImportSpec{N_IMPORT_SPEC, p.finLoc(p.locFromTok(tok)), true, false, id, id, false}
 			specs = append(specs, spec)
 		} else if tok.value == T_PAREN_L || tok.value == T_DOT {
 			expr, err := p.importCall(ipt)
@@ -677,7 +749,7 @@ func (p *Parser) importDec() (Node, error) {
 			}
 			return &ExprStmt{N_STMT_EXPR, expr.Loc().Clone(), expr, false}, nil
 		} else {
-			ss, err := p.importNamedOrNS()
+			ss, err := p.importNamedOrNS(false)
 			if err != nil {
 				return nil, err
 			}
@@ -686,7 +758,7 @@ func (p *Parser) importDec() (Node, error) {
 
 		if p.lexer.Peek().value == T_COMMA {
 			p.lexer.Next()
-			ss, err := p.importNamedOrNS()
+			ss, err := p.importNamedOrNS(false)
 			if err != nil {
 				return nil, err
 			}
@@ -713,19 +785,21 @@ func (p *Parser) importDec() (Node, error) {
 	if p.scope().IsKind(SPK_STRICT) && legacyOctalEscapeSeq {
 		return nil, p.errorAtLoc(p.locFromTok(str), ERR_LEGACY_OCTAL_ESCAPE_IN_STRICT_MODE)
 	}
-	src := &StrLit{N_LIT_STR, p.finLoc(p.locFromTok(str)), str.Text(), legacyOctalEscapeSeq, nil, nil}
 
+	node.src = &StrLit{N_LIT_STR, p.finLoc(p.locFromTok(str)), str.Text(), legacyOctalEscapeSeq, nil, nil}
+	node.specs = specs
 	if err := p.advanceIfSemi(true); err != nil {
 		return nil, err
 	}
 
-	return &ImportDec{N_STMT_IMPORT, p.finLoc(loc), specs, src}, nil
+	node.loc = p.finLoc(loc)
+	return node, nil
 }
 
-func (p *Parser) importNamedOrNS() ([]Node, error) {
+func (p *Parser) importNamedOrNS(typ bool) ([]Node, error) {
 	tok := p.lexer.Peek()
 	if tok.value == T_BRACE_L {
-		return p.importNamed()
+		return p.importNamed(typ)
 	} else if tok.value == T_MUL {
 		return p.importNS()
 	} else {
@@ -733,11 +807,45 @@ func (p *Parser) importNamedOrNS() ([]Node, error) {
 	}
 }
 
-func (p *Parser) importSpec() (Node, error) {
+func (p *Parser) importSpec(typ bool) (Node, error) {
+	var binding Node
+	var err error
 	loc := p.loc()
-	binding, err := p.identWithKw(nil, true)
-	if err != nil {
-		return nil, err
+	ahead := p.lexer.Peek()
+	if p.aheadIsTsTypDec(ahead) {
+		loc := p.locFromTok(p.lexer.Next()) // consume `type`
+		typLoc := p.finLoc(loc)
+		if typ {
+			return nil, p.errorAtLoc(loc, ERR_EXPORT_DUP_TYPE_MODIFIER)
+		}
+		typ = true
+		binding, err = p.tsTypDec(loc, true, false)
+		if err != nil {
+			return nil, err
+		}
+
+		// `export { type as as } from "./mod.js";`
+		if binding.Type() == N_NAME && binding.(*Ident).Text() == "as" {
+			_, _, canProp := p.lexer.Peek().CanBePropKey()
+			ahead2nd := p.lexer.Peek2nd()
+
+			// if `canProp2` is true, then the stmt may match:
+			// `export { type as as if };`
+			_, _, canProp2 := ahead2nd.CanBePropKey()
+			if canProp && !canProp2 {
+				binding = &Ident{N_NAME, typLoc, "type", false, false, nil, false, p.newTypInfo()}
+				id, err := p.identWithKw(nil, false)
+				if err != nil {
+					return nil, err
+				}
+				return &ImportSpec{N_IMPORT_SPEC, p.finLoc(loc.Clone()), false, false, id, binding, false}, nil
+			}
+		}
+	} else {
+		binding, err = p.identWithKw(nil, false)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	id := binding
@@ -755,10 +863,10 @@ func (p *Parser) importSpec() (Node, error) {
 		}
 	}
 
-	return &ImportSpec{N_IMPORT_SPEC, p.finLoc(loc), false, false, binding, id}, nil
+	return &ImportSpec{N_IMPORT_SPEC, p.finLoc(loc), false, false, binding, id, typ}, nil
 }
 
-func (p *Parser) importNamed() ([]Node, error) {
+func (p *Parser) importNamed(typ bool) ([]Node, error) {
 	p.lexer.Next()
 
 	specs := make([]Node, 0)
@@ -769,7 +877,7 @@ func (p *Parser) importNamed() ([]Node, error) {
 		} else if tok.value == T_EOF {
 			return nil, p.errorTok(tok)
 		}
-		spec, err := p.importSpec()
+		spec, err := p.importSpec(typ)
 		if err != nil {
 			return nil, err
 		}
@@ -801,7 +909,7 @@ func (p *Parser) importNS() ([]Node, error) {
 	}
 
 	specs := make([]Node, 1)
-	specs[0] = &ImportSpec{N_IMPORT_SPEC, p.finLoc(loc), false, true, id, nil}
+	specs[0] = &ImportSpec{N_IMPORT_SPEC, p.finLoc(loc), false, true, id, nil, false}
 	return specs, nil
 }
 

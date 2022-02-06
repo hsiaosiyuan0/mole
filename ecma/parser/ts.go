@@ -1387,14 +1387,14 @@ func (p *Parser) tsCallSig(typParams Node, loc *Loc, kind PropKind) (Node, error
 }
 
 func (p *Parser) aheadIsTsTypDec(tok *Token) bool {
-	if !p.ts || tok.value != T_NAME || tok.Text() != "type" {
+	if !p.ts || tok.value != T_NAME || tok.Text() != "type" || tok.ContainsEscape() {
 		return false
 	}
 	ahead := p.lexer.Peek2nd()
-	return !ahead.afterLineTerm
+	return !ahead.afterLineTerm && ahead.Kind().StartExpr
 }
 
-func (p *Parser) tsTypDec(loc *Loc) (Node, error) {
+func (p *Parser) tsTypDec(loc *Loc, skipDec bool, omitDec bool) (Node, error) {
 	name, err := p.ident(nil, true)
 	if err != nil {
 		return nil, err
@@ -1408,13 +1408,23 @@ func (p *Parser) tsTypDec(loc *Loc) (Node, error) {
 		return nil, err
 	}
 
+	ti := p.newTypInfo()
+	if skipDec {
+		return name, nil
+	}
+
 	params, err := p.tsTryTypParams()
 	if err != nil {
 		return nil, err
 	}
 
-	if _, err = p.nextMustTok(T_ASSIGN); err != nil {
-		return nil, err
+	ahead := p.lexer.Peek()
+	if ahead.value == T_ASSIGN {
+		p.lexer.Next()
+	} else if omitDec {
+		return name, nil
+	} else {
+		return nil, p.errorTok(ahead)
 	}
 
 	typAnnot, err := p.tsTyp(false, false)
@@ -1426,7 +1436,6 @@ func (p *Parser) tsTypDec(loc *Loc) (Node, error) {
 		return nil, err
 	}
 
-	ti := p.newTypInfo()
 	ti.SetTypParams(params)
 	ti.SetTypAnnot(typAnnot)
 	return &TsTypDec{N_TS_TYP_DEC, p.finLoc(loc), name, ti}, nil
@@ -1865,7 +1874,7 @@ func (p *Parser) tsDec() (Node, error) {
 		typ = N_TS_DEC_INTERFACE
 	} else if p.aheadIsTsTypDec(tok) {
 		loc := p.locFromTok(p.lexer.Next())
-		dec.inner, err = p.tsTypDec(loc)
+		dec.inner, err = p.tsTypDec(loc, false, false)
 		typ = N_TS_DEC_TYP_DEC
 	} else if p.aheadIsTsEnum(tok) {
 		dec.inner, err = p.tsEnum(nil, false)
