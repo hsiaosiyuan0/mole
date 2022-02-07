@@ -1,0 +1,3 @@
+{
+  "throws": "A type-only import can specify a default import or named bindings, but not both at (1:22)"
+}

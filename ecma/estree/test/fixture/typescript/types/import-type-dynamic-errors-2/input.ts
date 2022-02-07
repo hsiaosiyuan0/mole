@@ -1,0 +1,1 @@
+type Y = import(`Foo`);

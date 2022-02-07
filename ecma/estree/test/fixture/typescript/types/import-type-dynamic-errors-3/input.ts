@@ -1,0 +1,1 @@
+type Z = import(Y);

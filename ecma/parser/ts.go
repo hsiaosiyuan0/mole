@@ -17,6 +17,8 @@ var builtinTyp = map[string]NodeType{
 	"unknown":   N_TS_UNKNOWN,
 	"undefined": N_TS_UNDEF,
 	"null":      N_TS_NULL,
+	"bigint":    N_TS_BIGINT,
+	"intrinsic": N_TS_INTRINSIC,
 }
 
 // indicates the closing `>` is missing, so the processed `<` should be considered
@@ -50,7 +52,7 @@ func (p *Parser) tsTypAnnot() (Node, error) {
 	av := ahead.value
 	if av == T_COLON {
 		loc := p.locFromTok(p.lexer.Next())
-		node, err := p.tsTyp(false, false)
+		node, err := p.tsTyp(false, false, true)
 		if err != nil {
 			return nil, err
 		}
@@ -72,17 +74,17 @@ func (p *Parser) tsTypAnnot() (Node, error) {
 // the manner used here is by setting the `rough` argument to `true` to parse `{a = c, b?: number}`
 // as a superset consists of `tsTyp` and `bindingPattern`, the parsed result will be judged by later
 // process by the time via method such as `tsRoughParamToParam`
-func (p *Parser) tsTyp(rough bool, canConst bool) (Node, error) {
+func (p *Parser) tsTyp(rough bool, canConst bool, canCond bool) (Node, error) {
 	if p.lexer.Peek().value == T_NEW {
-		return p.tsConstructTyp()
+		return p.tsConstructTyp(nil, false)
 	}
-	return p.tsUnionOrIntersecType(nil, 0, rough, canConst)
+	return p.tsUnionOrIntersecType(nil, 0, rough, canConst, canCond)
 }
 
-func (p *Parser) tsUnionOrIntersecType(lhs Node, minPcd int, rough bool, canConst bool) (Node, error) {
+func (p *Parser) tsUnionOrIntersecType(lhs Node, minPcd int, rough bool, canConst bool, canCond bool) (Node, error) {
 	var err error
 	if lhs == nil {
-		lhs, err = p.tsPrimary(rough, canConst)
+		lhs, err = p.tsPrimary(rough, canConst, canCond)
 		if err != nil {
 			return nil, err
 		}
@@ -91,6 +93,10 @@ func (p *Parser) tsUnionOrIntersecType(lhs Node, minPcd int, rough bool, canCons
 	if lhs.Type() == N_TS_FN_TYP {
 		return lhs, nil
 	}
+
+	// only `intrinsic` at the first place of the rvalue of the type alias can
+	// be parsed as `intrinsic` keywords or else return as ident
+	p.scope().EraseKind(SPK_TS_MAY_INTRINSIC)
 
 	var rhs Node
 	var elems []Node
@@ -124,7 +130,7 @@ func (p *Parser) tsUnionOrIntersecType(lhs Node, minPcd int, rough bool, canCons
 			elems = []Node{lhs}
 		}
 
-		rhs, err = p.tsPrimary(rough, canConst)
+		rhs, err = p.tsPrimary(rough, canConst, canCond)
 		if err != nil {
 			return nil, err
 		}
@@ -134,7 +140,7 @@ func (p *Parser) tsUnionOrIntersecType(lhs Node, minPcd int, rough bool, canCons
 		kind = TokenKinds[av]
 		for (av == T_BIT_OR || av == T_BIT_AND) && kind.Pcd > pcd {
 			pcd = kind.Pcd
-			rhs, err = p.tsUnionOrIntersecType(rhs, pcd, rough, canConst)
+			rhs, err = p.tsUnionOrIntersecType(rhs, pcd, rough, canConst, canCond)
 			if err != nil {
 				return nil, err
 			}
@@ -155,8 +161,11 @@ func (p *Parser) tsUnionOrIntersecType(lhs Node, minPcd int, rough bool, canCons
 	return &TsIntersecTyp{N_TS_INTERSEC_TYP, p.finLoc(lhs.Loc().Clone()), firstOp, elems}, nil
 }
 
-func (p *Parser) tsConstructTyp() (Node, error) {
-	loc := p.locFromTok(p.lexer.Next())
+func (p *Parser) tsConstructTyp(loc *Loc, abstract bool) (Node, error) {
+	tok := p.lexer.Next()
+	if loc == nil {
+		loc = p.locFromTok(tok)
+	}
 	params, typParams, _, err := p.paramList(false, PK_NONE, true)
 	if err != nil {
 		return nil, err
@@ -168,12 +177,12 @@ func (p *Parser) tsConstructTyp() (Node, error) {
 	}
 	tiLoc := p.locFromTok(arrow)
 
-	retTyp, err := p.tsTyp(false, false)
+	retTyp, err := p.tsTyp(false, false, false)
 	if err != nil {
 		return nil, err
 	}
 	ti := &TsTypAnnot{N_TS_TYP_ANNOT, p.finLoc(tiLoc), retTyp}
-	return &TsNewSig{N_TS_NEW_SIG, p.finLoc(loc), typParams, params, ti}, nil
+	return &TsNewSig{N_TS_NEW, p.finLoc(loc), typParams, params, ti, abstract}, nil
 }
 
 func (p *Parser) tsIsPrimitive(typ NodeType) bool {
@@ -339,7 +348,7 @@ func (p *Parser) tsRoughParamToParam(node Node) (Node, error) {
 		return nil, p.errorAtLoc(n.Loc(), ERR_UNEXPECTED_TOKEN)
 	case N_TS_THIS:
 		t := n.(*TsThis)
-		return &Ident{N_NAME, t.loc, t.loc.Text(), false, false, nil, true, nil}, nil
+		return &Ident{N_NAME, t.loc, t.loc.Text(), false, false, nil, true, p.newTypInfo()}, nil
 	case N_TS_NS_NAME:
 		s := n.(*TsNsName)
 		return nil, p.errorAtLoc(s.dot, ERR_UNEXPECTED_TOKEN)
@@ -472,7 +481,7 @@ func (p *Parser) tsParen(keepParen bool) (Node, error) {
 		if !keepParen {
 			return typ, nil
 		}
-		return &TsParen{N_TS_PARAM, p.finLoc(loc), typ}, nil
+		return &TsParen{N_TS_PAREN, p.finLoc(loc), typ}, nil
 	}
 
 	if len(params) == 1 {
@@ -487,7 +496,7 @@ func (p *Parser) tsParen(keepParen bool) (Node, error) {
 		if !keepParen {
 			return typ, nil
 		}
-		return &TsParen{N_TS_PARAM, p.finLoc(loc), typ}, nil
+		return &TsParen{N_TS_PAREN, p.finLoc(loc), typ}, nil
 	}
 
 	if len(params) == 0 {
@@ -495,7 +504,7 @@ func (p *Parser) tsParen(keepParen bool) (Node, error) {
 		if !keepParen {
 			return typ, nil
 		}
-		return &TsParen{N_TS_PARAM, p.finLoc(loc), typ}, nil
+		return &TsParen{N_TS_PAREN, p.finLoc(loc), typ}, nil
 	}
 	return nil, p.errorTok(ahead)
 }
@@ -523,7 +532,7 @@ func (p *Parser) tsFnTyp(typParams Node, params []Node, parenL *Loc) (Node, erro
 	}
 	tiLoc := p.locFromTok(arrow)
 
-	retTyp, err := p.tsTyp(false, false)
+	retTyp, err := p.tsTyp(false, false, false)
 	if err != nil {
 		return nil, err
 	}
@@ -577,7 +586,7 @@ func (p *Parser) tsTypPredicate(name Node, asserts bool, this bool) (Node, error
 	if av == T_NAME && ahead.Text() == "is" {
 		p.lexer.Next()
 
-		typ, err = p.tsTyp(false, false)
+		typ, err = p.tsTyp(false, false, false)
 		if err != nil {
 			return nil, err
 		}
@@ -616,10 +625,19 @@ func (p *Parser) tsArr(typ Node) (Node, error) {
 	for {
 		if p.lexer.Peek().value == T_BRACKET_L {
 			loc := p.locFromTok(p.lexer.Next())
-			if _, err := p.nextMustTok(T_BRACKET_R); err != nil {
-				return nil, err
+			if p.lexer.Peek().value != T_BRACKET_R {
+				idx, err := p.tsTyp(false, false, true)
+				if err != nil {
+					return nil, err
+				}
+				if _, err := p.nextMustTok(T_BRACKET_R); err != nil {
+					return nil, err
+				}
+				typ = &TsIdxAccess{N_TS_IDX_ACCESS, p.finLoc(typ.Loc().Clone()), typ, idx}
+			} else {
+				p.lexer.Next() // `]`
+				typ = &TsArr{N_TS_ARR, p.finLoc(typ.Loc().Clone()), loc, typ}
 			}
-			typ = &TsArr{N_TS_ARR, p.finLoc(typ.Loc().Clone()), loc, typ}
 		} else {
 			break
 		}
@@ -643,7 +661,7 @@ func (p *Parser) tsTuple(rough bool) (Node, error) {
 		} else if av == T_DOT_TRI {
 			arg, err = p.patternRest(true, true)
 		} else {
-			arg, err = p.tsTyp(rough, false)
+			arg, err = p.tsTyp(rough, false, false)
 		}
 		if err != nil {
 			return nil, err
@@ -678,9 +696,13 @@ func (p *Parser) tsPredefOrRef(tok *Token) (Node, error) {
 		loc = p.locFromTok(p.lexer.Next())
 	}
 
-	if typ, ok := builtinTyp[name]; ok {
+	if name == "intrinsic" && !p.scope().IsKind(SPK_TS_MAY_INTRINSIC) {
+		node = &Ident{N_NAME, node.Loc(), "intrinsic", false, tok.ContainsEscape(), nil, tok.IsKw(), p.newTypInfo()}
+	} else if typ, ok := builtinTyp[name]; ok {
 		// predef
-		return &TsPredef{typ, loc, nil}, nil
+		if p.lexer.Peek().value != T_DOT {
+			return &TsPredef{typ, loc, nil}, nil
+		}
 	}
 
 	return p.tsRef(node)
@@ -688,19 +710,41 @@ func (p *Parser) tsPredefOrRef(tok *Token) (Node, error) {
 
 // returns `FunctionType` or `PrimaryType` since `FunctionType`
 // is conflicts with `ParenthesizedType`
-func (p *Parser) tsPrimary(rough bool, canConst bool) (Node, error) {
+func (p *Parser) tsPrimary(rough bool, canConst bool, canCond bool) (Node, error) {
 	ahead := p.lexer.Peek()
 	loc := p.locFromTok(ahead)
 	av := ahead.value
 	if av == T_PAREN_L || av == T_LT {
 		// paren type
-		return p.tsParen(rough)
+		node, err := p.tsParen(true)
+		if err != nil {
+			return nil, err
+		}
+		if p.lexer.Peek().value == T_BRACKET_L {
+			// array type
+			node, err = p.tsArr(node)
+			if err != nil {
+				return nil, err
+			}
+		}
+		if node.Type() == N_TS_PAREN {
+			node = node.(*TsParen).arg
+		}
+		return node, nil
 	}
 
 	var err error
 	var node Node
 	if av == T_NAME || av == T_VOID || (av == T_CONST && canConst) {
-		node, err = p.tsPredefOrRef(ahead)
+		if ok, _, new := p.tsAheadIsAbstract(ahead, false, false, true); ok && new {
+			loc := p.locFromTok(p.lexer.Next())
+			return p.tsConstructTyp(loc, true)
+		}
+		if av == T_NAME && ahead.Text() == "infer" && !ahead.ContainsEscape() {
+			node, err = p.tsInfer()
+		} else {
+			node, err = p.tsPredefOrRef(ahead)
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -708,6 +752,9 @@ func (p *Parser) tsPrimary(rough bool, canConst bool) (Node, error) {
 		lit, err := p.primaryExpr(false)
 		if err != nil {
 			return nil, err
+		}
+		if lit.Type() == N_LIT_NULL {
+			return &TsPredef{N_TS_NULL, lit.Loc().Clone(), nil}, nil
 		}
 		return &TsLit{N_TS_LIT, lit.Loc().Clone(), lit}, nil
 	} else if av == T_BRACE_L {
@@ -725,11 +772,11 @@ func (p *Parser) tsPrimary(rough bool, canConst bool) (Node, error) {
 	} else if av == T_TYPE_OF {
 		// type query
 		p.lexer.Next()
-		name, err := p.tsTypName(nil)
+		arg, err := p.tsTyp(false, false, canCond)
 		if err != nil {
 			return nil, err
 		}
-		node = &TsQuery{N_TS_QUERY, p.finLoc(loc), name}
+		node = &TsTypQuery{N_TS_TYP_QUERY, p.finLoc(loc), arg}
 	} else if av == T_THIS {
 		// this type
 		p.lexer.Next()
@@ -749,12 +796,14 @@ func (p *Parser) tsPrimary(rough bool, canConst bool) (Node, error) {
 	if node != nil {
 		ahead = p.lexer.Peek()
 		av = ahead.value
-		if av == T_BRACKET_L && !ahead.afterLineTerm {
+		if node.Type() != N_TS_INTRINSIC && av == T_BRACKET_L && !ahead.afterLineTerm {
 			// array type
 			node, err = p.tsArr(node)
 			if err != nil {
 				return nil, err
 			}
+		} else if av == T_EXTENDS && canCond {
+			return p.tsConditional(node)
 		}
 		return node, nil
 	}
@@ -769,17 +818,26 @@ func (p *Parser) tsImport() (Node, error) {
 	}
 	tok, err := p.nextMustTok(T_STRING)
 	if err != nil {
-		return nil, err
+		return nil, p.errorAt(tok.value, &tok.begin, ERR_IMPORT_ARG_SHOULD_BE_STR)
 	}
-	arg := &StrLit{N_LIT_STR, p.finLoc(loc), tok.Text(), tok.HasLegacyOctalEscapeSeq(), nil, p.newTypInfo()}
+	strLoc := p.locFromTok(tok)
+	arg := &StrLit{N_LIT_STR, p.finLoc(strLoc), tok.Text(), tok.HasLegacyOctalEscapeSeq(), nil, p.newTypInfo()}
 	if _, err := p.nextMustTok(T_PAREN_R); err != nil {
 		return nil, err
 	}
-	typArgs, err := p.tsTypArgs(false, true)
+	var qualifier Node
+	if p.lexer.Peek().value == T_DOT {
+		p.lexer.Next()
+		qualifier, err = p.tsTypName(nil)
+		if err != nil {
+			return nil, err
+		}
+	}
+	typArgs, err := p.tsTryTypArgs(nil, true)
 	if err != nil {
 		return nil, err
 	}
-	return &TsImportType{N_TS_IMPORT_TYP, p.finLoc(loc), arg, typArgs}, nil
+	return &TsImportType{N_TS_IMPORT_TYP, p.finLoc(loc), arg, qualifier, typArgs}, nil
 }
 
 func (p *Parser) tsObj(rough bool) (Node, error) {
@@ -818,7 +876,7 @@ func (p *Parser) tsNewSig(loc *Loc) (Node, error) {
 		return nil, err
 	}
 	p.advanceIfSemi(false)
-	return &TsNewSig{N_TS_NEW_SIG, p.finLoc(loc), typParams, params, retTyp}, nil
+	return &TsNewSig{N_TS_NEW_SIG, p.finLoc(loc), typParams, params, retTyp, false}, nil
 }
 
 func (p *Parser) tsIdxSig(loc *Loc) (Node, error) {
@@ -1018,7 +1076,7 @@ func (p *Parser) tsProp(rough bool) (Node, error) {
 	var value Node
 	if tok.value == T_COLON {
 		p.lexer.Next()
-		value, err = p.tsTyp(rough, false)
+		value, err = p.tsTyp(rough, false, false)
 		if err != nil {
 			return nil, err
 		}
@@ -1065,13 +1123,13 @@ func (p *Parser) tsTypParam() (Node, error) {
 	var cons, val Node
 	if p.lexer.Peek().value == T_EXTENDS {
 		p.lexer.Next()
-		cons, err = p.tsTyp(false, false)
+		cons, err = p.tsTyp(false, false, false)
 		if err != nil {
 			return nil, err
 		}
 		if p.lexer.Peek().value == T_ASSIGN {
 			p.lexer.Next()
-			val, err = p.tsTyp(false, false)
+			val, err = p.tsTyp(false, false, false)
 			if err != nil {
 				return nil, err
 			}
@@ -1300,13 +1358,13 @@ func (p *Parser) tsTypArgs(canConst bool, noJsx bool) (Node, error) {
 		if av == T_GT {
 			p.lexer.Next()
 			break
-		} else if av == T_NAME || ahead.IsLit(true) || ahead.IsCtxKw() || ahead.value == T_LT {
+		} else if av == T_NAME || ahead.IsLit(true) || ahead.IsCtxKw() || ahead.value == T_LT || ahead.value == T_PAREN_L {
 			// next is typ， fallthrough to below `p.tsTyp` to handle this branch
 		} else {
 			return nil, errTypArgMissingGT
 		}
 
-		arg, err := p.tsTyp(false, canConst)
+		arg, err := p.tsTyp(false, canConst, false)
 		if err != nil {
 			if av == T_LT {
 				return nil, errTypArgMissingGT
@@ -1323,7 +1381,7 @@ func (p *Parser) tsTypArgs(canConst bool, noJsx bool) (Node, error) {
 			}
 
 			p.lexer.Next() // consume `extends`
-			cons, err := p.tsTyp(false, false)
+			cons, err := p.tsTyp(false, false, false)
 			if err != nil {
 				return nil, err
 			}
@@ -1386,15 +1444,15 @@ func (p *Parser) tsCallSig(typParams Node, loc *Loc, kind PropKind) (Node, error
 	return &TsCallSig{N_TS_CALL_SIG, p.finLoc(loc), typParams, params, typAnnot}, nil
 }
 
-func (p *Parser) aheadIsTsTypDec(tok *Token) bool {
+func (p *Parser) aheadIsTsTypDec(tok *Token, asterisk bool) bool {
 	if !p.ts || tok.value != T_NAME || tok.Text() != "type" || tok.ContainsEscape() {
 		return false
 	}
 	ahead := p.lexer.Peek2nd()
-	return !ahead.afterLineTerm && ahead.Kind().StartExpr
+	return !ahead.afterLineTerm && (ahead.Kind().StartExpr || asterisk && ahead.value == T_MUL)
 }
 
-func (p *Parser) tsTypDec(loc *Loc, skipDec bool, omitDec bool) (Node, error) {
+func (p *Parser) tsTypDec(loc *Loc, skipDec bool) (Node, error) {
 	name, err := p.ident(nil, true)
 	if err != nil {
 		return nil, err
@@ -1421,13 +1479,13 @@ func (p *Parser) tsTypDec(loc *Loc, skipDec bool, omitDec bool) (Node, error) {
 	ahead := p.lexer.Peek()
 	if ahead.value == T_ASSIGN {
 		p.lexer.Next()
-	} else if omitDec {
-		return name, nil
 	} else {
 		return nil, p.errorTok(ahead)
 	}
 
-	typAnnot, err := p.tsTyp(false, false)
+	p.scope().AddKind(SPK_TS_MAY_INTRINSIC)
+	typAnnot, err := p.tsTyp(false, false, true)
+	p.scope().EraseKind(SPK_TS_MAY_INTRINSIC)
 	if err != nil {
 		return nil, err
 	}
@@ -1632,7 +1690,7 @@ func (p *Parser) tsImportAlias(loc *Loc, name Node, export bool) (Node, error) {
 	var err error
 	ahead := p.lexer.Peek()
 	var typ *Loc
-	if ahead.value == T_NAME && name.(*Ident).Text() == "type" {
+	if ahead.value == T_NAME && name.(*Ident).Text() == "type" && !name.(*Ident).containsEscape {
 		typ = name.Loc()
 		name, err = p.ident(nil, true)
 		if err != nil {
@@ -1640,7 +1698,13 @@ func (p *Parser) tsImportAlias(loc *Loc, name Node, export bool) (Node, error) {
 		}
 	}
 
-	p.lexer.Next() // `=`
+	return p.tsImportAliasRsh(loc, typ, name, export)
+}
+
+func (p *Parser) tsImportAliasRsh(loc *Loc, typ *Loc, name Node, export bool) (Node, error) {
+	if _, err := p.nextMustTok(T_ASSIGN); err != nil {
+		return nil, err
+	}
 
 	val, err := p.tsTypName(nil)
 	if err != nil {
@@ -1872,9 +1936,9 @@ func (p *Parser) tsDec() (Node, error) {
 	} else if p.aheadIsTsItf(tok) {
 		dec.inner, err = p.tsItf()
 		typ = N_TS_DEC_INTERFACE
-	} else if p.aheadIsTsTypDec(tok) {
+	} else if p.aheadIsTsTypDec(tok, false) {
 		loc := p.locFromTok(p.lexer.Next())
-		dec.inner, err = p.tsTypDec(loc, false, false)
+		dec.inner, err = p.tsTypDec(loc, false)
 		typ = N_TS_DEC_TYP_DEC
 	} else if p.aheadIsTsEnum(tok) {
 		dec.inner, err = p.tsEnum(nil, false)
@@ -1887,7 +1951,7 @@ func (p *Parser) tsDec() (Node, error) {
 		if dec != nil {
 			typ = dec.typ
 		}
-	} else if ok, itf := p.tsAheadIsAbstract(tok, false, false); ok {
+	} else if ok, itf, _ := p.tsAheadIsAbstract(tok, false, false, false); ok {
 		if itf {
 			return nil, p.errorAtLoc(p.locFromTok(tok), ERR_ABSTRACT_AT_INVALID_POSITION)
 		}
@@ -1950,33 +2014,36 @@ func (p *Parser) isTsLhs(node Node) bool {
 	return nt == N_TS_NO_NULL || nt == N_TS_TYP_ASSERT
 }
 
-func (p *Parser) tsAheadIsAbstract(tok *Token, prop bool, pvt bool) (bool, bool) {
+// `new` for expr: `let x: abstract new () => void = X;`
+func (p *Parser) tsAheadIsAbstract(tok *Token, prop bool, pvt bool, new bool) (bool, bool, bool) {
 	if p.ts && IsName(tok, "abstract", false) {
 		ahead := p.lexer.Peek2nd()
 		if ahead.afterLineTerm {
-			return false, false
+			return false, false, false
 		}
-		if ahead.value == T_CLASS ||
-			ahead.value == T_INTERFACE ||
+		av := ahead.value
+		if av == T_CLASS ||
+			av == T_INTERFACE ||
+			(new && av == T_NEW) ||
 			(p.aheadIsArgList(ahead) && !prop) ||
-			ahead.value == T_MUL {
-			return true, ahead.value == T_INTERFACE
+			av == T_MUL {
+			return true, av == T_INTERFACE, av == T_NEW
 		}
 		_, _, canProp := ahead.CanBePropKey()
-		if prop && (ahead.value == T_BRACKET_L || ahead.value == T_NAME || ahead.value == T_STRING || canProp) {
-			return true, false
+		if prop && (av == T_BRACKET_L || av == T_NAME || av == T_STRING || canProp) {
+			return true, false, false
 		}
-		if pvt && ahead.value == T_NAME_PVT {
-			return true, false
+		if pvt && av == T_NAME_PVT {
+			return true, false, false
 		}
-		if ahead.value == T_NAME {
+		if av == T_NAME {
 			if p.scope().IsKind(SPK_NOT_IN) && (IsName(ahead, "in", false) || IsName(ahead, "of", false)) {
-				return false, false
+				return false, false, false
 			}
-			return true, false
+			return true, false, false
 		}
 	}
-	return false, false
+	return false, false, false
 }
 
 type ModifierNameLoc struct {
@@ -2054,7 +2121,7 @@ func (p *Parser) tsImplements() ([]Node, error) {
 		if av == T_BRACE_L {
 			break
 		}
-		typ, err := p.tsTyp(false, false)
+		typ, err := p.tsTyp(false, false, false)
 		if err != nil {
 			return nil, err
 		}
@@ -2064,6 +2131,43 @@ func (p *Parser) tsImplements() ([]Node, error) {
 		return nil, p.errorAtLoc(implLoc, ERR_IMPLEMENT_LIST_EMPTY)
 	}
 	return impl, nil
+}
+
+func (p *Parser) tsConditional(chk Node) (Node, error) {
+	loc := chk.Loc().Clone()
+
+	var err error
+	if _, err = p.nextMustTok(T_EXTENDS); err != nil {
+		return nil, err
+	}
+	ext, err := p.tsTyp(false, false, false)
+	if err != nil {
+		return nil, err
+	}
+	if _, err = p.nextMustTok(T_HOOK); err != nil {
+		return nil, err
+	}
+	trueTyp, err := p.tsTyp(false, false, true)
+	if err != nil {
+		return nil, err
+	}
+	if _, err = p.nextMustTok(T_COLON); err != nil {
+		return nil, err
+	}
+	falseTyp, err := p.tsTyp(false, false, true)
+	if err != nil {
+		return nil, err
+	}
+	return &TsCondType{N_TS_COND, p.finLoc(loc), chk, ext, trueTyp, falseTyp}, nil
+}
+
+func (p *Parser) tsInfer() (Node, error) {
+	loc := p.locFromTok(p.lexer.Next())
+	arg, err := p.tsTypName(nil)
+	if err != nil {
+		return nil, err
+	}
+	return &TsTypInfer{N_TS_TYP_INFER, p.finLoc(loc), arg}, nil
 }
 
 func (p *Parser) tsCheckParams(params []Node, opts *TsCheckParamOpts) error {

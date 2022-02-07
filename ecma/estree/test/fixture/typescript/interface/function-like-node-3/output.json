@@ -58,7 +58,7 @@
           }
         },
         "typeAnnotation": {
-          "type": "TSConstructSignatureDeclaration",
+          "type": "TSConstructorType",
           "start": 11,
           "end": 28,
           "loc": {

@@ -67,6 +67,48 @@ type TSThisType struct {
 	Loc   *SrcLoc `json:"loc"`
 }
 
+type TSIntrinsicKeyword struct {
+	Type  string  `json:"type"`
+	Start int     `json:"start"`
+	End   int     `json:"end"`
+	Loc   *SrcLoc `json:"loc"`
+}
+
+type TSNeverKeyword struct {
+	Type  string  `json:"type"`
+	Start int     `json:"start"`
+	End   int     `json:"end"`
+	Loc   *SrcLoc `json:"loc"`
+}
+
+type TSSymbolKeyword struct {
+	Type  string  `json:"type"`
+	Start int     `json:"start"`
+	End   int     `json:"end"`
+	Loc   *SrcLoc `json:"loc"`
+}
+
+type TSUndefinedKeyword struct {
+	Type  string  `json:"type"`
+	Start int     `json:"start"`
+	End   int     `json:"end"`
+	Loc   *SrcLoc `json:"loc"`
+}
+
+type TSBigIntKeyword struct {
+	Type  string  `json:"type"`
+	Start int     `json:"start"`
+	End   int     `json:"end"`
+	Loc   *SrcLoc `json:"loc"`
+}
+
+type TSNullKeyword struct {
+	Type  string  `json:"type"`
+	Start int     `json:"start"`
+	End   int     `json:"end"`
+	Loc   *SrcLoc `json:"loc"`
+}
+
 type TSUnknownKeyword struct {
 	Type  string  `json:"type"`
 	Start int     `json:"start"`
@@ -127,6 +169,21 @@ type TSConstructSignatureDeclaration struct {
 	Async          bool    `json:"async"`
 	TypeParameters Node    `json:"typeParameters"`
 	ReturnType     Node    `json:"returnType"`
+	Abstract       bool    `json:"abstract"`
+}
+
+type TSConstructorType struct {
+	Type           string  `json:"type"`
+	Start          int     `json:"start"`
+	End            int     `json:"end"`
+	Loc            *SrcLoc `json:"loc"`
+	Id             Node    `json:"id"`
+	Params         []Node  `json:"params"`
+	Generator      bool    `json:"generator"`
+	Async          bool    `json:"async"`
+	TypeParameters Node    `json:"typeParameters"`
+	ReturnType     Node    `json:"returnType"`
+	Abstract       bool    `json:"abstract"`
 }
 
 type TSFunctionType struct {
@@ -603,5 +660,50 @@ type TSImportType struct {
 	End            int     `json:"end"`
 	Loc            *SrcLoc `json:"loc"`
 	Argument       Node    `json:"argument"`
+	Qualifier      Node    `json:"qualifier"`
 	TypeParameters Node    `json:"typeParameters"`
+}
+
+type TSTypeQuery struct {
+	Type     string  `json:"type"`
+	Start    int     `json:"start"`
+	End      int     `json:"end"`
+	Loc      *SrcLoc `json:"loc"`
+	ExprName Node    `json:"exprName"`
+}
+
+type TSConditionalType struct {
+	Type        string  `json:"type"`
+	Start       int     `json:"start"`
+	End         int     `json:"end"`
+	Loc         *SrcLoc `json:"loc"`
+	CheckType   Node    `json:"checkType"`
+	ExtendsType Node    `json:"extendsType"`
+	TrueType    Node    `json:"trueType"`
+	FalseType   Node    `json:"falseType"`
+}
+
+type TSInferType struct {
+	Type          string  `json:"type"`
+	Start         int     `json:"start"`
+	End           int     `json:"end"`
+	Loc           *SrcLoc `json:"loc"`
+	TypeParameter Node    `json:"typeParameter"`
+}
+
+type TSParenthesizedType struct {
+	Type           string  `json:"type"`
+	Start          int     `json:"start"`
+	End            int     `json:"end"`
+	Loc            *SrcLoc `json:"loc"`
+	TypeAnnotation Node    `json:"typeAnnotation"`
+}
+
+type TSIndexedAccessType struct {
+	Type       string  `json:"type"`
+	Start      int     `json:"start"`
+	End        int     `json:"end"`
+	Loc        *SrcLoc `json:"loc"`
+	ObjectType Node    `json:"objectType"`
+	IndexType  Node    `json:"indexType"`
 }

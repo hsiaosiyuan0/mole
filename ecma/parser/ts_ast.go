@@ -136,17 +136,21 @@ func (n *TsRef) HasArgs() bool {
 	return n.args != nil && len(n.args.(*TsParamsInst).params) > 0
 }
 
-type TsQuery struct {
+type TsTypQuery struct {
 	typ NodeType
 	loc *Loc
-	arg Node // name or nsName
+	arg Node // any ts Typ
 }
 
-func (n *TsQuery) Type() NodeType {
+func (n *TsTypQuery) Arg() Node {
+	return n.arg
+}
+
+func (n *TsTypQuery) Type() NodeType {
 	return n.typ
 }
 
-func (n *TsQuery) Loc() *Loc {
+func (n *TsTypQuery) Loc() *Loc {
 	return n.loc
 }
 
@@ -154,6 +158,10 @@ type TsParen struct {
 	typ NodeType
 	loc *Loc
 	arg Node // name or nsName
+}
+
+func (n *TsParen) Arg() Node {
+	return n.arg
 }
 
 func (n *TsParen) Type() NodeType {
@@ -181,6 +189,29 @@ func (n *TsArr) Loc() *Loc {
 
 func (n *TsArr) Arg() Node {
 	return n.arg
+}
+
+type TsIdxAccess struct {
+	typ NodeType
+	loc *Loc
+	obj Node
+	idx Node
+}
+
+func (n *TsIdxAccess) Obj() Node {
+	return n.obj
+}
+
+func (n *TsIdxAccess) Idx() Node {
+	return n.idx
+}
+
+func (n *TsIdxAccess) Type() NodeType {
+	return n.typ
+}
+
+func (n *TsIdxAccess) Loc() *Loc {
+	return n.loc
 }
 
 type TsTuple struct {
@@ -308,6 +339,11 @@ type TsNewSig struct {
 	typParams Node
 	params    []Node
 	retTyp    Node
+	abstract  bool
+}
+
+func (n *TsNewSig) Abstract() bool {
+	return n.abstract
 }
 
 func (n *TsNewSig) TypParams() Node {
@@ -830,14 +866,19 @@ func (n *TsNoNull) Arg() Node {
 }
 
 type TsImportType struct {
-	typ     NodeType
-	loc     *Loc
-	arg     Node
-	typArgs Node
+	typ       NodeType
+	loc       *Loc
+	arg       Node
+	qualifier Node
+	typArgs   Node
 }
 
 func (n *TsImportType) Arg() Node {
 	return n.arg
+}
+
+func (n *TsImportType) Qualifier() Node {
+	return n.qualifier
 }
 
 func (n *TsImportType) TypArg() Node {
@@ -891,6 +932,57 @@ func (n *ClassDec) TypParams() Node {
 		return nil
 	}
 	return n.ti.typParams
+}
+
+type TsCondType struct {
+	typ      NodeType
+	loc      *Loc
+	check    Node
+	ext      Node
+	trueTyp  Node
+	falseTyp Node
+}
+
+func (n *TsCondType) CheckTyp() Node {
+	return n.check
+}
+
+func (n *TsCondType) ExtTyp() Node {
+	return n.ext
+}
+
+func (n *TsCondType) TrueTyp() Node {
+	return n.trueTyp
+}
+
+func (n *TsCondType) FalseTyp() Node {
+	return n.falseTyp
+}
+
+func (n *TsCondType) Type() NodeType {
+	return n.typ
+}
+
+func (n *TsCondType) Loc() *Loc {
+	return n.loc
+}
+
+type TsTypInfer struct {
+	typ NodeType
+	loc *Loc
+	arg Node
+}
+
+func (n *TsTypInfer) Arg() Node {
+	return n.arg
+}
+
+func (n *TsTypInfer) Type() NodeType {
+	return n.typ
+}
+
+func (n *TsTypInfer) Loc() *Loc {
+	return n.loc
 }
 
 // Field

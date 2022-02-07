@@ -1410,7 +1410,7 @@ func TestTs93(t *testing.T) {
 	AssertEqual(t, true, ast != nil, "should be prog ok")
 	prog = ast.(*Prog)
 	expr = prog.stmts[0].(*VarDecStmt).decList[0].(*VarDec).init.(*TsTypAssert)
-	AssertEqual(t, "null", expr.des.(*TsLit).lit.(*NullLit).Text(), "should be ok")
+	AssertEqual(t, N_TS_NULL, expr.des.(*TsPredef).typ, "should be ok")
 }
 
 func TestTs94(t *testing.T) {

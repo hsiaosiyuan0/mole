@@ -189,4 +189,6 @@ const (
 	ERR_STATIC_BLOCK_WITH_MODIFIER         = "Static class blocks cannot have any modifier"
 	ERR_TYPE_ARG_EMPTY                     = "Type argument list cannot be empty"
 	ERR_EXPORT_DUP_TYPE_MODIFIER           = "The `type` modifier cannot be used on a named export when `export type` is used on its export statement"
+	ERR_IMPORT_TYP_MIX_NAMED               = "A type-only import can specify a default import or named bindings, but not both"
+	ERR_IMPORT_ARG_SHOULD_BE_STR           = "Argument in a type import must be a string literal"
 )

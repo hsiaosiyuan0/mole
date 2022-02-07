@@ -54,6 +54,48 @@ func ConvertTsTyp(node parser.Node, ctx *ConvertCtx) Node {
 			End:   end(node.Loc()),
 			Loc:   loc(node.Loc()),
 		}
+	case parser.N_TS_INTRINSIC:
+		return &TSIntrinsicKeyword{
+			Type:  "TSIntrinsicKeyword",
+			Start: start(node.Loc()),
+			End:   end(node.Loc()),
+			Loc:   loc(node.Loc()),
+		}
+	case parser.N_TS_NEVER:
+		return &TSNeverKeyword{
+			Type:  "TSNeverKeyword",
+			Start: start(node.Loc()),
+			End:   end(node.Loc()),
+			Loc:   loc(node.Loc()),
+		}
+	case parser.N_TS_SYM:
+		return &TSSymbolKeyword{
+			Type:  "TSSymbolKeyword",
+			Start: start(node.Loc()),
+			End:   end(node.Loc()),
+			Loc:   loc(node.Loc()),
+		}
+	case parser.N_TS_UNDEF:
+		return &TSUndefinedKeyword{
+			Type:  "TSUndefinedKeyword",
+			Start: start(node.Loc()),
+			End:   end(node.Loc()),
+			Loc:   loc(node.Loc()),
+		}
+	case parser.N_TS_BIGINT:
+		return &TSBigIntKeyword{
+			Type:  "TSBigIntKeyword",
+			Start: start(node.Loc()),
+			End:   end(node.Loc()),
+			Loc:   loc(node.Loc()),
+		}
+	case parser.N_TS_NULL:
+		return &TSNullKeyword{
+			Type:  "TSNullKeyword",
+			Start: start(node.Loc()),
+			End:   end(node.Loc()),
+			Loc:   loc(node.Loc()),
+		}
 	case parser.N_TS_THIS:
 		return &TSThisType{
 			Type:  "TSThisType",
@@ -479,6 +521,19 @@ func ConvertTsTyp(node parser.Node, ctx *ConvertCtx) Node {
 			Params:         fnParams(n.Params(), ctx),
 			TypeParameters: ConvertTsTyp(n.TypParams(), ctx),
 			ReturnType:     ConvertTsTyp(n.RetTyp(), ctx),
+			Abstract:       n.Abstract(),
+		}
+	case parser.N_TS_NEW:
+		n := node.(*parser.TsNewSig)
+		return &TSConstructorType{
+			Type:           "TSConstructorType",
+			Start:          start(n.Loc()),
+			End:            end(n.Loc()),
+			Loc:            loc(n.Loc()),
+			Params:         fnParams(n.Params(), ctx),
+			TypeParameters: ConvertTsTyp(n.TypParams(), ctx),
+			ReturnType:     ConvertTsTyp(n.RetTyp(), ctx),
+			Abstract:       n.Abstract(),
 		}
 	case parser.N_TS_FN_TYP:
 		n := node.(*parser.TsFnTyp)
@@ -499,7 +554,57 @@ func ConvertTsTyp(node parser.Node, ctx *ConvertCtx) Node {
 			End:            end(n.Loc()),
 			Loc:            loc(n.Loc()),
 			Argument:       Convert(n.Arg(), ctx),
+			Qualifier:      ConvertTsTyp(n.Qualifier(), ctx),
 			TypeParameters: ConvertTsTyp(n.TypArg(), ctx),
+		}
+	case parser.N_TS_TYP_QUERY:
+		n := node.(*parser.TsTypQuery)
+		return &TSTypeQuery{
+			Type:     "TSTypeQuery",
+			Start:    start(n.Loc()),
+			End:      end(n.Loc()),
+			Loc:      loc(n.Loc()),
+			ExprName: Convert(n.Arg(), ctx),
+		}
+	case parser.N_TS_COND:
+		n := node.(*parser.TsCondType)
+		return &TSConditionalType{
+			Type:        "TSConditionalType",
+			Start:       start(n.Loc()),
+			End:         end(n.Loc()),
+			Loc:         loc(n.Loc()),
+			CheckType:   Convert(n.CheckTyp(), ctx),
+			ExtendsType: Convert(n.ExtTyp(), ctx),
+			TrueType:    Convert(n.TrueTyp(), ctx),
+			FalseType:   Convert(n.FalseTyp(), ctx),
+		}
+	case parser.N_TS_TYP_INFER:
+		n := node.(*parser.TsTypInfer)
+		return &TSInferType{
+			Type:          "TSInferType",
+			Start:         start(n.Loc()),
+			End:           end(n.Loc()),
+			Loc:           loc(n.Loc()),
+			TypeParameter: ConvertTsTyp(n.Arg(), ctx),
+		}
+	case parser.N_TS_PAREN:
+		n := node.(*parser.TsParen)
+		return &TSParenthesizedType{
+			Type:           "TSParenthesizedType",
+			Start:          start(n.Loc()),
+			End:            end(n.Loc()),
+			Loc:            loc(n.Loc()),
+			TypeAnnotation: ConvertTsTyp(n.Arg(), ctx),
+		}
+	case parser.N_TS_IDX_ACCESS:
+		n := node.(*parser.TsIdxAccess)
+		return &TSIndexedAccessType{
+			Type:       "TSIndexedAccessType",
+			Start:      start(n.Loc()),
+			End:        end(n.Loc()),
+			Loc:        loc(n.Loc()),
+			ObjectType: ConvertTsTyp(n.Obj(), ctx),
+			IndexType:  ConvertTsTyp(n.Idx(), ctx),
 		}
 	}
 

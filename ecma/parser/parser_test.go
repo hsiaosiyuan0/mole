@@ -1861,7 +1861,7 @@ func TestFail192(t *testing.T) {
 
 func TestFail193(t *testing.T) {
 	testFail(t, "import X fro\\u006d 'x'",
-		"Keyword must not contain escaped characters at (1:9)", nil)
+		"Unexpected token `identifier` at (1:9)", nil)
 }
 
 func TestFail194(t *testing.T) {

@@ -35,6 +35,7 @@ const (
 	SPK_TS_MODULE          ScopeKind = 1 << iota
 	SPK_TS_MODULE_INDIRECT ScopeKind = 1 << iota
 	SPK_TS_INTERFACE       ScopeKind = 1 << iota
+	SPK_TS_MAY_INTRINSIC   ScopeKind = 1 << iota
 )
 
 type BindKind uint8

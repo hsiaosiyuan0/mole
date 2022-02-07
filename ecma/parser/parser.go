@@ -306,9 +306,9 @@ func (p *Parser) stmt() (node Node, err error) {
 		node, err = p.fnDec(false, tok, false)
 	} else if p.aheadIsLabel(tok) {
 		node, err = p.labelStmt()
-	} else if p.aheadIsTsTypDec(tok) {
+	} else if p.aheadIsTsTypDec(tok, false) {
 		loc := p.locFromTok(p.lexer.Next())
-		node, err = p.tsTypDec(loc, false, false)
+		node, err = p.tsTypDec(loc, false)
 	} else if p.aheadIsTsItf(tok) {
 		node, err = p.tsItf()
 	} else if p.aheadIsTsNS(tok) {
@@ -317,7 +317,7 @@ func (p *Parser) stmt() (node Node, err error) {
 		node, err = p.tsModDec()
 	} else if p.aheadIsTsDec(tok) {
 		node, err = p.tsDec()
-	} else if ok, itf := p.tsAheadIsAbstract(tok, false, false); ok {
+	} else if ok, itf, _ := p.tsAheadIsAbstract(tok, false, false, false); ok {
 		if itf {
 			return nil, p.errorAtLoc(p.locFromTok(tok), ERR_ABSTRACT_AT_INVALID_POSITION)
 		}
@@ -411,7 +411,7 @@ func (p *Parser) exportDec() (Node, error) {
 			node.dec, err = p.fnDec(false, tok, true)
 		} else if tv == T_CLASS {
 			node.dec, err = p.classDec(false, true, false, false)
-		} else if ok, itf := p.tsAheadIsAbstract(tok, false, false); ok {
+		} else if ok, itf, _ := p.tsAheadIsAbstract(tok, false, false, false); ok {
 			if itf {
 				return nil, p.errorAtLoc(p.locFromTok(tok), ERR_ABSTRACT_AT_INVALID_POSITION)
 			}
@@ -444,11 +444,11 @@ func (p *Parser) exportDec() (Node, error) {
 			return n, nil
 		}
 		node.dec = n
-	} else if ok, itf := p.tsAheadIsAbstract(tok, false, false); ok {
+	} else if ok, itf, _ := p.tsAheadIsAbstract(tok, false, false, false); ok {
 		if itf {
 			return nil, p.errorAtLoc(p.locFromTok(tok), ERR_ABSTRACT_AT_INVALID_POSITION)
 		}
-		node.dec, err = p.classDec(false, true, false, true)
+		node.dec, err = p.classDec(false, false, false, true)
 		if err != nil {
 			return nil, err
 		}
@@ -457,7 +457,7 @@ func (p *Parser) exportDec() (Node, error) {
 		if err != nil {
 			return nil, err
 		}
-	} else if p.aheadIsTsTypDec(tok) {
+	} else if p.aheadIsTsTypDec(tok, false) {
 		node.tsTyp = true
 		loc := p.locFromTok(p.lexer.Next()) // consume `type`
 		// `export type { A };`
@@ -471,7 +471,7 @@ func (p *Parser) exportDec() (Node, error) {
 			}
 			p.advanceIfSemi(false)
 		} else {
-			node.dec, err = p.tsTypDec(loc, false, false)
+			node.dec, err = p.tsTypDec(loc, false)
 			if err != nil {
 				return nil, err
 			}
@@ -641,14 +641,14 @@ func (p *Parser) exportSpec(typ bool) (Node, error) {
 	var err error
 	loc := p.loc()
 	ahead := p.lexer.Peek()
-	if p.aheadIsTsTypDec(ahead) {
+	if p.aheadIsTsTypDec(ahead, false) {
 		loc := p.locFromTok(p.lexer.Next()) // consume `type`
 		typLoc := p.finLoc(loc)
 		if typ {
 			return nil, p.errorAtLoc(loc, ERR_EXPORT_DUP_TYPE_MODIFIER)
 		}
 		typ = true
-		local, err = p.tsTypDec(loc, true, false)
+		local, err = p.tsTypDec(loc, true)
 		if err != nil {
 			return nil, err
 		}
@@ -704,33 +704,54 @@ func (p *Parser) importDec() (Node, error) {
 	tok := p.lexer.Peek()
 	node := &ImportDec{N_STMT_IMPORT, nil, specs, nil, false}
 
-	typDec := p.aheadIsTsTypDec(tok)
+	// the second arg set to `true` for stmt like: `import type * as Types`
+	typDec := p.aheadIsTsTypDec(tok, true)
 	if typDec {
 		ahead2nd := p.lexer.Peek2nd()
-		typDec = ahead2nd.value != T_NAME && ahead2nd.Text() != "from"
+		typDec = !(ahead2nd.value == T_NAME && ahead2nd.Text() == "from")
 	}
 
 	if typDec {
 		node.tsTyp = true
-		loc := p.locFromTok(p.lexer.Next()) // consume `type`
-		// `export type { A };`
-		if p.lexer.Peek().value == T_BRACE_L {
-			ss, err := p.importNamed(true)
+		typLoc := p.locFromTok(p.lexer.Next()) // consume `type`
+		// `import type { A }`
+		// `import type * as Types`
+		ahead := p.lexer.Peek()
+		av := ahead.value
+		if av == T_BRACE_L || av == T_MUL {
+			ss, err := p.importNamedOrNS(true)
 			specs = append(specs, ss...)
 			if err != nil {
 				return nil, err
 			}
-			p.advanceIfSemi(false)
 		} else {
-			dec, err := p.tsTypDec(loc, false, true)
+			// `import type A`
+			tn, err := p.tsTypName(nil)
 			if err != nil {
 				return nil, err
 			}
-			if dec.Type() != N_NAME {
-				return nil, p.errorAtLoc(dec.Loc(), ERR_IMPORT_TYPE_IN_IMPORT_ALIAS)
+
+			ahead := p.lexer.Peek()
+			av := ahead.value
+			if av == T_ASSIGN {
+				alias, err := p.tsImportAliasRsh(loc, typLoc, tn, false)
+				if err != nil {
+					return nil, err
+				}
+				// `import type A = B.C;` is illegal
+				// `import type a = require("a")` is legal
+				if alias.Type() == N_TS_IMPORT_ALIAS {
+					return nil, p.errorAtLoc(loc, ERR_IMPORT_TYPE_IN_IMPORT_ALIAS)
+				}
+				return alias, nil
 			}
-			spec := &ImportSpec{N_IMPORT_SPEC, p.finLoc(loc.Clone()), false, false, dec, dec, true}
+
+			spec := &ImportSpec{N_IMPORT_SPEC, p.finLoc(tn.Loc().Clone()), true, false, tn, tn, true}
 			specs = append(specs, spec)
+
+			if p.lexer.Peek().value == T_COMMA {
+				return nil, p.errorAtLoc(p.locFromTok(p.lexer.Next()), ERR_IMPORT_TYP_MIX_NAMED)
+			}
 		}
 	} else if tok.value != T_STRING {
 		var id Node
@@ -770,11 +791,12 @@ func (p *Parser) importDec() (Node, error) {
 		if p.ts && (av == T_ASSIGN || (av == T_NAME && ahead.Text() != "from")) && id != nil {
 			return p.tsImportAlias(loc, id, false)
 		}
+	}
 
-		_, err = p.nextMustName("from", false)
-		if err != nil {
-			return nil, err
-		}
+	ahead := p.lexer.Peek()
+	av := ahead.value
+	if av == T_NAME && ahead.Text() == "from" && !ahead.ContainsEscape() {
+		p.lexer.Next()
 	}
 
 	str, err := p.nextMustTok(T_STRING)
@@ -801,7 +823,7 @@ func (p *Parser) importNamedOrNS(typ bool) ([]Node, error) {
 	if tok.value == T_BRACE_L {
 		return p.importNamed(typ)
 	} else if tok.value == T_MUL {
-		return p.importNS()
+		return p.importNS(typ)
 	} else {
 		return nil, p.errorTok(tok)
 	}
@@ -812,14 +834,14 @@ func (p *Parser) importSpec(typ bool) (Node, error) {
 	var err error
 	loc := p.loc()
 	ahead := p.lexer.Peek()
-	if p.aheadIsTsTypDec(ahead) {
+	if p.aheadIsTsTypDec(ahead, false) {
 		loc := p.locFromTok(p.lexer.Next()) // consume `type`
 		typLoc := p.finLoc(loc)
 		if typ {
 			return nil, p.errorAtLoc(loc, ERR_EXPORT_DUP_TYPE_MODIFIER)
 		}
 		typ = true
-		binding, err = p.tsTypDec(loc, true, false)
+		binding, err = p.tsTypDec(loc, true)
 		if err != nil {
 			return nil, err
 		}
@@ -895,9 +917,9 @@ func (p *Parser) importNamed(typ bool) ([]Node, error) {
 	return specs, nil
 }
 
-func (p *Parser) importNS() ([]Node, error) {
+func (p *Parser) importNS(typ bool) ([]Node, error) {
 	loc := p.loc()
-	p.lexer.Next()
+	p.lexer.Next() // consume `*`
 	_, err := p.nextMustName("as", false)
 	if err != nil {
 		return nil, err
@@ -909,7 +931,7 @@ func (p *Parser) importNS() ([]Node, error) {
 	}
 
 	specs := make([]Node, 1)
-	specs[0] = &ImportSpec{N_IMPORT_SPEC, p.finLoc(loc), false, true, id, nil, false}
+	specs[0] = &ImportSpec{N_IMPORT_SPEC, p.finLoc(loc), false, true, id, nil, typ}
 	return specs, nil
 }
 
@@ -3079,7 +3101,7 @@ func (p *Parser) roughParam(ctor bool) (Node, error) {
 				return nil, p.errorAtLoc(readonlyLoc, ERR_ILLEGAL_PARAMETER_MODIFIER)
 			}
 		}
-		name, err = p.tsTyp(true, false)
+		name, err = p.tsTyp(true, false, false)
 		if err != nil {
 			return nil, err
 		}
@@ -5152,7 +5174,7 @@ func (p *Parser) binExpr(lhs Node, minPcd int, logic bool, nullish bool, notGT b
 		if op != T_TS_AS {
 			rhs, err = p.unaryExpr(nil, nil, false)
 		} else {
-			rhs, err = p.tsTyp(false, true)
+			rhs, err = p.tsTyp(false, true, false)
 		}
 		if err != nil {
 			return nil, err
@@ -5351,7 +5373,7 @@ func (p *Parser) primaryExpr(notColon bool) (Node, error) {
 			}
 			return p.fnDec(true, tok, false)
 		}
-		if ok, itf := p.tsAheadIsAbstract(tok, false, false); ok {
+		if ok, itf, _ := p.tsAheadIsAbstract(tok, false, false, false); ok {
 			if itf {
 				return nil, p.errorAtLoc(p.locFromTok(tok), ERR_ABSTRACT_AT_INVALID_POSITION)
 			}
@@ -6056,7 +6078,7 @@ func (p *Parser) advanceIfSemi(raise bool) error {
 func (p *Parser) nextMustTok(val TokenValue) (*Token, error) {
 	tok := p.lexer.Next()
 	if tok.value != val {
-		return nil, p.errorTok(tok)
+		return tok, p.errorTok(tok)
 	}
 	return tok, nil
 }
