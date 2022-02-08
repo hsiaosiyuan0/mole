@@ -4191,7 +4191,7 @@ func (p *Parser) newExpr() (Node, error) {
 			if wt, ok := expr.(NodeWithTypInfo); ok {
 				wt.SetTypInfo(ti)
 			}
-			expr, err = p.tplExpr(expr)
+			expr, err = p.tplExpr(expr, false)
 			if err != nil {
 				return nil, err
 			}
@@ -4372,7 +4372,7 @@ func (p *Parser) callExpr(callee Node, root bool, directOpt bool, opt *Loc, notC
 				firstOpt = fo
 			}
 		} else if tv == T_TPL_HEAD {
-			callee, err = p.tplExpr(callee)
+			callee, err = p.tplExpr(callee, false)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -4439,7 +4439,7 @@ func (p *Parser) importCall(tok *Token) (Node, error) {
 	return nil, p.errorTok(ahead)
 }
 
-func (p *Parser) tplExpr(tag Node) (Node, error) {
+func (p *Parser) tplExpr(tag Node, ts bool) (Node, error) {
 
 	if tag != nil {
 		if tag.Type() == N_EXPR_CHAIN {
@@ -4480,7 +4480,13 @@ func (p *Parser) tplExpr(tag Node) (Node, error) {
 				break
 			}
 
-			expr, err := p.expr()
+			var expr Node
+			var err error
+			if !ts {
+				expr, err = p.expr()
+			} else {
+				expr, err = p.tsTyp(false, false, true)
+			}
 			if err != nil {
 				return nil, err
 			}
@@ -5297,7 +5303,7 @@ func (p *Parser) memberExprObj() (Node, error) {
 	}
 	obj = p.tsNoNull(obj)
 	if p.lexer.Peek().value == T_TPL_HEAD {
-		return p.tplExpr(obj)
+		return p.tplExpr(obj, false)
 	}
 	return obj, nil
 }
@@ -5431,7 +5437,7 @@ func (p *Parser) primaryExpr(notColon bool) (Node, error) {
 	case T_IMPORT:
 		return p.importCall(nil)
 	case T_TPL_HEAD:
-		return p.tplExpr(nil)
+		return p.tplExpr(nil, false)
 	case T_LT:
 		if p.feat&FEAT_JSX != 0 && p.feat&FEAT_TS == 0 {
 			return p.jsx(true, false)

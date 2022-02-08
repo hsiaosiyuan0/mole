@@ -791,6 +791,22 @@ func (p *Parser) tsPrimary(rough bool, canConst bool, canCond bool) (Node, error
 	} else if av == T_IMPORT {
 		// `let a: import("a")<a>;`
 		return p.tsImport()
+	} else if av == T_SUB {
+		loc := p.locFromTok(p.lexer.Next())
+		tok, err := p.nextMustTok(T_NUM)
+		if err != nil {
+			return nil, err
+		}
+		numLoc := p.locFromTok(tok)
+		arg := &NumLit{N_LIT_NUM, p.finLoc(numLoc), nil}
+		un := &UnaryExpr{N_EXPR_UNARY, p.finLoc(loc), T_SUB, arg, nil}
+		return &TsLit{N_TS_LIT, un.Loc().Clone(), un}, nil
+	} else if av == T_TPL_HEAD {
+		tpl, err := p.tplExpr(nil, true)
+		if err != nil {
+			return nil, err
+		}
+		return &TsLit{N_TS_LIT, tpl.Loc().Clone(), tpl}, nil
 	}
 
 	if node != nil {
