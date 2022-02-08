@@ -220,6 +220,10 @@ type TsTuple struct {
 	args []Node
 }
 
+func (n *TsTuple) Args() []Node {
+	return n.args
+}
+
 func (n *TsTuple) Type() NodeType {
 	return n.typ
 }
@@ -254,6 +258,7 @@ type TsProp struct {
 	ques       *Loc
 	kind       PropKind
 	computeLoc *Loc
+	readonly   bool
 }
 
 func (n *TsProp) Kind() PropKind {
@@ -982,6 +987,91 @@ func (n *TsTypInfer) Type() NodeType {
 }
 
 func (n *TsTypInfer) Loc() *Loc {
+	return n.loc
+}
+
+type TsMapped struct {
+	typ      NodeType
+	loc      *Loc
+	readonly int // 0: not set, 1: set, 2: positive, 3: negative
+	optional int // 0: not set, 1: set, 2: positive, 3: negative
+	key      Node
+	name     Node
+	val      Node
+}
+
+func (n *TsMapped) ReadonlyFmt() interface{} {
+	switch n.readonly {
+	case 1:
+		return true
+	case 2:
+		return "+"
+	case 3:
+		return "-"
+	}
+	return ""
+}
+
+func (n *TsMapped) OptionalFmt() interface{} {
+	switch n.optional {
+	case 1:
+		return true
+	case 2:
+		return "+"
+	case 3:
+		return "-"
+	}
+	return ""
+}
+
+func (n *TsMapped) Readonly() int {
+	return n.readonly
+}
+
+func (n *TsMapped) Optional() int {
+	return n.optional
+}
+
+func (n *TsMapped) Name() Node {
+	return n.name
+}
+
+func (n *TsMapped) Key() Node {
+	return n.key
+}
+
+func (n *TsMapped) Val() Node {
+	return n.val
+}
+
+func (n *TsMapped) Type() NodeType {
+	return n.typ
+}
+
+func (n *TsMapped) Loc() *Loc {
+	return n.loc
+}
+
+type TsTypOp struct {
+	typ NodeType
+	loc *Loc
+	op  string
+	arg Node
+}
+
+func (n *TsTypOp) Op() string {
+	return n.op
+}
+
+func (n *TsTypOp) Arg() Node {
+	return n.arg
+}
+
+func (n *TsTypOp) Type() NodeType {
+	return n.typ
+}
+
+func (n *TsTypOp) Loc() *Loc {
 	return n.loc
 }
 

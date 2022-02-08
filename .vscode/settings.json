@@ -10,7 +10,8 @@
     "rvalue",
     "stdlib",
     "unparenthesized",
-    "valueof"
+    "valueof",
+    "keyof"
   ],
   "go.toolsEnvVars": {
     "GOOS": "js",

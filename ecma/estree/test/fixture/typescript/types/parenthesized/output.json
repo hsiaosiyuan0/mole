@@ -1,0 +1,79 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 14,
+  "loc": {
+    "start": {
+      "line": 1,
+      "column": 0
+    },
+    "end": {
+      "line": 1,
+      "column": 14
+    }
+  },
+  "body": [
+    {
+      "type": "TSTypeAliasDeclaration",
+      "start": 0,
+      "end": 14,
+      "loc": {
+        "start": {
+          "line": 1,
+          "column": 0
+        },
+        "end": {
+          "line": 1,
+          "column": 14
+        }
+      },
+      "id": {
+        "type": "Identifier",
+        "start": 5,
+        "end": 6,
+        "loc": {
+          "start": {
+            "line": 1,
+            "column": 5
+          },
+          "end": {
+            "line": 1,
+            "column": 6
+          }
+        },
+        "name": "T"
+      },
+      "typeAnnotation": {
+        "type": "TSTypeAnnotation",
+        "start": 10,
+        "end": 12,
+        "loc": {
+          "start": {
+            "line": 1,
+            "column": 10
+          },
+          "end": {
+            "line": 1,
+            "column": 12
+          }
+        },
+        "typeAnnotation": {
+          "type": "TSTypeLiteral",
+          "start": 10,
+          "end": 12,
+          "loc": {
+            "start": {
+              "line": 1,
+              "column": 10
+            },
+            "end": {
+              "line": 1,
+              "column": 12
+            }
+          },
+          "members": []
+        }
+      }
+    }
+  ]
+}

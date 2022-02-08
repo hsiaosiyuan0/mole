@@ -1,0 +1,207 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 54,
+  "loc": {
+    "start": {
+      "line": 1,
+      "column": 0
+    },
+    "end": {
+      "line": 1,
+      "column": 54
+    }
+  },
+  "body": [
+    {
+      "type": "TSTypeAliasDeclaration",
+      "start": 0,
+      "end": 54,
+      "loc": {
+        "start": {
+          "line": 1,
+          "column": 0
+        },
+        "end": {
+          "line": 1,
+          "column": 54
+        }
+      },
+      "id": {
+        "type": "Identifier",
+        "start": 5,
+        "end": 6,
+        "loc": {
+          "start": {
+            "line": 1,
+            "column": 5
+          },
+          "end": {
+            "line": 1,
+            "column": 6
+          }
+        },
+        "name": "a"
+      },
+      "typeAnnotation": {
+        "type": "TSTypeAnnotation",
+        "start": 9,
+        "end": 53,
+        "loc": {
+          "start": {
+            "line": 1,
+            "column": 9
+          },
+          "end": {
+            "line": 1,
+            "column": 53
+          }
+        },
+        "typeAnnotation": {
+          "type": "TSMappedType",
+          "start": 9,
+          "end": 53,
+          "loc": {
+            "start": {
+              "line": 1,
+              "column": 9
+            },
+            "end": {
+              "line": 1,
+              "column": 53
+            }
+          },
+          "readonly": "+",
+          "typeParameter": {
+            "type": "TSTypeParameter",
+            "start": 22,
+            "end": 34,
+            "loc": {
+              "start": {
+                "line": 1,
+                "column": 22
+              },
+              "end": {
+                "line": 1,
+                "column": 34
+              }
+            },
+            "name": {
+              "type": "Identifier",
+              "start": 22,
+              "end": 23,
+              "loc": {
+                "source": "",
+                "start": {
+                  "line": 1,
+                  "column": 22
+                },
+                "end": {
+                  "line": 1,
+                  "column": 23
+                }
+              },
+              "name": "P",
+              "optional": false,
+              "typeAnnotation": null
+            },
+            "constraint": {
+              "type": "TSTypeOperator",
+              "start": 27,
+              "end": 34,
+              "loc": {
+                "start": {
+                  "line": 1,
+                  "column": 27
+                },
+                "end": {
+                  "line": 1,
+                  "column": 34
+                }
+              },
+              "operator": "keyof",
+              "typeAnnotation": {
+                "type": "TSTypeReference",
+                "start": 33,
+                "end": 34,
+                "loc": {
+                  "start": {
+                    "line": 1,
+                    "column": 33
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": 34
+                  }
+                },
+                "typeName": {
+                  "type": "Identifier",
+                  "start": 33,
+                  "end": 34,
+                  "loc": {
+                    "start": {
+                      "line": 1,
+                      "column": 33
+                    },
+                    "end": {
+                      "line": 1,
+                      "column": 34
+                    }
+                  },
+                  "name": "A"
+                }
+              }
+            }
+          },
+          "nameType": {
+            "type": "TSTypeReference",
+            "start": 38,
+            "end": 39,
+            "loc": {
+              "start": {
+                "line": 1,
+                "column": 38
+              },
+              "end": {
+                "line": 1,
+                "column": 39
+              }
+            },
+            "typeName": {
+              "type": "Identifier",
+              "start": 38,
+              "end": 39,
+              "loc": {
+                "start": {
+                  "line": 1,
+                  "column": 38
+                },
+                "end": {
+                  "line": 1,
+                  "column": 39
+                }
+              },
+              "name": "B"
+            }
+          },
+          "optional": "-",
+          "typeAnnotation": {
+            "type": "TSNumberKeyword",
+            "start": 44,
+            "end": 50,
+            "loc": {
+              "start": {
+                "line": 1,
+                "column": 44
+              },
+              "end": {
+                "line": 1,
+                "column": 50
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

@@ -707,3 +707,32 @@ type TSIndexedAccessType struct {
 	ObjectType Node    `json:"objectType"`
 	IndexType  Node    `json:"indexType"`
 }
+
+type TSMappedType struct {
+	Type           string      `json:"type"`
+	Start          int         `json:"start"`
+	End            int         `json:"end"`
+	Loc            *SrcLoc     `json:"loc"`
+	Readonly       interface{} `json:"readonly"`
+	Optional       interface{} `json:"optional"`
+	TypeParameter  Node        `json:"typeParameter"`
+	NameType       Node        `json:"nameType"`
+	TypeAnnotation Node        `json:"typeAnnotation"`
+}
+
+type TSTypeOperator struct {
+	Type           string      `json:"type"`
+	Start          int         `json:"start"`
+	End            int         `json:"end"`
+	Loc            *SrcLoc     `json:"loc"`
+	Operator       interface{} `json:"operator"`
+	TypeAnnotation Node        `json:"typeAnnotation"`
+}
+
+type TSTupleType struct {
+	Type         string  `json:"type"`
+	Start        int     `json:"start"`
+	End          int     `json:"end"`
+	Loc          *SrcLoc `json:"loc"`
+	ElementTypes []Node  `json:"elementTypes"`
+}

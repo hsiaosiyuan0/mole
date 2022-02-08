@@ -1,0 +1,1 @@
+type a = { +readonly [P in keyof A as B]-?: number; };
