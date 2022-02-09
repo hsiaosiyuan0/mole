@@ -14,12 +14,15 @@ A little bit explanation is good for why Golang is preferred in this project. No
 ## Features
 
 - [x] JavaScript Parser
-  - Supports syntaxes up to [ES2021](https://262.ecma-international.org/12.0/) and [JSX](https://github.com/facebook/jsx)
-  - [ESTree](https://github.com/estree/estree) compatible output, [AST explorer on WASM](http://blog.thehardways.me/mole-is-more/#/)
-- [ ] TypeScript Parser **WIP**
-- [ ] Indenter(like prettier)
-- [ ] CSS/Less/Scss
-
+  - ECMAScript up to [ES2021](https://262.ecma-international.org/12.0/)
+  - [JSX](https://github.com/facebook/jsx)
+  - [ESTree](https://github.com/estree/estree) compatible outputs ([AST explorer on WASM](http://blog.thehardways.me/mole-is-more/#/))
+- [x] TypeScript Parser
+  - [babel/typescript](https://babeljs.io/docs/en/babel-types#typescript) compatible outputs
+- [ ] CSS parser
+- [ ] Less parser
+- [ ] Scss parser
+ 
 ## Preview
 
 It's easy for OSX users to get a preview binary via [brew](https://brew.sh/):
