@@ -16,6 +16,7 @@ type TSIdentifier struct {
 	Name           string  `json:"name"`
 	Optional       bool    `json:"optional"`
 	TypeAnnotation Node    `json:"typeAnnotation"`
+	Decorators     []Node  `json:"decorators"`
 }
 
 type TSNumberKeyword struct {
@@ -372,6 +373,7 @@ type TSMethodDefinition struct {
 	Abstract      bool       `json:"abstract"`
 	Readonly      bool       `json:"readonly"`
 	Accessibility string     `json:"accessibility"`
+	Decorators    []Node     `json:"decorators"`
 }
 
 // represets the properties defined via constructor params
@@ -384,6 +386,7 @@ type TSParameterProperty struct {
 	Readonly      bool    `json:"readonly"`
 	Accessibility string  `json:"accessibility"`
 	Override      bool    `json:"override"`
+	Decorators    []Node  `json:"decorators"`
 }
 
 type TSPropertyDefinition struct {
@@ -403,6 +406,7 @@ type TSPropertyDefinition struct {
 	Declare        bool       `json:"declare"`
 	Accessibility  string     `json:"accessibility"`
 	TypeAnnotation Node       `json:"typeAnnotation"`
+	Decorators     []Node     `json:"decorators"`
 }
 
 type TSIndexSignature struct {
@@ -418,6 +422,7 @@ type TSIndexSignature struct {
 	Accessibility  string  `json:"accessibility"`
 	Parameters     []Node  `json:"parameters"`
 	TypeAnnotation Node    `json:"typeAnnotation"`
+	Decorators     []Node  `json:"decorators"`
 }
 
 type TSAsExpression struct {
@@ -474,6 +479,7 @@ type TSClassDeclaration struct {
 	Implements          []Node     `json:"implements"`
 	Body                Expression `json:"body"`
 	Declare             bool       `json:"declare"`
+	Decorators          []Node     `json:"decorators"`
 	Abstract            bool       `json:"abstract"`
 }
 
@@ -488,6 +494,7 @@ type TSClassExpression struct {
 	SuperTypeParameters Node       `json:"superTypeParameters"`
 	Implements          []Node     `json:"implements"`
 	Body                Expression `json:"body"`
+	Decorators          []Node     `json:"decorators"`
 	Abstract            bool       `json:"abstract"`
 }
 

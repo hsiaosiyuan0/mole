@@ -925,6 +925,10 @@ func (l *Lexer) readSymbol() *Token {
 		} else {
 			val = T_DIV
 		}
+	case '@':
+		if l.feat&FEAT_DECORATOR != 0 {
+			val = T_AT
+		}
 	}
 
 	if val == T_DOT_TRI && (l.feat&FEAT_SPREAD == 0 || l.feat&FEAT_BINDING_REST_ELEM == 0) {

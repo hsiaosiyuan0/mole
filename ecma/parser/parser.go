@@ -38,6 +38,9 @@ type Parser struct {
 	// stores the `<` tokens which are resoled as `LT` operator and
 	// identified by their `[line, column]`
 	ltTokens map[uint64]bool
+
+	// the parsed decorators but have not been attached to the target nodes
+	hangingDecorators []Node
 }
 
 type ParserOpts struct {
@@ -51,7 +54,7 @@ const defaultFeatures Feature = FEAT_MODULE | FEAT_GLOBAL_ASYNC | FEAT_STRICT | 
 	FEAT_SPREAD | FEAT_META_PROPERTY | FEAT_ASYNC_AWAIT | FEAT_ASYNC_ITERATION | FEAT_ASYNC_GENERATOR |
 	FEAT_POW | FEAT_CLASS_PRV | FEAT_CLASS_PUB_FIELD | FEAT_CLASS_PRIV_FIELD | FEAT_OPT_EXPR | FEAT_OPT_CATCH_PARAM |
 	FEAT_NULLISH | FEAT_BAD_ESCAPE_IN_TAGGED_TPL | FEAT_BIGINT | FEAT_NUM_SEP | FEAT_LOGIC_ASSIGN |
-	FEAT_DYNAMIC_IMPORT | FEAT_JSON_SUPER_SET | FEAT_EXPORT_ALL_AS_NS | FEAT_JSX
+	FEAT_DYNAMIC_IMPORT | FEAT_JSON_SUPER_SET | FEAT_EXPORT_ALL_AS_NS | FEAT_JSX | FEAT_DECORATOR
 
 func NewParserOpts() *ParserOpts {
 	return &ParserOpts{
@@ -248,6 +251,7 @@ func (p *Parser) stmt() (node Node, err error) {
 
 	scope := p.scope()
 	allowDec := !scope.IsKind(SPK_INTERIM)
+	checkHangingDec := true
 
 	if tok.value > T_KEYWORD_BEGIN && tok.value < T_KEYWORD_END {
 		switch tok.value {
@@ -322,6 +326,13 @@ func (p *Parser) stmt() (node Node, err error) {
 			return nil, p.errorAtLoc(p.locFromTok(tok), ERR_ABSTRACT_AT_INVALID_POSITION)
 		}
 		node, err = p.classDec(false, false, false, true)
+	} else if p.aheadIsDecorator(tok) {
+		ds, err := p.decorators()
+		if err != nil {
+			return nil, err
+		}
+		p.hangingDecorators = ds
+		checkHangingDec = false
 	} else if tok.value == T_SEMI {
 		node, err = p.emptyStmt()
 	} else if tok.value == T_EOF {
@@ -332,19 +343,26 @@ func (p *Parser) stmt() (node Node, err error) {
 
 	if err != nil {
 		return nil, err
-	} else if node == nil {
+	} else if node == nil && checkHangingDec {
 		return nil, p.errorTok(tok)
 	}
 
-	typ := node.Type()
-	if scope.IsKind(SPK_INTERIM) {
-		// `if (morning) function a(){}` is legal
-		// `for (morning;;) function a(){}` is illegal
-		if typ == N_STMT_FN && (scope.IsKind(SPK_STRICT) || scope.IsKind(SPK_LOOP_DIRECT)) {
-			return nil, p.errorAtLoc(node.Loc(), ERR_FN_IN_SINGLE_STMT_CTX)
-		} else if typ == N_STMT_IMPORT || typ == N_STMT_EXPORT {
-			return nil, p.errorAtLoc(node.Loc(), ERR_IMPORT_EXPORT_SHOULD_AT_TOP_LEVEL)
+	if node != nil {
+		typ := node.Type()
+		if scope.IsKind(SPK_INTERIM) {
+			// `if (morning) function a(){}` is legal
+			// `for (morning;;) function a(){}` is illegal
+			if typ == N_STMT_FN && (scope.IsKind(SPK_STRICT) || scope.IsKind(SPK_LOOP_DIRECT)) {
+				return nil, p.errorAtLoc(node.Loc(), ERR_FN_IN_SINGLE_STMT_CTX)
+			} else if typ == N_STMT_IMPORT || typ == N_STMT_EXPORT {
+				return nil, p.errorAtLoc(node.Loc(), ERR_IMPORT_EXPORT_SHOULD_AT_TOP_LEVEL)
+			}
 		}
+	}
+
+	if checkHangingDec && len(p.hangingDecorators) != 0 {
+		n := p.hangingDecorators[0]
+		return nil, p.errorAtLoc(n.Loc(), ERR_DECORATOR_INVALID_POSITION)
 	}
 
 	return node, nil
@@ -1038,6 +1056,12 @@ func (p *Parser) classDec(expr bool, canNameOmitted bool, declare bool, abstract
 	if expr {
 		typ = N_EXPR_CLASS
 	}
+	var ds []Node
+	if len(p.hangingDecorators) > 0 {
+		ds = p.hangingDecorators
+		p.hangingDecorators = nil
+		ti.decorators = ds
+	}
 	return &ClassDec{typ, p.finLoc(loc), id, super, body, declare, ti}, nil
 }
 
@@ -1058,6 +1082,13 @@ func (p *Parser) classBody(declare bool, hasSuper bool) (Node, error) {
 			break
 		} else if tok.value == T_EOF {
 			return nil, p.errorTok(tok)
+		} else if p.aheadIsDecorator(tok) {
+			ds, err := p.decorators()
+			if err != nil {
+				return nil, err
+			}
+			p.hangingDecorators = ds
+			continue
 		}
 		if tok.value == T_SEMI {
 			p.lexer.Next()
@@ -1067,13 +1098,30 @@ func (p *Parser) classBody(declare bool, hasSuper bool) (Node, error) {
 		if err != nil {
 			return nil, err
 		}
+
+		// attach decorators
+		if len(p.hangingDecorators) > 0 {
+			if wt, ok := elem.(NodeWithTypInfo); ok {
+				ti := wt.TypInfo()
+				if ti != nil {
+					ti.decorators = p.hangingDecorators
+					p.hangingDecorators = nil
+				}
+			}
+		}
+
+		if len(p.hangingDecorators) != 0 {
+			n := p.hangingDecorators[0]
+			return nil, p.errorAtLoc(n.Loc(), ERR_DECORATOR_INVALID_POSITION)
+		}
+
 		if elem.Type() == N_METHOD {
 			m := elem.(*Method)
-			if hasCtor {
-				return nil, p.errorAtLoc(m.key.Loc(), ERR_CTOR_DUP)
-			}
 			// `!m.Declare` is used to skip the constructor overloads
 			if !m.Declare() && p.isName(m.key, "constructor", false, true) {
+				if hasCtor {
+					return nil, p.errorAtLoc(m.key.Loc(), ERR_CTOR_DUP)
+				}
 				hasCtor = true
 			}
 		} else if elem.Type() == N_FIELD {
@@ -1531,6 +1579,12 @@ func (p *Parser) field(key Node, begin, static *Loc, accMod ACC_MOD, beginLoc, a
 		return nil, p.errorAtLoc(key.Loc(), ERR_CTOR_CANNOT_BE_Field)
 	}
 
+	var ds []Node
+	if len(p.hangingDecorators) > 0 {
+		ds = p.hangingDecorators
+		p.hangingDecorators = nil
+		ti.decorators = ds
+	}
 	return &Field{N_FIELD, p.finLoc(loc), key, isStatic, compute != nil, value, ti}, nil
 }
 
@@ -3242,8 +3296,8 @@ func (p *Parser) paramList(firstRough bool, methodKind PropKind, typParams bool)
 	ctor := methodKind == PK_CTOR
 	scope.AddKind(SPK_FORMAL_PARAMS)
 
-	var tp Node
 	var err error
+	var tp Node
 	if typParams {
 		tp, err = p.tsTryTypParams()
 		if err != nil {
@@ -3275,8 +3329,33 @@ func (p *Parser) paramList(firstRough bool, methodKind PropKind, typParams bool)
 		if firstRough && i == 0 {
 			param, err = p.roughParam(ctor)
 		} else {
+			ahead := p.lexer.Peek()
+			var ds []Node
+			var err error
+			if scope.IsKind(SPK_METHOD) && scope.IsKind(SPK_FORMAL_PARAMS) && p.aheadIsDecorator(ahead) {
+				ds, err = p.decorators()
+				if err != nil {
+					return nil, nil, nil, err
+				}
+			}
+
 			param, err = p.param(methodKind)
+			if err != nil {
+				return nil, nil, nil, err
+			}
+
+			if len(ds) > 0 {
+				if wt, ok := param.(NodeWithTypInfo); ok {
+					ti := wt.TypInfo()
+					if ti != nil {
+						ti.decorators = ds
+					}
+				} else {
+					return nil, nil, nil, p.errorAtLoc(ds[0].Loc(), ERR_DECORATOR_INVALID_POSITION)
+				}
+			}
 		}
+
 		if err != nil {
 			return nil, nil, nil, err
 		}
@@ -6024,9 +6103,47 @@ func (p *Parser) method(loc *Loc, key Node, accMode ACC_MOD, compute *Loc, short
 			return nil, p.errorAtLoc(key.Loc(), ERR_STATIC_PROP_PROTOTYPE)
 		}
 
+		var ds []Node
+		if len(p.hangingDecorators) > 0 {
+			ds = p.hangingDecorators
+			p.hangingDecorators = nil
+			ti.decorators = ds
+		}
 		return &Method{N_METHOD, p.finLoc(loc), key, static, compute != nil, kind, value, ti}, nil
 	}
 	return &Prop{N_PROP, p.finLoc(loc), key, nil, value, compute != nil, true, shorthand, false, kind, accMode}, nil
+}
+
+func (p *Parser) aheadIsDecorator(tok *Token) bool {
+	return tok.value == T_AT
+}
+
+func (p *Parser) decorator() (Node, error) {
+	tok := p.lexer.Peek()
+	if !p.aheadIsDecorator(tok) {
+		return nil, nil
+	}
+	loc := p.locFromTok(p.lexer.Next())
+	expr, _, err := p.callExpr(nil, true, false, nil, false)
+	if err != nil {
+		return nil, err
+	}
+	return &Decorator{N_DECORATOR, p.finLoc(loc), expr}, nil
+}
+
+func (p *Parser) decorators() ([]Node, error) {
+	ds := make([]Node, 0, 1)
+	for {
+		d, err := p.decorator()
+		if err != nil {
+			return nil, err
+		}
+		if d == nil {
+			break
+		}
+		ds = append(ds, d)
+	}
+	return ds, nil
 }
 
 func (p *Parser) nameOfNode(node Node) string {

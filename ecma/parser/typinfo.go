@@ -6,13 +6,27 @@ import (
 	"github.com/hsiaosiyuan0/mole/fuzz"
 )
 
+func DecoratorsOf(node Node) []Node {
+	if node == nil {
+		return nil
+	}
+	if wt, ok := node.(NodeWithTypInfo); ok {
+		ti := wt.TypInfo()
+		if ti != nil {
+			return ti.decorators
+		}
+	}
+	return nil
+}
+
 type TypInfo struct {
-	ques      *Loc
-	not       *Loc
-	typAnnot  *TsTypAnnot
-	typParams Node
-	typArgs   Node
-	clsTyp    *ClsTypInfo
+	ques       *Loc
+	not        *Loc
+	typAnnot   *TsTypAnnot
+	typParams  Node
+	typArgs    Node
+	decorators []Node
+	clsTyp     *ClsTypInfo
 }
 
 func NewTypInfo() *TypInfo {
@@ -27,6 +41,10 @@ func (ti *TypInfo) Clone() *TypInfo {
 		typArgs:  ti.typArgs,
 		clsTyp:   ti.clsTyp,
 	}
+}
+
+func (n *TypInfo) Decorators() []Node {
+	return n.decorators
 }
 
 func (ti *TypInfo) Ques() *Loc {

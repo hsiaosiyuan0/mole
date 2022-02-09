@@ -122,7 +122,7 @@ func (t *Token) IsUnary() bool {
 	return t.value > T_UNARY_OP_BEGIN && t.value < T_UNARY_OP_END
 }
 
-func (t *Token) Value() TokenValue {
+func (t *Token) Val() TokenValue {
 	return t.value
 }
 
@@ -380,6 +380,8 @@ const (
 	T_TS_AS
 	T_TS_NO_NULL
 
+	T_AT
+
 	T_TOKEN_DEF_END
 )
 
@@ -564,6 +566,9 @@ var TokenKinds = [T_TOKEN_DEF_END + 1]*TokenKind{
 	{T_JSX_TXT, "jsx text", 0, false, false, false},
 	{T_TS_AS, "as", 12, false, true, false},
 	{T_TS_NO_NULL, "!", 0, false, false, false},
+
+	{T_AT, "@", 0, false, false, true},
+
 	{T_TOKEN_DEF_END, "token end def", 0, false, false, false},
 }
 

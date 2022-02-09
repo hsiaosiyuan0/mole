@@ -140,6 +140,7 @@ const (
 	ERR_JSX_ADJACENT_ELEM_SHOULD_BE_WRAPPED        = "Adjacent JSX elements must be wrapped in an enclosing tag"
 	ERR_TPL_JSX_HTML_UNESCAPED_ENTITY              = "Unexpected `%s`, HTML entity "
 	ERR_TPL_JSX_UNDEFINED_HTML_ENTITY              = "Undefined HTML entity `%s`"
+	ERR_DECORATOR_INVALID_POSITION                 = "Leading decorators must be attached to a class declaration"
 
 	// TS related errors
 	ERR_THIS_CANNOT_BE_OPTIONAL                = "The `this` parameter cannot be optional"

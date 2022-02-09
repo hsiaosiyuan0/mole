@@ -536,7 +536,7 @@ func (n *TsIdxSig) Optional() bool {
 	return n.ques != nil
 }
 
-func (n *TsIdxSig) Value() Node {
+func (n *TsIdxSig) Val() Node {
 	return n.val
 }
 
@@ -1348,5 +1348,12 @@ func (n *TsOpt) Loc() *Loc {
 
 // Field
 func (n *Field) IsTsSig() bool {
-	return n.ti != nil && n.val == nil && n.computed
+	if n.ti == nil || n.val != nil || !n.computed {
+		return false
+	}
+	if wt, ok := n.key.(NodeWithTypInfo); ok {
+		ti := wt.TypInfo()
+		return ti != nil && ti.typAnnot != nil
+	}
+	return false
 }

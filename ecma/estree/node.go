@@ -643,27 +643,29 @@ type ClassBody struct {
 
 // https://github.com/estree/estree/blob/master/es2015.md#methoddefinition
 type MethodDefinition struct {
-	Type     string     `json:"type"`
-	Start    int        `json:"start"`
-	End      int        `json:"end"`
-	Loc      *SrcLoc    `json:"loc"`
-	Key      Expression `json:"key"`
-	Value    Expression `json:"value"`
-	Kind     string     `json:"kind"` // "constructor" | "method" | "get" | "set"
-	Computed bool       `json:"computed"`
-	Static   bool       `json:"static"`
+	Type       string     `json:"type"`
+	Start      int        `json:"start"`
+	End        int        `json:"end"`
+	Loc        *SrcLoc    `json:"loc"`
+	Key        Expression `json:"key"`
+	Value      Expression `json:"value"`
+	Kind       string     `json:"kind"` // "constructor" | "method" | "get" | "set"
+	Computed   bool       `json:"computed"`
+	Static     bool       `json:"static"`
+	Decorators []Node     `json:"decorators"`
 }
 
 // https://github.com/estree/estree/blob/master/es2022.md#propertydefinition
 type PropertyDefinition struct {
-	Type     string     `json:"type"`
-	Start    int        `json:"start"`
-	End      int        `json:"end"`
-	Loc      *SrcLoc    `json:"loc"`
-	Key      Expression `json:"key"`
-	Value    Expression `json:"value"`
-	Computed bool       `json:"computed"`
-	Static   bool       `json:"static"`
+	Type       string     `json:"type"`
+	Start      int        `json:"start"`
+	End        int        `json:"end"`
+	Loc        *SrcLoc    `json:"loc"`
+	Key        Expression `json:"key"`
+	Value      Expression `json:"value"`
+	Computed   bool       `json:"computed"`
+	Static     bool       `json:"static"`
+	Decorators []Node     `json:"decorators"`
 }
 
 // https://github.com/estree/estree/blob/master/es2015.md#classdeclaration
@@ -677,6 +679,7 @@ type ClassDeclaration struct {
 	Body       Expression `json:"body"`
 	Abstract   bool       `json:"abstract"`
 	Declare    bool       `json:"declare"`
+	Decorators []Node     `json:"decorators"`
 }
 
 // https://github.com/estree/estree/blob/master/es2015.md#classexpression
@@ -802,4 +805,12 @@ type ExportAllDeclaration struct {
 	Loc      *SrcLoc    `json:"loc"`
 	Exported Expression `json:"exported"`
 	Source   Expression `json:"source"`
+}
+
+type Decorator struct {
+	Type       string     `json:"type"`
+	Start      int        `json:"start"`
+	End        int        `json:"end"`
+	Loc        *SrcLoc    `json:"loc"`
+	Expression Expression `json:"expression"`
 }

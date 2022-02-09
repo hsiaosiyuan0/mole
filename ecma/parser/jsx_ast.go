@@ -156,7 +156,7 @@ func (n *JsxText) Loc() *Loc {
 	return n.loc
 }
 
-func (n *JsxText) Value() string {
+func (n *JsxText) Val() string {
 	return n.val
 }
 
@@ -184,7 +184,7 @@ func (n *JsxAttr) Name() Node {
 	return n.name
 }
 
-func (n *JsxAttr) Value() Node {
+func (n *JsxAttr) Val() Node {
 	return n.val
 }
 

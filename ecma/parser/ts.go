@@ -38,7 +38,7 @@ var errTypArgMissingGT = &ErrTypArgMssingGT{}
 var errTypArgMaybeJsx = errors.New("maybe jsx")
 
 func (p *Parser) newTypInfo() *TypInfo {
-	if p.ts {
+	if p.ts || p.feat&FEAT_DECORATOR != 0 {
 		return NewTypInfo()
 	}
 	return nil

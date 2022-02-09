@@ -84,6 +84,10 @@ func (l *Loc) Begin() *Pos {
 	return l.begin
 }
 
+func (l *Loc) SetBegin(begin *Pos) {
+	l.begin = begin
+}
+
 func (l *Loc) End() *Pos {
 	return l.end
 }
@@ -221,7 +225,7 @@ type BoolLit struct {
 	ti         *TypInfo
 }
 
-func (n *BoolLit) Value() bool {
+func (n *BoolLit) Val() bool {
 	return n.val
 }
 
@@ -1491,7 +1495,7 @@ func (n *Prop) Key() Node {
 	return n.key
 }
 
-func (n *Prop) Value() Node {
+func (n *Prop) Val() Node {
 	return n.value
 }
 
@@ -2191,7 +2195,7 @@ func (n *Field) Key() Node {
 	return n.key
 }
 
-func (n *Field) Value() Node {
+func (n *Field) Val() Node {
 	return n.val
 }
 
@@ -2455,4 +2459,22 @@ func (n *ChainExpr) Loc() *Loc {
 
 func (n *ChainExpr) Expr() Node {
 	return n.expr
+}
+
+type Decorator struct {
+	typ  NodeType
+	loc  *Loc
+	expr Node
+}
+
+func (n *Decorator) Expr() Node {
+	return n.expr
+}
+
+func (n *Decorator) Type() NodeType {
+	return n.typ
+}
+
+func (n *Decorator) Loc() *Loc {
+	return n.loc
 }

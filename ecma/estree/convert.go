@@ -315,6 +315,7 @@ func ident(node parser.Node, ctx *ConvertCtx) Node {
 			Name:           name,
 			Optional:       optional(ti),
 			TypeAnnotation: typAnnot(ti, ctx),
+			Decorators:     elems(parser.DecoratorsOf(n), ctx),
 		}
 	}
 	return &Identifier{
@@ -324,6 +325,17 @@ func ident(node parser.Node, ctx *ConvertCtx) Node {
 		Loc:   loc(n.Loc()),
 		Name:  name,
 	}
+}
+
+func LocWithDecorator(node parser.Node, ds []parser.Node) *parser.Loc {
+	if len(ds) == 0 {
+		return node.Loc()
+	}
+	loc := node.Loc().Clone()
+	d := ds[0]
+	loc.SetBegin(d.Loc().Begin().Clone())
+	loc.Range().SetStart(d.Loc().Range().Start())
+	return loc
 }
 
 type ConvertCtx struct {
@@ -535,7 +547,7 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 			End:       end(prop.Loc()),
 			Loc:       loc(prop.Loc()),
 			Key:       Convert(prop.Key(), ctx),
-			Value:     Convert(prop.Value(), ctx),
+			Value:     Convert(prop.Val(), ctx),
 			Kind:      prop.Kind(),
 			Computed:  prop.Computed(),
 			Shorthand: prop.Shorthand(),
@@ -887,7 +899,7 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 			Start: start(node.Loc()),
 			End:   end(node.Loc()),
 			Loc:   loc(node.Loc()),
-			Value: b.Value(),
+			Value: b.Val(),
 		}
 	case parser.N_STMT_WHILE:
 		stmt := node.(*parser.WhileStmt)
@@ -1033,12 +1045,13 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 		superTypArgs := stmt.SuperTypArgs()
 		typParams := stmt.TypParams()
 		implements := stmt.Implements()
+		lc := LocWithDecorator(stmt, parser.DecoratorsOf(stmt))
 		if superTypArgs != nil || typParams != nil || implements != nil {
 			return &TSClassDeclaration{
 				Type:                "ClassDeclaration",
-				Start:               start(stmt.Loc()),
-				End:                 end(stmt.Loc()),
-				Loc:                 loc(stmt.Loc()),
+				Start:               start(lc),
+				End:                 end(lc),
+				Loc:                 loc(lc),
 				Id:                  Convert(stmt.Id(), ctx),
 				TypeParameters:      ConvertTsTyp(typParams, ctx),
 				SuperClass:          Convert(stmt.Super(), ctx),
@@ -1047,18 +1060,20 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 				Body:                Convert(stmt.Body(), ctx),
 				Abstract:            stmt.Abstract(),
 				Declare:             stmt.Declare(),
+				Decorators:          elems(parser.DecoratorsOf(stmt), ctx),
 			}
 		}
 		return &ClassDeclaration{
 			Type:       "ClassDeclaration",
-			Start:      start(stmt.Loc()),
-			End:        end(stmt.Loc()),
-			Loc:        loc(stmt.Loc()),
+			Start:      start(lc),
+			End:        end(lc),
+			Loc:        loc(lc),
 			Id:         Convert(stmt.Id(), ctx),
 			SuperClass: Convert(stmt.Super(), ctx),
 			Body:       Convert(stmt.Body(), ctx),
 			Abstract:   stmt.Abstract(),
 			Declare:    stmt.Declare(),
+			Decorators: elems(parser.DecoratorsOf(stmt), ctx),
 		}
 	case parser.N_EXPR_CLASS:
 		stmt := node.(*parser.ClassDec)
@@ -1102,13 +1117,14 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 	case parser.N_METHOD:
 		n := node.(*parser.Method)
 		f := n.Val().(*parser.FnDec)
+		lc := LocWithDecorator(n, parser.DecoratorsOf(n))
 		if f.TypInfo() != nil {
 			ti := f.TypInfo()
 			return &TSMethodDefinition{
 				Type:          "MethodDefinition",
-				Start:         start(n.Loc()),
-				End:           end(n.Loc()),
-				Loc:           loc(n.Loc()),
+				Start:         start(lc),
+				End:           end(lc),
+				Loc:           loc(lc),
 				Key:           Convert(n.Key(), ctx),
 				Value:         Convert(n.Val(), ctx),
 				Kind:          n.Kind(),
@@ -1120,30 +1136,32 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 				Override:      ti.Override(),
 				Readonly:      ti.Readonly(),
 				Accessibility: ti.AccMod().String(),
+				Decorators:    elems(parser.DecoratorsOf(n), ctx),
 			}
 		}
 		return &MethodDefinition{
-			Type:     "MethodDefinition",
-			Start:    start(n.Loc()),
-			End:      end(n.Loc()),
-			Loc:      loc(n.Loc()),
-			Key:      Convert(n.Key(), ctx),
-			Value:    Convert(n.Val(), ctx),
-			Kind:     n.Kind(),
-			Computed: n.Computed(),
-			Static:   n.Static(),
+			Type:       "MethodDefinition",
+			Start:      start(lc),
+			End:        end(lc),
+			Loc:        loc(lc),
+			Key:        Convert(n.Key(), ctx),
+			Value:      Convert(n.Val(), ctx),
+			Kind:       n.Kind(),
+			Computed:   n.Computed(),
+			Static:     n.Static(),
+			Decorators: elems(parser.DecoratorsOf(n), ctx),
 		}
 	case parser.N_FIELD:
 		n := node.(*parser.Field)
+		lc := LocWithDecorator(n, parser.DecoratorsOf(n))
 		if n.TypInfo() != nil {
 			ti := n.TypInfo()
-
 			if n.IsTsSig() {
 				return &TSIndexSignature{
 					Type:           "TSIndexSignature",
-					Start:          start(n.Loc()),
-					End:            end(n.Loc()),
-					Loc:            loc(n.Loc()),
+					Start:          start(lc),
+					End:            end(lc),
+					Loc:            loc(lc),
 					Static:         n.Static(),
 					Abstract:       ti.Abstract(),
 					Optional:       ti.Optional(),
@@ -1152,16 +1170,17 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 					Accessibility:  ti.AccMod().String(),
 					Parameters:     elems([]parser.Node{n.Key()}, ctx),
 					TypeAnnotation: typAnnot(ti, ctx),
+					Decorators:     elems(parser.DecoratorsOf(n), ctx),
 				}
 			}
 
 			return &TSPropertyDefinition{
 				Type:           "PropertyDefinition",
-				Start:          start(n.Loc()),
-				End:            end(n.Loc()),
-				Loc:            loc(n.Loc()),
+				Start:          start(lc),
+				End:            end(lc),
+				Loc:            loc(lc),
 				Key:            Convert(n.Key(), ctx),
-				Value:          Convert(n.Value(), ctx),
+				Value:          Convert(n.Val(), ctx),
 				Computed:       n.Computed(),
 				Static:         n.Static(),
 				Abstract:       ti.Abstract(),
@@ -1172,17 +1191,19 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 				Declare:        ti.Declare(),
 				Accessibility:  ti.AccMod().String(),
 				TypeAnnotation: typAnnot(ti, ctx),
+				Decorators:     elems(parser.DecoratorsOf(n), ctx),
 			}
 		}
 		return &PropertyDefinition{
-			Type:     "PropertyDefinition",
-			Start:    start(n.Loc()),
-			End:      end(n.Loc()),
-			Loc:      loc(n.Loc()),
-			Key:      Convert(n.Key(), ctx),
-			Value:    Convert(n.Value(), ctx),
-			Computed: n.Computed(),
-			Static:   n.Static(),
+			Type:       "PropertyDefinition",
+			Start:      start(lc),
+			End:        end(lc),
+			Loc:        loc(lc),
+			Key:        Convert(n.Key(), ctx),
+			Value:      Convert(n.Val(), ctx),
+			Computed:   n.Computed(),
+			Static:     n.Static(),
+			Decorators: elems(parser.DecoratorsOf(n), ctx),
 		}
 	case parser.N_SUPER:
 		n := node.(*parser.Super)
@@ -1383,7 +1404,7 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 			Start: start(node.Loc()),
 			End:   end(node.Loc()),
 			Loc:   loc(node.Loc()),
-			Value: node.Value(),
+			Value: node.Val(),
 			Raw:   node.Raw(),
 		}
 	case parser.N_JSX_EXPR_SPAN:
@@ -1403,7 +1424,7 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 			End:   end(node.Loc()),
 			Loc:   loc(node.Loc()),
 			Name:  Convert(node.Name(), ctx),
-			Value: Convert(node.Value(), ctx),
+			Value: Convert(node.Val(), ctx),
 		}
 	case parser.N_JSX_ATTR_SPREAD:
 		node := node.(*parser.JsxSpreadAttr)
@@ -1430,6 +1451,15 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 			Start: start(node.Loc()),
 			End:   end(node.Loc()),
 			Loc:   loc(node.Loc()),
+		}
+	case parser.N_DECORATOR:
+		node := node.(*parser.Decorator)
+		return &Decorator{
+			Type:       "Decorator",
+			Start:      start(node.Loc()),
+			End:        end(node.Loc()),
+			Loc:        loc(node.Loc()),
+			Expression: Convert(node.Expr(), ctx),
 		}
 	}
 

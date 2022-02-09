@@ -307,7 +307,7 @@ func ConvertTsTyp(node parser.Node, ctx *ConvertCtx) Node {
 			End:            end(n.Loc()),
 			Loc:            loc(n.Loc()),
 			Parameters:     elems([]parser.Node{n.Key()}, ctx),
-			TypeAnnotation: ConvertTsTyp(n.Value(), ctx),
+			TypeAnnotation: ConvertTsTyp(n.Val(), ctx),
 		}
 	case parser.N_TS_NS_NAME:
 		n := node.(*parser.TsNsName)
@@ -792,6 +792,7 @@ func tsParamProp(node parser.Node, ctx *ConvertCtx) Node {
 		Readonly:      ti.Readonly(),
 		Override:      ti.Override(),
 		Accessibility: ti.AccMod().String(),
+		Decorators:    elems(ti.Decorators(), ctx),
 	}
 }
 

@@ -54,6 +54,8 @@ const (
 
 	FEAT_TS  Feature = 1 << iota
 	FEAT_DTS Feature = 1 << iota
+
+	FEAT_DECORATOR Feature = 1 << iota
 )
 
 func (f Feature) On(flag Feature) Feature {
