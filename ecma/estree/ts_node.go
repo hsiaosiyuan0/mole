@@ -736,3 +736,29 @@ type TSTupleType struct {
 	Loc          *SrcLoc `json:"loc"`
 	ElementTypes []Node  `json:"elementTypes"`
 }
+
+type TSRestType struct {
+	Type           string  `json:"type"`
+	Start          int     `json:"start"`
+	End            int     `json:"end"`
+	Loc            *SrcLoc `json:"loc"`
+	TypeAnnotation Node    `json:"typeAnnotation"`
+}
+
+type TSNamedTupleMember struct {
+	Type        string  `json:"type"`
+	Start       int     `json:"start"`
+	End         int     `json:"end"`
+	Loc         *SrcLoc `json:"loc"`
+	Optional    bool    `json:"optional"`
+	Label       Node    `json:"label"`
+	ElementType Node    `json:"elementType"`
+}
+
+type TSOptionalType struct {
+	Type           string  `json:"type"`
+	Start          int     `json:"start"`
+	End            int     `json:"end"`
+	Loc            *SrcLoc `json:"loc"`
+	TypeAnnotation Node    `json:"typeAnnotation"`
+}

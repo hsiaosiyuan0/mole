@@ -193,4 +193,8 @@ const (
 	ERR_IMPORT_ARG_SHOULD_BE_STR               = "Argument in a type import must be a string literal"
 	ERR_INVALID_RO_MODIFIER_IN_TS_OBJ          = "`readonly` modifier can only appear on a property declaration or index signature"
 	ERR_READONLY_ONLY_PERMITTED_ON_ARRAY_TUPLE = "`readonly` type modifier is only permitted on array and tuple literal types"
+	ERR_REST_TYPE_SHOULD_BE_ARRAY              = "A rest element type must be an array type"
+	ERR_TUPLE_NAMED_SHOULD_ALL_NAMED           = "Tuple members must all have names or all not have names"
+	ERR_TUPLE_LABEL_SHOULD_BE_SIMPLE           = "Tuple members must be labeled with a simple identifier"
+	ERR_TUPLE_OPT_SHOULD_AFTER_REQUIRED        = "A required element cannot follow an optional element"
 )

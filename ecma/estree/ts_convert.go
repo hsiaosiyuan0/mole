@@ -638,6 +638,35 @@ func ConvertTsTyp(node parser.Node, ctx *ConvertCtx) Node {
 			Loc:          loc(n.Loc()),
 			ElementTypes: elems(n.Args(), ctx),
 		}
+	case parser.N_TS_TUPLE_NAMED_MEMBER:
+		n := node.(*parser.TsTupleNamedMember)
+		return &TSNamedTupleMember{
+			Type:        "TSNamedTupleMember",
+			Start:       start(n.Loc()),
+			End:         end(n.Loc()),
+			Loc:         loc(n.Loc()),
+			Optional:    n.Opt(),
+			Label:       Convert(n.Label(), ctx),
+			ElementType: ConvertTsTyp(n.Val(), ctx),
+		}
+	case parser.N_TS_REST:
+		n := node.(*parser.TsRest)
+		return &TSRestType{
+			Type:           "TSRestType",
+			Start:          start(n.Loc()),
+			End:            end(n.Loc()),
+			Loc:            loc(n.Loc()),
+			TypeAnnotation: ConvertTsTyp(n.Arg(), ctx),
+		}
+	case parser.N_TS_OPT:
+		n := node.(*parser.TsOpt)
+		return &TSOptionalType{
+			Type:           "TSOptionalType",
+			Start:          start(n.Loc()),
+			End:            end(n.Loc()),
+			Loc:            loc(n.Loc()),
+			TypeAnnotation: ConvertTsTyp(n.Arg(), ctx),
+		}
 	}
 
 	return nil

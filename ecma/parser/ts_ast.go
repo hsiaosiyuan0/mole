@@ -29,9 +29,18 @@ func (n *TsTypAnnot) TsTyp() Node {
 }
 
 type TsPredef struct {
-	typ  NodeType
-	loc  *Loc
-	ques *Loc
+	typ        NodeType
+	loc        *Loc
+	ques       *Loc
+	outerParen *Loc
+}
+
+func (n *TsPredef) OuterParen() *Loc {
+	return n.outerParen
+}
+
+func (n *TsPredef) SetOuterParen(loc *Loc) {
+	n.outerParen = loc
 }
 
 func (n *TsPredef) Type() NodeType {
@@ -47,9 +56,18 @@ func (n *TsPredef) Text() string {
 }
 
 type TsLit struct {
-	typ NodeType
-	loc *Loc
-	lit Node
+	typ        NodeType
+	loc        *Loc
+	lit        Node
+	outerParen *Loc
+}
+
+func (n *TsLit) OuterParen() *Loc {
+	return n.outerParen
+}
+
+func (n *TsLit) SetOuterParen(loc *Loc) {
+	n.outerParen = loc
 }
 
 func (n *TsLit) Lit() Node {
@@ -65,8 +83,17 @@ func (n *TsLit) Loc() *Loc {
 }
 
 type TsThis struct {
-	typ NodeType
-	loc *Loc
+	typ        NodeType
+	loc        *Loc
+	outerParen *Loc
+}
+
+func (n *TsThis) OuterParen() *Loc {
+	return n.outerParen
+}
+
+func (n *TsThis) SetOuterParen(loc *Loc) {
+	n.outerParen = loc
 }
 
 func (n *TsThis) Type() NodeType {
@@ -78,11 +105,20 @@ func (n *TsThis) Loc() *Loc {
 }
 
 type TsNsName struct {
-	typ NodeType
-	loc *Loc
-	lhs Node
-	dot *Loc
-	rhs Node
+	typ        NodeType
+	loc        *Loc
+	lhs        Node
+	dot        *Loc
+	rhs        Node
+	outerParen *Loc
+}
+
+func (n *TsNsName) OuterParen() *Loc {
+	return n.outerParen
+}
+
+func (n *TsNsName) SetOuterParen(loc *Loc) {
+	n.outerParen = loc
 }
 
 func (n *TsNsName) Lhs() Node {
@@ -102,11 +138,20 @@ func (n *TsNsName) Loc() *Loc {
 }
 
 type TsRef struct {
-	typ  NodeType
-	loc  *Loc
-	name Node
-	lt   *Loc
-	args Node
+	typ        NodeType
+	loc        *Loc
+	name       Node
+	lt         *Loc
+	args       Node
+	outerParen *Loc
+}
+
+func (n *TsRef) OuterParen() *Loc {
+	return n.outerParen
+}
+
+func (n *TsRef) SetOuterParen(loc *Loc) {
+	n.outerParen = loc
 }
 
 func (n *TsRef) Type() NodeType {
@@ -137,9 +182,18 @@ func (n *TsRef) HasArgs() bool {
 }
 
 type TsTypQuery struct {
-	typ NodeType
-	loc *Loc
-	arg Node // any ts Typ
+	typ        NodeType
+	loc        *Loc
+	arg        Node // any ts Typ
+	outerParen *Loc
+}
+
+func (n *TsTypQuery) OuterParen() *Loc {
+	return n.outerParen
+}
+
+func (n *TsTypQuery) SetOuterParen(loc *Loc) {
+	n.outerParen = loc
 }
 
 func (n *TsTypQuery) Arg() Node {
@@ -155,9 +209,18 @@ func (n *TsTypQuery) Loc() *Loc {
 }
 
 type TsParen struct {
-	typ NodeType
-	loc *Loc
-	arg Node // name or nsName
+	typ        NodeType
+	loc        *Loc
+	arg        Node // name or nsName
+	outerParen *Loc
+}
+
+func (n *TsParen) OuterParen() *Loc {
+	return n.outerParen
+}
+
+func (n *TsParen) SetOuterParen(loc *Loc) {
+	n.outerParen = loc
 }
 
 func (n *TsParen) Arg() Node {
@@ -173,10 +236,19 @@ func (n *TsParen) Loc() *Loc {
 }
 
 type TsArr struct {
-	typ     NodeType
-	loc     *Loc
-	bracket *Loc
-	arg     Node // name or nsName
+	typ        NodeType
+	loc        *Loc
+	bracket    *Loc
+	arg        Node // name or nsName
+	outerParen *Loc
+}
+
+func (n *TsArr) OuterParen() *Loc {
+	return n.outerParen
+}
+
+func (n *TsArr) SetOuterParen(loc *Loc) {
+	n.outerParen = loc
 }
 
 func (n *TsArr) Type() NodeType {
@@ -192,10 +264,19 @@ func (n *TsArr) Arg() Node {
 }
 
 type TsIdxAccess struct {
-	typ NodeType
-	loc *Loc
-	obj Node
-	idx Node
+	typ        NodeType
+	loc        *Loc
+	obj        Node
+	idx        Node
+	outerParen *Loc
+}
+
+func (n *TsIdxAccess) OuterParen() *Loc {
+	return n.outerParen
+}
+
+func (n *TsIdxAccess) SetOuterParen(loc *Loc) {
+	n.outerParen = loc
 }
 
 func (n *TsIdxAccess) Obj() Node {
@@ -215,9 +296,18 @@ func (n *TsIdxAccess) Loc() *Loc {
 }
 
 type TsTuple struct {
-	typ  NodeType
-	loc  *Loc
-	args []Node
+	typ        NodeType
+	loc        *Loc
+	args       []Node
+	outerParen *Loc
+}
+
+func (n *TsTuple) OuterParen() *Loc {
+	return n.outerParen
+}
+
+func (n *TsTuple) SetOuterParen(loc *Loc) {
+	n.outerParen = loc
 }
 
 func (n *TsTuple) Args() []Node {
@@ -232,10 +322,65 @@ func (n *TsTuple) Loc() *Loc {
 	return n.loc
 }
 
-type TsObj struct {
+type TsRest struct {
+	typ NodeType
+	loc *Loc
+	arg Node
+}
+
+func (n *TsRest) Arg() Node {
+	return n.arg
+}
+
+func (n *TsRest) Type() NodeType {
+	return n.typ
+}
+
+func (n *TsRest) Loc() *Loc {
+	return n.loc
+}
+
+type TsTupleNamedMember struct {
 	typ   NodeType
 	loc   *Loc
-	props []Node
+	label Node
+	opt   bool
+	val   Node
+}
+
+func (n *TsTupleNamedMember) Label() Node {
+	return n.label
+}
+
+func (n *TsTupleNamedMember) Opt() bool {
+	return n.opt
+}
+
+func (n *TsTupleNamedMember) Val() Node {
+	return n.val
+}
+
+func (n *TsTupleNamedMember) Type() NodeType {
+	return n.typ
+}
+
+func (n *TsTupleNamedMember) Loc() *Loc {
+	return n.loc
+}
+
+type TsObj struct {
+	typ        NodeType
+	loc        *Loc
+	props      []Node
+	outerParen *Loc
+}
+
+func (n *TsObj) OuterParen() *Loc {
+	return n.outerParen
+}
+
+func (n *TsObj) SetOuterParen(loc *Loc) {
+	n.outerParen = loc
 }
 
 func (n *TsObj) Props() []Node {
@@ -484,11 +629,20 @@ func (n *TsParam) Default() Node {
 }
 
 type TsFnTyp struct {
-	typ       NodeType
-	loc       *Loc
-	typParams Node
-	params    []Node
-	retTyp    Node
+	typ        NodeType
+	loc        *Loc
+	typParams  Node
+	params     []Node
+	retTyp     Node
+	outerParen *Loc
+}
+
+func (n *TsFnTyp) OuterParen() *Loc {
+	return n.outerParen
+}
+
+func (n *TsFnTyp) SetOuterParen(loc *Loc) {
+	n.outerParen = loc
 }
 
 func (n *TsFnTyp) TypParams() Node {
@@ -512,10 +666,19 @@ func (n *TsFnTyp) Loc() *Loc {
 }
 
 type TsUnionTyp struct {
-	typ   NodeType
-	loc   *Loc
-	op    *Loc
-	elems []Node
+	typ        NodeType
+	loc        *Loc
+	op         *Loc
+	elems      []Node
+	outerParen *Loc
+}
+
+func (n *TsUnionTyp) OuterParen() *Loc {
+	return n.outerParen
+}
+
+func (n *TsUnionTyp) SetOuterParen(loc *Loc) {
+	n.outerParen = loc
 }
 
 func (n *TsUnionTyp) Type() NodeType {
@@ -531,10 +694,19 @@ func (n *TsUnionTyp) Elems() []Node {
 }
 
 type TsIntersecTyp struct {
-	typ   NodeType
-	loc   *Loc
-	op    *Loc
-	elems []Node
+	typ        NodeType
+	loc        *Loc
+	op         *Loc
+	elems      []Node
+	outerParen *Loc
+}
+
+func (n *TsIntersecTyp) OuterParen() *Loc {
+	return n.outerParen
+}
+
+func (n *TsIntersecTyp) SetOuterParen(loc *Loc) {
+	n.outerParen = loc
 }
 
 func (n *TsIntersecTyp) Type() NodeType {
@@ -550,10 +722,19 @@ func (n *TsIntersecTyp) Elems() []Node {
 }
 
 type TsTypAssert struct {
-	typ NodeType
-	loc *Loc
-	des Node
-	arg Node
+	typ        NodeType
+	loc        *Loc
+	des        Node
+	arg        Node
+	outerParen *Loc
+}
+
+func (n *TsTypAssert) OuterParen() *Loc {
+	return n.outerParen
+}
+
+func (n *TsTypAssert) SetOuterParen(loc *Loc) {
+	n.outerParen = loc
 }
 
 func (n *TsTypAssert) Type() NodeType {
@@ -758,10 +939,19 @@ func (n *TsNS) Loc() *Loc {
 }
 
 type TsImportRequire struct {
-	typ  NodeType
-	loc  *Loc
-	name Node
-	expr Node
+	typ        NodeType
+	loc        *Loc
+	name       Node
+	expr       Node
+	outerParen *Loc
+}
+
+func (n *TsImportRequire) OuterParen() *Loc {
+	return n.outerParen
+}
+
+func (n *TsImportRequire) SetOuterParen(loc *Loc) {
+	n.outerParen = loc
 }
 
 func (n *TsImportRequire) Name() Node {
@@ -825,11 +1015,20 @@ func (n *TsDec) Inner() Node {
 // [type-predicates](https://www.typescriptlang.org/docs/handbook/2/narrowing.html#using-type-predicates) have almost
 // the same syntax so they'll share the same definition by using `assert` to distinguish them
 type TsTypPredicate struct {
-	typ    NodeType
-	loc    *Loc
-	name   Node
-	des    Node
-	assert bool
+	typ        NodeType
+	loc        *Loc
+	name       Node
+	des        Node
+	assert     bool
+	outerParen *Loc
+}
+
+func (n *TsTypPredicate) OuterParen() *Loc {
+	return n.outerParen
+}
+
+func (n *TsTypPredicate) SetOuterParen(loc *Loc) {
+	n.outerParen = loc
 }
 
 func (n *TsTypPredicate) Type() NodeType {
@@ -853,9 +1052,18 @@ func (n *TsTypPredicate) Asserts() bool {
 }
 
 type TsNoNull struct {
-	typ NodeType
-	loc *Loc
-	arg Node
+	typ        NodeType
+	loc        *Loc
+	arg        Node
+	outerParen *Loc
+}
+
+func (n *TsNoNull) OuterParen() *Loc {
+	return n.outerParen
+}
+
+func (n *TsNoNull) SetOuterParen(loc *Loc) {
+	n.outerParen = loc
 }
 
 func (n *TsNoNull) Type() NodeType {
@@ -871,11 +1079,20 @@ func (n *TsNoNull) Arg() Node {
 }
 
 type TsImportType struct {
-	typ       NodeType
-	loc       *Loc
-	arg       Node
-	qualifier Node
-	typArgs   Node
+	typ        NodeType
+	loc        *Loc
+	arg        Node
+	qualifier  Node
+	typArgs    Node
+	outerParen *Loc
+}
+
+func (n *TsImportType) OuterParen() *Loc {
+	return n.outerParen
+}
+
+func (n *TsImportType) SetOuterParen(loc *Loc) {
+	n.outerParen = loc
 }
 
 func (n *TsImportType) Arg() Node {
@@ -940,12 +1157,21 @@ func (n *ClassDec) TypParams() Node {
 }
 
 type TsCondType struct {
-	typ      NodeType
-	loc      *Loc
-	check    Node
-	ext      Node
-	trueTyp  Node
-	falseTyp Node
+	typ        NodeType
+	loc        *Loc
+	check      Node
+	ext        Node
+	trueTyp    Node
+	falseTyp   Node
+	outerParen *Loc
+}
+
+func (n *TsCondType) OuterParen() *Loc {
+	return n.outerParen
+}
+
+func (n *TsCondType) SetOuterParen(loc *Loc) {
+	n.outerParen = loc
 }
 
 func (n *TsCondType) CheckTyp() Node {
@@ -973,9 +1199,18 @@ func (n *TsCondType) Loc() *Loc {
 }
 
 type TsTypInfer struct {
-	typ NodeType
-	loc *Loc
-	arg Node
+	typ        NodeType
+	loc        *Loc
+	arg        Node
+	outerParen *Loc
+}
+
+func (n *TsTypInfer) OuterParen() *Loc {
+	return n.outerParen
+}
+
+func (n *TsTypInfer) SetOuterParen(loc *Loc) {
+	n.outerParen = loc
 }
 
 func (n *TsTypInfer) Arg() Node {
@@ -991,13 +1226,22 @@ func (n *TsTypInfer) Loc() *Loc {
 }
 
 type TsMapped struct {
-	typ      NodeType
-	loc      *Loc
-	readonly int // 0: not set, 1: set, 2: positive, 3: negative
-	optional int // 0: not set, 1: set, 2: positive, 3: negative
-	key      Node
-	name     Node
-	val      Node
+	typ        NodeType
+	loc        *Loc
+	readonly   int // 0: not set, 1: set, 2: positive, 3: negative
+	optional   int // 0: not set, 1: set, 2: positive, 3: negative
+	key        Node
+	name       Node
+	val        Node
+	outerParen *Loc
+}
+
+func (n *TsMapped) OuterParen() *Loc {
+	return n.outerParen
+}
+
+func (n *TsMapped) SetOuterParen(loc *Loc) {
+	n.outerParen = loc
 }
 
 func (n *TsMapped) ReadonlyFmt() interface{} {
@@ -1053,10 +1297,19 @@ func (n *TsMapped) Loc() *Loc {
 }
 
 type TsTypOp struct {
-	typ NodeType
-	loc *Loc
-	op  string
-	arg Node
+	typ        NodeType
+	loc        *Loc
+	op         string
+	arg        Node
+	outerParen *Loc
+}
+
+func (n *TsTypOp) OuterParen() *Loc {
+	return n.outerParen
+}
+
+func (n *TsTypOp) SetOuterParen(loc *Loc) {
+	n.outerParen = loc
 }
 
 func (n *TsTypOp) Op() string {
@@ -1072,6 +1325,24 @@ func (n *TsTypOp) Type() NodeType {
 }
 
 func (n *TsTypOp) Loc() *Loc {
+	return n.loc
+}
+
+type TsOpt struct {
+	typ NodeType
+	loc *Loc
+	arg Node
+}
+
+func (n *TsOpt) Arg() Node {
+	return n.arg
+}
+
+func (n *TsOpt) Type() NodeType {
+	return n.typ
+}
+
+func (n *TsOpt) Loc() *Loc {
 	return n.loc
 }
 

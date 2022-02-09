@@ -4,14 +4,15 @@
     "autocrlf",
     "elems",
     "GOARCH",
+    "instanceof",
     "jquery",
+    "keyof",
     "pbcopy",
     "REDEF",
     "rvalue",
     "stdlib",
     "unparenthesized",
-    "valueof",
-    "keyof"
+    "valueof"
   ],
   "go.toolsEnvVars": {
     "GOOS": "js",
