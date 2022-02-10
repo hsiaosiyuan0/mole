@@ -739,7 +739,7 @@ func VisitJsxIdent(n Node, v interface{}, ctx *TraverseCtx) ContOrStop {
 	return TRAVERSE_CONT
 }
 func VisitJsxMemberExpr(n Node, v interface{}, ctx *TraverseCtx) ContOrStop {
-	an := n.(*JsxMemberExpr)
+	an := n.(*JsxMember)
 	if !VisitNode(an.obj, v, ctx, false) {
 		return TRAVERSE_STOP
 	}
@@ -1306,7 +1306,7 @@ func ListenJsxIdent(n Node, v interface{}, ctx *TraverseCtx) ContOrStop {
 	return TRAVERSE_CONT
 }
 func ListenJsxMemberExpr(n Node, v interface{}, ctx *TraverseCtx) ContOrStop {
-	an := n.(*JsxMemberExpr)
+	an := n.(*JsxMember)
 	callNodeFn(n, N_JSX_MEMBER_BEFORE, v, ctx)
 	VisitNode(an.obj, v, ctx, true)
 	VisitNode(an.prop, v, ctx, true)

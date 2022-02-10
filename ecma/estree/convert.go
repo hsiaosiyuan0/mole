@@ -1319,7 +1319,7 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 			Name:      node.Name(),
 		}
 	case parser.N_JSX_MEMBER:
-		node := node.(*parser.JsxMemberExpr)
+		node := node.(*parser.JsxMember)
 		return &JSXMemberExpression{
 			Type:     "JSXMemberExpression",
 			Start:    start(node.Loc()),

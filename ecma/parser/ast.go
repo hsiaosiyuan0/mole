@@ -113,6 +113,7 @@ func (l *Loc) Before(b *Loc) bool {
 	return l.rng.end < b.rng.start
 }
 
+// #[visitor(Body)]
 type Prog struct {
 	typ   NodeType
 	loc   *Loc
@@ -135,6 +136,7 @@ func (n *Prog) Loc() *Loc {
 	return n.loc
 }
 
+// #[visitor(Expr)]
 type ExprStmt struct {
 	typ  NodeType
 	loc  *Loc
@@ -455,6 +457,7 @@ func (n *RegLit) SetTypInfo(ti *TypInfo) {
 	n.ti = ti
 }
 
+// #[visitor(Elems)]
 type ArrLit struct {
 	typ        NodeType
 	loc        *Loc
@@ -491,6 +494,7 @@ func (n *ArrLit) SetTypInfo(ti *TypInfo) {
 	n.ti = ti
 }
 
+// #[visitor(Spread)]
 type Spread struct {
 	typ              NodeType
 	loc              *Loc
@@ -528,6 +532,7 @@ func (n *Spread) SetTypInfo(ti *TypInfo) {
 	n.ti = ti
 }
 
+// #[visitor(Props)]
 type ObjLit struct {
 	typ        NodeType
 	loc        *Loc
@@ -713,6 +718,7 @@ func (n *Ident) SetTypInfo(ti *TypInfo) {
 	n.ti = ti
 }
 
+// #[visitor(Callee,Args)]
 type NewExpr struct {
 	typ        NodeType
 	loc        *Loc
@@ -754,6 +760,7 @@ func (n *NewExpr) SetTypInfo(ti *TypInfo) {
 	n.ti = ti
 }
 
+// #[visitor(Obj,Prop)]
 type MemberExpr struct {
 	typ        NodeType
 	loc        *Loc
@@ -796,6 +803,7 @@ func (n *MemberExpr) SetOuterParen(loc *Loc) {
 	n.outerParen = loc
 }
 
+// #[visitor(Callee,Args)]
 type CallExpr struct {
 	typ        NodeType
 	loc        *Loc
@@ -842,6 +850,7 @@ func (n *CallExpr) SetTypInfo(ti *TypInfo) {
 	n.ti = ti
 }
 
+// #[visitor(Lhs,Rhs)]
 type BinExpr struct {
 	typ        NodeType
 	loc        *Loc
@@ -884,6 +893,7 @@ func (n *BinExpr) SetOuterParen(loc *Loc) {
 	n.outerParen = loc
 }
 
+// #[visitor(Arg)]
 type UnaryExpr struct {
 	typ        NodeType
 	loc        *Loc
@@ -920,6 +930,7 @@ func (n *UnaryExpr) SetOuterParen(loc *Loc) {
 	n.outerParen = loc
 }
 
+// #[visitor(Arg)]
 type UpdateExpr struct {
 	typ        NodeType
 	loc        *Loc
@@ -961,6 +972,7 @@ func (n *UpdateExpr) SetOuterParen(loc *Loc) {
 	n.outerParen = loc
 }
 
+// #[visitor(Test,Cons,Alt)]
 type CondExpr struct {
 	typ        NodeType
 	loc        *Loc
@@ -998,6 +1010,7 @@ func (n *CondExpr) SetOuterParen(loc *Loc) {
 	n.outerParen = loc
 }
 
+// #[visitor(Lhs,Rhs)]
 type AssignExpr struct {
 	typ        NodeType
 	loc        *Loc
@@ -1080,6 +1093,7 @@ func (n *ThisExpr) SetTypInfo(ti *TypInfo) {
 	n.ti = ti
 }
 
+// #[visitor(Elems)]
 type SeqExpr struct {
 	typ        NodeType
 	loc        *Loc
@@ -1107,6 +1121,7 @@ func (n *SeqExpr) SetOuterParen(loc *Loc) {
 	n.outerParen = loc
 }
 
+// #[visitor(Expr)]
 type ParenExpr struct {
 	typ        NodeType
 	loc        *Loc
@@ -1147,6 +1162,8 @@ func (n *ParenExpr) SetOuterParen(loc *Loc) {
 // https://opensource.apple.com/source/WebInspectorUI/WebInspectorUI-7602.2.14.0.5/UserInterface/Workers/Formatter/ESTreeWalker.js.auto.html
 // some meaningless output should be taken into its estree result, such as put first quasis as
 // a emptry string if the first element in `elems` is a expression
+//
+// #[visitor(Tag,Elems)]
 type TplExpr struct {
 	typ        NodeType
 	loc        *Loc
@@ -1221,6 +1238,7 @@ func (n *Super) SetTypInfo(ti *TypInfo) {
 	n.ti = ti
 }
 
+// #[visitor(Src)]
 type ImportCall struct {
 	typ        NodeType
 	loc        *Loc
@@ -1248,6 +1266,7 @@ func (n *ImportCall) SetOuterParen(loc *Loc) {
 	n.outerParen = loc
 }
 
+// #[visitor(Arg)]
 type YieldExpr struct {
 	typ        NodeType
 	loc        *Loc
@@ -1280,6 +1299,7 @@ func (n *YieldExpr) SetOuterParen(loc *Loc) {
 	n.outerParen = loc
 }
 
+// #[visitor(Elems)]
 type ArrPat struct {
 	typ        NodeType
 	loc        *Loc
@@ -1316,6 +1336,7 @@ func (n *ArrPat) SetTypInfo(ti *TypInfo) {
 	n.ti = ti
 }
 
+// #[visitor(Lhs,Rhs)]
 type AssignPat struct {
 	typ        NodeType
 	loc        *Loc
@@ -1359,6 +1380,7 @@ func (n *AssignPat) hoistTypInfo() {
 	}
 }
 
+// #[visitor(Arg)]
 type RestPat struct {
 	typ        NodeType
 	loc        *Loc
@@ -1402,6 +1424,7 @@ func (n *RestPat) hoistTypInfo() {
 	}
 }
 
+// #[visitor(Props)]
 type ObjPat struct {
 	typ        NodeType
 	loc        *Loc
@@ -1466,6 +1489,7 @@ func (pk PropKind) ToString() string {
 	}
 }
 
+// #[visitor(Key,Val)]
 type Prop struct {
 	typ      NodeType
 	loc      *Loc
@@ -1515,6 +1539,7 @@ func (n *Prop) Loc() *Loc {
 	return n.loc
 }
 
+// #[visitor(Id,Params,Body)]
 type FnDec struct {
 	typ        NodeType
 	loc        *Loc
@@ -1575,6 +1600,7 @@ func (n *FnDec) SetTypInfo(ti *TypInfo) {
 	n.ti = ti
 }
 
+// #[visitor(Params,Body)]
 type ArrowFn struct {
 	typ        NodeType
 	loc        *Loc
@@ -1627,12 +1653,17 @@ func (n *ArrowFn) SetTypInfo(ti *TypInfo) {
 	n.ti = ti
 }
 
+// #[visitor(DecList)]
 type VarDecStmt struct {
 	typ     NodeType
 	loc     *Loc
 	kind    TokenValue
 	decList []Node
 	names   []Node
+}
+
+func (n *VarDecStmt) Names() []Node {
+	return n.names
 }
 
 func (n *VarDecStmt) Kind() string {
@@ -1651,6 +1682,7 @@ func (n *VarDecStmt) Loc() *Loc {
 	return n.loc
 }
 
+// #[visitor(Id,Init)]
 type VarDec struct {
 	typ  NodeType
 	loc  *Loc
@@ -1674,6 +1706,7 @@ func (n *VarDec) Loc() *Loc {
 	return n.loc
 }
 
+// #[visitor(Body)]
 type BlockStmt struct {
 	typ  NodeType
 	loc  *Loc
@@ -1692,6 +1725,7 @@ func (n *BlockStmt) Loc() *Loc {
 	return n.loc
 }
 
+// #[visitor(Test,Body)]
 type DoWhileStmt struct {
 	typ  NodeType
 	loc  *Loc
@@ -1715,6 +1749,7 @@ func (n *DoWhileStmt) Loc() *Loc {
 	return n.loc
 }
 
+// #[visitor(Test,Body)]
 type WhileStmt struct {
 	typ  NodeType
 	loc  *Loc
@@ -1738,6 +1773,7 @@ func (n *WhileStmt) Loc() *Loc {
 	return n.loc
 }
 
+// #[visitor(Init,Test,Update,Body)]
 type ForStmt struct {
 	typ    NodeType
 	loc    *Loc
@@ -1771,6 +1807,7 @@ func (n *ForStmt) Loc() *Loc {
 	return n.loc
 }
 
+// #[visitor(Left,Right,Body)]
 type ForInOfStmt struct {
 	typ   NodeType
 	loc   *Loc
@@ -1809,6 +1846,7 @@ func (n *ForInOfStmt) Loc() *Loc {
 	return n.loc
 }
 
+// #[visitor(Test,Cons,Alt)]
 type IfStmt struct {
 	typ  NodeType
 	loc  *Loc
@@ -1837,6 +1875,7 @@ func (n *IfStmt) Loc() *Loc {
 	return n.loc
 }
 
+// #[visitor(Test,Cases)]
 type SwitchStmt struct {
 	typ   NodeType
 	loc   *Loc
@@ -1860,6 +1899,7 @@ func (n *SwitchStmt) Loc() *Loc {
 	return n.loc
 }
 
+// #[visitor(Test,Cons)]
 type SwitchCase struct {
 	typ  NodeType
 	loc  *Loc
@@ -1883,6 +1923,7 @@ func (n *SwitchCase) Loc() *Loc {
 	return n.loc
 }
 
+// #[visitor(Label)]
 type BrkStmt struct {
 	typ   NodeType
 	loc   *Loc
@@ -1901,6 +1942,7 @@ func (n *BrkStmt) Loc() *Loc {
 	return n.loc
 }
 
+// #[visitor(Label)]
 type ContStmt struct {
 	typ   NodeType
 	loc   *Loc
@@ -1919,6 +1961,7 @@ func (n *ContStmt) Loc() *Loc {
 	return n.loc
 }
 
+// #[visitor(Label,Body)]
 type LabelStmt struct {
 	typ   NodeType
 	loc   *Loc
@@ -1942,6 +1985,7 @@ func (n *LabelStmt) Loc() *Loc {
 	return n.loc
 }
 
+// #[visitor(Arg)]
 type RetStmt struct {
 	typ NodeType
 	loc *Loc
@@ -1960,6 +2004,7 @@ func (n *RetStmt) Loc() *Loc {
 	return n.loc
 }
 
+// #[visitor(Arg)]
 type ThrowStmt struct {
 	typ NodeType
 	loc *Loc
@@ -1978,6 +2023,7 @@ func (n *ThrowStmt) Loc() *Loc {
 	return n.loc
 }
 
+// #[visitor(Param,Body)]
 type Catch struct {
 	typ   NodeType
 	loc   *Loc
@@ -2001,6 +2047,7 @@ func (n *Catch) Loc() *Loc {
 	return n.loc
 }
 
+// #[visitor(Try,Catch,Fin)]
 type TryStmt struct {
 	typ   NodeType
 	loc   *Loc
@@ -2042,6 +2089,7 @@ func (n *DebugStmt) Loc() *Loc {
 	return n.loc
 }
 
+// #[visitor(Expr,Body)]
 type WithStmt struct {
 	typ  NodeType
 	loc  *Loc
@@ -2065,6 +2113,7 @@ func (n *WithStmt) Loc() *Loc {
 	return n.loc
 }
 
+// #[visitor(Id,Super,Body)]
 type ClassDec struct {
 	typ     NodeType
 	loc     *Loc
@@ -2107,6 +2156,7 @@ func (n *ClassDec) SetTypInfo(ti *TypInfo) {
 	n.ti = ti
 }
 
+// #[visitor(Elems)]
 type ClassBody struct {
 	typ   NodeType
 	loc   *Loc
@@ -2125,6 +2175,7 @@ func (n *ClassBody) Loc() *Loc {
 	return n.loc
 }
 
+// #[visitor(Key,Val)]
 type Method struct {
 	typ      NodeType
 	loc      *Loc
@@ -2181,6 +2232,7 @@ func (n *Method) SetTypInfo(ti *TypInfo) {
 	n.ti = ti
 }
 
+// #[visitor(Key,Val)]
 type Field struct {
 	typ      NodeType
 	loc      *Loc
@@ -2223,6 +2275,7 @@ func (n *Field) SetTypInfo(ti *TypInfo) {
 	n.ti = ti
 }
 
+// #[visitor(Body)]
 type StaticBlock struct {
 	typ  NodeType
 	loc  *Loc
@@ -2250,6 +2303,7 @@ func (n *StaticBlock) SetTypInfo(ti *TypInfo) {
 	n.ti = ti
 }
 
+// #[visitor(Meta,Prop)]
 type MetaProp struct {
 	typ  NodeType
 	loc  *Loc
@@ -2273,6 +2327,7 @@ func (n *MetaProp) Loc() *Loc {
 	return n.loc
 }
 
+// #[visitor(Specs,Src)]
 type ImportDec struct {
 	typ   NodeType
 	loc   *Loc
@@ -2308,6 +2363,7 @@ func (n *ImportDec) Loc() *Loc {
 	return n.loc
 }
 
+// #[visitor(Local,Id)]
 type ImportSpec struct {
 	typ   NodeType
 	loc   *Loc
@@ -2353,6 +2409,7 @@ func (n *ImportSpec) Loc() *Loc {
 	return n.loc
 }
 
+// #[visitor(Dec,Specs,Src)]
 type ExportDec struct {
 	typ   NodeType
 	loc   *Loc
@@ -2403,6 +2460,7 @@ func (n *ExportDec) Loc() *Loc {
 	return n.loc
 }
 
+// #[visitor(Local,Id)]
 type ExportSpec struct {
 	typ   NodeType
 	loc   *Loc
@@ -2443,6 +2501,7 @@ func (n *ExportSpec) Loc() *Loc {
 	return n.loc
 }
 
+// #[visitor(Expr)]
 type ChainExpr struct {
 	typ  NodeType
 	loc  *Loc
@@ -2461,6 +2520,7 @@ func (n *ChainExpr) Expr() Node {
 	return n.expr
 }
 
+// #[visitor(Expr)]
 type Decorator struct {
 	typ  NodeType
 	loc  *Loc
