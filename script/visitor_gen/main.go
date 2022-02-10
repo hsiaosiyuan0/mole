@@ -1,15 +1,11 @@
 package main
 
 import (
-	"bytes"
+	"flag"
 	"fmt"
-	"go/ast"
-	"go/parser"
-	"go/token"
 	"log"
 	"path"
 	"path/filepath"
-	"reflect"
 	"runtime"
 )
 
@@ -20,29 +16,29 @@ func main() {
 		log.Fatal(err)
 	}
 
-	file := path.Clean(path.Join(cwd, "..", "..", "ecma", "parser", "node_type.go"))
-	fmt.Println(cwd)
+	_ = path.Clean(path.Join(cwd, "..", "..", "ecma", "parser", "node_type.go"))
+	// fmt.Println(cwd)
 
-	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, file, nil, parser.ParseComments)
+	// b, err := ioutil.ReadFile(file)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// fmt.Println(string(b))
+	fmt.Println(flag.Args())
 
-	if err != nil {
-		log.Fatal(err)
-	}
+	// fset := token.NewFileSet()
+	// f, err := parser.ParseFile(fset, file, nil, parser.ParseComments)
 
-	var bf bytes.Buffer
-	ast.Fprint(&bf, fset, f, func(string, reflect.Value) bool {
-		return true
-	})
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
 
-	fmt.Println(bf.String())
+	// d := f.Decls[0]
+	// fmt.Println(d)
 
-	d := f.Decls[0]
-	fmt.Println(d)
-
-	expr, err := parser.ParseExpr(`[visitor(before,after)]`)
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Println(expr)
+	// expr, err := parser.ParseExpr(`[visitor(before,after)]`)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// fmt.Println(expr)
 }
