@@ -719,8 +719,8 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 			Start: start(n.Loc()),
 			End:   end(n.Loc()),
 			Loc:   loc(n.Loc()),
-			Left:  Convert(n.Left(), ctx),
-			Right: Convert(n.Right(), ctx),
+			Left:  Convert(n.Lhs(), ctx),
+			Right: Convert(n.Rhs(), ctx),
 		}
 	case parser.N_PAT_OBJ:
 		n := node.(*parser.ObjPat)
@@ -1105,7 +1105,7 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 			Body:       Convert(stmt.Body(), ctx),
 			Abstract:   stmt.Abstract(),
 		}
-	case parser.N_ClASS_BODY:
+	case parser.N_CLASS_BODY:
 		stmt := node.(*parser.ClassBody)
 		return &ClassBody{
 			Type:  "ClassBody",

@@ -2,9 +2,11 @@
   "cSpell.words": [
     "Annot",
     "autocrlf",
+    "cmts",
     "elems",
     "fset",
     "GOARCH",
+    "GOFILE",
     "instanceof",
     "jquery",
     "keyof",

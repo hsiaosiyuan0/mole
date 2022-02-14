@@ -13,11 +13,10 @@ func TestMacroLike(t *testing.T) {
 }
 
 func TestMacro(t *testing.T) {
-	m, ok := HasMacroLike(`// #[visitor("true")]`)
+	m, ok := HasMacroLike(`// #[visitor(a.b.c)]`)
 	fuzz.AssertEqual(t, true, ok, "should be ok")
 
 	ctxs, err := ParseMacro("", m, nil, nil)
 	fuzz.AssertEqual(t, nil, err, "should be ok")
-
-	fuzz.AssertEqual(t, "true", ctxs[0].Args[0], "should be ok")
+	fuzz.AssertEqual(t, "a.b.c", ctxs[0].Args[0], "should be ok")
 }

@@ -13,6 +13,7 @@
 4. Run below command to run tests
 
    ```bash
+   make gen # do some code-generation
    make test
    ```
 

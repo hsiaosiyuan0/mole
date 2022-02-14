@@ -37,5 +37,8 @@ bench-ecma:
 html_entify:
 	go run script/html_entify/main.go
 
+gen:
+	go generate ./...
+
 gofmt:
 	gofmt -w .

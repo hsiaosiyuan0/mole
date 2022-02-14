@@ -75,7 +75,7 @@ const (
 	N_PROP         // #[visitor(Prop)]
 	N_SWITCH_CASE  // #[visitor(SwitchCase)]
 	N_CATCH        // #[visitor(Catch)]
-	N_ClASS_BODY   // #[visitor(ClassBody)]
+	N_CLASS_BODY   // #[visitor(ClassBody)]
 	N_STATIC_BLOCK // #[visitor(StaticBlock)]
 	N_METHOD       // #[visitor(Method)]
 	N_FIELD        // #[visitor(Field)]

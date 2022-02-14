@@ -494,7 +494,7 @@ func (n *ArrLit) SetTypInfo(ti *TypInfo) {
 	n.ti = ti
 }
 
-// #[visitor(Spread)]
+// #[visitor(Arg)]
 type Spread struct {
 	typ              NodeType
 	loc              *Loc
@@ -1346,11 +1346,11 @@ type AssignPat struct {
 	ti         *TypInfo
 }
 
-func (n *AssignPat) Left() Node {
+func (n *AssignPat) Lhs() Node {
 	return n.lhs
 }
 
-func (n *AssignPat) Right() Node {
+func (n *AssignPat) Rhs() Node {
 	return n.rhs
 }
 

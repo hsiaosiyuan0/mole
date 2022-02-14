@@ -1211,7 +1211,7 @@ func (p *Parser) classBody(declare bool, hasSuper bool) (Node, error) {
 		return nil, err
 	}
 
-	return &ClassBody{N_ClASS_BODY, p.finLoc(loc), elems}, nil
+	return &ClassBody{N_CLASS_BODY, p.finLoc(loc), elems}, nil
 }
 
 func (p *Parser) modifiers() (begin, static, access, abstract, readonly, override, declare *Loc,
