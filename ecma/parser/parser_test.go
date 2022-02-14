@@ -7,17 +7,17 @@ import (
 	span "github.com/hsiaosiyuan0/mole/span"
 )
 
-func compile(code string, opts *ParserOpts) (Node, error) {
-	p := newParser(code, opts)
-	return p.Prog()
-}
-
 func newParser(code string, opts *ParserOpts) *Parser {
 	if opts == nil {
 		opts = NewParserOpts()
 	}
 	s := span.NewSource("", code)
 	return NewParser(s, opts)
+}
+
+func compile(code string, opts *ParserOpts) (Node, error) {
+	p := newParser(code, opts)
+	return p.Prog()
 }
 
 func testFail(t *testing.T, code, errMs string, opts *ParserOpts) {

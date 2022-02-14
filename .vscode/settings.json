@@ -2,21 +2,27 @@
   "cSpell.words": [
     "Annot",
     "autocrlf",
+    "cmts",
     "elems",
+    "fset",
     "GOARCH",
+    "GOFILE",
     "instanceof",
     "jquery",
     "keyof",
     "pbcopy",
+    "Pkgs",
     "REDEF",
     "rvalue",
     "stdlib",
     "unparenthesized",
     "valueof"
   ],
-  "go.toolsEnvVars": {
-    "GOOS": "js",
-    "GOARCH": "wasm"
+  "gopls": {
+    "build.env": {
+      "GOOS": "js",
+      "GOARCH": "wasm"
+    }
   },
   "go.testEnvFile": "${workspaceFolder}/.env"
 }

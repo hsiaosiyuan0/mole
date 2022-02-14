@@ -2,7 +2,7 @@ package parser
 
 import "fmt"
 
-func (p *Parser) jsxMemberExpr(obj Node, path string) (Node, string, error) {
+func (p *Parser) jsxMember(obj Node, path string) (Node, string, error) {
 	for {
 		ahead := p.lexer.Peek()
 		av := ahead.value
@@ -13,7 +13,7 @@ func (p *Parser) jsxMemberExpr(obj Node, path string) (Node, string, error) {
 				return nil, "", err
 			}
 			path = path + "." + prop.Text()
-			obj = &JsxMemberExpr{N_JSX_MEMBER, p.finLoc(obj.Loc().Clone()), obj, prop, p.newTypInfo()}
+			obj = &JsxMember{N_JSX_MEMBER, p.finLoc(obj.Loc().Clone()), obj, prop, p.newTypInfo()}
 		} else {
 			break
 		}
@@ -46,7 +46,7 @@ func (p *Parser) jsxName() (Node, string, error) {
 	var name Node
 	var pth string
 	if av == T_DOT {
-		name, pth, err = p.jsxMemberExpr(id, jsxName)
+		name, pth, err = p.jsxMember(id, jsxName)
 		if err != nil {
 			return nil, "", err
 		}

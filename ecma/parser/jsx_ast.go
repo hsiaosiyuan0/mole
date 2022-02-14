@@ -59,7 +59,7 @@ func (n *JsxNsName) Name() string {
 	return n.name.(*JsxIdent).Text()
 }
 
-type JsxMemberExpr struct {
+type JsxMember struct {
 	typ  NodeType
 	loc  *Loc
 	obj  Node
@@ -67,27 +67,27 @@ type JsxMemberExpr struct {
 	ti   *TypInfo
 }
 
-func (n *JsxMemberExpr) Type() NodeType {
+func (n *JsxMember) Type() NodeType {
 	return n.typ
 }
 
-func (n *JsxMemberExpr) Loc() *Loc {
+func (n *JsxMember) Loc() *Loc {
 	return n.loc
 }
 
-func (n *JsxMemberExpr) Obj() Node {
+func (n *JsxMember) Obj() Node {
 	return n.obj
 }
 
-func (n *JsxMemberExpr) Prop() Node {
+func (n *JsxMember) Prop() Node {
 	return n.prop
 }
 
-func (n *JsxMemberExpr) TypInfo() *TypInfo {
+func (n *JsxMember) TypInfo() *TypInfo {
 	return n.ti
 }
 
-func (n *JsxMemberExpr) SetTypInfo(ti *TypInfo) {
+func (n *JsxMember) SetTypInfo(ti *TypInfo) {
 	n.ti = ti
 }
 
