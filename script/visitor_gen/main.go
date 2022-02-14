@@ -259,5 +259,5 @@ import "github.com/hsiaosiyuan0/mole/ecma/parser"
 	}
 
 	ioutil.WriteFile(distFile, buf.Bytes(), 0644)
-	fuzz.Shell("gofmt", "-w", ".")
+	fuzz.Shell("gofmt", "-w", distFile)
 }

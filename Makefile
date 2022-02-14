@@ -34,9 +34,6 @@ test-estree-fixture:
 bench-ecma:
 	go test -cpu 1 -benchmem -bench=. ./ecma/estree/test/perf... -run "^Benchmark"
 
-html_entify:
-	go run script/html_entify/main.go
-
 gen:
 	go generate ./...
 
