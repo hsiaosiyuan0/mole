@@ -59,6 +59,7 @@ func (n *JsxNsName) Name() string {
 	return n.name.(*JsxIdent).Text()
 }
 
+// #[visitor(Obj,Prop)]
 type JsxMember struct {
 	typ  NodeType
 	loc  *Loc
@@ -91,6 +92,7 @@ func (n *JsxMember) SetTypInfo(ti *TypInfo) {
 	n.ti = ti
 }
 
+// #[visitor(Name,Attrs)]
 type JsxOpen struct {
 	typ NodeType
 	loc *Loc
@@ -123,6 +125,7 @@ func (n *JsxOpen) Closed() bool {
 	return n.closed
 }
 
+// #[visitor(Name)]
 type JsxClose struct {
 	typ     NodeType
 	loc     *Loc
@@ -164,6 +167,7 @@ func (n *JsxText) Raw() string {
 	return n.loc.Text()
 }
 
+// #[visitor(Name,Val)]
 type JsxAttr struct {
 	typ     NodeType
 	loc     *Loc
@@ -188,6 +192,7 @@ func (n *JsxAttr) Val() Node {
 	return n.val
 }
 
+// #[visitor(Arg)]
 type JsxSpreadAttr struct {
 	typ NodeType
 	loc *Loc
@@ -206,6 +211,7 @@ func (n *JsxSpreadAttr) Arg() Node {
 	return n.arg
 }
 
+// #[visitor(Expr)]
 type JsxSpreadChild struct {
 	typ  NodeType
 	loc  *Loc
@@ -238,6 +244,8 @@ func (n *JsxEmpty) Loc() *Loc {
 }
 
 // https://github.com/facebook/jsx/blob/main/AST.md#jsx-element
+//
+// #[visitor(Open,Children,Close)]
 type JsxElem struct {
 	typ      NodeType
 	loc      *Loc
@@ -270,6 +278,7 @@ func (n *JsxElem) IsFragment() bool {
 	return n.open.(*JsxOpen).name == nil
 }
 
+// #[visitor(Expr)]
 type JsxExprSpan struct {
 	typ  NodeType
 	loc  *Loc

@@ -201,6 +201,22 @@ const (
 	VK_IMPORT_CALL_AFTER
 	VK_IMPORT_SPEC_BEFORE
 	VK_IMPORT_SPEC_AFTER
+	VK_JSX_ATTR_BEFORE
+	VK_JSX_ATTR_AFTER
+	VK_JSX_ATTR_SPREAD_BEFORE
+	VK_JSX_ATTR_SPREAD_AFTER
+	VK_JSX_CHILD_SPREAD_BEFORE
+	VK_JSX_CHILD_SPREAD_AFTER
+	VK_JSX_CLOSE_BEFORE
+	VK_JSX_CLOSE_AFTER
+	VK_JSX_ELEM_BEFORE
+	VK_JSX_ELEM_AFTER
+	VK_JSX_EXPR_SPAN_BEFORE
+	VK_JSX_EXPR_SPAN_AFTER
+	VK_JSX_MEMBER_BEFORE
+	VK_JSX_MEMBER_AFTER
+	VK_JSX_OPEN_BEFORE
+	VK_JSX_OPEN_AFTER
 	VK_LIT_ARR_BEFORE
 	VK_LIT_ARR_AFTER
 	VK_LIT_OBJ_BEFORE
@@ -267,6 +283,106 @@ const (
 	VK_STMT_WITH_AFTER
 	VK_SWITCH_CASE_BEFORE
 	VK_SWITCH_CASE_AFTER
+	VK_TS_ARR_BEFORE
+	VK_TS_ARR_AFTER
+	VK_TS_CALL_SIG_BEFORE
+	VK_TS_CALL_SIG_AFTER
+	VK_TS_COND_BEFORE
+	VK_TS_COND_AFTER
+	VK_TS_DEC_CLASS_BEFORE
+	VK_TS_DEC_CLASS_AFTER
+	VK_TS_DEC_ENUM_BEFORE
+	VK_TS_DEC_ENUM_AFTER
+	VK_TS_DEC_FN_BEFORE
+	VK_TS_DEC_FN_AFTER
+	VK_TS_DEC_GLOBAL_BEFORE
+	VK_TS_DEC_GLOBAL_AFTER
+	VK_TS_DEC_INTERFACE_BEFORE
+	VK_TS_DEC_INTERFACE_AFTER
+	VK_TS_DEC_MODULE_BEFORE
+	VK_TS_DEC_MODULE_AFTER
+	VK_TS_DEC_NS_BEFORE
+	VK_TS_DEC_NS_AFTER
+	VK_TS_DEC_TYP_DEC_BEFORE
+	VK_TS_DEC_TYP_DEC_AFTER
+	VK_TS_DEC_VAR_DEC_BEFORE
+	VK_TS_DEC_VAR_DEC_AFTER
+	VK_TS_ENUM_BEFORE
+	VK_TS_ENUM_AFTER
+	VK_TS_ENUM_MEMBER_BEFORE
+	VK_TS_ENUM_MEMBER_AFTER
+	VK_TS_EXPORT_ASSIGN_BEFORE
+	VK_TS_EXPORT_ASSIGN_AFTER
+	VK_TS_FN_TYP_BEFORE
+	VK_TS_FN_TYP_AFTER
+	VK_TS_IDX_ACCESS_BEFORE
+	VK_TS_IDX_ACCESS_AFTER
+	VK_TS_IDX_SIG_BEFORE
+	VK_TS_IDX_SIG_AFTER
+	VK_TS_IMPORT_ALIAS_BEFORE
+	VK_TS_IMPORT_ALIAS_AFTER
+	VK_TS_IMPORT_REQUIRE_BEFORE
+	VK_TS_IMPORT_REQUIRE_AFTER
+	VK_TS_IMPORT_TYP_BEFORE
+	VK_TS_IMPORT_TYP_AFTER
+	VK_TS_INTERFACE_BEFORE
+	VK_TS_INTERFACE_AFTER
+	VK_TS_INTERFACE_BODY_BEFORE
+	VK_TS_INTERFACE_BODY_AFTER
+	VK_TS_INTERSEC_TYP_BEFORE
+	VK_TS_INTERSEC_TYP_AFTER
+	VK_TS_LIT_BEFORE
+	VK_TS_LIT_AFTER
+	VK_TS_LIT_OBJ_BEFORE
+	VK_TS_LIT_OBJ_AFTER
+	VK_TS_MAPPED_BEFORE
+	VK_TS_MAPPED_AFTER
+	VK_TS_NAMESPACE_BEFORE
+	VK_TS_NAMESPACE_AFTER
+	VK_TS_NEW_BEFORE
+	VK_TS_NEW_AFTER
+	VK_TS_NEW_SIG_BEFORE
+	VK_TS_NEW_SIG_AFTER
+	VK_TS_NO_NULL_BEFORE
+	VK_TS_NO_NULL_AFTER
+	VK_TS_NS_NAME_BEFORE
+	VK_TS_NS_NAME_AFTER
+	VK_TS_OPT_BEFORE
+	VK_TS_OPT_AFTER
+	VK_TS_PARAM_BEFORE
+	VK_TS_PARAM_AFTER
+	VK_TS_PARAM_DEC_BEFORE
+	VK_TS_PARAM_DEC_AFTER
+	VK_TS_PARAM_INST_BEFORE
+	VK_TS_PARAM_INST_AFTER
+	VK_TS_PAREN_BEFORE
+	VK_TS_PAREN_AFTER
+	VK_TS_PROP_BEFORE
+	VK_TS_PROP_AFTER
+	VK_TS_REF_BEFORE
+	VK_TS_REF_AFTER
+	VK_TS_REST_BEFORE
+	VK_TS_REST_AFTER
+	VK_TS_TUPLE_BEFORE
+	VK_TS_TUPLE_AFTER
+	VK_TS_TUPLE_NAMED_MEMBER_BEFORE
+	VK_TS_TUPLE_NAMED_MEMBER_AFTER
+	VK_TS_TYP_ANNOT_BEFORE
+	VK_TS_TYP_ANNOT_AFTER
+	VK_TS_TYP_ASSERT_BEFORE
+	VK_TS_TYP_ASSERT_AFTER
+	VK_TS_TYP_DEC_BEFORE
+	VK_TS_TYP_DEC_AFTER
+	VK_TS_TYP_INFER_BEFORE
+	VK_TS_TYP_INFER_AFTER
+	VK_TS_TYP_OP_BEFORE
+	VK_TS_TYP_OP_AFTER
+	VK_TS_TYP_PREDICATE_BEFORE
+	VK_TS_TYP_PREDICATE_AFTER
+	VK_TS_TYP_QUERY_BEFORE
+	VK_TS_TYP_QUERY_AFTER
+	VK_TS_UNION_TYP_BEFORE
+	VK_TS_UNION_TYP_AFTER
 	VK_VAR_DEC_BEFORE
 	VK_VAR_DEC_AFTER
 
@@ -285,17 +401,17 @@ func AddVisitor(vs *Visitors, vk VisitorKind, impl Visitor) {
 	vs[vk] = append(hs, impl)
 }
 
-func VisitClassDec(node parser.Node, ctx *WalkCtx) {
-	n := node.(*parser.ClassDec)
+func VisitFnDec(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.FnDec)
 
-	CallVisitor(VK_STMT_CLASS_BEFORE, n, ctx)
+	CallVisitor(VK_STMT_FN_BEFORE, n, ctx)
 
 	VisitNode(n.Id(), ctx)
 	if ctx.stop {
 		return
 	}
 
-	VisitNode(n.Super(), ctx)
+	VisitNodes(n.Params(), ctx)
 	if ctx.stop {
 		return
 	}
@@ -305,251 +421,52 @@ func VisitClassDec(node parser.Node, ctx *WalkCtx) {
 		return
 	}
 
-	CallVisitor(VK_STMT_CLASS_AFTER, n, ctx)
-
-}
-
-func VisitExportDec(node parser.Node, ctx *WalkCtx) {
-	n := node.(*parser.ExportDec)
-
-	CallVisitor(VK_STMT_EXPORT_BEFORE, n, ctx)
-
-	VisitNode(n.Dec(), ctx)
-	if ctx.stop {
-		return
-	}
-
-	VisitNodes(n.Specs(), ctx)
-	if ctx.stop {
-		return
-	}
-
-	VisitNode(n.Src(), ctx)
-	if ctx.stop {
-		return
-	}
-
-	CallVisitor(VK_STMT_EXPORT_AFTER, n, ctx)
-
-}
-
-func VisitSuper(node parser.Node, ctx *WalkCtx) {
-}
-
-func VisitTsProp(node parser.Node, ctx *WalkCtx) {
-}
-
-func VisitArrLit(node parser.Node, ctx *WalkCtx) {
-	n := node.(*parser.ArrLit)
-
-	CallVisitor(VK_LIT_ARR_BEFORE, n, ctx)
-
-	VisitNodes(n.Elems(), ctx)
-	if ctx.stop {
-		return
-	}
-
-	CallVisitor(VK_LIT_ARR_AFTER, n, ctx)
-
-}
-
-func VisitJsxClose(node parser.Node, ctx *WalkCtx) {
-}
-
-func VisitTsTypAnnot(node parser.Node, ctx *WalkCtx) {
-}
-
-func VisitDecorator(node parser.Node, ctx *WalkCtx) {
-	n := node.(*parser.Decorator)
-
-	CallVisitor(VK_DECORATOR_BEFORE, n, ctx)
-
-	VisitNode(n.Expr(), ctx)
-	if ctx.stop {
-		return
-	}
-
-	CallVisitor(VK_DECORATOR_AFTER, n, ctx)
-
-}
-
-func VisitImportSpec(node parser.Node, ctx *WalkCtx) {
-	n := node.(*parser.ImportSpec)
-
-	CallVisitor(VK_IMPORT_SPEC_BEFORE, n, ctx)
-
-	VisitNode(n.Local(), ctx)
-	if ctx.stop {
-		return
-	}
-
-	VisitNode(n.Id(), ctx)
-	if ctx.stop {
-		return
-	}
-
-	CallVisitor(VK_IMPORT_SPEC_AFTER, n, ctx)
-
+	CallVisitor(VK_STMT_FN_AFTER, n, ctx)
 }
 
 func VisitTsPredef(node parser.Node, ctx *WalkCtx) {
 }
 
-func VisitTsObj(node parser.Node, ctx *WalkCtx) {
-}
+func VisitTsIdxSig(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.TsIdxSig)
 
-func VisitTsInferface(node parser.Node, ctx *WalkCtx) {
-}
+	CallVisitor(VK_TS_IDX_SIG_BEFORE, n, ctx)
 
-func VisitTsDec(node parser.Node, ctx *WalkCtx) {
-}
-
-func VisitBoolLit(node parser.Node, ctx *WalkCtx) {
-}
-
-func VisitAssignPat(node parser.Node, ctx *WalkCtx) {
-	n := node.(*parser.AssignPat)
-
-	CallVisitor(VK_PAT_ASSIGN_BEFORE, n, ctx)
-
-	VisitNode(n.Lhs(), ctx)
+	VisitNode(n.Key(), ctx)
 	if ctx.stop {
 		return
 	}
 
-	VisitNode(n.Rhs(), ctx)
+	VisitNode(n.KeyType(), ctx)
 	if ctx.stop {
 		return
 	}
 
-	CallVisitor(VK_PAT_ASSIGN_AFTER, n, ctx)
-
-}
-
-func VisitCatch(node parser.Node, ctx *WalkCtx) {
-	n := node.(*parser.Catch)
-
-	CallVisitor(VK_CATCH_BEFORE, n, ctx)
-
-	VisitNode(n.Param(), ctx)
+	VisitNode(n.Val(), ctx)
 	if ctx.stop {
 		return
 	}
 
-	VisitNode(n.Body(), ctx)
+	CallVisitor(VK_TS_IDX_SIG_AFTER, n, ctx)
+}
+
+func VisitTsParamsDec(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.TsParamsDec)
+
+	CallVisitor(VK_TS_PARAM_DEC_BEFORE, n, ctx)
+
+	VisitNodes(n.Params(), ctx)
 	if ctx.stop {
 		return
 	}
 
-	CallVisitor(VK_CATCH_AFTER, n, ctx)
-
+	CallVisitor(VK_TS_PARAM_DEC_AFTER, n, ctx)
 }
 
-func VisitTsRest(node parser.Node, ctx *WalkCtx) {
-}
+func VisitTsProp(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.TsProp)
 
-func VisitTsTypDec(node parser.Node, ctx *WalkCtx) {
-}
-
-func VisitContStmt(node parser.Node, ctx *WalkCtx) {
-	n := node.(*parser.ContStmt)
-
-	CallVisitor(VK_STMT_CONT_BEFORE, n, ctx)
-
-	VisitNode(n.Label(), ctx)
-	if ctx.stop {
-		return
-	}
-
-	CallVisitor(VK_STMT_CONT_AFTER, n, ctx)
-
-}
-
-func VisitImportDec(node parser.Node, ctx *WalkCtx) {
-	n := node.(*parser.ImportDec)
-
-	CallVisitor(VK_STMT_IMPORT_BEFORE, n, ctx)
-
-	VisitNodes(n.Specs(), ctx)
-	if ctx.stop {
-		return
-	}
-
-	VisitNode(n.Src(), ctx)
-	if ctx.stop {
-		return
-	}
-
-	CallVisitor(VK_STMT_IMPORT_AFTER, n, ctx)
-
-}
-
-func VisitYieldExpr(node parser.Node, ctx *WalkCtx) {
-	n := node.(*parser.YieldExpr)
-
-	CallVisitor(VK_EXPR_YIELD_BEFORE, n, ctx)
-
-	VisitNode(n.Arg(), ctx)
-	if ctx.stop {
-		return
-	}
-
-	CallVisitor(VK_EXPR_YIELD_AFTER, n, ctx)
-
-}
-
-func VisitMetaProp(node parser.Node, ctx *WalkCtx) {
-	n := node.(*parser.MetaProp)
-
-	CallVisitor(VK_META_PROP_BEFORE, n, ctx)
-
-	VisitNode(n.Meta(), ctx)
-	if ctx.stop {
-		return
-	}
-
-	VisitNode(n.Prop(), ctx)
-	if ctx.stop {
-		return
-	}
-
-	CallVisitor(VK_META_PROP_AFTER, n, ctx)
-
-}
-
-func VisitJsxExprSpan(node parser.Node, ctx *WalkCtx) {
-}
-
-func VisitTsTupleNamedMember(node parser.Node, ctx *WalkCtx) {
-}
-
-func VisitThisExpr(node parser.Node, ctx *WalkCtx) {
-}
-
-func VisitJsxAttr(node parser.Node, ctx *WalkCtx) {
-}
-
-func VisitTsMapped(node parser.Node, ctx *WalkCtx) {
-}
-
-func VisitSeqExpr(node parser.Node, ctx *WalkCtx) {
-	n := node.(*parser.SeqExpr)
-
-	CallVisitor(VK_EXPR_SEQ_BEFORE, n, ctx)
-
-	VisitNodes(n.Elems(), ctx)
-	if ctx.stop {
-		return
-	}
-
-	CallVisitor(VK_EXPR_SEQ_AFTER, n, ctx)
-
-}
-
-func VisitProp(node parser.Node, ctx *WalkCtx) {
-	n := node.(*parser.Prop)
-
-	CallVisitor(VK_PROP_BEFORE, n, ctx)
+	CallVisitor(VK_TS_PROP_BEFORE, n, ctx)
 
 	VisitNode(n.Key(), ctx)
 	if ctx.stop {
@@ -561,14 +478,7 @@ func VisitProp(node parser.Node, ctx *WalkCtx) {
 		return
 	}
 
-	CallVisitor(VK_PROP_AFTER, n, ctx)
-
-}
-
-func VisitTsTypAssert(node parser.Node, ctx *WalkCtx) {
-}
-
-func VisitJsxIdent(node parser.Node, ctx *WalkCtx) {
+	CallVisitor(VK_TS_PROP_AFTER, n, ctx)
 }
 
 func VisitForInOfStmt(node parser.Node, ctx *WalkCtx) {
@@ -592,41 +502,213 @@ func VisitForInOfStmt(node parser.Node, ctx *WalkCtx) {
 	}
 
 	CallVisitor(VK_STMT_FOR_IN_OF_AFTER, n, ctx)
-
 }
 
-func VisitParenExpr(node parser.Node, ctx *WalkCtx) {
-	n := node.(*parser.ParenExpr)
+func VisitImportSpec(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.ImportSpec)
 
-	CallVisitor(VK_EXPR_PAREN_BEFORE, n, ctx)
+	CallVisitor(VK_IMPORT_SPEC_BEFORE, n, ctx)
+
+	VisitNode(n.Local(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	VisitNode(n.Id(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_IMPORT_SPEC_AFTER, n, ctx)
+}
+
+func VisitJsxOpen(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.JsxOpen)
+
+	CallVisitor(VK_JSX_OPEN_BEFORE, n, ctx)
+
+	VisitNode(n.Name(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	VisitNodes(n.Attrs(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_JSX_OPEN_AFTER, n, ctx)
+}
+
+func VisitTsOpt(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.TsOpt)
+
+	CallVisitor(VK_TS_OPT_BEFORE, n, ctx)
+
+	VisitNode(n.Arg(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_TS_OPT_AFTER, n, ctx)
+}
+
+func VisitTsObj(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.TsObj)
+
+	CallVisitor(VK_TS_LIT_OBJ_BEFORE, n, ctx)
+
+	VisitNodes(n.Props(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_TS_LIT_OBJ_AFTER, n, ctx)
+}
+
+func VisitTsTypQuery(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.TsTypQuery)
+
+	CallVisitor(VK_TS_TYP_QUERY_BEFORE, n, ctx)
+
+	VisitNode(n.Arg(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_TS_TYP_QUERY_AFTER, n, ctx)
+}
+
+func VisitTsParam(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.TsParam)
+
+	CallVisitor(VK_TS_PARAM_BEFORE, n, ctx)
+
+	VisitNode(n.Name(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	VisitNode(n.Cons(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	VisitNode(n.Default(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_TS_PARAM_AFTER, n, ctx)
+}
+
+func VisitSuper(node parser.Node, ctx *WalkCtx) {
+}
+
+func VisitTsIntersecTyp(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.TsIntersecTyp)
+
+	CallVisitor(VK_TS_INTERSEC_TYP_BEFORE, n, ctx)
+
+	VisitNodes(n.Elems(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_TS_INTERSEC_TYP_AFTER, n, ctx)
+}
+
+func VisitTsImportRequire(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.TsImportRequire)
+
+	CallVisitor(VK_TS_IMPORT_REQUIRE_BEFORE, n, ctx)
+
+	VisitNode(n.Name(), ctx)
+	if ctx.stop {
+		return
+	}
 
 	VisitNode(n.Expr(), ctx)
 	if ctx.stop {
 		return
 	}
 
-	CallVisitor(VK_EXPR_PAREN_AFTER, n, ctx)
-
+	CallVisitor(VK_TS_IMPORT_REQUIRE_AFTER, n, ctx)
 }
 
-func VisitChainExpr(node parser.Node, ctx *WalkCtx) {
-	n := node.(*parser.ChainExpr)
+func VisitTsDec(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.TsDec)
 
-	CallVisitor(VK_EXPR_CHAIN_BEFORE, n, ctx)
+	CallVisitor(VK_TS_DEC_GLOBAL_BEFORE, n, ctx)
 
-	VisitNode(n.Expr(), ctx)
+	VisitNode(n.Name(), ctx)
 	if ctx.stop {
 		return
 	}
 
-	CallVisitor(VK_EXPR_CHAIN_AFTER, n, ctx)
+	VisitNode(n.Inner(), ctx)
+	if ctx.stop {
+		return
+	}
 
+	CallVisitor(VK_TS_DEC_GLOBAL_AFTER, n, ctx)
 }
 
-func VisitJsxText(node parser.Node, ctx *WalkCtx) {
+func VisitBrkStmt(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.BrkStmt)
+
+	CallVisitor(VK_STMT_BRK_BEFORE, n, ctx)
+
+	VisitNode(n.Label(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_STMT_BRK_AFTER, n, ctx)
 }
 
-func VisitTsThis(node parser.Node, ctx *WalkCtx) {
+func VisitExportDec(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.ExportDec)
+
+	CallVisitor(VK_STMT_EXPORT_BEFORE, n, ctx)
+
+	VisitNode(n.Dec(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	VisitNodes(n.Specs(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	VisitNode(n.Src(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_STMT_EXPORT_AFTER, n, ctx)
+}
+
+func VisitNumLit(node parser.Node, ctx *WalkCtx) {
+}
+
+func VisitAssignPat(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.AssignPat)
+
+	CallVisitor(VK_PAT_ASSIGN_BEFORE, n, ctx)
+
+	VisitNode(n.Lhs(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	VisitNode(n.Rhs(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_PAT_ASSIGN_AFTER, n, ctx)
 }
 
 func VisitBlockStmt(node parser.Node, ctx *WalkCtx) {
@@ -640,114 +722,14 @@ func VisitBlockStmt(node parser.Node, ctx *WalkCtx) {
 	}
 
 	CallVisitor(VK_STMT_BLOCK_AFTER, n, ctx)
-
 }
 
-func VisitThrowStmt(node parser.Node, ctx *WalkCtx) {
-	n := node.(*parser.ThrowStmt)
+func VisitLabelStmt(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.LabelStmt)
 
-	CallVisitor(VK_STMT_THROW_BEFORE, n, ctx)
+	CallVisitor(VK_STMT_LABEL_BEFORE, n, ctx)
 
-	VisitNode(n.Arg(), ctx)
-	if ctx.stop {
-		return
-	}
-
-	CallVisitor(VK_STMT_THROW_AFTER, n, ctx)
-
-}
-
-func VisitTsNewSig(node parser.Node, ctx *WalkCtx) {
-}
-
-func VisitJsxElem(node parser.Node, ctx *WalkCtx) {
-}
-
-func VisitObjPat(node parser.Node, ctx *WalkCtx) {
-	n := node.(*parser.ObjPat)
-
-	CallVisitor(VK_PAT_OBJ_BEFORE, n, ctx)
-
-	VisitNodes(n.Props(), ctx)
-	if ctx.stop {
-		return
-	}
-
-	CallVisitor(VK_PAT_OBJ_AFTER, n, ctx)
-
-}
-
-func VisitTsTypOp(node parser.Node, ctx *WalkCtx) {
-}
-
-func VisitTsIdxSig(node parser.Node, ctx *WalkCtx) {
-}
-
-func VisitProg(node parser.Node, ctx *WalkCtx) {
-	n := node.(*parser.Prog)
-
-	CallVisitor(VK_PROG_BEFORE, n, ctx)
-
-	VisitNodes(n.Body(), ctx)
-	if ctx.stop {
-		return
-	}
-
-	CallVisitor(VK_PROG_AFTER, n, ctx)
-
-}
-
-func VisitNewExpr(node parser.Node, ctx *WalkCtx) {
-	n := node.(*parser.NewExpr)
-
-	CallVisitor(VK_EXPR_NEW_BEFORE, n, ctx)
-
-	VisitNode(n.Callee(), ctx)
-	if ctx.stop {
-		return
-	}
-
-	VisitNodes(n.Args(), ctx)
-	if ctx.stop {
-		return
-	}
-
-	CallVisitor(VK_EXPR_NEW_AFTER, n, ctx)
-
-}
-
-func VisitJsxSpreadChild(node parser.Node, ctx *WalkCtx) {
-}
-
-func VisitTsArr(node parser.Node, ctx *WalkCtx) {
-}
-
-func VisitDebugStmt(node parser.Node, ctx *WalkCtx) {
-}
-
-func VisitObjLit(node parser.Node, ctx *WalkCtx) {
-	n := node.(*parser.ObjLit)
-
-	CallVisitor(VK_LIT_OBJ_BEFORE, n, ctx)
-
-	VisitNodes(n.Props(), ctx)
-	if ctx.stop {
-		return
-	}
-
-	CallVisitor(VK_LIT_OBJ_AFTER, n, ctx)
-
-}
-
-func VisitTsRoughParam(node parser.Node, ctx *WalkCtx) {
-}
-
-func VisitDoWhileStmt(node parser.Node, ctx *WalkCtx) {
-	n := node.(*parser.DoWhileStmt)
-
-	CallVisitor(VK_STMT_DO_WHILE_BEFORE, n, ctx)
-
-	VisitNode(n.Test(), ctx)
+	VisitNode(n.Label(), ctx)
 	if ctx.stop {
 		return
 	}
@@ -757,8 +739,215 @@ func VisitDoWhileStmt(node parser.Node, ctx *WalkCtx) {
 		return
 	}
 
-	CallVisitor(VK_STMT_DO_WHILE_AFTER, n, ctx)
+	CallVisitor(VK_STMT_LABEL_AFTER, n, ctx)
+}
 
+func VisitTryStmt(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.TryStmt)
+
+	CallVisitor(VK_STMT_TRY_BEFORE, n, ctx)
+
+	VisitNode(n.Try(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	VisitNode(n.Catch(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	VisitNode(n.Fin(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_STMT_TRY_AFTER, n, ctx)
+}
+
+func VisitStrLit(node parser.Node, ctx *WalkCtx) {
+}
+
+func VisitTsExportAssign(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.TsExportAssign)
+
+	CallVisitor(VK_TS_EXPORT_ASSIGN_BEFORE, n, ctx)
+
+	VisitNode(n.Expr(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_TS_EXPORT_ASSIGN_AFTER, n, ctx)
+}
+
+func VisitVarDecStmt(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.VarDecStmt)
+
+	CallVisitor(VK_STMT_VAR_DEC_BEFORE, n, ctx)
+
+	VisitNodes(n.DecList(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_STMT_VAR_DEC_AFTER, n, ctx)
+}
+
+func VisitTsTypOp(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.TsTypOp)
+
+	CallVisitor(VK_TS_TYP_OP_BEFORE, n, ctx)
+
+	VisitNode(n.Arg(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_TS_TYP_OP_AFTER, n, ctx)
+}
+
+func VisitTsUnionTyp(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.TsUnionTyp)
+
+	CallVisitor(VK_TS_UNION_TYP_BEFORE, n, ctx)
+
+	VisitNodes(n.Elems(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_TS_UNION_TYP_AFTER, n, ctx)
+}
+
+func VisitTsNewSig(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.TsNewSig)
+
+	CallVisitor(VK_TS_NEW_BEFORE, n, ctx)
+
+	VisitNode(n.TypParams(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	VisitNodes(n.Params(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	VisitNode(n.RetTyp(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_TS_NEW_AFTER, n, ctx)
+}
+
+func VisitContStmt(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.ContStmt)
+
+	CallVisitor(VK_STMT_CONT_BEFORE, n, ctx)
+
+	VisitNode(n.Label(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_STMT_CONT_AFTER, n, ctx)
+}
+
+func VisitDebugStmt(node parser.Node, ctx *WalkCtx) {
+}
+
+func VisitClassDec(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.ClassDec)
+
+	CallVisitor(VK_EXPR_CLASS_BEFORE, n, ctx)
+
+	VisitNode(n.Id(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	VisitNode(n.Super(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	VisitNode(n.Body(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_EXPR_CLASS_AFTER, n, ctx)
+}
+
+func VisitJsxSpreadAttr(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.JsxSpreadAttr)
+
+	CallVisitor(VK_JSX_ATTR_SPREAD_BEFORE, n, ctx)
+
+	VisitNode(n.Arg(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_JSX_ATTR_SPREAD_AFTER, n, ctx)
+}
+
+func VisitJsxText(node parser.Node, ctx *WalkCtx) {
+}
+
+func VisitParenExpr(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.ParenExpr)
+
+	CallVisitor(VK_EXPR_PAREN_BEFORE, n, ctx)
+
+	VisitNode(n.Expr(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_EXPR_PAREN_AFTER, n, ctx)
+}
+
+func VisitImportCall(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.ImportCall)
+
+	CallVisitor(VK_IMPORT_CALL_BEFORE, n, ctx)
+
+	VisitNode(n.Src(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_IMPORT_CALL_AFTER, n, ctx)
+}
+
+func VisitRestPat(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.RestPat)
+
+	CallVisitor(VK_PAT_REST_BEFORE, n, ctx)
+
+	VisitNode(n.Arg(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_PAT_REST_AFTER, n, ctx)
+}
+
+func VisitArrPat(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.ArrPat)
+
+	CallVisitor(VK_PAT_ARRAY_BEFORE, n, ctx)
+
+	VisitNodes(n.Elems(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_PAT_ARRAY_AFTER, n, ctx)
 }
 
 func VisitWhileStmt(node parser.Node, ctx *WalkCtx) {
@@ -777,7 +966,1162 @@ func VisitWhileStmt(node parser.Node, ctx *WalkCtx) {
 	}
 
 	CallVisitor(VK_STMT_WHILE_AFTER, n, ctx)
+}
 
+func VisitJsxExprSpan(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.JsxExprSpan)
+
+	CallVisitor(VK_JSX_EXPR_SPAN_BEFORE, n, ctx)
+
+	VisitNode(n.Expr(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_JSX_EXPR_SPAN_AFTER, n, ctx)
+}
+
+func VisitTsInferface(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.TsInferface)
+
+	CallVisitor(VK_TS_INTERFACE_BEFORE, n, ctx)
+
+	VisitNode(n.Id(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	VisitNode(n.TypParams(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	VisitNodes(n.Supers(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	VisitNode(n.Body(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_TS_INTERFACE_AFTER, n, ctx)
+}
+
+func VisitJsxElem(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.JsxElem)
+
+	CallVisitor(VK_JSX_ELEM_BEFORE, n, ctx)
+
+	VisitNode(n.Open(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	VisitNodes(n.Children(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	VisitNode(n.Close(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_JSX_ELEM_AFTER, n, ctx)
+}
+
+func VisitIdent(node parser.Node, ctx *WalkCtx) {
+}
+
+func VisitUpdateExpr(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.UpdateExpr)
+
+	CallVisitor(VK_EXPR_UPDATE_BEFORE, n, ctx)
+
+	VisitNode(n.Arg(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_EXPR_UPDATE_AFTER, n, ctx)
+}
+
+func VisitTsRest(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.TsRest)
+
+	CallVisitor(VK_TS_REST_BEFORE, n, ctx)
+
+	VisitNode(n.Arg(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_TS_REST_AFTER, n, ctx)
+}
+
+func VisitTsFnTyp(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.TsFnTyp)
+
+	CallVisitor(VK_TS_FN_TYP_BEFORE, n, ctx)
+
+	VisitNode(n.TypParams(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	VisitNodes(n.Params(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	VisitNode(n.RetTyp(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_TS_FN_TYP_AFTER, n, ctx)
+}
+
+func VisitIfStmt(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.IfStmt)
+
+	CallVisitor(VK_STMT_IF_BEFORE, n, ctx)
+
+	VisitNode(n.Test(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	VisitNode(n.Cons(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	VisitNode(n.Alt(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_STMT_IF_AFTER, n, ctx)
+}
+
+func VisitMetaProp(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.MetaProp)
+
+	CallVisitor(VK_META_PROP_BEFORE, n, ctx)
+
+	VisitNode(n.Meta(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	VisitNode(n.Prop(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_META_PROP_AFTER, n, ctx)
+}
+
+func VisitVarDec(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.VarDec)
+
+	CallVisitor(VK_VAR_DEC_BEFORE, n, ctx)
+
+	VisitNode(n.Id(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	VisitNode(n.Init(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_VAR_DEC_AFTER, n, ctx)
+}
+
+func VisitTsInferfaceBody(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.TsInferfaceBody)
+
+	CallVisitor(VK_TS_INTERFACE_BODY_BEFORE, n, ctx)
+
+	VisitNodes(n.Body(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_TS_INTERFACE_BODY_AFTER, n, ctx)
+}
+
+func VisitYieldExpr(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.YieldExpr)
+
+	CallVisitor(VK_EXPR_YIELD_BEFORE, n, ctx)
+
+	VisitNode(n.Arg(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_EXPR_YIELD_AFTER, n, ctx)
+}
+
+func VisitImportDec(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.ImportDec)
+
+	CallVisitor(VK_STMT_IMPORT_BEFORE, n, ctx)
+
+	VisitNodes(n.Specs(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	VisitNode(n.Src(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_STMT_IMPORT_AFTER, n, ctx)
+}
+
+func VisitRegLit(node parser.Node, ctx *WalkCtx) {
+}
+
+func VisitJsxNsName(node parser.Node, ctx *WalkCtx) {
+}
+
+func VisitRetStmt(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.RetStmt)
+
+	CallVisitor(VK_STMT_RET_BEFORE, n, ctx)
+
+	VisitNode(n.Arg(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_STMT_RET_AFTER, n, ctx)
+}
+
+func VisitWithStmt(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.WithStmt)
+
+	CallVisitor(VK_STMT_WITH_BEFORE, n, ctx)
+
+	VisitNode(n.Expr(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	VisitNode(n.Body(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_STMT_WITH_AFTER, n, ctx)
+}
+
+func VisitNullLit(node parser.Node, ctx *WalkCtx) {
+}
+
+func VisitCondExpr(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.CondExpr)
+
+	CallVisitor(VK_EXPR_COND_BEFORE, n, ctx)
+
+	VisitNode(n.Test(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	VisitNode(n.Cons(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	VisitNode(n.Alt(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_EXPR_COND_AFTER, n, ctx)
+}
+
+func VisitNewExpr(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.NewExpr)
+
+	CallVisitor(VK_EXPR_NEW_BEFORE, n, ctx)
+
+	VisitNode(n.Callee(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	VisitNodes(n.Args(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_EXPR_NEW_AFTER, n, ctx)
+}
+
+func VisitTsTypAnnot(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.TsTypAnnot)
+
+	CallVisitor(VK_TS_TYP_ANNOT_BEFORE, n, ctx)
+
+	VisitNode(n.TsTyp(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_TS_TYP_ANNOT_AFTER, n, ctx)
+}
+
+func VisitTsEnumMember(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.TsEnumMember)
+
+	CallVisitor(VK_TS_ENUM_MEMBER_BEFORE, n, ctx)
+
+	VisitNode(n.Key(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	VisitNode(n.Val(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_TS_ENUM_MEMBER_AFTER, n, ctx)
+}
+
+func VisitTsNoNull(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.TsNoNull)
+
+	CallVisitor(VK_TS_NO_NULL_BEFORE, n, ctx)
+
+	VisitNode(n.Arg(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_TS_NO_NULL_AFTER, n, ctx)
+}
+
+func VisitThrowStmt(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.ThrowStmt)
+
+	CallVisitor(VK_STMT_THROW_BEFORE, n, ctx)
+
+	VisitNode(n.Arg(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_STMT_THROW_AFTER, n, ctx)
+}
+
+func VisitSpread(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.Spread)
+
+	CallVisitor(VK_SPREAD_BEFORE, n, ctx)
+
+	VisitNode(n.Arg(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_SPREAD_AFTER, n, ctx)
+}
+
+func VisitStaticBlock(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.StaticBlock)
+
+	CallVisitor(VK_STATIC_BLOCK_BEFORE, n, ctx)
+
+	VisitNodes(n.Body(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_STATIC_BLOCK_AFTER, n, ctx)
+}
+
+func VisitJsxSpreadChild(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.JsxSpreadChild)
+
+	CallVisitor(VK_JSX_CHILD_SPREAD_BEFORE, n, ctx)
+
+	VisitNode(n.Expr(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_JSX_CHILD_SPREAD_AFTER, n, ctx)
+}
+
+func VisitSwitchCase(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.SwitchCase)
+
+	CallVisitor(VK_SWITCH_CASE_BEFORE, n, ctx)
+
+	VisitNode(n.Test(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	VisitNodes(n.Cons(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_SWITCH_CASE_AFTER, n, ctx)
+}
+
+func VisitTsTypInfer(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.TsTypInfer)
+
+	CallVisitor(VK_TS_TYP_INFER_BEFORE, n, ctx)
+
+	VisitNode(n.Arg(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_TS_TYP_INFER_AFTER, n, ctx)
+}
+
+func VisitProp(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.Prop)
+
+	CallVisitor(VK_PROP_BEFORE, n, ctx)
+
+	VisitNode(n.Key(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	VisitNode(n.Val(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_PROP_AFTER, n, ctx)
+}
+
+func VisitMethod(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.Method)
+
+	CallVisitor(VK_METHOD_BEFORE, n, ctx)
+
+	VisitNode(n.Key(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	VisitNode(n.Val(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_METHOD_AFTER, n, ctx)
+}
+
+func VisitJsxClose(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.JsxClose)
+
+	CallVisitor(VK_JSX_CLOSE_BEFORE, n, ctx)
+
+	VisitNode(n.Name(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_JSX_CLOSE_AFTER, n, ctx)
+}
+
+func VisitTsCondType(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.TsCondType)
+
+	CallVisitor(VK_TS_COND_BEFORE, n, ctx)
+
+	VisitNode(n.CheckTyp(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	VisitNode(n.ExtTyp(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	VisitNode(n.TrueTyp(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	VisitNode(n.FalseTyp(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_TS_COND_AFTER, n, ctx)
+}
+
+func VisitTsCallSig(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.TsCallSig)
+
+	CallVisitor(VK_TS_CALL_SIG_BEFORE, n, ctx)
+
+	VisitNode(n.TypParams(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	VisitNodes(n.Params(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	VisitNode(n.RetTyp(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_TS_CALL_SIG_AFTER, n, ctx)
+}
+
+func VisitTsTypDec(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.TsTypDec)
+
+	CallVisitor(VK_TS_TYP_DEC_BEFORE, n, ctx)
+
+	VisitNode(n.Id(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	VisitNode(n.TypParams(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_TS_TYP_DEC_AFTER, n, ctx)
+}
+
+func VisitThisExpr(node parser.Node, ctx *WalkCtx) {
+}
+
+func VisitSeqExpr(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.SeqExpr)
+
+	CallVisitor(VK_EXPR_SEQ_BEFORE, n, ctx)
+
+	VisitNodes(n.Elems(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_EXPR_SEQ_AFTER, n, ctx)
+}
+
+func VisitJsxIdent(node parser.Node, ctx *WalkCtx) {
+}
+
+func VisitTsTupleNamedMember(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.TsTupleNamedMember)
+
+	CallVisitor(VK_TS_TUPLE_NAMED_MEMBER_BEFORE, n, ctx)
+
+	VisitNode(n.Label(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	VisitNode(n.Val(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_TS_TUPLE_NAMED_MEMBER_AFTER, n, ctx)
+}
+
+func VisitTsEnum(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.TsEnum)
+
+	CallVisitor(VK_TS_ENUM_BEFORE, n, ctx)
+
+	VisitNode(n.Id(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	VisitNodes(n.Members(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_TS_ENUM_AFTER, n, ctx)
+}
+
+func VisitTsImportAlias(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.TsImportAlias)
+
+	CallVisitor(VK_TS_IMPORT_ALIAS_BEFORE, n, ctx)
+
+	VisitNode(n.Name(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	VisitNode(n.Val(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_TS_IMPORT_ALIAS_AFTER, n, ctx)
+}
+
+func VisitDoWhileStmt(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.DoWhileStmt)
+
+	CallVisitor(VK_STMT_DO_WHILE_BEFORE, n, ctx)
+
+	VisitNode(n.Test(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	VisitNode(n.Body(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_STMT_DO_WHILE_AFTER, n, ctx)
+}
+
+func VisitObjPat(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.ObjPat)
+
+	CallVisitor(VK_PAT_OBJ_BEFORE, n, ctx)
+
+	VisitNodes(n.Props(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_PAT_OBJ_AFTER, n, ctx)
+}
+
+func VisitCatch(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.Catch)
+
+	CallVisitor(VK_CATCH_BEFORE, n, ctx)
+
+	VisitNode(n.Param(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	VisitNode(n.Body(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_CATCH_AFTER, n, ctx)
+}
+
+func VisitTsThis(node parser.Node, ctx *WalkCtx) {
+}
+
+func VisitSwitchStmt(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.SwitchStmt)
+
+	CallVisitor(VK_STMT_SWITCH_BEFORE, n, ctx)
+
+	VisitNode(n.Test(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	VisitNodes(n.Cases(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_STMT_SWITCH_AFTER, n, ctx)
+}
+
+func VisitArrLit(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.ArrLit)
+
+	CallVisitor(VK_LIT_ARR_BEFORE, n, ctx)
+
+	VisitNodes(n.Elems(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_LIT_ARR_AFTER, n, ctx)
+}
+
+func VisitTsTypPredicate(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.TsTypPredicate)
+
+	CallVisitor(VK_TS_TYP_PREDICATE_BEFORE, n, ctx)
+
+	VisitNode(n.Name(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	VisitNode(n.Typ(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_TS_TYP_PREDICATE_AFTER, n, ctx)
+}
+
+func VisitField(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.Field)
+
+	CallVisitor(VK_FIELD_BEFORE, n, ctx)
+
+	VisitNode(n.Key(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	VisitNode(n.Val(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_FIELD_AFTER, n, ctx)
+}
+
+func VisitTsArr(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.TsArr)
+
+	CallVisitor(VK_TS_ARR_BEFORE, n, ctx)
+
+	VisitNode(n.Arg(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_TS_ARR_AFTER, n, ctx)
+}
+
+func VisitTsImportType(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.TsImportType)
+
+	CallVisitor(VK_TS_IMPORT_TYP_BEFORE, n, ctx)
+
+	VisitNode(n.Arg(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	VisitNode(n.Qualifier(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	VisitNode(n.TypArg(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_TS_IMPORT_TYP_AFTER, n, ctx)
+}
+
+func VisitExprStmt(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.ExprStmt)
+
+	CallVisitor(VK_STMT_EXPR_BEFORE, n, ctx)
+
+	VisitNode(n.Expr(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_STMT_EXPR_AFTER, n, ctx)
+}
+
+func VisitBoolLit(node parser.Node, ctx *WalkCtx) {
+}
+
+func VisitTsRef(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.TsRef)
+
+	CallVisitor(VK_TS_REF_BEFORE, n, ctx)
+
+	VisitNode(n.Name(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	VisitNodes(n.Args(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_TS_REF_AFTER, n, ctx)
+}
+
+func VisitTsIdxAccess(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.TsIdxAccess)
+
+	CallVisitor(VK_TS_IDX_ACCESS_BEFORE, n, ctx)
+
+	VisitNode(n.Obj(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	VisitNode(n.Idx(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_TS_IDX_ACCESS_AFTER, n, ctx)
+}
+
+func VisitTsTuple(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.TsTuple)
+
+	CallVisitor(VK_TS_TUPLE_BEFORE, n, ctx)
+
+	VisitNodes(n.Args(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_TS_TUPLE_AFTER, n, ctx)
+}
+
+func VisitProg(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.Prog)
+
+	CallVisitor(VK_PROG_BEFORE, n, ctx)
+
+	VisitNodes(n.Body(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_PROG_AFTER, n, ctx)
+}
+
+func VisitBinExpr(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.BinExpr)
+
+	CallVisitor(VK_EXPR_BIN_BEFORE, n, ctx)
+
+	VisitNode(n.Lhs(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	VisitNode(n.Rhs(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_EXPR_BIN_AFTER, n, ctx)
+}
+
+func VisitUnaryExpr(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.UnaryExpr)
+
+	CallVisitor(VK_EXPR_UNARY_BEFORE, n, ctx)
+
+	VisitNode(n.Arg(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_EXPR_UNARY_AFTER, n, ctx)
+}
+
+func VisitJsxMember(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.JsxMember)
+
+	CallVisitor(VK_JSX_MEMBER_BEFORE, n, ctx)
+
+	VisitNode(n.Obj(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	VisitNode(n.Prop(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_JSX_MEMBER_AFTER, n, ctx)
+}
+
+func VisitTsNS(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.TsNS)
+
+	CallVisitor(VK_TS_NAMESPACE_BEFORE, n, ctx)
+
+	VisitNode(n.Id(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	VisitNode(n.Body(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_TS_NAMESPACE_AFTER, n, ctx)
+}
+
+func VisitCallExpr(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.CallExpr)
+
+	CallVisitor(VK_EXPR_CALL_BEFORE, n, ctx)
+
+	VisitNode(n.Callee(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	VisitNodes(n.Args(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_EXPR_CALL_AFTER, n, ctx)
+}
+
+func VisitTsNsName(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.TsNsName)
+
+	CallVisitor(VK_TS_NS_NAME_BEFORE, n, ctx)
+
+	VisitNode(n.Lhs(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	VisitNode(n.Rhs(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_TS_NS_NAME_AFTER, n, ctx)
+}
+
+func VisitTsParamsInst(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.TsParamsInst)
+
+	CallVisitor(VK_TS_PARAM_INST_BEFORE, n, ctx)
+
+	VisitNodes(n.Params(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_TS_PARAM_INST_AFTER, n, ctx)
+}
+
+func VisitMemberExpr(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.MemberExpr)
+
+	CallVisitor(VK_EXPR_MEMBER_BEFORE, n, ctx)
+
+	VisitNode(n.Obj(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	VisitNode(n.Prop(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_EXPR_MEMBER_AFTER, n, ctx)
+}
+
+func VisitTsLit(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.TsLit)
+
+	CallVisitor(VK_TS_LIT_BEFORE, n, ctx)
+
+	VisitNode(n.Lit(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_TS_LIT_AFTER, n, ctx)
+}
+
+func VisitArrowFn(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.ArrowFn)
+
+	CallVisitor(VK_EXPR_ARROW_BEFORE, n, ctx)
+
+	VisitNodes(n.Params(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	VisitNode(n.Body(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_EXPR_ARROW_AFTER, n, ctx)
+}
+
+func VisitJsxAttr(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.JsxAttr)
+
+	CallVisitor(VK_JSX_ATTR_BEFORE, n, ctx)
+
+	VisitNode(n.Name(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	VisitNode(n.Val(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_JSX_ATTR_AFTER, n, ctx)
+}
+
+func VisitTsParen(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.TsParen)
+
+	CallVisitor(VK_TS_PAREN_BEFORE, n, ctx)
+
+	VisitNode(n.Arg(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_TS_PAREN_AFTER, n, ctx)
+}
+
+func VisitTsTypAssert(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.TsTypAssert)
+
+	CallVisitor(VK_TS_TYP_ASSERT_BEFORE, n, ctx)
+
+	VisitNode(n.Typ(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	VisitNode(n.Expr(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_TS_TYP_ASSERT_AFTER, n, ctx)
+}
+
+func VisitClassBody(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.ClassBody)
+
+	CallVisitor(VK_CLASS_BODY_BEFORE, n, ctx)
+
+	VisitNodes(n.Elems(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_CLASS_BODY_AFTER, n, ctx)
+}
+
+func VisitJsxEmpty(node parser.Node, ctx *WalkCtx) {
+}
+
+func VisitTsRoughParam(node parser.Node, ctx *WalkCtx) {
+}
+
+func VisitTsMapped(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.TsMapped)
+
+	CallVisitor(VK_TS_MAPPED_BEFORE, n, ctx)
+
+	VisitNode(n.Name(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	VisitNode(n.Key(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	VisitNode(n.Val(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_TS_MAPPED_AFTER, n, ctx)
+}
+
+func VisitAssignExpr(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.AssignExpr)
+
+	CallVisitor(VK_EXPR_ASSIGN_BEFORE, n, ctx)
+
+	VisitNode(n.Lhs(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	VisitNode(n.Rhs(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_EXPR_ASSIGN_AFTER, n, ctx)
+}
+
+func VisitTplExpr(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.TplExpr)
+
+	CallVisitor(VK_EXPR_TPL_BEFORE, n, ctx)
+
+	VisitNode(n.Tag(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	VisitNodes(n.Elems(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_EXPR_TPL_AFTER, n, ctx)
+}
+
+func VisitDecorator(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.Decorator)
+
+	CallVisitor(VK_DECORATOR_BEFORE, n, ctx)
+
+	VisitNode(n.Expr(), ctx)
+	if ctx.stop {
+		return
+	}
+
+	CallVisitor(VK_DECORATOR_AFTER, n, ctx)
 }
 
 func VisitForStmt(node parser.Node, ctx *WalkCtx) {
@@ -806,629 +2150,32 @@ func VisitForStmt(node parser.Node, ctx *WalkCtx) {
 	}
 
 	CallVisitor(VK_STMT_FOR_AFTER, n, ctx)
-
 }
 
-func VisitTsLit(node parser.Node, ctx *WalkCtx) {
-}
+func VisitObjLit(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.ObjLit)
 
-func VisitTsParen(node parser.Node, ctx *WalkCtx) {
-}
+	CallVisitor(VK_LIT_OBJ_BEFORE, n, ctx)
 
-func VisitTsImportType(node parser.Node, ctx *WalkCtx) {
-}
-
-func VisitLabelStmt(node parser.Node, ctx *WalkCtx) {
-	n := node.(*parser.LabelStmt)
-
-	CallVisitor(VK_STMT_LABEL_BEFORE, n, ctx)
-
-	VisitNode(n.Label(), ctx)
+	VisitNodes(n.Props(), ctx)
 	if ctx.stop {
 		return
 	}
 
-	VisitNode(n.Body(), ctx)
-	if ctx.stop {
-		return
-	}
-
-	CallVisitor(VK_STMT_LABEL_AFTER, n, ctx)
-
+	CallVisitor(VK_LIT_OBJ_AFTER, n, ctx)
 }
 
-func VisitUpdateExpr(node parser.Node, ctx *WalkCtx) {
-	n := node.(*parser.UpdateExpr)
+func VisitChainExpr(node parser.Node, ctx *WalkCtx) {
+	n := node.(*parser.ChainExpr)
 
-	CallVisitor(VK_EXPR_UPDATE_BEFORE, n, ctx)
-
-	VisitNode(n.Arg(), ctx)
-	if ctx.stop {
-		return
-	}
-
-	CallVisitor(VK_EXPR_UPDATE_AFTER, n, ctx)
-
-}
-
-func VisitJsxMember(node parser.Node, ctx *WalkCtx) {
-}
-
-func VisitIfStmt(node parser.Node, ctx *WalkCtx) {
-	n := node.(*parser.IfStmt)
-
-	CallVisitor(VK_STMT_IF_BEFORE, n, ctx)
-
-	VisitNode(n.Test(), ctx)
-	if ctx.stop {
-		return
-	}
-
-	VisitNode(n.Cons(), ctx)
-	if ctx.stop {
-		return
-	}
-
-	VisitNode(n.Alt(), ctx)
-	if ctx.stop {
-		return
-	}
-
-	CallVisitor(VK_STMT_IF_AFTER, n, ctx)
-
-}
-
-func VisitWithStmt(node parser.Node, ctx *WalkCtx) {
-	n := node.(*parser.WithStmt)
-
-	CallVisitor(VK_STMT_WITH_BEFORE, n, ctx)
+	CallVisitor(VK_EXPR_CHAIN_BEFORE, n, ctx)
 
 	VisitNode(n.Expr(), ctx)
 	if ctx.stop {
 		return
 	}
 
-	VisitNode(n.Body(), ctx)
-	if ctx.stop {
-		return
-	}
-
-	CallVisitor(VK_STMT_WITH_AFTER, n, ctx)
-
-}
-
-func VisitField(node parser.Node, ctx *WalkCtx) {
-	n := node.(*parser.Field)
-
-	CallVisitor(VK_FIELD_BEFORE, n, ctx)
-
-	VisitNode(n.Key(), ctx)
-	if ctx.stop {
-		return
-	}
-
-	VisitNode(n.Val(), ctx)
-	if ctx.stop {
-		return
-	}
-
-	CallVisitor(VK_FIELD_AFTER, n, ctx)
-
-}
-
-func VisitTsCondType(node parser.Node, ctx *WalkCtx) {
-}
-
-func VisitTsParam(node parser.Node, ctx *WalkCtx) {
-}
-
-func VisitTsEnumMember(node parser.Node, ctx *WalkCtx) {
-}
-
-func VisitTsEnum(node parser.Node, ctx *WalkCtx) {
-}
-
-func VisitExprStmt(node parser.Node, ctx *WalkCtx) {
-	n := node.(*parser.ExprStmt)
-
-	CallVisitor(VK_STMT_EXPR_BEFORE, n, ctx)
-
-	VisitNode(n.Expr(), ctx)
-	if ctx.stop {
-		return
-	}
-
-	CallVisitor(VK_STMT_EXPR_AFTER, n, ctx)
-
-}
-
-func VisitVarDecStmt(node parser.Node, ctx *WalkCtx) {
-	n := node.(*parser.VarDecStmt)
-
-	CallVisitor(VK_STMT_VAR_DEC_BEFORE, n, ctx)
-
-	VisitNodes(n.DecList(), ctx)
-	if ctx.stop {
-		return
-	}
-
-	CallVisitor(VK_STMT_VAR_DEC_AFTER, n, ctx)
-
-}
-
-func VisitTplExpr(node parser.Node, ctx *WalkCtx) {
-	n := node.(*parser.TplExpr)
-
-	CallVisitor(VK_EXPR_TPL_BEFORE, n, ctx)
-
-	VisitNode(n.Tag(), ctx)
-	if ctx.stop {
-		return
-	}
-
-	VisitNodes(n.Elems(), ctx)
-	if ctx.stop {
-		return
-	}
-
-	CallVisitor(VK_EXPR_TPL_AFTER, n, ctx)
-
-}
-
-func VisitSwitchStmt(node parser.Node, ctx *WalkCtx) {
-	n := node.(*parser.SwitchStmt)
-
-	CallVisitor(VK_STMT_SWITCH_BEFORE, n, ctx)
-
-	VisitNode(n.Test(), ctx)
-	if ctx.stop {
-		return
-	}
-
-	VisitNodes(n.Cases(), ctx)
-	if ctx.stop {
-		return
-	}
-
-	CallVisitor(VK_STMT_SWITCH_AFTER, n, ctx)
-
-}
-
-func VisitTsTypPredicate(node parser.Node, ctx *WalkCtx) {
-}
-
-func VisitNullLit(node parser.Node, ctx *WalkCtx) {
-}
-
-func VisitBinExpr(node parser.Node, ctx *WalkCtx) {
-	n := node.(*parser.BinExpr)
-
-	CallVisitor(VK_EXPR_BIN_BEFORE, n, ctx)
-
-	VisitNode(n.Lhs(), ctx)
-	if ctx.stop {
-		return
-	}
-
-	VisitNode(n.Rhs(), ctx)
-	if ctx.stop {
-		return
-	}
-
-	CallVisitor(VK_EXPR_BIN_AFTER, n, ctx)
-
-}
-
-func VisitIdent(node parser.Node, ctx *WalkCtx) {
-}
-
-func VisitImportCall(node parser.Node, ctx *WalkCtx) {
-	n := node.(*parser.ImportCall)
-
-	CallVisitor(VK_IMPORT_CALL_BEFORE, n, ctx)
-
-	VisitNode(n.Src(), ctx)
-	if ctx.stop {
-		return
-	}
-
-	CallVisitor(VK_IMPORT_CALL_AFTER, n, ctx)
-
-}
-
-func VisitJsxSpreadAttr(node parser.Node, ctx *WalkCtx) {
-}
-
-func VisitTsInferfaceBody(node parser.Node, ctx *WalkCtx) {
-}
-
-func VisitArrowFn(node parser.Node, ctx *WalkCtx) {
-	n := node.(*parser.ArrowFn)
-
-	CallVisitor(VK_EXPR_ARROW_BEFORE, n, ctx)
-
-	VisitNodes(n.Params(), ctx)
-	if ctx.stop {
-		return
-	}
-
-	VisitNode(n.Body(), ctx)
-	if ctx.stop {
-		return
-	}
-
-	CallVisitor(VK_EXPR_ARROW_AFTER, n, ctx)
-
-}
-
-func VisitRestPat(node parser.Node, ctx *WalkCtx) {
-	n := node.(*parser.RestPat)
-
-	CallVisitor(VK_PAT_REST_BEFORE, n, ctx)
-
-	VisitNode(n.Arg(), ctx)
-	if ctx.stop {
-		return
-	}
-
-	CallVisitor(VK_PAT_REST_AFTER, n, ctx)
-
-}
-
-func VisitClassBody(node parser.Node, ctx *WalkCtx) {
-	n := node.(*parser.ClassBody)
-
-	CallVisitor(VK_CLASS_BODY_BEFORE, n, ctx)
-
-	VisitNodes(n.Elems(), ctx)
-	if ctx.stop {
-		return
-	}
-
-	CallVisitor(VK_CLASS_BODY_AFTER, n, ctx)
-
-}
-
-func VisitStaticBlock(node parser.Node, ctx *WalkCtx) {
-	n := node.(*parser.StaticBlock)
-
-	CallVisitor(VK_STATIC_BLOCK_BEFORE, n, ctx)
-
-	VisitNodes(n.Body(), ctx)
-	if ctx.stop {
-		return
-	}
-
-	CallVisitor(VK_STATIC_BLOCK_AFTER, n, ctx)
-
-}
-
-func VisitVarDec(node parser.Node, ctx *WalkCtx) {
-	n := node.(*parser.VarDec)
-
-	CallVisitor(VK_VAR_DEC_BEFORE, n, ctx)
-
-	VisitNode(n.Id(), ctx)
-	if ctx.stop {
-		return
-	}
-
-	VisitNode(n.Init(), ctx)
-	if ctx.stop {
-		return
-	}
-
-	CallVisitor(VK_VAR_DEC_AFTER, n, ctx)
-
-}
-
-func VisitTsImportAlias(node parser.Node, ctx *WalkCtx) {
-}
-
-func VisitTsTuple(node parser.Node, ctx *WalkCtx) {
-}
-
-func VisitTsParamsDec(node parser.Node, ctx *WalkCtx) {
-}
-
-func VisitTsIntersecTyp(node parser.Node, ctx *WalkCtx) {
-}
-
-func VisitTsFnTyp(node parser.Node, ctx *WalkCtx) {
-}
-
-func VisitJsxOpen(node parser.Node, ctx *WalkCtx) {
-}
-
-func VisitMethod(node parser.Node, ctx *WalkCtx) {
-	n := node.(*parser.Method)
-
-	CallVisitor(VK_METHOD_BEFORE, n, ctx)
-
-	VisitNode(n.Key(), ctx)
-	if ctx.stop {
-		return
-	}
-
-	VisitNode(n.Val(), ctx)
-	if ctx.stop {
-		return
-	}
-
-	CallVisitor(VK_METHOD_AFTER, n, ctx)
-
-}
-
-func VisitJsxEmpty(node parser.Node, ctx *WalkCtx) {
-}
-
-func VisitFnDec(node parser.Node, ctx *WalkCtx) {
-	n := node.(*parser.FnDec)
-
-	CallVisitor(VK_STMT_FN_BEFORE, n, ctx)
-
-	VisitNode(n.Id(), ctx)
-	if ctx.stop {
-		return
-	}
-
-	VisitNodes(n.Params(), ctx)
-	if ctx.stop {
-		return
-	}
-
-	VisitNode(n.Body(), ctx)
-	if ctx.stop {
-		return
-	}
-
-	CallVisitor(VK_STMT_FN_AFTER, n, ctx)
-
-}
-
-func VisitRetStmt(node parser.Node, ctx *WalkCtx) {
-	n := node.(*parser.RetStmt)
-
-	CallVisitor(VK_STMT_RET_BEFORE, n, ctx)
-
-	VisitNode(n.Arg(), ctx)
-	if ctx.stop {
-		return
-	}
-
-	CallVisitor(VK_STMT_RET_AFTER, n, ctx)
-
-}
-
-func VisitNumLit(node parser.Node, ctx *WalkCtx) {
-}
-
-func VisitRegLit(node parser.Node, ctx *WalkCtx) {
-}
-
-func VisitUnaryExpr(node parser.Node, ctx *WalkCtx) {
-	n := node.(*parser.UnaryExpr)
-
-	CallVisitor(VK_EXPR_UNARY_BEFORE, n, ctx)
-
-	VisitNode(n.Arg(), ctx)
-	if ctx.stop {
-		return
-	}
-
-	CallVisitor(VK_EXPR_UNARY_AFTER, n, ctx)
-
-}
-
-func VisitArrPat(node parser.Node, ctx *WalkCtx) {
-	n := node.(*parser.ArrPat)
-
-	CallVisitor(VK_PAT_ARRAY_BEFORE, n, ctx)
-
-	VisitNodes(n.Elems(), ctx)
-	if ctx.stop {
-		return
-	}
-
-	CallVisitor(VK_PAT_ARRAY_AFTER, n, ctx)
-
-}
-
-func VisitTsOpt(node parser.Node, ctx *WalkCtx) {
-}
-
-func VisitTsImportRequire(node parser.Node, ctx *WalkCtx) {
-}
-
-func VisitStrLit(node parser.Node, ctx *WalkCtx) {
-}
-
-func VisitTsCallSig(node parser.Node, ctx *WalkCtx) {
-}
-
-func VisitTryStmt(node parser.Node, ctx *WalkCtx) {
-	n := node.(*parser.TryStmt)
-
-	CallVisitor(VK_STMT_TRY_BEFORE, n, ctx)
-
-	VisitNode(n.Try(), ctx)
-	if ctx.stop {
-		return
-	}
-
-	VisitNode(n.Catch(), ctx)
-	if ctx.stop {
-		return
-	}
-
-	VisitNode(n.Fin(), ctx)
-	if ctx.stop {
-		return
-	}
-
-	CallVisitor(VK_STMT_TRY_AFTER, n, ctx)
-
-}
-
-func VisitCondExpr(node parser.Node, ctx *WalkCtx) {
-	n := node.(*parser.CondExpr)
-
-	CallVisitor(VK_EXPR_COND_BEFORE, n, ctx)
-
-	VisitNode(n.Test(), ctx)
-	if ctx.stop {
-		return
-	}
-
-	VisitNode(n.Cons(), ctx)
-	if ctx.stop {
-		return
-	}
-
-	VisitNode(n.Alt(), ctx)
-	if ctx.stop {
-		return
-	}
-
-	CallVisitor(VK_EXPR_COND_AFTER, n, ctx)
-
-}
-
-func VisitTsNsName(node parser.Node, ctx *WalkCtx) {
-}
-
-func VisitTsNS(node parser.Node, ctx *WalkCtx) {
-}
-
-func VisitSpread(node parser.Node, ctx *WalkCtx) {
-	n := node.(*parser.Spread)
-
-	CallVisitor(VK_SPREAD_BEFORE, n, ctx)
-
-	VisitNode(n.Arg(), ctx)
-	if ctx.stop {
-		return
-	}
-
-	CallVisitor(VK_SPREAD_AFTER, n, ctx)
-
-}
-
-func VisitTsIdxAccess(node parser.Node, ctx *WalkCtx) {
-}
-
-func VisitTsTypQuery(node parser.Node, ctx *WalkCtx) {
-}
-
-func VisitTsRef(node parser.Node, ctx *WalkCtx) {
-}
-
-func VisitTsUnionTyp(node parser.Node, ctx *WalkCtx) {
-}
-
-func VisitBrkStmt(node parser.Node, ctx *WalkCtx) {
-	n := node.(*parser.BrkStmt)
-
-	CallVisitor(VK_STMT_BRK_BEFORE, n, ctx)
-
-	VisitNode(n.Label(), ctx)
-	if ctx.stop {
-		return
-	}
-
-	CallVisitor(VK_STMT_BRK_AFTER, n, ctx)
-
-}
-
-func VisitCallExpr(node parser.Node, ctx *WalkCtx) {
-	n := node.(*parser.CallExpr)
-
-	CallVisitor(VK_EXPR_CALL_BEFORE, n, ctx)
-
-	VisitNode(n.Callee(), ctx)
-	if ctx.stop {
-		return
-	}
-
-	VisitNodes(n.Args(), ctx)
-	if ctx.stop {
-		return
-	}
-
-	CallVisitor(VK_EXPR_CALL_AFTER, n, ctx)
-
-}
-
-func VisitAssignExpr(node parser.Node, ctx *WalkCtx) {
-	n := node.(*parser.AssignExpr)
-
-	CallVisitor(VK_EXPR_ASSIGN_BEFORE, n, ctx)
-
-	VisitNode(n.Lhs(), ctx)
-	if ctx.stop {
-		return
-	}
-
-	VisitNode(n.Rhs(), ctx)
-	if ctx.stop {
-		return
-	}
-
-	CallVisitor(VK_EXPR_ASSIGN_AFTER, n, ctx)
-
-}
-
-func VisitMemberExpr(node parser.Node, ctx *WalkCtx) {
-	n := node.(*parser.MemberExpr)
-
-	CallVisitor(VK_EXPR_MEMBER_BEFORE, n, ctx)
-
-	VisitNode(n.Obj(), ctx)
-	if ctx.stop {
-		return
-	}
-
-	VisitNode(n.Prop(), ctx)
-	if ctx.stop {
-		return
-	}
-
-	CallVisitor(VK_EXPR_MEMBER_AFTER, n, ctx)
-
-}
-
-func VisitJsxNsName(node parser.Node, ctx *WalkCtx) {
-}
-
-func VisitTsTypInfer(node parser.Node, ctx *WalkCtx) {
-}
-
-func VisitTsExportAssign(node parser.Node, ctx *WalkCtx) {
-}
-
-func VisitSwitchCase(node parser.Node, ctx *WalkCtx) {
-	n := node.(*parser.SwitchCase)
-
-	CallVisitor(VK_SWITCH_CASE_BEFORE, n, ctx)
-
-	VisitNode(n.Test(), ctx)
-	if ctx.stop {
-		return
-	}
-
-	VisitNodes(n.Cons(), ctx)
-	if ctx.stop {
-		return
-	}
-
-	CallVisitor(VK_SWITCH_CASE_AFTER, n, ctx)
-
-}
-
-func VisitTsParamsInst(node parser.Node, ctx *WalkCtx) {
-}
-
-func VisitTsNoNull(node parser.Node, ctx *WalkCtx) {
+	CallVisitor(VK_EXPR_CHAIN_AFTER, n, ctx)
 }
 
 var DefaultVisitors Visitors = [VK_DEF_END][]Visitor{}

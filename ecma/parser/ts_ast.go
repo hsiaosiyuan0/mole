@@ -2,6 +2,7 @@ package parser
 
 import "github.com/hsiaosiyuan0/mole/fuzz"
 
+// #[visitor(TsTyp)]
 type TsTypAnnot struct {
 	typ   NodeType
 	loc   *Loc
@@ -55,6 +56,7 @@ func (n *TsPredef) Text() string {
 	return n.loc.Text()
 }
 
+// #[visitor(Lit)]
 type TsLit struct {
 	typ        NodeType
 	loc        *Loc
@@ -104,6 +106,7 @@ func (n *TsThis) Loc() *Loc {
 	return n.loc
 }
 
+// #[visitor(Lhs,Rhs)]
 type TsNsName struct {
 	typ        NodeType
 	loc        *Loc
@@ -137,6 +140,7 @@ func (n *TsNsName) Loc() *Loc {
 	return n.loc
 }
 
+// #[visitor(Name,Args)]
 type TsRef struct {
 	typ        NodeType
 	loc        *Loc
@@ -181,6 +185,7 @@ func (n *TsRef) HasArgs() bool {
 	return n.args != nil && len(n.args.(*TsParamsInst).params) > 0
 }
 
+// #[visitor(Arg)]
 type TsTypQuery struct {
 	typ        NodeType
 	loc        *Loc
@@ -208,6 +213,7 @@ func (n *TsTypQuery) Loc() *Loc {
 	return n.loc
 }
 
+// #[visitor(Arg)]
 type TsParen struct {
 	typ        NodeType
 	loc        *Loc
@@ -235,6 +241,7 @@ func (n *TsParen) Loc() *Loc {
 	return n.loc
 }
 
+// #[visitor(Arg)]
 type TsArr struct {
 	typ        NodeType
 	loc        *Loc
@@ -263,6 +270,7 @@ func (n *TsArr) Arg() Node {
 	return n.arg
 }
 
+// #[visitor(Obj,Idx)]
 type TsIdxAccess struct {
 	typ        NodeType
 	loc        *Loc
@@ -295,6 +303,7 @@ func (n *TsIdxAccess) Loc() *Loc {
 	return n.loc
 }
 
+// #[visitor(Args)]
 type TsTuple struct {
 	typ        NodeType
 	loc        *Loc
@@ -322,6 +331,7 @@ func (n *TsTuple) Loc() *Loc {
 	return n.loc
 }
 
+// #[visitor(Arg)]
 type TsRest struct {
 	typ NodeType
 	loc *Loc
@@ -340,6 +350,7 @@ func (n *TsRest) Loc() *Loc {
 	return n.loc
 }
 
+// #[visitor(Label,Val)]
 type TsTupleNamedMember struct {
 	typ   NodeType
 	loc   *Loc
@@ -368,6 +379,7 @@ func (n *TsTupleNamedMember) Loc() *Loc {
 	return n.loc
 }
 
+// #[visitor(Props)]
 type TsObj struct {
 	typ        NodeType
 	loc        *Loc
@@ -395,6 +407,7 @@ func (n *TsObj) Loc() *Loc {
 	return n.loc
 }
 
+// #[visitor(Key,Val)]
 type TsProp struct {
 	typ        NodeType
 	loc        *Loc
@@ -455,6 +468,7 @@ func (n *TsProp) Loc() *Loc {
 	return n.loc
 }
 
+// #[visitor(TypParams,Params,RetTyp)]
 type TsCallSig struct {
 	typ       NodeType
 	loc       *Loc
@@ -483,6 +497,7 @@ func (n *TsCallSig) Loc() *Loc {
 	return n.loc
 }
 
+// #[visitor(TypParams,Params,RetTyp)]
 type TsNewSig struct {
 	typ       NodeType
 	loc       *Loc
@@ -516,6 +531,7 @@ func (n *TsNewSig) Loc() *Loc {
 	return n.loc
 }
 
+// #[visitor(Key,KeyType,Val)]
 type TsIdxSig struct {
 	typ  NodeType
 	loc  *Loc
@@ -564,6 +580,7 @@ func (n *TsRoughParam) Loc() *Loc {
 	return n.loc
 }
 
+// #[visitor(Params)]
 type TsParamsInst struct {
 	typ    NodeType
 	loc    *Loc
@@ -582,6 +599,7 @@ func (n *TsParamsInst) Params() []Node {
 	return n.params
 }
 
+// #[visitor(Params)]
 type TsParamsDec struct {
 	typ    NodeType
 	loc    *Loc
@@ -600,6 +618,7 @@ func (n *TsParamsDec) Params() []Node {
 	return n.params
 }
 
+// #[visitor(Name,Cons,Default)]
 type TsParam struct {
 	typ  NodeType
 	loc  *Loc
@@ -628,6 +647,7 @@ func (n *TsParam) Default() Node {
 	return n.val
 }
 
+// #[visitor(TypParams,Params,RetTyp)]
 type TsFnTyp struct {
 	typ        NodeType
 	loc        *Loc
@@ -665,6 +685,7 @@ func (n *TsFnTyp) Loc() *Loc {
 	return n.loc
 }
 
+// #[visitor(Elems)]
 type TsUnionTyp struct {
 	typ        NodeType
 	loc        *Loc
@@ -693,6 +714,7 @@ func (n *TsUnionTyp) Elems() []Node {
 	return n.elems
 }
 
+// #[visitor(Elems)]
 type TsIntersecTyp struct {
 	typ        NodeType
 	loc        *Loc
@@ -721,6 +743,7 @@ func (n *TsIntersecTyp) Elems() []Node {
 	return n.elems
 }
 
+// #[visitor(Typ,Expr)]
 type TsTypAssert struct {
 	typ        NodeType
 	loc        *Loc
@@ -753,6 +776,7 @@ func (n *TsTypAssert) Expr() Node {
 	return n.arg
 }
 
+// #[visitor(Id,TypParams)]
 type TsTypDec struct {
 	typ  NodeType
 	loc  *Loc
@@ -780,6 +804,7 @@ func (n *TsTypDec) Loc() *Loc {
 	return n.loc
 }
 
+// #[visitor(Id,TypParams,Supers,Body)]
 type TsInferface struct {
 	typ    NodeType
 	loc    *Loc
@@ -813,6 +838,7 @@ func (n *TsInferface) Loc() *Loc {
 	return n.loc
 }
 
+// #[visitor(Body)]
 type TsInferfaceBody struct {
 	typ  NodeType
 	loc  *Loc
@@ -831,6 +857,7 @@ func (n *TsInferfaceBody) Loc() *Loc {
 	return n.loc
 }
 
+// #[visitor(Id,Members)]
 type TsEnum struct {
 	typ   NodeType
 	loc   *Loc
@@ -859,6 +886,7 @@ func (n *TsEnum) Loc() *Loc {
 	return n.loc
 }
 
+// #[visitor(Key,Val)]
 type TsEnumMember struct {
 	typ NodeType
 	loc *Loc
@@ -882,6 +910,7 @@ func (n *TsEnumMember) Loc() *Loc {
 	return n.loc
 }
 
+// #[visitor(Name,Val)]
 type TsImportAlias struct {
 	typ    NodeType
 	loc    *Loc
@@ -910,6 +939,7 @@ func (n *TsImportAlias) Loc() *Loc {
 	return n.loc
 }
 
+// #[visitor(Id,Body)]
 type TsNS struct {
 	typ   NodeType
 	loc   *Loc
@@ -938,6 +968,7 @@ func (n *TsNS) Loc() *Loc {
 	return n.loc
 }
 
+// #[visitor(Name,Expr)]
 type TsImportRequire struct {
 	typ        NodeType
 	loc        *Loc
@@ -970,6 +1001,7 @@ func (n *TsImportRequire) Loc() *Loc {
 	return n.loc
 }
 
+// #[visitor(Expr)]
 type TsExportAssign struct {
 	typ  NodeType
 	loc  *Loc
@@ -988,6 +1020,7 @@ func (n *TsExportAssign) Loc() *Loc {
 	return n.loc
 }
 
+// #[visitor(Name,Inner)]
 type TsDec struct {
 	typ   NodeType
 	loc   *Loc
@@ -1014,6 +1047,8 @@ func (n *TsDec) Inner() Node {
 // [assertion](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-3-7.html#assertion-functions) and
 // [type-predicates](https://www.typescriptlang.org/docs/handbook/2/narrowing.html#using-type-predicates) have almost
 // the same syntax so they'll share the same definition by using `assert` to distinguish them
+//
+// #[visitor(Name,Typ)]
 type TsTypPredicate struct {
 	typ        NodeType
 	loc        *Loc
@@ -1051,6 +1086,7 @@ func (n *TsTypPredicate) Asserts() bool {
 	return n.assert
 }
 
+// #[visitor(Arg)]
 type TsNoNull struct {
 	typ        NodeType
 	loc        *Loc
@@ -1078,6 +1114,7 @@ func (n *TsNoNull) Arg() Node {
 	return n.arg
 }
 
+// #[visitor(Arg,Qualifier,TypArg)]
 type TsImportType struct {
 	typ        NodeType
 	loc        *Loc
@@ -1156,6 +1193,7 @@ func (n *ClassDec) TypParams() Node {
 	return n.ti.typParams
 }
 
+// #[visitor(CheckTyp,ExtTyp,TrueTyp,FalseTyp)]
 type TsCondType struct {
 	typ        NodeType
 	loc        *Loc
@@ -1198,6 +1236,7 @@ func (n *TsCondType) Loc() *Loc {
 	return n.loc
 }
 
+// #[visitor(Arg)]
 type TsTypInfer struct {
 	typ        NodeType
 	loc        *Loc
@@ -1225,6 +1264,7 @@ func (n *TsTypInfer) Loc() *Loc {
 	return n.loc
 }
 
+// #[visitor(Name,Key,Val)]
 type TsMapped struct {
 	typ        NodeType
 	loc        *Loc
@@ -1296,6 +1336,7 @@ func (n *TsMapped) Loc() *Loc {
 	return n.loc
 }
 
+// #[visitor(Arg)]
 type TsTypOp struct {
 	typ        NodeType
 	loc        *Loc
@@ -1328,6 +1369,7 @@ func (n *TsTypOp) Loc() *Loc {
 	return n.loc
 }
 
+// #[visitor(Arg)]
 type TsOpt struct {
 	typ NodeType
 	loc *Loc

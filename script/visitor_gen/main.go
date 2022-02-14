@@ -52,7 +52,7 @@ func Visit{{ .Name }}(node parser.Node, ctx *WalkCtx) {
       }
     {{ end }}
     CallVisitor(VK_{{ .TypName | UnPrefix }}_AFTER, n, ctx)
-  {{ end }}
+  {{- end }}
 }
   `)
 	if err != nil {
