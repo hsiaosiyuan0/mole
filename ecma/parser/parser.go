@@ -122,6 +122,10 @@ func (p *Parser) Setup(src *span.Source, opts *ParserOpts) {
 	p.ts = p.feat&FEAT_TS != 0
 }
 
+func (p *Parser) Symtab() *SymTab {
+	return p.symtab
+}
+
 func (p *Parser) Prog() (Node, error) {
 	loc := p.loc()
 	pg := NewProg()
@@ -2878,7 +2882,7 @@ func (p *Parser) blockStmt(newScope bool, scopeKind ScopeKind) (*BlockStmt, erro
 		}
 		p.symtab.LeaveScope()
 	}
-	return &BlockStmt{N_STMT_BLOCK, p.finLoc(loc), stmts}, nil
+	return &BlockStmt{N_STMT_BLOCK, p.finLoc(loc), stmts, newScope}, nil
 }
 
 func (p *Parser) aheadIsVarDec(tok *Token) (bool, TokenValue) {

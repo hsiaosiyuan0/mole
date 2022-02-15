@@ -55,6 +55,15 @@ type MacroCtx struct {
 	Args    []interface{} // the args defined in the macro expr
 }
 
+func (c *MacroCtx) HasStringArg(name string) bool {
+	for _, arg := range c.Args {
+		if s, ok := arg.(string); ok {
+			return s == name
+		}
+	}
+	return false
+}
+
 type MacroImpl = func(MacroCtx)
 
 func HasMacroLike(cmt string) (string, bool) {
@@ -183,11 +192,28 @@ func IsStructDec(n ast.Node) (string, *ast.StructType, bool) {
 	return ts.Name.Name, ts.Type.(*ast.StructType), true
 }
 
-func isEnum(n ast.Node) ([]ast.Spec, bool) {
+func IsEnum(n ast.Node) ([]ast.Spec, bool) {
 	if !IsTyp(n, (*ast.GenDecl)(nil)) || n.(*ast.GenDecl).Tok != token.CONST {
 		return nil, false
 	}
 	return n.(*ast.GenDecl).Specs, true
+}
+
+func IsFnDec(n ast.Node) (*ast.FuncDecl, bool) {
+	if !IsTyp(n, (*ast.FuncDecl)(nil)) {
+		return nil, false
+	}
+	return n.(*ast.FuncDecl), true
+}
+
+func RecvName(fn *ast.FuncDecl) string {
+	if fn.Recv == nil {
+		return ""
+	}
+	if v, ok := fn.Recv.List[0].Type.(*ast.StarExpr); ok {
+		return v.X.(*ast.Ident).Name
+	}
+	return ""
 }
 
 func macroCtxsOfEnum(file *ast.File, filename string, specs []ast.Spec, procCtx *ProcCtx) ([]*MacroCtx, error) {
@@ -230,7 +256,7 @@ func macroCtxsInsideStruct(filename string, s *ast.StructType, procCtx *ProcCtx)
 
 // the comments on the top of the struct definition are attached to the GenDecl which is the parent Node of the
 // struct definition, so the comment needs to be passed by the callee
-func macroCtxsOfStruct(filename string, comment string, s *ast.GenDecl, procCtx *ProcCtx) ([]*MacroCtx, error) {
+func macroCtxsOfDec(filename string, comment string, s ast.Node, procCtx *ProcCtx) ([]*MacroCtx, error) {
 	cmt, ok := HasMacroLike(comment)
 	if !ok {
 		return nil, nil
@@ -241,7 +267,7 @@ func macroCtxsOfStruct(filename string, comment string, s *ast.GenDecl, procCtx 
 func MacroCtxsOfFile(file *ast.File, filename string, procCtx *ProcCtx) ([]*MacroCtx, error) {
 	ctxs := make([]*MacroCtx, 0, 1)
 	for _, dec := range file.Decls {
-		if n, ok := isEnum(dec); ok {
+		if n, ok := IsEnum(dec); ok {
 			cs, err := macroCtxsOfEnum(file, filename, n, procCtx)
 			if err != nil {
 				return nil, err
@@ -252,7 +278,7 @@ func MacroCtxsOfFile(file *ast.File, filename string, procCtx *ProcCtx) ([]*Macr
 			if dec.(*ast.GenDecl).Doc != nil {
 				cmts := dec.(*ast.GenDecl).Doc.List
 				cmt := cmts[len(cmts)-1].Text
-				cs, err := macroCtxsOfStruct(filename, cmt, dec.(*ast.GenDecl), procCtx)
+				cs, err := macroCtxsOfDec(filename, cmt, dec, procCtx)
 				if err != nil {
 					return nil, err
 				}
@@ -264,6 +290,16 @@ func MacroCtxsOfFile(file *ast.File, filename string, procCtx *ProcCtx) ([]*Macr
 				return nil, err
 			}
 			ctxs = append(ctxs, cs...)
+		} else if v, ok := IsFnDec(dec); ok {
+			if dec.(*ast.FuncDecl).Doc != nil {
+				cmts := v.Doc.List
+				cmt := cmts[len(cmts)-1].Text
+				cs, err := macroCtxsOfDec(filename, cmt, dec, procCtx)
+				if err != nil {
+					return nil, err
+				}
+				ctxs = append(ctxs, cs...)
+			}
 		}
 	}
 	return ctxs, nil

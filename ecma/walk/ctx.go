@@ -1,6 +1,7 @@
 package walk
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/hsiaosiyuan0/mole/ecma/parser"
@@ -16,8 +17,9 @@ type WalkCtx struct {
 	Root   parser.Node    // the root node to start walking
 	Symtab *parser.SymTab // the symtab associated with the Root
 
-	vc   *VisitorCtx
-	stop bool // whether to stop the walk
+	vc       *VisitorCtx // ctx of current running visitor
+	scopeIds []int       // 1-based Id of the scope which current Node belongs to, 0 is reserved for the Global scope
+	stop     bool        // whether to stop the walk
 }
 
 func NewWalkCtx(root parser.Node, symtab *parser.SymTab) *WalkCtx {
@@ -25,19 +27,52 @@ func NewWalkCtx(root parser.Node, symtab *parser.SymTab) *WalkCtx {
 	c.Visitors = DefaultVisitors
 	c.Root = root
 	c.Symtab = symtab
-	c.vc = &VisitorCtx{c, c.vc, 0, nil, root}
+	c.vc = &VisitorCtx{c, c.vc, []string{}, root}
+	c.scopeIds = []int{0}
 	return c
 }
 
-func (c *WalkCtx) Enter(node parser.Node, path string) {
-	vc := &VisitorCtx{c, c.vc, c.vc.Depth + 1, nil, node}
-	if c.vc.Path != nil {
-		vc.Path = append(vc.Path, path)
+type ConditionalNewScope interface {
+	NewScope() bool
+}
+
+func (c *WalkCtx) ScopeId() int {
+	return c.scopeIds[len(c.scopeIds)-1]
+}
+
+func (c *WalkCtx) Scope() *parser.Scope {
+	return c.Symtab.Scopes[uint(c.ScopeId())]
+}
+
+func (c *WalkCtx) PushScope() {
+	newScope := true
+	if v, ok := c.vc.Node.(ConditionalNewScope); ok {
+		newScope = v.NewScope()
+	}
+	if newScope {
+		c.scopeIds = append(c.scopeIds, c.ScopeId()+1)
+	}
+}
+
+func (c *WalkCtx) PopScope() {
+	newScope := true
+	if v, ok := c.vc.Node.(ConditionalNewScope); ok {
+		newScope = v.NewScope()
+	}
+	if newScope {
+		c.scopeIds = c.scopeIds[:len(c.scopeIds)-1]
+	}
+}
+
+func (c *WalkCtx) PushVisitorCtx(node parser.Node, path string) {
+	vc := &VisitorCtx{c, c.vc, nil, node}
+	if c.Path {
+		vc.Path = append(c.vc.Path, path)
 	}
 	c.vc = vc
 }
 
-func (c *WalkCtx) Leave() {
+func (c *WalkCtx) PopVisitorCtx() {
 	c.vc = c.vc.Parent
 }
 
@@ -53,28 +88,27 @@ type VisitorCtx struct {
 	WalkCtx *WalkCtx    // ctx of the entire walk
 	Parent  *VisitorCtx // ctx of the parent node
 
-	Depth int         // depth of current node
-	Path  []string    // path of current node, if `WalkCtx.Path` is turned on
-	Node  parser.Node // current node
+	Path []string    // path of current node, if `WalkCtx.Path` is turned on
+	Node parser.Node // current node
 }
 
-func VisitNode(n parser.Node, ctx *WalkCtx) {
+func VisitNode(n parser.Node, key string, ctx *WalkCtx) {
 	if n == nil {
 		return
 	}
-	CallVisitor(VisitorKind(n.Type()), n, ctx)
+	CallVisitor(VisitorKind(n.Type()), n, key, ctx)
 }
 
-func VisitNodes(ns []parser.Node, ctx *WalkCtx) {
-	for _, n := range ns {
-		VisitNode(n, ctx)
+func VisitNodes(n parser.Node, ns []parser.Node, key string, ctx *WalkCtx) {
+	for i, n := range ns {
+		VisitNode(n, fmt.Sprintf("%s[%d]", key, i), ctx)
 		if ctx.stop {
 			break
 		}
 	}
 }
 
-func CallVisitor(vk VisitorKind, n parser.Node, ctx *WalkCtx) {
+func CallVisitor(vk VisitorKind, n parser.Node, key string, ctx *WalkCtx) {
 	fns := ctx.Visitors[vk]
 	if fns == nil {
 		if ctx.RaiseMissingImpl {
@@ -83,7 +117,7 @@ func CallVisitor(vk VisitorKind, n parser.Node, ctx *WalkCtx) {
 		return
 	}
 	for _, fn := range fns {
-		fn(n, ctx)
+		fn(n, key, ctx)
 		if ctx.stop {
 			break
 		}
