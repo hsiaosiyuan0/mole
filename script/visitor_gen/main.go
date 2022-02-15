@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"flag"
 	"fmt"
 	"go/ast"
 	"html/template"
@@ -176,12 +177,10 @@ func IfNodesReurned(f *ast.FuncType, name string) bool {
 }
 
 func main() {
-	// wd, err := os.Getwd()
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	var err error
-	wd := "/Users/hsiao/go/src/github.com/hsiaosiyuan0/mole/ecma/walk"
+	wd, err := os.Getwd()
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	distFile := path.Join(wd, "visitor.go")
 	_, err = os.Stat(distFile)
@@ -189,10 +188,9 @@ func main() {
 		return
 	}
 
-	// var defDir string
-	// flag.StringVar(&defDir, "d", "", "the AST definition directory, relative with current file")
-	// flag.Parse()
-	defDir := "/Users/hsiao/go/src/github.com/hsiaosiyuan0/mole/ecma/parser"
+	var defDir string
+	flag.StringVar(&defDir, "d", "", "the AST definition directory, relative with current file")
+	flag.Parse()
 
 	ctxs, procCtx, err := macro.MacroCtxsOfWorkingDir(wd, defDir)
 	if err != nil {
