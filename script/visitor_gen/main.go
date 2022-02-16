@@ -42,15 +42,18 @@ func Visit{{ .Name }}(node parser.Node, key string, ctx *WalkCtx) {
     ctx.PushVisitorCtx(n, key)
     defer ctx.PopVisitorCtx()
 
-    CallVisitor(VK_{{ .TypName | UnPrefix }}_BEFORE, n, key, ctx)
-    defer CallVisitor(VK_{{ .TypName | UnPrefix }}_AFTER, n, key, ctx)
-
     {{- range $key, $value := .Methods }}
       {{ if eq $value.Name "PUSH_SCOPE" }}
         ctx.PushScope()
-      {{- else if eq $value.Name "POP_SCOPE" }}
-        ctx.PopScope()
+        defer ctx.PopScope()
+
+        CallVisitor(VK_{{ $.TypName | UnPrefix }}_BEFORE, n, key, ctx)
+        defer CallVisitor(VK_{{ $.TypName | UnPrefix }}_AFTER, n, key, ctx)
       {{- else }}
+        {{ if eq $key 0 }}
+          CallVisitor(VK_{{ $.TypName | UnPrefix }}_BEFORE, n, key, ctx)
+          defer CallVisitor(VK_{{ $.TypName | UnPrefix }}_AFTER, n, key, ctx)
+        {{- end }}
         {{ if .Nodes }}
           VisitNodes(n, n.{{ $value.Name }}(), "{{ $value.Name }}", ctx)
         {{- else }}
@@ -73,15 +76,11 @@ func Visit{{ .Name }}(node parser.Node, key string, ctx *WalkCtx) {
 func genVisitors(output io.Writer, nodeTypStruct map[string]string, structColl map[string]*StructInfo) {
 	output.Write([]byte(`
 type Visitor = func(node parser.Node, key string, ctx *WalkCtx)
-type Visitors = [VK_DEF_END][]Visitor
+type Visitors = [VK_DEF_END]Visitor
 
-func AddVisitor(vs *Visitors, vk VisitorKind, impl Visitor) {
-  hs := vs[vk]
-  if hs == nil {
-    hs = []Visitor{}
-    vs[vk] = hs
-  }
-  vs[vk] = append(hs, impl)
+// replace the default visitor with the specified one
+func SetVisitor(vs *Visitors, vk VisitorKind, impl Visitor) {
+  vs[vk] = impl
 }
   `))
 
@@ -146,11 +145,11 @@ func genDefaultVisitors(output io.Writer, nodeTypStruct map[string]string) error
 		"UnPrefix": unPrefix,
 	}
 	tpl, err := template.New("visitor types").Funcs(fnMap).Parse(`
-var DefaultVisitors Visitors = [VK_DEF_END][]Visitor{}
+var DefaultVisitors Visitors = [VK_DEF_END]Visitor{}
 
 func init() {
   {{- range $key, $value := . }}
-    DefaultVisitors[VK_{{ $key | UnPrefix | ToUpper }}] = []Visitor{Visit{{ $value }}}
+    DefaultVisitors[VK_{{ $key | UnPrefix | ToUpper }}] = Visit{{ $value }}
   {{- end }}
 }
   `)

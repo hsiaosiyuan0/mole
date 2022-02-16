@@ -1964,7 +1964,7 @@ func (p *Parser) tsItf() (Node, error) {
 		return nil, err
 	}
 
-	scope := p.symtab.EnterScope(false, false)
+	scope := p.symtab.EnterScope(false, false, true)
 	scope.AddKind(SPK_TS_INTERFACE)
 	body, err := p.tsObj(false)
 	if err != nil {

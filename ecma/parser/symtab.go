@@ -429,6 +429,8 @@ type SymTab struct {
 	Scopes    map[uint]*Scope
 	Root      *Scope
 	Cur       *Scope
+
+	scopeIdSeed uint // the seed of scope id
 }
 
 func NewSymTab(externals []string) *SymTab {
@@ -444,9 +446,15 @@ func NewSymTab(externals []string) *SymTab {
 	return symtab
 }
 
-func (s *SymTab) EnterScope(fn bool, arrow bool) *Scope {
+// `settled` to increase the scope id, otherwise the new entered scope will be
+// treated as a temporary one
+func (s *SymTab) EnterScope(fn bool, arrow bool, settled bool) *Scope {
 	scope := NewScope()
-	scope.Id = s.Cur.Id + 1
+
+	if settled {
+		s.scopeIdSeed += 1
+	}
+	scope.Id = s.scopeIdSeed
 
 	if fn {
 		scope.Kind = SPK_FUNC
@@ -512,6 +520,8 @@ func (s *SymTab) EnterScope(fn bool, arrow bool) *Scope {
 }
 
 func (s *SymTab) LeaveScope() {
+	// prevent the scope being overlayed by its tmp child
+	s.Scopes[s.Cur.Up.Id] = s.Cur.Up
 	s.Cur = s.Cur.Up
 }
 

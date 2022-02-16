@@ -17,9 +17,10 @@ type WalkCtx struct {
 	Root   parser.Node    // the root node to start walking
 	Symtab *parser.SymTab // the symtab associated with the Root
 
-	vc       *VisitorCtx // ctx of current running visitor
-	scopeIds []int       // 1-based Id of the scope which current Node belongs to, 0 is reserved for the Global scope
-	stop     bool        // whether to stop the walk
+	vc          *VisitorCtx // ctx of current running visitor
+	scopeIdSeed int         // the seed of scope id
+	scopeIds    []int       // 1-based Id of the scope which current Node belongs to, 0 is reserved for the Global scope
+	stop        bool        // whether to stop the walk
 }
 
 func NewWalkCtx(root parser.Node, symtab *parser.SymTab) *WalkCtx {
@@ -50,7 +51,8 @@ func (c *WalkCtx) PushScope() {
 		newScope = v.NewScope()
 	}
 	if newScope {
-		c.scopeIds = append(c.scopeIds, c.ScopeId()+1)
+		c.scopeIdSeed += 1
+		c.scopeIds = append(c.scopeIds, c.scopeIdSeed)
 	}
 }
 
@@ -109,17 +111,12 @@ func VisitNodes(n parser.Node, ns []parser.Node, key string, ctx *WalkCtx) {
 }
 
 func CallVisitor(vk VisitorKind, n parser.Node, key string, ctx *WalkCtx) {
-	fns := ctx.Visitors[vk]
-	if fns == nil {
+	fn := ctx.Visitors[vk]
+	if fn == nil {
 		if ctx.RaiseMissingImpl {
 			log.Fatalf("Missing Impl for NodeType %d with Kind %d", n.Type(), vk)
 		}
 		return
 	}
-	for _, fn := range fns {
-		fn(n, key, ctx)
-		if ctx.stop {
-			break
-		}
-	}
+	fn(n, key, ctx)
 }

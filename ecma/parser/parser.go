@@ -1034,7 +1034,7 @@ func (p *Parser) classDec(expr bool, canNameOmitted bool, declare bool, abstract
 		ti.SetImplements(impl)
 	}
 
-	scope := p.symtab.EnterScope(true, false)
+	scope := p.symtab.EnterScope(true, false, true)
 	p.enterStrict(true).AddKind(SPK_CLASS)
 	if abstract {
 		scope.AddKind(SPK_ABSTRACT_CLASS)
@@ -1698,7 +1698,7 @@ func (p *Parser) tryStmt() (Node, error) {
 			return nil, p.errorTok(ahead)
 		}
 
-		scope := p.symtab.EnterScope(false, false)
+		scope := p.symtab.EnterScope(false, false, true)
 		scope.AddKind(SPK_CATCH)
 
 		if param != nil {
@@ -1934,7 +1934,7 @@ func (p *Parser) switchStmt() (Node, error) {
 	}
 	metDefault := false
 
-	scope := p.symtab.EnterScope(false, false)
+	scope := p.symtab.EnterScope(false, false, true)
 	scope.AddKind(SPK_SWITCH)
 
 	for {
@@ -2061,7 +2061,7 @@ func (p *Parser) doWhileStmt() (Node, error) {
 
 	tok := p.lexer.PeekStmtBegin()
 
-	scope := p.symtab.EnterScope(false, false)
+	scope := p.symtab.EnterScope(false, false, false)
 	scope.AddKind(SPK_LOOP_DIRECT).AddKind(SPK_INTERIM)
 	body, err := p.stmt()
 	scope.EraseKind(SPK_INTERIM)
@@ -2111,7 +2111,7 @@ func (p *Parser) whileStmt() (Node, error) {
 		return nil, err
 	}
 
-	scope := p.symtab.EnterScope(false, false)
+	scope := p.symtab.EnterScope(false, false, false)
 	scope.AddKind(SPK_LOOP_DIRECT)
 
 	tok := p.lexer.PeekStmtBegin()
@@ -2151,7 +2151,7 @@ func (p *Parser) forStmt() (Node, error) {
 		return nil, err
 	}
 
-	scope := p.symtab.EnterScope(false, false)
+	scope := p.symtab.EnterScope(false, false, true)
 	scope.AddKind(SPK_LOOP_DIRECT)
 	tok = p.lexer.Peek()
 
@@ -2394,7 +2394,7 @@ func (p *Parser) fnDec(expr bool, async *Token, canNameOmitted bool) (Node, erro
 		return nil, p.errorTok(tok)
 	}
 
-	scope := p.symtab.EnterScope(true, false)
+	scope := p.symtab.EnterScope(true, false, true)
 	if async != nil {
 		scope.AddKind(SPK_ASYNC)
 		p.lexer.AddMode(LM_ASYNC)
@@ -2861,7 +2861,7 @@ func (p *Parser) blockStmt(newScope bool, scopeKind ScopeKind) (*BlockStmt, erro
 	var scope *Scope
 	if newScope {
 		fn := scopeKind == SPK_TS_MODULE
-		scope = p.symtab.EnterScope(fn, false)
+		scope = p.symtab.EnterScope(fn, false, true)
 		scope.AddKind(scopeKind)
 	}
 	loc := p.locFromTok(tok)
@@ -5556,7 +5556,7 @@ func (p *Parser) arrowFn(loc *Loc, args []Node, params []Node, ti *TypInfo) (Nod
 
 	arrowLoc := p.locFromTok(p.lexer.Next())
 	ps := p.scope()
-	scope := p.symtab.EnterScope(true, true)
+	scope := p.symtab.EnterScope(true, true, true)
 
 	paramNames, firstComplicated, err := p.collectNames(params)
 	if err != nil {
@@ -5627,7 +5627,7 @@ func (p *Parser) parenExpr(typArgs Node, notColon bool) (Node, error) {
 	// for dealing with above situations, enter a new scope and flag it as paren
 	// to let the nested states can tell if they are in parenExpr to judge whether
 	// to raise the syntax-error exception or not
-	scope := p.symtab.EnterScope(false, false)
+	scope := p.symtab.EnterScope(false, false, false)
 	scope.AddKind(SPK_PAREN)
 	p.checkName = false
 	args, tailingComma, ta, _, err := p.argList(false, false, nil)
@@ -5911,7 +5911,7 @@ func (p *Parser) method(loc *Loc, key Node, accMode ACC_MOD, compute *Loc, short
 		loc = p.loc()
 	}
 
-	scope := p.symtab.EnterScope(true, false)
+	scope := p.symtab.EnterScope(true, false, true)
 	scope.AddKind(SPK_METHOD)
 	if kind == PK_CTOR && !static {
 		scope.AddKind(SPK_CTOR)

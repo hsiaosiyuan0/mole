@@ -1539,7 +1539,7 @@ func (n *Prop) Loc() *Loc {
 	return n.loc
 }
 
-// #[visitor(Id,PUSH_SCOPE,Params,Body,POP_SCOPE)]
+// #[visitor(Id,PUSH_SCOPE,Params,Body)]
 type FnDec struct {
 	typ        NodeType
 	loc        *Loc
@@ -1600,7 +1600,7 @@ func (n *FnDec) SetTypInfo(ti *TypInfo) {
 	n.ti = ti
 }
 
-// #[visitor(PUSH_SCOPE,Params,Body,POP_SCOPE)]
+// #[visitor(PUSH_SCOPE,Params,Body)]
 type ArrowFn struct {
 	typ        NodeType
 	loc        *Loc
@@ -1706,7 +1706,7 @@ func (n *VarDec) Loc() *Loc {
 	return n.loc
 }
 
-// #[visitor(PUSH_SCOPE,Body,POP_SCOPE)]
+// #[visitor(PUSH_SCOPE,Body)]
 type BlockStmt struct {
 	typ      NodeType
 	loc      *Loc
@@ -1730,7 +1730,7 @@ func (n *BlockStmt) NewScope() bool {
 	return n.newScope
 }
 
-// #[visitor(PUSH_SCOPE,Test,Body,POP_SCOPE)]
+// #[visitor(Test,Body)]
 type DoWhileStmt struct {
 	typ  NodeType
 	loc  *Loc
@@ -1754,7 +1754,7 @@ func (n *DoWhileStmt) Loc() *Loc {
 	return n.loc
 }
 
-// #[visitor(PUSH_SCOPE,Test,Body,POP_SCOPE)]
+// #[visitor(Test,Body)]
 type WhileStmt struct {
 	typ  NodeType
 	loc  *Loc
@@ -1778,7 +1778,7 @@ func (n *WhileStmt) Loc() *Loc {
 	return n.loc
 }
 
-// #[visitor(PUSH_SCOPE,Init,Test,Update,Body,POP_SCOPE)]
+// #[visitor(PUSH_SCOPE,Init,Test,Update,Body)]
 type ForStmt struct {
 	typ    NodeType
 	loc    *Loc
@@ -1880,7 +1880,7 @@ func (n *IfStmt) Loc() *Loc {
 	return n.loc
 }
 
-// #[visitor(Test,Cases)]
+// #[visitor(PUSH_SCOPE,Test,Cases)]
 type SwitchStmt struct {
 	typ   NodeType
 	loc   *Loc
@@ -1904,7 +1904,7 @@ func (n *SwitchStmt) Loc() *Loc {
 	return n.loc
 }
 
-// #[visitor(PUSH_SCOPE,Test,Cons,POP_SCOPE)]
+// #[visitor(Test,Cons)]
 type SwitchCase struct {
 	typ  NodeType
 	loc  *Loc
@@ -2028,7 +2028,7 @@ func (n *ThrowStmt) Loc() *Loc {
 	return n.loc
 }
 
-// #[visitor(PUSH_SCOPE,Param,Body,POP_SCOPE)]
+// #[visitor(PUSH_SCOPE,Param,Body)]
 type Catch struct {
 	typ   NodeType
 	loc   *Loc
@@ -2161,7 +2161,7 @@ func (n *ClassDec) SetTypInfo(ti *TypInfo) {
 	n.ti = ti
 }
 
-// #[visitor(PUSH_SCOPE,Elems,POP_SCOPE)]
+// #[visitor(PUSH_SCOPE,Elems)]
 type ClassBody struct {
 	typ   NodeType
 	loc   *Loc
@@ -2180,7 +2180,7 @@ func (n *ClassBody) Loc() *Loc {
 	return n.loc
 }
 
-// #[visitor(PUSH_SCOPE,Key,Val,POP_SCOPE)]
+// #[visitor(Key,Val)]
 type Method struct {
 	typ      NodeType
 	loc      *Loc
