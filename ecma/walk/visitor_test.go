@@ -343,3 +343,32 @@ class A {
 	AssertEqual(t, true, symtab.Scopes[2].HasName("a"), "should pass")
 	AssertEqual(t, true, symtab.Scopes[2].HasName("b"), "should pass")
 }
+
+func TestListenerDoWhile(t *testing.T) {
+	ast, symtab, err := compile(`
+do {
+  let a = 1
+} while(1)
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ctx := NewWalkCtx(ast, symtab)
+
+	fnScopeId := 0
+	AddListener(&ctx.Listeners, LK_STMT_BLOCK_BEFORE, func(node parser.Node, key string, ctx *WalkCtx) {
+		if ctx.ScopeId() > fnScopeId {
+			fnScopeId = ctx.ScopeId()
+		}
+	})
+
+	idName := ""
+	AddListener(&ctx.Listeners, LK_NAME, func(node parser.Node, key string, ctx *WalkCtx) {
+		idName = node.(*parser.Ident).Text()
+	})
+
+	VisitNode(ast, "", ctx)
+	AssertEqual(t, 1, fnScopeId, "should pass")
+
+	AssertEqual(t, true, symtab.Scopes[1].HasName("a"), "should pass")
+	AssertEqual(t, "a", idName, "should pass")
+}

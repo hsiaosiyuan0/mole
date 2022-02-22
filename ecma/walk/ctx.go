@@ -9,10 +9,11 @@ import (
 
 type WalkCtx struct {
 	Visitors         Visitors
+	Listeners        Listeners
 	RaiseMissingImpl bool
 
-	Path  bool        // whether to record the path of node
-	Extra interface{} // attach biz extra
+	Path  bool                   // whether to record the path of node
+	Extra map[string]interface{} // attach extra infos for biz logic
 
 	Root   parser.Node    // the root node to start walking
 	Symtab *parser.SymTab // the symtab associated with the Root
@@ -114,9 +115,19 @@ func CallVisitor(vk VisitorKind, n parser.Node, key string, ctx *WalkCtx) {
 	fn := ctx.Visitors[vk]
 	if fn == nil {
 		if ctx.RaiseMissingImpl {
-			log.Fatalf("Missing Impl for NodeType %d with Kind %d", n.Type(), vk)
+			log.Fatalf("Missing visitor Impl for NodeType %d with Kind %d", n.Type(), vk)
 		}
 		return
 	}
 	fn(n, key, ctx)
+}
+
+func CallListener(vk ListenerKind, n parser.Node, key string, ctx *WalkCtx) {
+	fns := ctx.Listeners[vk]
+	for _, fn := range fns {
+		fn(n, key, ctx)
+		if ctx.stop {
+			break
+		}
+	}
 }

@@ -64,8 +64,20 @@ func Visit{{ .Name }}(node parser.Node, key string, ctx *WalkCtx) {
         }
       {{- end }}
     {{- end }}
+  {{- else}}
+    CallListener(LK_{{ $.TypName | UnPrefix }}, node, key, ctx)
   {{- end }}
 }
+
+{{ if ge (len .Methods) 1 }}
+func Visit{{ .Name }}Before(node parser.Node, key string, ctx *WalkCtx) {
+  CallListener(LK_{{ $.TypName | UnPrefix }}_BEFORE, node, key, ctx)
+}
+
+func Visit{{ .Name }}After(node parser.Node, key string, ctx *WalkCtx) {
+  CallListener(LK_{{ $.TypName | UnPrefix }}_AFTER, node, key, ctx)
+}
+{{- end}}
   `)
 	if err != nil {
 		return err
@@ -81,6 +93,13 @@ type Visitors = [VK_DEF_END]Visitor
 // replace the default visitor with the specified one
 func SetVisitor(vs *Visitors, vk VisitorKind, impl Visitor) {
   vs[vk] = impl
+}
+
+type Listener = func(node parser.Node, key string, ctx *WalkCtx)
+type Listeners = [LK_DEF_END][]Listener
+
+func AddListener(ls *Listeners, lk ListenerKind, impl Listener) {
+	ls[lk] = append(ls[lk], impl)
 }
   `))
 
@@ -121,8 +140,10 @@ const (
   {{- range $key, $value := .NodeTypStruct }}
     VK_{{- $key | UnPrefix | ToUpper }} = VisitorKind(parser.{{ $key }})
   {{- end }}
+)
 
-  VK_BEFORE_AFTER = VisitorKind(parser.N_NODE_DEF_END) + iota
+const (
+  VK_BEFORE_AFTER = VisitorKind(parser.N_NODE_DEF_END + iota)
   {{- range $key, $value := .NodeTypStruct }}
     {{- if ge (len (index $.StructColl $value).Methods) 1  }}
       VK_{{ $key | UnPrefix | ToUpper }}_BEFORE
@@ -139,24 +160,67 @@ const (
 	return tpl.Execute(output, &TplParamsGenVisitorKinds{nodeTypStruct, structColl})
 }
 
-func genDefaultVisitors(output io.Writer, nodeTypStruct map[string]string) error {
+func genListenerKinds(output io.Writer, nodeTypStruct map[string]string, structColl map[string]*StructInfo) error {
+	fnMap := template.FuncMap{
+		"ToUpper":  strings.ToUpper,
+		"UnPrefix": unPrefix,
+	}
+	tpl, err := template.New("visitor types").Funcs(fnMap).Parse(`
+type ListenerKind uint16
+
+const (
+  LK_ILLEGAL ListenerKind = 0
+
+  {{- range $key, $value := .NodeTypStruct }}
+  LK_{{- $key | UnPrefix | ToUpper }} = ListenerKind(parser.{{ $key }})
+  {{- end }}
+)
+
+const (
+  LK_BEFORE_AFTER = ListenerKind(parser.N_NODE_DEF_END + iota)
+  {{- range $key, $value := .NodeTypStruct }}
+    {{- if ge (len (index $.StructColl $value).Methods) 1  }}
+      LK_{{ $key | UnPrefix | ToUpper }}_BEFORE
+      LK_{{ $key | UnPrefix | ToUpper }}_AFTER
+    {{- end }}
+  {{- end }}
+
+  LK_DEF_END
+)
+  `)
+	if err != nil {
+		return err
+	}
+	return tpl.Execute(output, &TplParamsGenVisitorKinds{nodeTypStruct, structColl})
+}
+
+func genDefaultVisitors(output io.Writer, nodeTypStruct map[string]string, structColl map[string]*StructInfo) error {
 	fnMap := template.FuncMap{
 		"ToUpper":  strings.ToUpper,
 		"UnPrefix": unPrefix,
 	}
 	tpl, err := template.New("visitor types").Funcs(fnMap).Parse(`
 var DefaultVisitors Visitors = [VK_DEF_END]Visitor{}
+var DefaultListeners Listeners = [LK_DEF_END][]Listener{}
 
 func init() {
-  {{- range $key, $value := . }}
+  {{- range $key, $value := .NodeTypStruct }}
     DefaultVisitors[VK_{{ $key | UnPrefix | ToUpper }}] = Visit{{ $value }}
+    {{- if ge (len (index $.StructColl $value).Methods) 1  }}
+      DefaultVisitors[VK_{{ $key | UnPrefix | ToUpper }}_BEFORE] = Visit{{ $value }}Before
+      DefaultVisitors[VK_{{ $key | UnPrefix | ToUpper }}_AFTER] = Visit{{ $value }}After
+    {{- end }}
+  {{- end }}
+
+  {{ range $key, $value := .NodeTypStruct }}
+    DefaultListeners[LK_{{ $key | UnPrefix | ToUpper }}] = []Listener{}
   {{- end }}
 }
   `)
 	if err != nil {
 		return err
 	}
-	return tpl.Execute(output, nodeTypStruct)
+	return tpl.Execute(output, &TplParamsGenVisitorKinds{nodeTypStruct, structColl})
 }
 
 func IfNodesReurned(f *ast.FuncType, name string) bool {
@@ -268,8 +332,14 @@ import "github.com/hsiaosiyuan0/mole/ecma/parser"
 
   `)
 
-	// genereate visitor kindes
+	// genereate visitor kinds
 	err = genVisitorKinds(&buf, nodeTypStruct, structColl)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// generate listener kinds
+	err = genListenerKinds(&buf, nodeTypStruct, structColl)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -278,7 +348,7 @@ import "github.com/hsiaosiyuan0/mole/ecma/parser"
 	genVisitors(&buf, nodeTypStruct, structColl)
 
 	// generate defalt visitors
-	err = genDefaultVisitors(&buf, nodeTypStruct)
+	err = genDefaultVisitors(&buf, nodeTypStruct, structColl)
 	if err != nil {
 		log.Fatal(err)
 	}
