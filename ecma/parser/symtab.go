@@ -3,39 +3,39 @@ package parser
 type ScopeKind uint64
 
 const (
-	SPK_NONE               ScopeKind = 0
-	SPK_LOOP_DIRECT        ScopeKind = 1 << iota
-	SPK_LOOP_INDIRECT      ScopeKind = 1 << iota
-	SPK_SWITCH             ScopeKind = 1 << iota
-	SPK_STRICT             ScopeKind = 1 << iota
-	SPK_STRICT_DIR         ScopeKind = 1 << iota
-	SPK_CATCH              ScopeKind = 1 << iota
-	SPK_BLOCK              ScopeKind = 1 << iota
-	SPK_GLOBAL             ScopeKind = 1 << iota
-	SPK_INTERIM            ScopeKind = 1 << iota
-	SPK_FUNC               ScopeKind = 1 << iota
-	SPK_FUNC_INDIRECT      ScopeKind = 1 << iota
-	SPK_ARROW              ScopeKind = 1 << iota
-	SPK_ASYNC              ScopeKind = 1 << iota
-	SPK_GENERATOR          ScopeKind = 1 << iota
-	SPK_PAREN              ScopeKind = 1 << iota
-	SPK_CLASS              ScopeKind = 1 << iota
-	SPK_CLASS_INDIRECT     ScopeKind = 1 << iota
-	SPK_CLASS_EXTEND_SUPER ScopeKind = 1 << iota
-	SPK_CLASS_HAS_SUPER    ScopeKind = 1 << iota
-	SPK_CTOR               ScopeKind = 1 << iota
-	SPK_LEXICAL_DEC        ScopeKind = 1 << iota
-	SPK_SHORTHAND_PROP     ScopeKind = 1 << iota
-	SPK_METHOD             ScopeKind = 1 << iota
-	SPK_NOT_IN             ScopeKind = 1 << iota
-	SPK_PROP_NAME          ScopeKind = 1 << iota
-	SPK_FORMAL_PARAMS      ScopeKind = 1 << iota
-	SPK_ABSTRACT_CLASS     ScopeKind = 1 << iota
-	SPK_TS_DECLARE         ScopeKind = 1 << iota
-	SPK_TS_MODULE          ScopeKind = 1 << iota
-	SPK_TS_MODULE_INDIRECT ScopeKind = 1 << iota
-	SPK_TS_INTERFACE       ScopeKind = 1 << iota
-	SPK_TS_MAY_INTRINSIC   ScopeKind = 1 << iota
+	SPK_NONE        ScopeKind = 0
+	SPK_LOOP_DIRECT ScopeKind = 1 << iota
+	SPK_LOOP_INDIRECT
+	SPK_SWITCH
+	SPK_STRICT
+	SPK_STRICT_DIR
+	SPK_CATCH
+	SPK_BLOCK
+	SPK_GLOBAL
+	SPK_INTERIM
+	SPK_FUNC
+	SPK_FUNC_INDIRECT
+	SPK_ARROW
+	SPK_ASYNC
+	SPK_GENERATOR
+	SPK_PAREN
+	SPK_CLASS
+	SPK_CLASS_INDIRECT
+	SPK_CLASS_EXTEND_SUPER
+	SPK_CLASS_HAS_SUPER
+	SPK_CTOR
+	SPK_LEXICAL_DEC
+	SPK_SHORTHAND_PROP
+	SPK_METHOD
+	SPK_NOT_IN
+	SPK_PROP_NAME
+	SPK_FORMAL_PARAMS
+	SPK_ABSTRACT_CLASS
+	SPK_TS_DECLARE
+	SPK_TS_MODULE
+	SPK_TS_MODULE_INDIRECT
+	SPK_TS_INTERFACE
+	SPK_TS_MAY_INTRINSIC
 )
 
 type BindKind uint8

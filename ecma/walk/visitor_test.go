@@ -32,7 +32,7 @@ func TestVisitor(t *testing.T) {
 	names := make([]string, 0)
 
 	ctx := NewWalkCtx(ast, symtab)
-	SetVisitor(&ctx.Visitors, VK_NAME, func(node parser.Node, key string, ctx *WalkCtx) {
+	SetVisitor(&ctx.Visitors, N_NAME, func(node parser.Node, key string, ctx *WalkCtx) {
 		n := node.(*parser.Ident)
 		names = append(names, n.Text())
 	})
@@ -51,7 +51,7 @@ function a() {
 	ctx := NewWalkCtx(ast, symtab)
 
 	fnScopeId := 0
-	SetVisitor(&ctx.Visitors, VK_STMT_BLOCK_BEFORE, func(node parser.Node, key string, ctx *WalkCtx) {
+	SetVisitor(&ctx.Visitors, N_STMT_BLOCK_BEFORE, func(node parser.Node, key string, ctx *WalkCtx) {
 		fnScopeId = ctx.ScopeId()
 	})
 
@@ -71,7 +71,7 @@ function a() {
 	ctx := NewWalkCtx(ast, symtab)
 
 	fnScopeId := 0
-	SetVisitor(&ctx.Visitors, VK_STMT_BLOCK_AFTER, func(node parser.Node, key string, ctx *WalkCtx) {
+	SetVisitor(&ctx.Visitors, N_STMT_BLOCK_AFTER, func(node parser.Node, key string, ctx *WalkCtx) {
 		if ctx.ScopeId() > fnScopeId {
 			fnScopeId = ctx.ScopeId()
 		}
@@ -93,7 +93,7 @@ func TestVisitorScopeBlock(t *testing.T) {
 	ctx := NewWalkCtx(ast, symtab)
 
 	fnScopeId := 0
-	SetVisitor(&ctx.Visitors, VK_STMT_BLOCK_BEFORE, func(node parser.Node, key string, ctx *WalkCtx) {
+	SetVisitor(&ctx.Visitors, N_STMT_BLOCK_BEFORE, func(node parser.Node, key string, ctx *WalkCtx) {
 		if ctx.ScopeId() > fnScopeId {
 			fnScopeId = ctx.ScopeId()
 		}
@@ -114,7 +114,7 @@ while(1) {
 	ctx := NewWalkCtx(ast, symtab)
 
 	fnScopeId := 0
-	SetVisitor(&ctx.Visitors, VK_STMT_BLOCK_BEFORE, func(node parser.Node, key string, ctx *WalkCtx) {
+	SetVisitor(&ctx.Visitors, N_STMT_BLOCK_BEFORE, func(node parser.Node, key string, ctx *WalkCtx) {
 		if ctx.ScopeId() > fnScopeId {
 			fnScopeId = ctx.ScopeId()
 		}
@@ -137,7 +137,7 @@ let a = () => {
 	ctx := NewWalkCtx(ast, symtab)
 
 	fnScopeId := 0
-	SetVisitor(&ctx.Visitors, VK_STMT_BLOCK_BEFORE, func(node parser.Node, key string, ctx *WalkCtx) {
+	SetVisitor(&ctx.Visitors, N_STMT_BLOCK_BEFORE, func(node parser.Node, key string, ctx *WalkCtx) {
 		if ctx.ScopeId() > fnScopeId {
 			fnScopeId = ctx.ScopeId()
 		}
@@ -163,7 +163,7 @@ function a() {
 	ctx := NewWalkCtx(ast, symtab)
 
 	fnScopeId := 0
-	SetVisitor(&ctx.Visitors, VK_STMT_BLOCK_BEFORE, func(node parser.Node, key string, ctx *WalkCtx) {
+	SetVisitor(&ctx.Visitors, N_STMT_BLOCK_BEFORE, func(node parser.Node, key string, ctx *WalkCtx) {
 		if ctx.ScopeId() > fnScopeId {
 			fnScopeId = ctx.ScopeId()
 		}
@@ -187,7 +187,7 @@ for(let a = 1;;){}
 	ctx := NewWalkCtx(ast, symtab)
 
 	fnScopeId := 0
-	SetVisitor(&ctx.Visitors, VK_STMT_BLOCK, func(node parser.Node, key string, ctx *WalkCtx) {
+	SetVisitor(&ctx.Visitors, N_STMT_BLOCK, func(node parser.Node, key string, ctx *WalkCtx) {
 		if ctx.ScopeId() > fnScopeId {
 			fnScopeId = ctx.ScopeId()
 		}
@@ -211,7 +211,7 @@ switch(1) {
 	ctx := NewWalkCtx(ast, symtab)
 
 	fnScopeId := 0
-	SetVisitor(&ctx.Visitors, VK_STMT_SWITCH_BEFORE, func(node parser.Node, key string, ctx *WalkCtx) {
+	SetVisitor(&ctx.Visitors, N_STMT_SWITCH_BEFORE, func(node parser.Node, key string, ctx *WalkCtx) {
 		if ctx.ScopeId() > fnScopeId {
 			fnScopeId = ctx.ScopeId()
 		}
@@ -235,7 +235,7 @@ switch(1) {
 	ctx := NewWalkCtx(ast, symtab)
 
 	fnScopeId := 0
-	SetVisitor(&ctx.Visitors, VK_STMT_BLOCK_BEFORE, func(node parser.Node, key string, ctx *WalkCtx) {
+	SetVisitor(&ctx.Visitors, N_STMT_BLOCK_BEFORE, func(node parser.Node, key string, ctx *WalkCtx) {
 		if ctx.ScopeId() > fnScopeId {
 			fnScopeId = ctx.ScopeId()
 		}
@@ -259,7 +259,7 @@ do {
 	ctx := NewWalkCtx(ast, symtab)
 
 	fnScopeId := 0
-	SetVisitor(&ctx.Visitors, VK_STMT_BLOCK_BEFORE, func(node parser.Node, key string, ctx *WalkCtx) {
+	SetVisitor(&ctx.Visitors, N_STMT_BLOCK_BEFORE, func(node parser.Node, key string, ctx *WalkCtx) {
 		if ctx.ScopeId() > fnScopeId {
 			fnScopeId = ctx.ScopeId()
 		}
@@ -286,7 +286,7 @@ try {
 	ctx := NewWalkCtx(ast, symtab)
 
 	fnScopeId := 0
-	SetVisitor(&ctx.Visitors, VK_STMT_BLOCK_BEFORE, func(node parser.Node, key string, ctx *WalkCtx) {
+	SetVisitor(&ctx.Visitors, N_STMT_BLOCK_BEFORE, func(node parser.Node, key string, ctx *WalkCtx) {
 		if ctx.ScopeId() > fnScopeId {
 			fnScopeId = ctx.ScopeId()
 		}
@@ -309,7 +309,7 @@ class A {}
 	ctx := NewWalkCtx(ast, symtab)
 
 	fnScopeId := 0
-	SetVisitor(&ctx.Visitors, VK_CLASS_BODY_BEFORE, func(node parser.Node, key string, ctx *WalkCtx) {
+	SetVisitor(&ctx.Visitors, N_CLASS_BODY_BEFORE, func(node parser.Node, key string, ctx *WalkCtx) {
 		if ctx.ScopeId() > fnScopeId {
 			fnScopeId = ctx.ScopeId()
 		}
@@ -332,7 +332,7 @@ class A {
 	ctx := NewWalkCtx(ast, symtab)
 
 	fnScopeId := 0
-	SetVisitor(&ctx.Visitors, VK_STMT_BLOCK_BEFORE, func(node parser.Node, key string, ctx *WalkCtx) {
+	SetVisitor(&ctx.Visitors, N_STMT_BLOCK_BEFORE, func(node parser.Node, key string, ctx *WalkCtx) {
 		if ctx.ScopeId() > fnScopeId {
 			fnScopeId = ctx.ScopeId()
 		}
@@ -355,14 +355,15 @@ do {
 	ctx := NewWalkCtx(ast, symtab)
 
 	fnScopeId := 0
-	AddListener(&ctx.Listeners, LK_STMT_BLOCK_BEFORE, func(node parser.Node, key string, ctx *WalkCtx) {
+	// also test `AddBeforeListener`
+	AddBeforeListener(&ctx.Listeners, func(node parser.Node, key string, ctx *WalkCtx) {
 		if ctx.ScopeId() > fnScopeId {
 			fnScopeId = ctx.ScopeId()
 		}
 	})
 
 	idName := ""
-	AddListener(&ctx.Listeners, LK_NAME, func(node parser.Node, key string, ctx *WalkCtx) {
+	AddListener(&ctx.Listeners, N_NAME, func(node parser.Node, key string, ctx *WalkCtx) {
 		idName = node.(*parser.Ident).Text()
 	})
 

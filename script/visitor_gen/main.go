@@ -47,12 +47,12 @@ func Visit{{ .Name }}(node parser.Node, key string, ctx *WalkCtx) {
         ctx.PushScope()
         defer ctx.PopScope()
 
-        CallVisitor(VK_{{ $.TypName | UnPrefix }}_BEFORE, n, key, ctx)
-        defer CallVisitor(VK_{{ $.TypName | UnPrefix }}_AFTER, n, key, ctx)
+        CallVisitor(N_{{ $.TypName | UnPrefix }}_BEFORE, n, key, ctx)
+        defer CallVisitor(N_{{ $.TypName | UnPrefix }}_AFTER, n, key, ctx)
       {{- else }}
         {{ if eq $key 0 }}
-          CallVisitor(VK_{{ $.TypName | UnPrefix }}_BEFORE, n, key, ctx)
-          defer CallVisitor(VK_{{ $.TypName | UnPrefix }}_AFTER, n, key, ctx)
+          CallVisitor(N_{{ $.TypName | UnPrefix }}_BEFORE, n, key, ctx)
+          defer CallVisitor(N_{{ $.TypName | UnPrefix }}_AFTER, n, key, ctx)
         {{- end }}
         {{ if .Nodes }}
           VisitNodes(n, n.{{ $value.Name }}(), "{{ $value.Name }}", ctx)
@@ -65,17 +65,17 @@ func Visit{{ .Name }}(node parser.Node, key string, ctx *WalkCtx) {
       {{- end }}
     {{- end }}
   {{- else}}
-    CallListener(LK_{{ $.TypName | UnPrefix }}, node, key, ctx)
+    CallListener(parser.N_{{ $.TypName | UnPrefix }}, node, key, ctx)
   {{- end }}
 }
 
 {{ if ge (len .Methods) 1 }}
 func Visit{{ .Name }}Before(node parser.Node, key string, ctx *WalkCtx) {
-  CallListener(LK_{{ $.TypName | UnPrefix }}_BEFORE, node, key, ctx)
+  CallListener(N_{{ $.TypName | UnPrefix }}_BEFORE, node, key, ctx)
 }
 
 func Visit{{ .Name }}After(node parser.Node, key string, ctx *WalkCtx) {
-  CallListener(LK_{{ $.TypName | UnPrefix }}_AFTER, node, key, ctx)
+  CallListener(N_{{ $.TypName | UnPrefix }}_AFTER, node, key, ctx)
 }
 {{- end}}
   `)
@@ -88,18 +88,36 @@ func Visit{{ .Name }}After(node parser.Node, key string, ctx *WalkCtx) {
 func genVisitors(output io.Writer, nodeTypStruct map[string]string, structColl map[string]*StructInfo) {
 	output.Write([]byte(`
 type Visitor = func(node parser.Node, key string, ctx *WalkCtx)
-type Visitors = [VK_DEF_END]Visitor
+type Visitors = [N_BEFORE_AFTER_DEF_END]Visitor
 
 // replace the default visitor with the specified one
-func SetVisitor(vs *Visitors, vk VisitorKind, impl Visitor) {
-  vs[vk] = impl
+func SetVisitor(vs *Visitors, t parser.NodeType, impl Visitor) {
+  vs[t] = impl
 }
 
 type Listener = func(node parser.Node, key string, ctx *WalkCtx)
-type Listeners = [LK_DEF_END][]Listener
+type Listeners = [N_BEFORE_AFTER_DEF_END][]Listener
 
-func AddListener(ls *Listeners, lk ListenerKind, impl Listener) {
-	ls[lk] = append(ls[lk], impl)
+func AddListener(ls *Listeners, t parser.NodeType, impl Listener) {
+	ls[t] = append(ls[t], impl)
+}
+
+func AddBeforeListener(ls *Listeners, impl Listener) {
+	for i := N_BEFORE_DEF_BEGIN + 1; i < N_BEFORE_DEF_END; i++ {
+		ls[i] = append(ls[i], impl)
+	}
+}
+
+func AddAfterListener(ls *Listeners, impl Listener) {
+	for i := N_AFTER_DEF_BEGIN + 1; i < N_AFTER_DEF_END; i++ {
+		ls[i] = append(ls[i], impl)
+	}
+}
+
+func AddAtomListener(ls *Listeners, impl Listener) {
+  for _, t:= range atomNodeTypes {
+    ls[t] = append(ls[t], impl)
+  }
 }
   `))
 
@@ -132,61 +150,40 @@ func genVisitorKinds(output io.Writer, nodeTypStruct map[string]string, structCo
 		"UnPrefix": unPrefix,
 	}
 	tpl, err := template.New("visitor types").Funcs(fnMap).Parse(`
-type VisitorKind uint16
-
 const (
-  VK_ILLEGAL VisitorKind = 0
-
   {{- range $key, $value := .NodeTypStruct }}
-    VK_{{- $key | UnPrefix | ToUpper }} = VisitorKind(parser.{{ $key }})
+    N_{{- $key | UnPrefix | ToUpper }} = parser.{{ $key }}
   {{- end }}
 )
 
 const (
-  VK_BEFORE_AFTER = VisitorKind(parser.N_NODE_DEF_END + iota)
+  N_BEFORE_AFTER_DEF_BEGIN = parser.NodeType(parser.N_NODE_DEF_END + iota)
+  N_BEFORE_DEF_BEGIN
   {{- range $key, $value := .NodeTypStruct }}
     {{- if ge (len (index $.StructColl $value).Methods) 1  }}
-      VK_{{ $key | UnPrefix | ToUpper }}_BEFORE
-      VK_{{ $key | UnPrefix | ToUpper }}_AFTER
+      N_{{ $key | UnPrefix | ToUpper }}_BEFORE
     {{- end }}
   {{- end }}
+  N_BEFORE_DEF_END
 
-  VK_DEF_END
+  N_AFTER_DEF_BEGIN
+  {{- range $key, $value := .NodeTypStruct }}
+    {{- if ge (len (index $.StructColl $value).Methods) 1  }}
+      N_{{ $key | UnPrefix | ToUpper }}_AFTER
+    {{- end }}
+  {{- end }}
+  N_AFTER_DEF_END
+
+  N_BEFORE_AFTER_DEF_END
 )
-  `)
-	if err != nil {
-		return err
-	}
-	return tpl.Execute(output, &TplParamsGenVisitorKinds{nodeTypStruct, structColl})
+
+var atomNodeTypes = []parser.NodeType{
+  {{- range $key, $value := .NodeTypStruct }}
+    {{- if eq (len (index $.StructColl $value).Methods) 0  }}
+      N_{{ $key | UnPrefix | ToUpper }},
+    {{- end }}
+  {{- end }}
 }
-
-func genListenerKinds(output io.Writer, nodeTypStruct map[string]string, structColl map[string]*StructInfo) error {
-	fnMap := template.FuncMap{
-		"ToUpper":  strings.ToUpper,
-		"UnPrefix": unPrefix,
-	}
-	tpl, err := template.New("visitor types").Funcs(fnMap).Parse(`
-type ListenerKind uint16
-
-const (
-  LK_ILLEGAL ListenerKind = 0
-
-  {{- range $key, $value := .NodeTypStruct }}
-  LK_{{- $key | UnPrefix | ToUpper }} = ListenerKind(parser.{{ $key }})
-  {{- end }}
-)
-
-const (
-  LK_BEFORE_AFTER = ListenerKind(parser.N_NODE_DEF_END + iota)
-  {{- range $key, $value := .NodeTypStruct }}
-    {{- if ge (len (index $.StructColl $value).Methods) 1  }}
-      LK_{{ $key | UnPrefix | ToUpper }}_BEFORE
-      LK_{{ $key | UnPrefix | ToUpper }}_AFTER
-    {{- end }}
-  {{- end }}
-
-  LK_DEF_END
-)
   `)
 	if err != nil {
 		return err
@@ -200,20 +197,20 @@ func genDefaultVisitors(output io.Writer, nodeTypStruct map[string]string, struc
 		"UnPrefix": unPrefix,
 	}
 	tpl, err := template.New("visitor types").Funcs(fnMap).Parse(`
-var DefaultVisitors Visitors = [VK_DEF_END]Visitor{}
-var DefaultListeners Listeners = [LK_DEF_END][]Listener{}
+var DefaultVisitors Visitors = [N_BEFORE_AFTER_DEF_END]Visitor{}
+var DefaultListeners Listeners = [N_BEFORE_AFTER_DEF_END][]Listener{}
 
 func init() {
   {{- range $key, $value := .NodeTypStruct }}
-    DefaultVisitors[VK_{{ $key | UnPrefix | ToUpper }}] = Visit{{ $value }}
+    DefaultVisitors[N_{{ $key | UnPrefix | ToUpper }}] = Visit{{ $value }}
     {{- if ge (len (index $.StructColl $value).Methods) 1  }}
-      DefaultVisitors[VK_{{ $key | UnPrefix | ToUpper }}_BEFORE] = Visit{{ $value }}Before
-      DefaultVisitors[VK_{{ $key | UnPrefix | ToUpper }}_AFTER] = Visit{{ $value }}After
+      DefaultVisitors[N_{{ $key | UnPrefix | ToUpper }}_BEFORE] = Visit{{ $value }}Before
+      DefaultVisitors[N_{{ $key | UnPrefix | ToUpper }}_AFTER] = Visit{{ $value }}After
     {{- end }}
   {{- end }}
 
   {{ range $key, $value := .NodeTypStruct }}
-    DefaultListeners[LK_{{ $key | UnPrefix | ToUpper }}] = []Listener{}
+    DefaultListeners[N_{{ $key | UnPrefix | ToUpper }}] = []Listener{}
   {{- end }}
 }
   `)
@@ -334,12 +331,6 @@ import "github.com/hsiaosiyuan0/mole/ecma/parser"
 
 	// genereate visitor kinds
 	err = genVisitorKinds(&buf, nodeTypStruct, structColl)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// generate listener kinds
-	err = genListenerKinds(&buf, nodeTypStruct, structColl)
 	if err != nil {
 		log.Fatal(err)
 	}

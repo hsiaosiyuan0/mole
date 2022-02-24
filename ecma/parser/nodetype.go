@@ -1,3 +1,5 @@
+//go:generate stringer -type=NodeType
+
 package parser
 
 type NodeType uint16

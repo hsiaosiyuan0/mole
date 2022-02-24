@@ -3,7 +3,9 @@
     "Annot",
     "autocrlf",
     "cmts",
+    "Consolas",
     "elems",
+    "Fira",
     "fset",
     "GOARCH",
     "GOFILE",
@@ -16,7 +18,8 @@
     "rvalue",
     "stdlib",
     "unparenthesized",
-    "valueof"
+    "valueof",
+    "xlabel"
   ],
   "gopls": {
     "build.env": {
