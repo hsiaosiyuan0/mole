@@ -171,3 +171,11 @@ const (
 
 	N_NODE_DEF_END
 )
+
+func (nt NodeType) IsExpr() bool {
+	return nt > N_EXPR_BEGIN && nt < N_EXPR_END
+}
+
+func (nt NodeType) IsStmt() bool {
+	return nt > N_STMT_BEGIN && nt < N_STMT_END
+}

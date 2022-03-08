@@ -43,6 +43,10 @@ func (c *WalkCtx) Scope() *parser.Scope {
 	return c.Symtab.Scopes[uint(c.ScopeId())]
 }
 
+func (c *WalkCtx) VisitorCtx() *VisitorCtx {
+	return c.vc
+}
+
 type CondNewScope interface {
 	NewScope() bool
 }
@@ -96,38 +100,74 @@ type VisitorCtx struct {
 	Node parser.Node // current node
 }
 
-func VisitNode(n parser.Node, key string, ctx *WalkCtx) {
+func (c *VisitorCtx) ScopeId() int {
+	return c.WalkCtx.ScopeId()
+}
+
+func (c *VisitorCtx) Scope() *parser.Scope {
+	return c.WalkCtx.Scope()
+}
+
+func (vc *VisitorCtx) ParentNode() parser.Node {
+	if vc.Parent != nil {
+		return vc.Parent.Node
+	}
+	return nil
+}
+
+func (vc *VisitorCtx) ParentNodeType() parser.NodeType {
+	if vc.Parent != nil {
+		return vc.Parent.Node.Type()
+	}
+	return parser.N_ILLEGAL
+}
+
+func (vc *VisitorCtx) ParentIsJmp(key string) bool {
+	pt := vc.ParentNodeType()
+	if pt == parser.N_EXPR_BIN {
+		pn := vc.Parent.Node.(*parser.BinExpr)
+		op := pn.Op()
+		return op == parser.T_AND || op == parser.T_OR
+	} else if pt == parser.N_STMT_IF && key == "Test" {
+		return true
+	}
+	return false
+}
+
+func VisitNode(n parser.Node, key string, ctx *VisitorCtx) {
 	if n == nil {
 		return
 	}
-	CallVisitor(n.Type(), n, key, ctx)
+	ctx.WalkCtx.PushVisitorCtx(n, key)
+	CallVisitor(n.Type(), n, key, ctx.WalkCtx.VisitorCtx())
+	ctx.WalkCtx.PopVisitorCtx()
 }
 
-func VisitNodes(n parser.Node, ns []parser.Node, key string, ctx *WalkCtx) {
+func VisitNodes(n parser.Node, ns []parser.Node, key string, ctx *VisitorCtx) {
 	for i, n := range ns {
 		VisitNode(n, fmt.Sprintf("%s[%d]", key, i), ctx)
-		if ctx.stop {
+		if ctx.WalkCtx.stop {
 			break
 		}
 	}
 }
 
-type VisitNodesCb = func(ctx *WalkCtx)
+type VisitNodesCb = func(ctx *VisitorCtx)
 
-func VisitNodesWithCb(n parser.Node, ns []parser.Node, key string, ctx *WalkCtx, cb VisitNodesCb) {
+func VisitNodesWithCb(n parser.Node, ns []parser.Node, key string, ctx *VisitorCtx, cb VisitNodesCb) {
 	for i, n := range ns {
 		VisitNode(n, fmt.Sprintf("%s[%d]", key, i), ctx)
 		cb(ctx)
-		if ctx.stop {
+		if ctx.WalkCtx.stop {
 			break
 		}
 	}
 }
 
-func CallVisitor(t parser.NodeType, n parser.Node, key string, ctx *WalkCtx) {
-	fn := ctx.Visitors[t]
+func CallVisitor(t parser.NodeType, n parser.Node, key string, ctx *VisitorCtx) {
+	fn := ctx.WalkCtx.Visitors[t]
 	if fn == nil {
-		if ctx.RaiseNoImpl {
+		if ctx.WalkCtx.RaiseNoImpl {
 			log.Fatalf("Missing visitor Impl for NodeType %d with Kind %d", n.Type(), t)
 		}
 		return
@@ -135,11 +175,11 @@ func CallVisitor(t parser.NodeType, n parser.Node, key string, ctx *WalkCtx) {
 	fn(n, key, ctx)
 }
 
-func CallListener(t parser.NodeType, n parser.Node, key string, ctx *WalkCtx) {
-	fns := ctx.Listeners[t]
+func CallListener(t parser.NodeType, n parser.Node, key string, ctx *VisitorCtx) {
+	fns := ctx.WalkCtx.Listeners[t]
 	for _, fn := range fns {
 		fn(n, key, ctx)
-		if ctx.stop {
+		if ctx.WalkCtx.stop {
 			break
 		}
 	}

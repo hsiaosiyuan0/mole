@@ -36,16 +36,14 @@ func genVisitor(output io.Writer, s *StructInfo) error {
 		"UnPrefix": unPrefix,
 	}
 	tpl, err := template.New(name).Funcs(fnMap).Parse(`
-func Visit{{ .Name }}(node parser.Node, key string, ctx *WalkCtx) {
+func Visit{{ .Name }}(node parser.Node, key string, ctx *VisitorCtx) {
   {{- if ge (len .Methods) 1 }}
     n := node.(*parser.{{ .Name }})
-    ctx.PushVisitorCtx(n, key)
-    defer ctx.PopVisitorCtx()
 
     {{- range $key, $value := .Methods }}
       {{ if eq $value.Name "PUSH_SCOPE" }}
-        ctx.PushScope()
-        defer ctx.PopScope()
+        ctx.WalkCtx.PushScope()
+        defer ctx.WalkCtx.PopScope()
 
         CallVisitor(N_{{ $.TypName | UnPrefix }}_BEFORE, n, key, ctx)
         defer CallVisitor(N_{{ $.TypName | UnPrefix }}_AFTER, n, key, ctx)
@@ -59,22 +57,23 @@ func Visit{{ .Name }}(node parser.Node, key string, ctx *WalkCtx) {
         {{- else }}
           VisitNode(n.{{ $value.Name }}(), "{{ $value.Name }}", ctx)
         {{- end }}
-        if ctx.stop {
+        if ctx.WalkCtx.Stopped() {
           return
         }
       {{- end }}
     {{- end }}
   {{- else}}
-    CallListener(parser.N_{{ $.TypName | UnPrefix }}, node, key, ctx)
+    CallListener(N_{{ $.TypName | UnPrefix }}_BEFORE, node, key, ctx)
+    CallListener(N_{{ $.TypName | UnPrefix }}_AFTER, node, key, ctx)
   {{- end }}
 }
 
 {{ if ge (len .Methods) 1 }}
-func Visit{{ .Name }}Before(node parser.Node, key string, ctx *WalkCtx) {
+func Visit{{ .Name }}Before(node parser.Node, key string, ctx *VisitorCtx) {
   CallListener(N_{{ $.TypName | UnPrefix }}_BEFORE, node, key, ctx)
 }
 
-func Visit{{ .Name }}After(node parser.Node, key string, ctx *WalkCtx) {
+func Visit{{ .Name }}After(node parser.Node, key string, ctx *VisitorCtx) {
   CallListener(N_{{ $.TypName | UnPrefix }}_AFTER, node, key, ctx)
 }
 {{- end}}
@@ -87,7 +86,7 @@ func Visit{{ .Name }}After(node parser.Node, key string, ctx *WalkCtx) {
 
 func genVisitors(output io.Writer, nodeTypStruct map[string]string, structColl map[string]*StructInfo) {
 	output.Write([]byte(`
-type Visitor = func(node parser.Node, key string, ctx *WalkCtx)
+type Visitor = func(node parser.Node, key string, ctx *VisitorCtx)
 type Visitors = [N_BEFORE_AFTER_DEF_END]Visitor
 
 // replace the default visitor with the specified one
@@ -95,29 +94,46 @@ func SetVisitor(vs *Visitors, t parser.NodeType, impl Visitor) {
   vs[t] = impl
 }
 
-type Listener = func(node parser.Node, key string, ctx *WalkCtx)
+type Listener = func(node parser.Node, key string, ctx *VisitorCtx)
 type Listeners = [N_BEFORE_AFTER_DEF_END][]Listener
 
 func AddListener(ls *Listeners, t parser.NodeType, impl Listener) {
 	ls[t] = append(ls[t], impl)
 }
 
+func NodeBeforeEvent(t parser.NodeType) parser.NodeType  {
+  return N_BEFORE_AFTER_DEF_BEGIN + (parser.N_NODE_DEF_END - t) * 2 - 1
+}
+
+func NodeAfterEvent(t parser.NodeType) parser.NodeType  {
+  return N_BEFORE_AFTER_DEF_BEGIN + (parser.N_NODE_DEF_END - t) * 2
+}
+
+func AddNodeBeforeListener(ls *Listeners, t parser.NodeType, impl Listener) {
+	AddListener(ls, NodeBeforeEvent(t),impl)
+}
+
+func AddNodeAfterListener(ls *Listeners, t parser.NodeType, impl Listener) {
+	AddListener(ls, NodeAfterEvent(t),impl)
+}
+
+
 func AddBeforeListener(ls *Listeners, impl Listener) {
-	for i := N_BEFORE_DEF_BEGIN + 1; i < N_BEFORE_DEF_END; i++ {
-		ls[i] = append(ls[i], impl)
+	for t := range NodeTypes {
+		AddNodeBeforeListener(ls, t, impl)
 	}
 }
 
 func AddAfterListener(ls *Listeners, impl Listener) {
-	for i := N_AFTER_DEF_BEGIN + 1; i < N_AFTER_DEF_END; i++ {
-		ls[i] = append(ls[i], impl)
+	for t := range NodeTypes {
+		AddNodeAfterListener(ls, t, impl)
 	}
 }
 
 func AddAtomListener(ls *Listeners, impl Listener) {
-  for _, t:= range atomNodeTypes {
-    ls[t] = append(ls[t], impl)
-  }
+	for t := range AtomNodeTypes {
+		ls[t] = append(ls[t], impl)
+	}
 }
   `))
 
@@ -158,30 +174,38 @@ const (
 
 const (
   N_BEFORE_AFTER_DEF_BEGIN = parser.NodeType(parser.N_NODE_DEF_END + iota)
-  N_BEFORE_DEF_BEGIN
-  {{- range $key, $value := .NodeTypStruct }}
-    {{- if ge (len (index $.StructColl $value).Methods) 1  }}
-      N_{{ $key | UnPrefix | ToUpper }}_BEFORE
-    {{- end }}
-  {{- end }}
-  N_BEFORE_DEF_END
 
-  N_AFTER_DEF_BEGIN
   {{- range $key, $value := .NodeTypStruct }}
-    {{- if ge (len (index $.StructColl $value).Methods) 1  }}
-      N_{{ $key | UnPrefix | ToUpper }}_AFTER
-    {{- end }}
+    N_{{ $key | UnPrefix | ToUpper }}_BEFORE = N_BEFORE_AFTER_DEF_BEGIN + (parser.N_NODE_DEF_END - N_{{ $key | UnPrefix | ToUpper }}) * 2 - 1
+    N_{{ $key | UnPrefix | ToUpper }}_AFTER =  N_BEFORE_AFTER_DEF_BEGIN + (parser.N_NODE_DEF_END - N_{{ $key | UnPrefix | ToUpper }}) * 2
   {{- end }}
-  N_AFTER_DEF_END
 
-  N_BEFORE_AFTER_DEF_END
+  N_BEFORE_AFTER_DEF_END = N_BEFORE_AFTER_DEF_BEGIN + parser.N_NODE_DEF_END * 2
 )
 
-var atomNodeTypes = []parser.NodeType{
+var AtomNodeTypes = map[parser.NodeType]bool{
   {{- range $key, $value := .NodeTypStruct }}
     {{- if eq (len (index $.StructColl $value).Methods) 0  }}
-      N_{{ $key | UnPrefix | ToUpper }},
+      N_{{ $key | UnPrefix | ToUpper }}: true,
     {{- end }}
+  {{- end }}
+}
+
+var NodeTypes = map[parser.NodeType]bool{
+  {{- range $key, $value := .NodeTypStruct }}
+    N_{{ $key | UnPrefix | ToUpper }}: true,
+  {{- end }}
+}
+
+var NodeBeforeEvents = map[parser.NodeType]bool {
+  {{- range $key, $value := .NodeTypStruct }}
+    N_BEFORE_AFTER_DEF_BEGIN + (parser.N_NODE_DEF_END - N_{{ $key | UnPrefix | ToUpper }}) * 2 - 1: true,
+  {{- end }}
+}
+
+var NodeAfterEvents = map[parser.NodeType]bool {
+  {{- range $key, $value := .NodeTypStruct }}
+    N_BEFORE_AFTER_DEF_BEGIN + (parser.N_NODE_DEF_END - N_{{ $key | UnPrefix | ToUpper }}) * 2: true,
   {{- end }}
 }
   `)
