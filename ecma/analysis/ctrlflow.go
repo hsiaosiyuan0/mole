@@ -553,7 +553,7 @@ func (a *Analysis) init() {
 			enter := ac.newEnter(node, "")
 			if pAstTyp == parser.N_STMT_IF || pAstTyp == parser.N_STMT_FOR ||
 				pAstTyp == parser.N_STMT_WHILE || pAstTyp == parser.N_STMT_DO_WHILE {
-				// without connect to the prevStmt to imitate a new branch
+				// just push without connectting to the `prevStmt` to imitate a new branch
 				ac.pushStmt(enter)
 			} else {
 				prev := ac.popStmt()

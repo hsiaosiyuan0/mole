@@ -7,6 +7,10 @@ import (
 	"github.com/hsiaosiyuan0/mole/ecma/parser"
 )
 
+func TestFixture_core(t *testing.T) {
+	RunFixtures(t, "core", parser.NewParserOpts())
+}
+
 func TestFixture_es2015(t *testing.T) {
 	RunFixtures(t, "es2015", parser.NewParserOpts())
 }

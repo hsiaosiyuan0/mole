@@ -2374,3 +2374,22 @@ func TestFail306(t *testing.T) {
 	opts.Feature = opts.Feature.Off(FEAT_BAD_ESCAPE_IN_TAGGED_TPL)
 	testFail(t, "foo`\\xylophone`", "Bad character escape sequence at (1:4)", opts)
 }
+
+// cover some labeled statements
+func TestFail307(t *testing.T) {
+	opts := NewParserOpts()
+	opts.Feature = opts.Feature.Off(FEAT_BAD_ESCAPE_IN_TAGGED_TPL)
+	testFail(t, "LabelA: let a = 0", "Unexpected token `let` at (1:8)", opts)
+}
+
+func TestFail308(t *testing.T) {
+	opts := NewParserOpts()
+	opts.Feature = opts.Feature.Off(FEAT_BAD_ESCAPE_IN_TAGGED_TPL)
+	testFail(t, `
+LabelA: a = 1
+
+for (;;) {
+  continue LabelA;
+}
+`, "Undefined label `LabelA` at (5:11)", opts)
+}
