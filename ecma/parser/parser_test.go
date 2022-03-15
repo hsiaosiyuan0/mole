@@ -2393,3 +2393,25 @@ for (;;) {
 }
 `, "Undefined label `LabelA` at (5:11)", opts)
 }
+
+func TestFail309(t *testing.T) {
+	opts := NewParserOpts()
+	opts.Feature = opts.Feature.Off(FEAT_BAD_ESCAPE_IN_TAGGED_TPL)
+	testFail(t, `
+LabelA: LabelB: for (;;) {
+  LabelA: b = 1;
+  break LabelA;
+}
+`, "Label `LabelA` already declared at (3:2)", opts)
+}
+
+func TestFail310(t *testing.T) {
+	opts := NewParserOpts()
+	opts.Feature = opts.Feature.Off(FEAT_BAD_ESCAPE_IN_TAGGED_TPL)
+	testFail(t, `
+LabelA: LabelB: for (;;) {
+  LabelB: b = 1;
+  break LabelA;
+}
+`, "Label `LabelB` already declared at (3:2)", opts)
+}

@@ -1949,13 +1949,18 @@ func (n *BrkStmt) Loc() *Loc {
 
 // #[visitor(Label)]
 type ContStmt struct {
-	typ   NodeType
-	loc   *Loc
-	label Node
+	typ    NodeType
+	loc    *Loc
+	label  Node
+	target Node
 }
 
 func (n *ContStmt) Label() Node {
 	return n.label
+}
+
+func (n *ContStmt) Target() Node {
+	return n.target
 }
 
 func (n *ContStmt) Type() NodeType {

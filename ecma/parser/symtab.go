@@ -132,7 +132,7 @@ type Scope struct {
 	Down []*Scope
 
 	// label should be unique in its label chain
-	uniqueLabels map[string]int
+	uniqueLabels map[string]Node
 	// labels can be redefined in their defined scope
 	// so slice type used here
 	Labels []Node
@@ -150,7 +150,7 @@ func NewScope() *Scope {
 		Id:   0,
 		Down: make([]*Scope, 0),
 
-		uniqueLabels: make(map[string]int),
+		uniqueLabels: make(map[string]Node),
 		Labels:       make([]Node, 0),
 
 		Refs: make(map[string]*Ref),
@@ -424,6 +424,10 @@ func (s *Scope) HasLabel(name string) bool {
 	return ok
 }
 
+func (s *Scope) GetLabel(name string) Node {
+	return s.uniqueLabels[name]
+}
+
 type SymTab struct {
 	Externals []string
 	Scopes    map[uint]*Scope
@@ -460,8 +464,8 @@ func (s *SymTab) EnterScope(fn bool, arrow bool, settled bool) *Scope {
 		scope.Kind = SPK_FUNC
 	} else {
 		// inherit labels from parent scope
-		for k := range s.Cur.uniqueLabels {
-			scope.uniqueLabels[k] = 1
+		for k, v := range s.Cur.uniqueLabels {
+			scope.uniqueLabels[k] = v
 		}
 		scope.Kind = SPK_BLOCK
 	}

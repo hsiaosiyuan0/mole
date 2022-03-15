@@ -17,6 +17,7 @@ const (
 	EK_JMP_FALSE
 	EK_JMP_TRUE
 	EK_LOOP
+	EK_UNREACHABLE
 )
 
 func (k EdgeKind) String() string {
@@ -33,6 +34,9 @@ func (k EdgeKind) String() string {
 }
 
 func (k EdgeKind) DotColor() string {
+	if k&EK_UNREACHABLE != 0 {
+		return "red"
+	}
 	if k&EK_JMP_TRUE != 0 || k&EK_JMP_FALSE != 0 || k&EK_LOOP != 0 {
 		return "orange"
 	}
@@ -145,10 +149,13 @@ type Node struct {
 	Out      []*Edge
 }
 
-func IdOfAstNode(node parser.Node) string {
+func IdOfAstNode(node parser.Node) uint64 {
 	pos := node.Loc().Begin()
-	i := uint64(pos.Line())<<32 | uint64(pos.Column())
-	return strconv.FormatUint(i, 10)
+	return uint64(pos.Line())<<32 | uint64(pos.Column())
+}
+
+func IdStrOfAstNode(node parser.Node) string {
+	return strconv.FormatUint(IdOfAstNode(node), 10)
 }
 
 func (n *Node) Id() string {
@@ -158,7 +165,7 @@ func (n *Node) Id() string {
 	if len(n.AstNodes) == 0 {
 		return ""
 	}
-	n.id = IdOfAstNode(n.AstNodes[0])
+	n.id = IdStrOfAstNode(n.AstNodes[0])
 	return n.id
 }
 
@@ -243,13 +250,28 @@ func (n *Node) newLoopIn() {
 	seq := n.seqInEdge()
 	edge := &Edge{EK_LOOP, nil, seq.Dst}
 	seq.Dst.In = append(seq.Dst.In, edge)
+	// for n is virtual
 	if seq.Dst != n {
 		n.In = append(n.In, edge)
 	}
 }
 
+func (n *Node) newLoopOut() {
+	seq := n.seqOutEdge()
+	edge := &Edge{EK_LOOP, seq.Src, nil}
+	seq.Src.Out = append(seq.Src.Out, edge)
+	// for n is virtual
+	if seq.Src != n {
+		n.Out = append(n.Out, edge)
+	}
+}
+
 func (n *Node) mrkSeqOutAsLoop() {
-	n.seqOutEdge().Kind = EK_LOOP
+	n.seqOutEdge().Kind |= EK_LOOP
+}
+
+func (n *Node) mrkSeqOutAsUnreachable() {
+	n.seqOutEdge().Kind |= EK_UNREACHABLE
 }
 
 type Graph struct {
@@ -257,11 +279,15 @@ type Graph struct {
 	Head   *Node
 	Parent *Graph
 	Subs   []*Graph
+
+	// collect the heads of the loops, key is calculated via `IdOfAstNode`
+	// LabeledLoops map[string]*Node
 }
 
 func newGraph() *Graph {
 	g := &Graph{
 		Subs: make([]*Graph, 0),
+		// LabeledLoops: map[string]*Node{},
 	}
 	g.Head = g.newNode()
 	return g
@@ -351,31 +377,43 @@ final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height
 }
 
 type AnalysisCtx struct {
-	graph     *Graph
+	graph *Graph
+
 	stmtStack []*Node
 	exprStack []*Node
+
+	// map astNode to its basic block
+	astNodeInBlock map[uint64]*Node
 }
 
 func newAnalysisCtx() *AnalysisCtx {
 	a := &AnalysisCtx{
-		graph:     newGraph(),
-		stmtStack: make([]*Node, 0),
-		exprStack: make([]*Node, 0),
+		graph:          newGraph(),
+		stmtStack:      make([]*Node, 0),
+		exprStack:      make([]*Node, 0),
+		astNodeInBlock: map[uint64]*Node{},
 	}
 	a.stmtStack = append(a.stmtStack, a.graph.Head)
 	return a
 }
 
-func (a *AnalysisCtx) enterGraph() {
-	s := newGraph()
-	// s.nId = newIdGen(a.graph.Id + "_")
-	s.Parent = a.graph
-	a.graph.Subs = append(a.graph.Subs, s)
-	a.graph = s
+// func (a *AnalysisCtx) enterGraph() {
+// 	s := newGraph()
+// 	s.Parent = a.graph
+// 	a.graph.Subs = append(a.graph.Subs, s)
+// 	a.graph = s
+// }
+
+// func (a *AnalysisCtx) leaveGraph() {
+// 	a.graph = a.graph.Parent
+// }
+
+func (a *AnalysisCtx) lastExpr() *Node {
+	return a.exprStack[len(a.exprStack)-1]
 }
 
-func (a *AnalysisCtx) leaveGraph() {
-	a.graph = a.graph.Parent
+func (a *AnalysisCtx) lastStmt() *Node {
+	return a.stmtStack[len(a.stmtStack)-1]
 }
 
 func (a *AnalysisCtx) newEnter(astNode parser.Node, info string) *Node {
@@ -392,6 +430,7 @@ func (a *AnalysisCtx) newExit(astNode parser.Node, info string) *Node {
 
 func (a *AnalysisCtx) pushStmt(n *Node) {
 	a.stmtStack = append(a.stmtStack, n)
+	// a.setAstNodeMapInBasicBlk(n)
 }
 
 func (a *AnalysisCtx) popStmt() *Node {
@@ -401,11 +440,16 @@ func (a *AnalysisCtx) popStmt() *Node {
 	}
 	last, rest := a.stmtStack[cnt-1], a.stmtStack[:cnt-1]
 	a.stmtStack = rest
+	// a.delAstNodeMapInBasicBlk(last)
 	return last
 }
 
 func (a *AnalysisCtx) pushExpr(n *Node) {
 	a.exprStack = append(a.exprStack, n)
+	// for _, astNode := range n.AstNodes {
+	// 	a.setAstNodeMap(astNode, n)
+	// }
+	// a.setAstNodeMapInBasicBlk(n)
 }
 
 func (a *AnalysisCtx) popExpr() *Node {
@@ -415,7 +459,32 @@ func (a *AnalysisCtx) popExpr() *Node {
 	}
 	last, rest := a.exprStack[cnt-1], a.exprStack[:cnt-1]
 	a.exprStack = rest
+	// a.delAstNodeMapInBasicBlk(last)
 	return last
+}
+
+// func (a *AnalysisCtx) setAstNodeMap(astNode parser.Node, basicBlk *Node) {
+// 	a.astNodeInBlock[IdOfAstNode(astNode)] = basicBlk
+// }
+
+// func (a *AnalysisCtx) delAstNodeMap(astNode parser.Node) {
+// 	delete(a.astNodeInBlock, IdOfAstNode(astNode))
+// }
+
+func (a *AnalysisCtx) setAstNodeMapInBasicBlk(basicBlk *Node) {
+	for _, astNode := range basicBlk.AstNodes {
+		a.astNodeInBlock[IdOfAstNode(astNode)] = basicBlk
+	}
+}
+
+func (a *AnalysisCtx) delAstNodeMapInBasicBlk(basicBlk *Node) {
+	for _, astNode := range basicBlk.AstNodes {
+		delete(a.astNodeInBlock, IdOfAstNode(astNode))
+	}
+}
+
+func (a *AnalysisCtx) basicBlkOfAstNode(astNode parser.Node) *Node {
+	return a.astNodeInBlock[IdOfAstNode(astNode)]
 }
 
 type Subgraph struct {
@@ -440,13 +509,13 @@ func (a *Analysis) Graph() *Graph {
 	return analysisCtx(a.WalkCtx.VisitorCtx()).graph
 }
 
-func enterFn(node parser.Node, key string, ctx *walk.WalkCtx) {
-	ctx.Extra.(*AnalysisCtx).enterGraph()
-}
+// func enterFn(node parser.Node, key string, ctx *walk.WalkCtx) {
+// 	ctx.Extra.(*AnalysisCtx).enterGraph()
+// }
 
-func leaveFn(node parser.Node, key string, ctx *walk.WalkCtx) {
-	ctx.Extra.(*AnalysisCtx).leaveGraph()
-}
+// func leaveFn(node parser.Node, key string, ctx *walk.WalkCtx) {
+// 	ctx.Extra.(*AnalysisCtx).leaveGraph()
+// }
 
 func link(a *AnalysisCtx, from *Node, kind EdgeKind, to *Node, override bool) {
 	if from == nil || to == nil {
@@ -467,7 +536,11 @@ func link(a *AnalysisCtx, from *Node, kind EdgeKind, to *Node, override bool) {
 		return
 	}
 
-	if kind == EK_SEQ && len(to.AstNodes) == 1 {
+	// this branch used to handle the connection between the tail of the node with the exit of the
+	// node(sometimes used to debug), the tail of the node often has multiple outlets, the connection
+	// is seq, the dest node has to be merged into the source node of the connection if the dest has
+	// only one inlet as well as there is only one astNode in that dest node
+	if kind == EK_SEQ && len(to.In) == 1 && len(to.AstNodes) == 1 {
 		from = from.seqOutEdge().Src
 		from.AstNodes = append(from.AstNodes, dst.AstNodes...)
 		from.Out = dst.Out
@@ -483,8 +556,15 @@ func link(a *AnalysisCtx, from *Node, kind EdgeKind, to *Node, override bool) {
 				edge.Kind |= EK_LOOP
 			}
 			edge.Dst = dst
+
+			if edge.Kind&EK_UNREACHABLE != 0 {
+				for _, edge := range dst.Out {
+					edge.Kind |= EK_UNREACHABLE
+				}
+			}
 		}
 	}
+
 	for _, edge := range dst.In {
 		if edge.Src == nil {
 			edge.Src = from
@@ -508,7 +588,7 @@ func vnode(a *AnalysisCtx, from *Node, to *Node) *Node {
 	return vn
 }
 
-func atomNode(node parser.Node, key string, ctx *walk.VisitorCtx) {
+func pushAtomNode(node parser.Node, key string, ctx *walk.VisitorCtx) {
 	ac := analysisCtx(ctx)
 	n := ac.graph.newNode()
 	n.AstNodes = append(n.AstNodes, node)
@@ -532,6 +612,10 @@ func atomNode(node parser.Node, key string, ctx *walk.VisitorCtx) {
 // - [ ] return
 // - [ ] callExpr
 
+func isLoopTyp(t parser.NodeType) bool {
+	return t == parser.N_STMT_FOR || t == parser.N_STMT_WHILE || t == parser.N_STMT_DO_WHILE
+}
+
 func isAtom(t parser.NodeType) bool {
 	_, ok := walk.AtomNodeTypes[t]
 	return ok
@@ -543,16 +627,17 @@ func (a *Analysis) init() {
 	walk.AddBeforeListener(&a.WalkCtx.Listeners, func(node parser.Node, key string, ctx *walk.VisitorCtx) {
 		ac := analysisCtx(ctx)
 
-		if isAtom(node.Type()) {
-			atomNode(node, key, ctx)
-		}
-
 		astTyp := node.Type()
 		pAstTyp := ctx.ParentNodeType()
+
+		if isAtom(astTyp) && pAstTyp != parser.N_STMT_LABEL {
+			pushAtomNode(node, key, ctx)
+		}
+
 		if astTyp.IsStmt() || astTyp == parser.N_PROG {
 			enter := ac.newEnter(node, "")
-			if pAstTyp == parser.N_STMT_IF || pAstTyp == parser.N_STMT_FOR ||
-				pAstTyp == parser.N_STMT_WHILE || pAstTyp == parser.N_STMT_DO_WHILE {
+
+			if pAstTyp == parser.N_STMT_IF || pAstTyp == parser.N_STMT_LABEL || isLoopTyp(pAstTyp) {
 				// just push without connectting to the `prevStmt` to imitate a new branch
 				ac.pushStmt(enter)
 			} else {
@@ -560,6 +645,24 @@ func (a *Analysis) init() {
 				link(ac, prev, EK_NONE, enter, false)
 				ac.pushStmt(vnode(ac, prev, enter))
 			}
+
+			// }
+			// if isLoopTyp(astTyp) {
+			// 	if pAstTyp == parser.N_STMT_LABEL {
+			// 		enter.newLoopIn()
+			// 	}
+
+			// 	// record the loops, key is the id of their parent label node
+			// 	c := ctx
+			// 	pn := c.ParentNode()
+			// 	for pn != nil && pn.Type() == parser.N_STMT_LABEL {
+			// 		ac.astNodeInBlock[IdOfAstNode(pn)] = enter
+			// 		c = c.Parent
+			// 		if c == nil {
+			// 			break
+			// 		}
+			// 		pn = c.Node
+			// 	}
 		} else if (astTyp.IsExpr() || astTyp == parser.N_VAR_DEC) && !isAtom(astTyp) {
 			ac.pushExpr(ac.newEnter(node, ""))
 		}
@@ -576,7 +679,7 @@ func (a *Analysis) init() {
 
 			rhs := ac.popExpr()
 			exit := ac.newExit(node, "")
-			link(ac, rhs, EK_NONE, exit, false)
+			link(ac, rhs, EK_SEQ, exit, false)
 			rhs = vnode(ac, rhs, exit)
 
 			lhs := ac.popExpr()
@@ -761,7 +864,7 @@ func (a *Analysis) init() {
 
 			test.newJmp(EK_JMP_FALSE)
 			test.newLoopIn()
-			link(ac, enter, EK_NONE, test, false)
+			link(ac, enter, EK_SEQ, test, false)
 
 			link(ac, test, EK_SEQ, body, false)
 			link(ac, test, EK_JMP_TRUE, body, false)
@@ -804,14 +907,80 @@ func (a *Analysis) init() {
 			link(ac, vn, EK_NONE, exit, false)
 			ac.pushStmt(vnode(ac, vn, exit))
 
+		case parser.N_STMT_LABEL:
+			body := ac.popStmt()
+			enter := ac.popStmt()
+
+			link(ac, enter, EK_NONE, body, false)
+
+			exit := ac.newExit(node, "")
+			link(ac, body, EK_NONE, exit, false)
+
+			ac.pushStmt(vnode(ac, enter, exit))
+
+		case parser.N_STMT_CONT:
+			prev := ac.popStmt()
+
+			n := node.(*parser.ContStmt)
+			var target *Node
+			if n.Label() != nil {
+				// graph does not need to include label name
+				ac.popExpr()
+				target = ac.basicBlkOfAstNode(n.Target())
+			}
+
+			exit := ac.newExit(node, "")
+			link(ac, prev, EK_NONE, exit, false)
+
+			exit.newLoopOut()
+			link(ac, exit, EK_LOOP, target, false)
+
+			vn := vnode(ac, prev, exit)
+			vn.mrkSeqOutAsUnreachable()
+			ac.pushStmt(vn)
+
 		case parser.N_PROG, parser.N_STMT_BLOCK:
 			prev := ac.popStmt()
 			exit := ac.newExit(node, "")
 			link(ac, prev, EK_NONE, exit, false)
 			ac.pushStmt(vnode(ac, prev, exit))
+
+		default:
+			if !isAtom(astTyp) {
+				prev := ac.popStmt()
+				exit := ac.newExit(node, "")
+				link(ac, prev, EK_NONE, exit, false)
+				ac.pushStmt(vnode(ac, prev, exit))
+			}
+		}
+
+		if astTyp.IsExpr() {
+			if pAstTyp == parser.N_STMT_WHILE && key == "Test" {
+				// record the loops, key is the id of their parent label node
+				mapUpperLabelToBlkBlock(ctx.Parent, ac, ac.lastExpr())
+			} else if pAstTyp == parser.N_STMT_FOR && key == "Init" {
+				mapUpperLabelToBlkBlock(ctx.Parent, ac, ac.lastExpr())
+			} else if pAstTyp == parser.N_STMT_DO_WHILE && key == "Body" {
+				mapUpperLabelToBlkBlock(ctx.Parent, ac, ac.lastStmt())
+			}
+			// TODO: for_in
 		}
 	})
+}
 
+func mapUpperLabelToBlkBlock(c *walk.VisitorCtx, ac *AnalysisCtx, blkBlock *Node) {
+	if c == nil {
+		return
+	}
+	pn := c.ParentNode()
+	for pn != nil && pn.Type() == parser.N_STMT_LABEL {
+		ac.astNodeInBlock[IdOfAstNode(pn)] = blkBlock
+		c = c.Parent
+		if c == nil {
+			break
+		}
+		pn = c.Node
+	}
 }
 
 func analysisCtx(ctx *walk.VisitorCtx) *AnalysisCtx {

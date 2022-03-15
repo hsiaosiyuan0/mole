@@ -1825,7 +1825,7 @@ func (p *Parser) labelStmt() (Node, error) {
 	}
 
 	node := &LabelStmt{N_STMT_LABEL, nil, label, nil}
-	scope.uniqueLabels[labelName] = 1
+	scope.uniqueLabels[labelName] = node
 	scope.Labels = append(scope.Labels, node)
 
 	scope.AddKind(SPK_INTERIM)
@@ -1838,7 +1838,7 @@ func (p *Parser) labelStmt() (Node, error) {
 	node.loc = p.finLoc(loc)
 	node.body = body
 	// reset to check next label chain
-	scope.uniqueLabels = make(map[string]int)
+	scope.uniqueLabels = make(map[string]Node)
 	return node, nil
 }
 
@@ -1894,11 +1894,13 @@ func (p *Parser) contStmt() (Node, error) {
 			return nil, err
 		}
 
-		if !p.scope().HasLabel(label.Text()) {
+		ln := label.Text()
+		target := p.scope().GetLabel(ln)
+		if target == nil {
 			return nil, p.errorAtLoc(label.loc, fmt.Sprintf(ERR_UNDEF_LABEL, label.Text()))
 		}
 
-		return &ContStmt{N_STMT_CONT, p.finLoc(loc), label}, nil
+		return &ContStmt{N_STMT_CONT, p.finLoc(loc), label, target}, nil
 	}
 
 	if err := p.advanceIfSemi(true); err != nil {
@@ -1909,7 +1911,7 @@ func (p *Parser) contStmt() (Node, error) {
 	if !scope.IsKind(SPK_LOOP_DIRECT) && !scope.IsKind(SPK_LOOP_INDIRECT) {
 		return nil, p.errorAtLoc(loc, ERR_ILLEGAL_CONTINUE)
 	}
-	return &ContStmt{N_STMT_CONT, p.finLoc(loc), nil}, nil
+	return &ContStmt{N_STMT_CONT, p.finLoc(loc), nil, nil}, nil
 }
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-statements-and-declarations.html#prod-SwitchStatement
