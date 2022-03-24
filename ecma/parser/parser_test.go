@@ -960,10 +960,47 @@ LabelA: for (;;) {
 	AssertEqual(t, true, ast.(*Prog).stmts[0].(*LabelStmt).Used(), "should be meta")
 }
 
+func TestLabelledUsageCont(t *testing.T) {
+	ast, err := compile(`
+LabelA: for (;;) {
+  for (;;) {
+    continue LabelA;
+  }
+}
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+	AssertEqual(t, true, ast.(*Prog).stmts[0].(*LabelStmt).Used(), "should be meta")
+}
+
+func TestLabelledUsageContNested(t *testing.T) {
+	ast, err := compile(`
+LabelA: for (;;) {
+  LabelB: for (;;) {
+    continue LabelB;
+  }
+}
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+	AssertEqual(t, false, ast.(*Prog).stmts[0].(*LabelStmt).Used(), "should be meta")
+	AssertEqual(t, true, ast.(*Prog).stmts[0].(*LabelStmt).body.(*ForStmt).Body().(*BlockStmt).body[0].(*LabelStmt).Used(), "should be meta")
+}
+
 func TestLabelledUsageNoUse(t *testing.T) {
 	ast, err := compile(`
 LabelA: for (;;) {
   break;
+}
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+	AssertEqual(t, false, ast.(*Prog).stmts[0].(*LabelStmt).Used(), "should be meta")
+}
+
+func TestLabelledUsageContNoUse(t *testing.T) {
+	ast, err := compile(`
+LabelA: for (;;) {
+  LabelB: for (;;) {
+    continue LabelB;
+  }
 }
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
