@@ -1977,6 +1977,7 @@ type LabelStmt struct {
 	loc   *Loc
 	label Node
 	body  Node
+	used  bool
 }
 
 func (n *LabelStmt) Label() Node {
@@ -1985,6 +1986,10 @@ func (n *LabelStmt) Label() Node {
 
 func (n *LabelStmt) Body() Node {
 	return n.body
+}
+
+func (n *LabelStmt) Used() bool {
+	return n.used
 }
 
 func (n *LabelStmt) Type() NodeType {

@@ -950,6 +950,26 @@ func TestScopeBalance(t *testing.T) {
 	AssertEqual(t, uint(0), parser.symtab.Cur.Id, "scope should be balanced")
 }
 
+func TestLabelledUsage(t *testing.T) {
+	ast, err := compile(`
+LabelA: for (;;) {
+  break LabelA;
+}
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+	AssertEqual(t, true, ast.(*Prog).stmts[0].(*LabelStmt).Used(), "should be meta")
+}
+
+func TestLabelledUsageNoUse(t *testing.T) {
+	ast, err := compile(`
+LabelA: for (;;) {
+  break;
+}
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+	AssertEqual(t, false, ast.(*Prog).stmts[0].(*LabelStmt).Used(), "should be meta")
+}
+
 func TestFail1(t *testing.T) {
 	testFail(t, "{", "Unexpected token `EOF` at (1:1)", nil)
 }

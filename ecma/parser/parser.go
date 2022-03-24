@@ -1824,7 +1824,7 @@ func (p *Parser) labelStmt() (Node, error) {
 		return nil, p.errorAtLoc(loc, fmt.Sprintf(ERR_DUP_LABEL, labelName))
 	}
 
-	node := &LabelStmt{N_STMT_LABEL, nil, label, nil}
+	node := &LabelStmt{N_STMT_LABEL, nil, label, nil, false}
 	scope.uniqueLabels[labelName] = node
 	scope.Labels = append(scope.Labels, node)
 
@@ -1858,8 +1858,11 @@ func (p *Parser) brkStmt() (Node, error) {
 			return nil, err
 		}
 
-		if !p.scope().HasLabel(label.Text()) {
+		target := p.scope().GetLabel(label.Text())
+		if target == nil {
 			return nil, p.errorAtLoc(label.loc, fmt.Sprintf(ERR_UNDEF_LABEL, label.Text()))
+		} else {
+			target.(*LabelStmt).used = true
 		}
 
 		return &BrkStmt{N_STMT_BRK, p.finLoc(loc), label}, nil
@@ -1898,6 +1901,8 @@ func (p *Parser) contStmt() (Node, error) {
 		target := p.scope().GetLabel(ln)
 		if target == nil {
 			return nil, p.errorAtLoc(label.loc, fmt.Sprintf(ERR_UNDEF_LABEL, label.Text()))
+		} else {
+			target.(*LabelStmt).used = true
 		}
 
 		return &ContStmt{N_STMT_CONT, p.finLoc(loc), label, target}, nil
