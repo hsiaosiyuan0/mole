@@ -1,7 +1,6 @@
 package analysis
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/hsiaosiyuan0/mole/ecma/parser"
@@ -38,14 +37,14 @@ a
 	_, _, astNodeMap := ana.Graph().NodesEdges()
 
 	expr := ast.(*parser.Prog).Body()[0].(*parser.ExprStmt).Expr().(*parser.Ident)
-	node := astNodeMap[expr]
+	block := astNodeMap[expr]
 
-	AssertEqual(t, 5, len(node.AstNodes), "should be ok")
-	AssertEqual(t, "N_PROG:enter", nodeToString(node.AstNodes[0]), "should be ok")
-	AssertEqual(t, "N_STMT_EXPR:enter", nodeToString(node.AstNodes[1]), "should be ok")
-	AssertEqual(t, "N_NAME(a)", nodeToString(node.AstNodes[2]), "should be ok")
-	AssertEqual(t, "N_STMT_EXPR:exit", nodeToString(node.AstNodes[3]), "should be ok")
-	AssertEqual(t, "N_PROG:exit", nodeToString(node.AstNodes[4]), "should be ok")
+	AssertEqual(t, 5, len(block.Nodes), "should be ok")
+	AssertEqual(t, "N_PROG:enter", nodeToString(block.Nodes[0]), "should be ok")
+	AssertEqual(t, "N_STMT_EXPR:enter", nodeToString(block.Nodes[1]), "should be ok")
+	AssertEqual(t, "N_NAME(a)", nodeToString(block.Nodes[2]), "should be ok")
+	AssertEqual(t, "N_STMT_EXPR:exit", nodeToString(block.Nodes[3]), "should be ok")
+	AssertEqual(t, "N_PROG:exit", nodeToString(block.Nodes[4]), "should be ok")
 }
 
 func TestCtrlflow_Logic(t *testing.T) {
@@ -61,11 +60,12 @@ func TestCtrlflow_Logic(t *testing.T) {
 	expr := ast.(*parser.Prog).Body()[0].(*parser.ExprStmt).Expr().(*parser.BinExpr)
 	a := astNodeMap[expr.Lhs()]
 	b := astNodeMap[expr.Rhs()]
-	AssertEqual(t, b, a.OutEdge(EK_SEQ).Dst, "should be ok")
+	AssertEqual(t, b, a.OutSeqEdge().Dst, "should be ok")
 
-	jmp := a.OutEdge(EK_JMP_FALSE)
-	stmtExit := jmp.Dst.AstNodes[0]
-	AssertEqual(t, "N_STMT_EXPR:exit", nodeToString(stmtExit), "should be ok")
+	AssertEqual(t, "N_EXPR_BIN(&&):exit", nodeToString(b.Nodes[1]), "should be ok")
+
+	exit := a.OutJmpEdge(ET_JMP_F).Dst
+	AssertEqual(t, "N_STMT_EXPR:exit", nodeToString(exit.Nodes[0]), "should be ok")
 }
 
 func TestCtrlflow_LogicMix(t *testing.T) {
@@ -83,38 +83,15 @@ func TestCtrlflow_LogicMix(t *testing.T) {
 	a := astNodeMap[ab.Lhs()]
 	b := astNodeMap[ab.Rhs()]
 	c := astNodeMap[expr.Rhs()]
-	AssertEqual(t, c, a.OutEdge(EK_JMP_FALSE).Dst, "should be ok")
-	AssertEqual(t, b, a.OutEdge(EK_SEQ).Dst, "should be ok")
+	AssertEqual(t, c, a.OutJmpEdge(ET_JMP_F).Dst, "should be ok")
+	AssertEqual(t, b, a.OutSeqEdge().Dst, "should be ok")
 
-	bTrue := b.OutEdge(EK_JMP_TRUE)
-	exit := bTrue.Dst.AstNodes[0]
+	AssertEqual(t, "N_EXPR_BIN(&&):exit", nodeToString(b.Nodes[1]), "should be ok")
+	AssertEqual(t, "N_EXPR_BIN(||):exit", nodeToString(c.Nodes[1]), "should be ok")
+
+	bTrue := b.OutJmpEdge(ET_JMP_T)
+	exit := bTrue.Dst.Nodes[0]
 	AssertEqual(t, "N_STMT_EXPR:exit", nodeToString(exit), "should be ok")
-}
-
-func TestCtrlflow_LogicMix2(t *testing.T) {
-	ast, symtab, err := compile(`
-  a || b && c
-  `, nil)
-	AssertEqual(t, nil, err, "should be prog ok")
-
-	ana := NewAnalysis(ast, symtab)
-	ana.Analyze()
-
-	_, _, astNodeMap := ana.Graph().NodesEdges()
-	expr := ast.(*parser.Prog).Body()[0].(*parser.ExprStmt).Expr().(*parser.BinExpr)
-	ab := expr.Rhs().(*parser.BinExpr)
-	a := astNodeMap[expr.Lhs()]
-	b := astNodeMap[ab.Lhs()]
-	c := astNodeMap[ab.Rhs()]
-
-	bFalse := b.OutEdge(EK_JMP_FALSE)
-	exit := bFalse.Dst.AstNodes[0]
-	AssertEqual(t, "N_STMT_EXPR:exit", nodeToString(exit), "should be ok")
-
-	AssertEqual(t, bFalse.Dst, a.OutEdge(EK_JMP_TRUE).Dst, "should be ok")
-	AssertEqual(t, bFalse.Dst, c.OutEdge(EK_SEQ).Dst, "should be ok")
-
-	AssertEqual(t, "N_EXPR_BIN(||):exit", nodeToString(c.AstNodes[2]), "should be ok")
 }
 
 func TestCtrlflow_IfStmt(t *testing.T) {
@@ -135,10 +112,13 @@ func TestCtrlflow_IfStmt(t *testing.T) {
 	c := astNodeMap[stmt.Cons().(*parser.ExprStmt).Expr()]
 	d := astNodeMap[stmt.Alt().(*parser.ExprStmt).Expr()]
 
-	AssertEqual(t, d, b.OutEdge(EK_JMP_FALSE).Dst, "should be ok")
-	AssertEqual(t, c, b.OutEdge(EK_SEQ).Dst, "should be ok")
+	AssertEqual(t, d, b.OutJmpEdge(ET_JMP_F).Dst, "should be ok")
+	AssertEqual(t, c, b.OutSeqEdge().Dst, "should be ok")
 
-	ifExit := c.OutEdge(EK_SEQ).Dst.AstNodes[0]
+	AssertEqual(t, "N_STMT_EXPR:exit", nodeToString(c.Nodes[2]), "should be ok")
+	AssertEqual(t, "N_STMT_EXPR:exit", nodeToString(d.Nodes[2]), "should be ok")
+
+	ifExit := c.OutSeqEdge().Dst.Nodes[0]
 	AssertEqual(t, "N_STMT_IF:exit", nodeToString(ifExit), "should be ok")
 }
 
@@ -167,8 +147,13 @@ func TestCtrlflow_IfBlkStmt(t *testing.T) {
 	d := astNodeMap[cons[1].(*parser.ExprStmt).Expr()]
 	AssertEqual(t, c, d, "should be ok")
 
-	AssertEqual(t, e, a.OutEdge(EK_JMP_FALSE).Dst, "should be ok")
-	ifExit := a.OutEdge(EK_JMP_FALSE).Dst.OutEdge(EK_SEQ).Dst.AstNodes[0]
+	AssertEqual(t, "N_STMT_EXPR:exit", nodeToString(d.Nodes[6]), "should be ok")
+	AssertEqual(t, "N_STMT_BLOCK:exit", nodeToString(d.Nodes[7]), "should be ok")
+
+	AssertEqual(t, e, a.OutJmpEdge(ET_JMP_F).Dst, "should be ok")
+	AssertEqual(t, d, a.OutSeqEdge().Dst, "should be ok")
+
+	ifExit := a.OutJmpEdge(ET_JMP_F).Dst.OutSeqEdge().Dst.Nodes[0]
 	AssertEqual(t, "N_STMT_IF:exit", nodeToString(ifExit), "should be ok")
 }
 
@@ -192,14 +177,24 @@ func TestCtrlflow_IfBlk2Stmt(t *testing.T) {
 	_, _, astNodeMap := ana.Graph().NodesEdges()
 	stmt := ast.(*parser.Prog).Body()[1].(*parser.IfStmt)
 	a := astNodeMap[ast.(*parser.Prog).Body()[0].(*parser.ExprStmt).Expr()]
+	b := astNodeMap[stmt.Test()]
 	e := astNodeMap[stmt.Alt().(*parser.BlockStmt).Body()[0].(*parser.ExprStmt).Expr()]
 	cons := stmt.Cons().(*parser.BlockStmt).Body()
 	c := astNodeMap[cons[0].(*parser.ExprStmt).Expr()]
 	d := astNodeMap[cons[1].(*parser.ExprStmt).Expr()]
+	AssertEqual(t, a, b, "should be ok")
 	AssertEqual(t, c, d, "should be ok")
 
-	AssertEqual(t, e, a.OutEdge(EK_JMP_FALSE).Dst, "should be ok")
-	ifExit := a.OutEdge(EK_JMP_FALSE).Dst.OutEdge(EK_SEQ).Dst.AstNodes[0]
+	AssertEqual(t, "N_STMT_EXPR:exit", nodeToString(d.Nodes[6]), "should be ok")
+	AssertEqual(t, "N_STMT_BLOCK:exit", nodeToString(d.Nodes[7]), "should be ok")
+
+	AssertEqual(t, "N_STMT_EXPR:exit", nodeToString(e.Nodes[3]), "should be ok")
+	AssertEqual(t, "N_STMT_BLOCK:exit", nodeToString(e.Nodes[4]), "should be ok")
+
+	AssertEqual(t, e, a.OutJmpEdge(ET_JMP_F).Dst, "should be ok")
+	AssertEqual(t, c, a.OutSeqEdge().Dst, "should be ok")
+
+	ifExit := a.OutJmpEdge(ET_JMP_F).Dst.OutSeqEdge().Dst.Nodes[0]
 	AssertEqual(t, "N_STMT_IF:exit", nodeToString(ifExit), "should be ok")
 }
 
@@ -221,11 +216,54 @@ func TestCtrlflow_IfLogic(t *testing.T) {
 	c := astNodeMap[stmt.Cons().(*parser.ExprStmt).Expr()]
 	d := astNodeMap[stmt.Alt().(*parser.ExprStmt).Expr()]
 
-	AssertEqual(t, d, a.OutEdge(EK_JMP_FALSE).Dst, "should be ok")
-	AssertEqual(t, d, b.OutEdge(EK_JMP_FALSE).Dst, "should be ok")
-	AssertEqual(t, c, b.OutEdge(EK_SEQ).Dst, "should be ok")
+	AssertEqual(t, d, a.OutJmpEdge(ET_JMP_F).Dst, "should be ok")
+	AssertEqual(t, d, b.OutJmpEdge(ET_JMP_F).Dst, "should be ok")
+	AssertEqual(t, c, b.OutSeqEdge().Dst, "should be ok")
 
-	ifExit := a.OutEdge(EK_JMP_FALSE).Dst.OutEdge(EK_SEQ).Dst.AstNodes[0]
+	AssertEqual(t, "N_STMT_EXPR:exit", nodeToString(c.Nodes[2]), "should be ok")
+	AssertEqual(t, "N_STMT_EXPR:exit", nodeToString(d.Nodes[2]), "should be ok")
+
+	ifExit := a.OutJmpEdge(ET_JMP_F).Dst.OutSeqEdge().Dst.Nodes[0]
+	AssertEqual(t, "N_STMT_IF:exit", nodeToString(ifExit), "should be ok")
+}
+
+func TestCtrlflow_IfLogicMix(t *testing.T) {
+	ast, symtab, err := compile(`
+  a
+  if (b || c && d) e
+  else f
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	_, _, astNodeMap := ana.Graph().NodesEdges()
+	a := astNodeMap[ast.(*parser.Prog).Body()[0].(*parser.ExprStmt).Expr()]
+	stmt := ast.(*parser.Prog).Body()[1].(*parser.IfStmt)
+	bcd := stmt.Test().(*parser.BinExpr)
+	b := astNodeMap[bcd.Lhs()]
+	cd := bcd.Rhs().(*parser.BinExpr)
+	c := astNodeMap[cd.Lhs()]
+	d := astNodeMap[cd.Rhs()]
+	e := astNodeMap[stmt.Cons().(*parser.ExprStmt).Expr()]
+	f := astNodeMap[stmt.Alt().(*parser.ExprStmt).Expr()]
+
+	AssertEqual(t, a, b, "should be ok")
+
+	AssertEqual(t, e, a.OutJmpEdge(ET_JMP_T).Dst, "should be ok")
+	AssertEqual(t, c, a.OutSeqEdge().Dst, "should be ok")
+
+	AssertEqual(t, d, c.OutSeqEdge().Dst, "should be ok")
+	AssertEqual(t, f, c.OutJmpEdge(ET_JMP_F).Dst, "should be ok")
+
+	AssertEqual(t, f, d.OutJmpEdge(ET_JMP_F).Dst, "should be ok")
+	AssertEqual(t, e, d.OutSeqEdge().Dst, "should be ok")
+
+	AssertEqual(t, "N_STMT_EXPR:exit", nodeToString(e.Nodes[2]), "should be ok")
+	AssertEqual(t, "N_STMT_EXPR:exit", nodeToString(f.Nodes[2]), "should be ok")
+
+	ifExit := e.OutSeqEdge().Dst.Nodes[0]
 	AssertEqual(t, "N_STMT_IF:exit", nodeToString(ifExit), "should be ok")
 }
 
@@ -241,9 +279,9 @@ func TestCtrlflow_UpdateExpr(t *testing.T) {
 	_, _, astNodeMap := ana.Graph().NodesEdges()
 	a := astNodeMap[ast.(*parser.Prog).Body()[0].(*parser.ExprStmt).Expr().(*parser.UpdateExpr).Arg()]
 
-	AssertEqual(t, "N_EXPR_UPDATE(++):exit", nodeToString(a.AstNodes[4]), "should be ok")
-	AssertEqual(t, "N_STMT_EXPR:exit", nodeToString(a.AstNodes[5]), "should be ok")
-	AssertEqual(t, "N_PROG:exit", nodeToString(a.AstNodes[6]), "should be ok")
+	AssertEqual(t, "N_EXPR_UPDATE(++):exit", nodeToString(a.Nodes[4]), "should be ok")
+	AssertEqual(t, "N_STMT_EXPR:exit", nodeToString(a.Nodes[5]), "should be ok")
+	AssertEqual(t, "N_PROG:exit", nodeToString(a.Nodes[6]), "should be ok")
 }
 
 func TestCtrlflow_VarDecStmt(t *testing.T) {
@@ -263,6 +301,14 @@ func TestCtrlflow_VarDecStmt(t *testing.T) {
 	c := astNodeMap[varDec1.Id()]
 
 	AssertEqual(t, a, c, "should be ok")
+
+	AssertEqual(t, "N_STMT_VAR_DEC:enter", nodeToString(a.Nodes[1]), "should be ok")
+	AssertEqual(t, "N_VAR_DEC:enter", nodeToString(a.Nodes[2]), "should be ok")
+	AssertEqual(t, "N_VAR_DEC:exit", nodeToString(a.Nodes[5]), "should be ok")
+	AssertEqual(t, "N_VAR_DEC:enter", nodeToString(a.Nodes[6]), "should be ok")
+	AssertEqual(t, "N_VAR_DEC:exit", nodeToString(a.Nodes[9]), "should be ok")
+	AssertEqual(t, "N_STMT_VAR_DEC:exit", nodeToString(a.Nodes[10]), "should be ok")
+	AssertEqual(t, "N_PROG:exit", nodeToString(a.Nodes[11]), "should be ok")
 }
 
 func TestCtrlflow_ForStmt(t *testing.T) {
@@ -289,11 +335,21 @@ func TestCtrlflow_ForStmt(t *testing.T) {
 	bu := astNodeMap[update.Arg()]
 	e := astNodeMap[ast.(*parser.Prog).Body()[1].(*parser.ExprStmt).Expr()]
 
-	AssertEqual(t, bc, b.OutEdge(EK_SEQ).Dst, "should be ok")
-	AssertEqual(t, e, bc.OutEdge(EK_JMP_FALSE).Dst, "should be ok")
-	AssertEqual(t, bu, bc.OutEdge(EK_SEQ).Dst, "should be ok")
-	AssertEqual(t, d, bc.OutEdge(EK_SEQ).Dst, "should be ok")
-	AssertEqual(t, bc, bu.OutEdge(EK_LOOP).Dst, "should be ok")
+	AssertEqual(t, "N_STMT_VAR_DEC:exit", nodeToString(b.Nodes[7]), "should be ok")
+	AssertEqual(t, "N_EXPR_BIN(<):enter", nodeToString(bc.Nodes[0]), "should be ok")
+	AssertEqual(t, "N_EXPR_BIN(<):exit", nodeToString(bc.Nodes[3]), "should be ok")
+
+	AssertEqual(t, bc, b.OutSeqEdge().Dst, "should be ok")
+	AssertEqual(t, e, bc.OutJmpEdge(ET_JMP_F).Dst, "should be ok")
+	AssertEqual(t, "N_STMT_FOR:exit", nodeToString(e.Nodes[0]), "should be ok")
+	AssertEqual(t, "N_STMT_EXPR:enter", nodeToString(e.Nodes[1]), "should be ok")
+	AssertEqual(t, "N_STMT_EXPR:exit", nodeToString(e.Nodes[3]), "should be ok")
+
+	AssertEqual(t, bu, bc.OutSeqEdge().Dst, "should be ok")
+	AssertEqual(t, "N_EXPR_UPDATE(++):exit", nodeToString(bu.Nodes[7]), "should be ok")
+
+	AssertEqual(t, d, bc.OutSeqEdge().Dst, "should be ok")
+	AssertEqual(t, bc, bu.OutJmpEdge(ET_LOOP).Dst, "should be ok")
 }
 
 func TestCtrlflow_ForStmtOmitInit(t *testing.T) {
@@ -319,13 +375,24 @@ func TestCtrlflow_ForStmtOmitInit(t *testing.T) {
 	bu := astNodeMap[update.Arg()]
 	e := astNodeMap[ast.(*parser.Prog).Body()[1].(*parser.ExprStmt).Expr()]
 
-	AssertEqual(t, "N_PROG:enter", nodeToString(begin.AstNodes[0]), "should be ok")
-	AssertEqual(t, "N_STMT_FOR:enter", nodeToString(begin.AstNodes[1]), "should be ok")
-	AssertEqual(t, bc, begin.OutEdge(EK_SEQ).Dst, "should be ok")
-	AssertEqual(t, e, bc.OutEdge(EK_JMP_FALSE).Dst, "should be ok")
-	AssertEqual(t, bu, bc.OutEdge(EK_SEQ).Dst, "should be ok")
-	AssertEqual(t, d, bc.OutEdge(EK_SEQ).Dst, "should be ok")
-	AssertEqual(t, bc, bu.OutEdge(EK_LOOP).Dst, "should be ok")
+	AssertEqual(t, "N_EXPR_BIN(<):enter", nodeToString(bc.Nodes[0]), "should be ok")
+	AssertEqual(t, "N_EXPR_BIN(<):exit", nodeToString(bc.Nodes[3]), "should be ok")
+
+	AssertEqual(t, "N_PROG:enter", nodeToString(begin.Nodes[0]), "should be ok")
+	AssertEqual(t, "N_STMT_FOR:enter", nodeToString(begin.Nodes[1]), "should be ok")
+
+	AssertEqual(t, bc, begin.OutSeqEdge().Dst, "should be ok")
+	AssertEqual(t, e, bc.OutJmpEdge(ET_JMP_F).Dst, "should be ok")
+	AssertEqual(t, "N_STMT_FOR:exit", nodeToString(e.Nodes[0]), "should be ok")
+	AssertEqual(t, "N_STMT_EXPR:enter", nodeToString(e.Nodes[1]), "should be ok")
+	AssertEqual(t, "N_STMT_EXPR:exit", nodeToString(e.Nodes[3]), "should be ok")
+
+	AssertEqual(t, bu, bc.OutSeqEdge().Dst, "should be ok")
+	AssertEqual(t, "N_EXPR_UPDATE(++):exit", nodeToString(bu.Nodes[7]), "should be ok")
+
+	AssertEqual(t, d, bu, "should be ok")
+	AssertEqual(t, d, bc.OutSeqEdge().Dst, "should be ok")
+	AssertEqual(t, bc, bu.OutJmpEdge(ET_LOOP).Dst, "should be ok")
 }
 
 func TestCtrlflow_ForStmtOmitInitUpdate(t *testing.T) {
@@ -349,15 +416,16 @@ func TestCtrlflow_ForStmtOmitInitUpdate(t *testing.T) {
 	bc := astNodeMap[test.Lhs()]
 	e := astNodeMap[ast.(*parser.Prog).Body()[1].(*parser.ExprStmt).Expr()]
 
-	AssertEqual(t, "N_PROG:enter", nodeToString(begin.AstNodes[0]), "should be ok")
-	AssertEqual(t, "N_STMT_FOR:enter", nodeToString(begin.AstNodes[1]), "should be ok")
-	AssertEqual(t, bc, begin.OutEdge(EK_SEQ).Dst, "should be ok")
-	AssertEqual(t, e, bc.OutEdge(EK_JMP_FALSE).Dst, "should be ok")
-	AssertEqual(t, d, bc.OutEdge(EK_SEQ).Dst, "should be ok")
-	AssertEqual(t, bc, d.OutEdge(EK_LOOP).Dst, "should be ok")
+	AssertEqual(t, "N_PROG:enter", nodeToString(begin.Nodes[0]), "should be ok")
+	AssertEqual(t, "N_STMT_FOR:enter", nodeToString(begin.Nodes[1]), "should be ok")
+	AssertEqual(t, bc, begin.OutSeqEdge().Dst, "should be ok")
+
+	AssertEqual(t, e, bc.OutJmpEdge(ET_JMP_F).Dst, "should be ok")
+	AssertEqual(t, d, bc.OutSeqEdge().Dst, "should be ok")
+	AssertEqual(t, bc, d.OutJmpEdge(ET_LOOP).Dst, "should be ok")
 }
 
-func TestCtrlflow_ForStmtOmitInitUpdateTestCtrlflow_Logic(t *testing.T) {
+func TestCtrlflow_ForStmtOmitInitUpdate_TestLogic(t *testing.T) {
 	ast, symtab, err := compile(`
   for (; b && c;) {
     d;
@@ -379,16 +447,24 @@ func TestCtrlflow_ForStmtOmitInitUpdateTestCtrlflow_Logic(t *testing.T) {
 	c := astNodeMap[test.Rhs()]
 	e := astNodeMap[ast.(*parser.Prog).Body()[1].(*parser.ExprStmt).Expr()]
 
-	AssertEqual(t, "N_PROG:enter", nodeToString(begin.AstNodes[0]), "should be ok")
-	AssertEqual(t, "N_STMT_FOR:enter", nodeToString(begin.AstNodes[1]), "should be ok")
-	AssertEqual(t, b, begin.OutEdge(EK_SEQ).Dst, "should be ok")
-	AssertEqual(t, e, b.OutEdge(EK_JMP_FALSE).Dst, "should be ok")
-	AssertEqual(t, e, c.OutEdge(EK_JMP_FALSE).Dst, "should be ok")
-	AssertEqual(t, d, c.OutEdge(EK_SEQ).Dst, "should be ok")
-	AssertEqual(t, b, d.OutEdge(EK_LOOP).Dst, "should be ok")
+	AssertEqual(t, "N_PROG:enter", nodeToString(begin.Nodes[0]), "should be ok")
+	AssertEqual(t, "N_STMT_FOR:enter", nodeToString(begin.Nodes[1]), "should be ok")
+	AssertEqual(t, b, begin.OutSeqEdge().Dst, "should be ok")
+
+	AssertEqual(t, e, b.OutJmpEdge(ET_JMP_F).Dst, "should be ok")
+	AssertEqual(t, c, b.OutSeqEdge().Dst, "should be ok")
+
+	AssertEqual(t, e, c.OutJmpEdge(ET_JMP_F).Dst, "should be ok")
+	AssertEqual(t, d, c.OutSeqEdge().Dst, "should be ok")
+
+	AssertEqual(t, b, d.OutJmpEdge(ET_LOOP).Dst, "should be ok")
+	AssertEqual(t, "N_STMT_BLOCK:enter", nodeToString(d.Nodes[0]), "should be ok")
+	AssertEqual(t, "N_STMT_BLOCK:exit", nodeToString(d.Nodes[4]), "should be ok")
+
+	AssertEqual(t, "N_STMT_FOR:exit", nodeToString(e.Nodes[0]), "should be ok")
 }
 
-func TestCtrlflow_ForStmtOmitTestCtrlflow_(t *testing.T) {
+func TestCtrlflow_ForStmtOmitAll(t *testing.T) {
 	ast, symtab, err := compile(`
   for (; ;) {
     d;
@@ -407,10 +483,12 @@ func TestCtrlflow_ForStmtOmitTestCtrlflow_(t *testing.T) {
 	d := astNodeMap[body]
 	e := astNodeMap[ast.(*parser.Prog).Body()[1].(*parser.ExprStmt).Expr()]
 
-	AssertEqual(t, "N_PROG:enter", nodeToString(begin.AstNodes[0]), "should be ok")
-	AssertEqual(t, "N_STMT_FOR:enter", nodeToString(begin.AstNodes[1]), "should be ok")
-	AssertEqual(t, d, begin.OutEdge(EK_SEQ).Dst, "should be ok")
-	AssertEqual(t, d, d.OutEdge(EK_LOOP).Dst, "should be ok")
+	AssertEqual(t, "N_PROG:enter", nodeToString(begin.Nodes[0]), "should be ok")
+	AssertEqual(t, "N_STMT_FOR:enter", nodeToString(begin.Nodes[1]), "should be ok")
+	AssertEqual(t, d, begin.OutSeqEdge().Dst, "should be ok")
+
+	AssertEqual(t, d, d.OutJmpEdge(ET_LOOP).Dst, "should be ok")
+
 	AssertEqual(t, nil, e, "should be ok")
 }
 
@@ -431,13 +509,17 @@ func TestCtrlflow_While(t *testing.T) {
 	a := astNodeMap[test]
 	b := astNodeMap[body]
 
-	AssertEqual(t, "N_PROG:enter", nodeToString(begin.AstNodes[0]), "should be ok")
-	AssertEqual(t, "N_STMT_WHILE:enter", nodeToString(begin.AstNodes[1]), "should be ok")
-	AssertEqual(t, b, a.OutEdge(EK_SEQ).Dst, "should be ok")
-	AssertEqual(t, a, b.OutEdge(EK_LOOP).Dst, "should be ok")
+	AssertEqual(t, "N_PROG:enter", nodeToString(begin.Nodes[0]), "should be ok")
+	AssertEqual(t, "N_STMT_WHILE:enter", nodeToString(begin.Nodes[1]), "should be ok")
+	AssertEqual(t, b, a.OutSeqEdge().Dst, "should be ok")
+
+	exit := a.OutJmpEdge(ET_JMP_F).Dst.Nodes[0]
+	AssertEqual(t, "N_STMT_WHILE:exit", nodeToString(exit), "should be ok")
+
+	AssertEqual(t, a, b.OutJmpEdge(ET_LOOP).Dst, "should be ok")
 }
 
-func TestCtrlflow_WhileBody(t *testing.T) {
+func TestCtrlflow_WhileBodyBlk(t *testing.T) {
 	ast, symtab, err := compile(`
   while(a) {
     b;
@@ -456,26 +538,16 @@ func TestCtrlflow_WhileBody(t *testing.T) {
 	a := astNodeMap[test]
 	b := astNodeMap[body]
 
-	AssertEqual(t, "N_PROG:enter", nodeToString(begin.AstNodes[0]), "should be ok")
-	AssertEqual(t, "N_STMT_WHILE:enter", nodeToString(begin.AstNodes[1]), "should be ok")
-	AssertEqual(t, b, a.OutEdge(EK_SEQ).Dst, "should be ok")
-	AssertEqual(t, a, b.OutEdge(EK_LOOP).Dst, "should be ok")
-}
+	AssertEqual(t, "N_PROG:enter", nodeToString(begin.Nodes[0]), "should be ok")
+	AssertEqual(t, "N_STMT_WHILE:enter", nodeToString(begin.Nodes[1]), "should be ok")
+	AssertEqual(t, b, a.OutSeqEdge().Dst, "should be ok")
+	AssertEqual(t, a, b.OutJmpEdge(ET_LOOP).Dst, "should be ok")
 
-func TestCtrlflow_ParenExpr(t *testing.T) {
-	ast, symtab, err := compile(`
-  (a + b)
-  `, nil)
-	AssertEqual(t, nil, err, "should be prog ok")
+	exit := a.OutJmpEdge(ET_JMP_F).Dst.Nodes[0]
+	AssertEqual(t, "N_STMT_WHILE:exit", nodeToString(exit), "should be ok")
 
-	ana := NewAnalysis(ast, symtab)
-	ana.Analyze()
-
-	_, _, astNodeMap := ana.Graph().NodesEdges()
-	a := astNodeMap[ast.(*parser.Prog).Body()[0].(*parser.ExprStmt).Expr().(*parser.ParenExpr).Expr().(*parser.BinExpr).Lhs()]
-	AssertEqual(t, 10, len(a.AstNodes), "should be ok")
-	AssertEqual(t, "N_EXPR_BIN(+):exit", nodeToString(a.AstNodes[6]), "should be ok")
-	AssertEqual(t, "N_EXPR_PAREN:exit", nodeToString(a.AstNodes[7]), "should be ok")
+	AssertEqual(t, "N_STMT_BLOCK:enter", nodeToString(b.Nodes[0]), "should be ok")
+	AssertEqual(t, "N_STMT_BLOCK:exit", nodeToString(b.Nodes[4]), "should be ok")
 }
 
 func TestCtrlflow_WhileLogicOr(t *testing.T) {
@@ -499,19 +571,61 @@ func TestCtrlflow_WhileLogicOr(t *testing.T) {
 	c := astNodeMap[test.Rhs()]
 	d := astNodeMap[body]
 
-	AssertEqual(t, "N_PROG:enter", nodeToString(begin.AstNodes[0]), "should be ok")
-	AssertEqual(t, "N_STMT_WHILE:enter", nodeToString(begin.AstNodes[1]), "should be ok")
+	AssertEqual(t, "N_PROG:enter", nodeToString(begin.Nodes[0]), "should be ok")
+	AssertEqual(t, "N_STMT_WHILE:enter", nodeToString(begin.Nodes[1]), "should be ok")
 	AssertEqual(t, b, a, "should be ok")
-	AssertEqual(t, d, a.OutEdge(EK_JMP_TRUE).Dst, "should be ok")
-	AssertEqual(t, c, a.OutEdge(EK_SEQ).Dst, "should be ok")
 
-	AssertEqual(t, "N_EXPR_BIN(+):exit", nodeToString(a.AstNodes[5]), "should be ok")
-	AssertEqual(t, "N_EXPR_PAREN:exit", nodeToString(a.AstNodes[6]), "should be ok")
+	AssertEqual(t, d, a.OutJmpEdge(ET_JMP_T).Dst, "should be ok")
+	AssertEqual(t, c, a.OutSeqEdge().Dst, "should be ok")
 
-	exit := c.OutEdge(EK_JMP_FALSE).Dst
-	AssertEqual(t, exit, c.OutEdge(EK_JMP_FALSE).Dst, "should be ok")
-	AssertEqual(t, d, c.OutEdge(EK_SEQ).Dst, "should be ok")
-	AssertEqual(t, a, d.OutEdge(EK_LOOP).Dst, "should be ok")
+	AssertEqual(t, "N_EXPR_BIN(+):exit", nodeToString(a.Nodes[5]), "should be ok")
+	AssertEqual(t, "N_EXPR_PAREN:exit", nodeToString(a.Nodes[6]), "should be ok")
+
+	exit := c.OutJmpEdge(ET_JMP_F).Dst
+	AssertEqual(t, "N_STMT_WHILE:exit", nodeToString(exit.Nodes[0]), "should be ok")
+	AssertEqual(t, d, c.OutSeqEdge().Dst, "should be ok")
+
+	AssertEqual(t, a, d.OutJmpEdge(ET_LOOP).Dst, "should be ok")
+	AssertEqual(t, "N_STMT_BLOCK:enter", nodeToString(d.Nodes[0]), "should be ok")
+	AssertEqual(t, "N_STMT_BLOCK:exit", nodeToString(d.Nodes[4]), "should be ok")
+}
+
+func TestCtrlflow_ParenExpr(t *testing.T) {
+	ast, symtab, err := compile(`
+  (a + b)
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	_, _, astNodeMap := ana.Graph().NodesEdges()
+	a := astNodeMap[ast.(*parser.Prog).Body()[0].(*parser.ExprStmt).Expr().(*parser.ParenExpr).Expr().(*parser.BinExpr).Lhs()]
+	AssertEqual(t, 10, len(a.Nodes), "should be ok")
+	AssertEqual(t, "N_EXPR_BIN(+):exit", nodeToString(a.Nodes[6]), "should be ok")
+	AssertEqual(t, "N_EXPR_PAREN:exit", nodeToString(a.Nodes[7]), "should be ok")
+}
+
+func TestCtrlflow_ParenExprLogic(t *testing.T) {
+	ast, symtab, err := compile(`
+  (a && b)
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	_, _, astNodeMap := ana.Graph().NodesEdges()
+	ab := ast.(*parser.Prog).Body()[0].(*parser.ExprStmt).Expr().(*parser.ParenExpr).Expr().(*parser.BinExpr)
+	a := astNodeMap[ab.Lhs()]
+	b := astNodeMap[ab.Rhs()]
+
+	AssertEqual(t, b, a.OutSeqEdge().Dst, "should be ok")
+	AssertEqual(t, "N_EXPR_BIN(&&):exit", nodeToString(b.Nodes[1]), "should be ok")
+
+	exit := a.OutJmpEdge(ET_JMP_F).Dst
+	AssertEqual(t, "N_EXPR_PAREN:exit", nodeToString(exit.Nodes[0]), "should be ok")
+	AssertEqual(t, "N_STMT_EXPR:exit", nodeToString(exit.Nodes[1]), "should be ok")
 }
 
 func TestCtrlflow_DoWhile(t *testing.T) {
@@ -531,9 +645,12 @@ func TestCtrlflow_DoWhile(t *testing.T) {
 	b := astNodeMap[test]
 	a := astNodeMap[body]
 
-	AssertEqual(t, a, begin.OutEdge(EK_SEQ).Dst, "should be ok")
+	AssertEqual(t, a, begin.OutSeqEdge().Dst, "should be ok")
 	AssertEqual(t, a, b, "should be ok")
-	AssertEqual(t, a, b.OutEdge(EK_LOOP).Dst, "should be ok")
+	AssertEqual(t, a, b.OutJmpEdge(ET_LOOP).Dst, "should be ok")
+
+	exit := a.OutJmpEdge(ET_JMP_F).Dst
+	AssertEqual(t, "N_STMT_DO_WHILE:exit", nodeToString(exit.Nodes[0]), "should be ok")
 }
 
 func TestCtrlflow_DoWhileLogicOr(t *testing.T) {
@@ -545,8 +662,6 @@ func TestCtrlflow_DoWhileLogicOr(t *testing.T) {
 	ana := NewAnalysis(ast, symtab)
 	ana.Analyze()
 
-	fmt.Println(ana.Graph().Dot())
-
 	_, _, astNodeMap := ana.Graph().NodesEdges()
 	stmt := ast.(*parser.Prog).Body()[0].(*parser.DoWhileStmt)
 	begin := ana.Graph().Head
@@ -556,16 +671,18 @@ func TestCtrlflow_DoWhileLogicOr(t *testing.T) {
 	c := astNodeMap[test.Rhs()]
 	a := astNodeMap[body]
 
-	AssertEqual(t, a, begin.OutEdge(EK_SEQ).Dst, "should be ok")
+	AssertEqual(t, a, begin.OutSeqEdge().Dst, "should be ok")
 	AssertEqual(t, a, b, "should be ok")
-	AssertEqual(t, a, c.OutEdge(EK_LOOP).Dst, "should be ok")
-	AssertEqual(t, a, b.OutEdge(EK_JMP_TRUE).Dst, "should be ok")
-	AssertEqual(t, c, b.OutEdge(EK_SEQ).Dst, "should be ok")
-	AssertEqual(t, a, c.OutEdge(EK_LOOP).Dst, "should be ok")
 
-	exit := c.OutEdge(EK_JMP_FALSE).Dst
-	AssertEqual(t, "N_STMT_DO_WHILE:exit", nodeToString(exit.AstNodes[0]), "should be ok")
-	AssertEqual(t, "N_PROG:exit", nodeToString(exit.AstNodes[1]), "should be ok")
+	AssertEqual(t, a, b.OutJmpEdge(ET_JMP_T).Dst, "should be ok")
+	AssertEqual(t, a, b.OutJmpEdge(ET_LOOP).Dst, "should be ok")
+	AssertEqual(t, c, b.OutSeqEdge().Dst, "should be ok")
+
+	AssertEqual(t, a, c.OutJmpEdge(ET_LOOP).Dst, "should be ok")
+
+	exit := c.OutJmpEdge(ET_JMP_F).Dst
+	AssertEqual(t, "N_STMT_DO_WHILE:exit", nodeToString(exit.Nodes[0]), "should be ok")
+	AssertEqual(t, "N_PROG:exit", nodeToString(exit.Nodes[1]), "should be ok")
 }
 
 func TestCtrlflow_DoWhileLogicAnd(t *testing.T) {
@@ -586,16 +703,16 @@ func TestCtrlflow_DoWhileLogicAnd(t *testing.T) {
 	c := astNodeMap[test.Rhs()]
 	a := astNodeMap[body]
 
-	AssertEqual(t, a, begin.OutEdge(EK_SEQ).Dst, "should be ok")
+	AssertEqual(t, a, begin.OutSeqEdge().Dst, "should be ok")
 	AssertEqual(t, a, b, "should be ok")
 
-	exit := b.OutEdge(EK_JMP_FALSE).Dst
-	AssertEqual(t, "N_STMT_DO_WHILE:exit", nodeToString(exit.AstNodes[0]), "should be ok")
-	AssertEqual(t, "N_PROG:exit", nodeToString(exit.AstNodes[1]), "should be ok")
+	exit := b.OutJmpEdge(ET_JMP_F).Dst
+	AssertEqual(t, "N_STMT_DO_WHILE:exit", nodeToString(exit.Nodes[0]), "should be ok")
+	AssertEqual(t, "N_PROG:exit", nodeToString(exit.Nodes[1]), "should be ok")
 
-	AssertEqual(t, c, b.OutEdge(EK_SEQ).Dst, "should be ok")
-	AssertEqual(t, exit, c.OutEdge(EK_JMP_FALSE).Dst, "should be ok")
-	AssertEqual(t, a, c.OutEdge(EK_LOOP).Dst, "should be ok")
+	AssertEqual(t, c, b.OutSeqEdge().Dst, "should be ok")
+	AssertEqual(t, exit, c.OutJmpEdge(ET_JMP_F).Dst, "should be ok")
+	AssertEqual(t, a, c.OutJmpEdge(ET_LOOP).Dst, "should be ok")
 }
 
 func TestCtrlflow_WhileLogicMix(t *testing.T) {
@@ -609,8 +726,6 @@ func TestCtrlflow_WhileLogicMix(t *testing.T) {
 	ana := NewAnalysis(ast, symtab)
 	ana.Analyze()
 
-	fmt.Println(ana.Graph().Dot())
-
 	_, _, astNodeMap := ana.Graph().NodesEdges()
 	stmt := ast.(*parser.Prog).Body()[0].(*parser.WhileStmt)
 	begin := ana.Graph().Head
@@ -620,17 +735,19 @@ func TestCtrlflow_WhileLogicMix(t *testing.T) {
 	b := astNodeMap[test.Rhs().(*parser.BinExpr).Lhs()]
 	c := astNodeMap[test.Rhs().(*parser.BinExpr).Rhs()]
 	d := astNodeMap[body]
-	exit := c.OutEdge(EK_JMP_FALSE).Dst
+	exit := c.OutJmpEdge(ET_JMP_F).Dst
 
-	AssertEqual(t, a, begin.OutEdge(EK_SEQ).Dst, "should be ok")
-	AssertEqual(t, b, a.OutEdge(EK_SEQ).Dst, "should be ok")
-	AssertEqual(t, d, a.OutEdge(EK_JMP_TRUE).Dst, "should be ok")
+	AssertEqual(t, "N_STMT_WHILE:exit", nodeToString(exit.Nodes[0]), "should be ok")
+	AssertEqual(t, a, begin.OutSeqEdge().Dst, "should be ok")
 
-	AssertEqual(t, c, b.OutEdge(EK_SEQ).Dst, "should be ok")
-	AssertEqual(t, exit, b.OutEdge(EK_JMP_FALSE).Dst, "should be ok")
+	AssertEqual(t, b, a.OutSeqEdge().Dst, "should be ok")
+	AssertEqual(t, d, a.OutJmpEdge(ET_JMP_T).Dst, "should be ok")
 
-	AssertEqual(t, d, c.OutEdge(EK_SEQ).Dst, "should be ok")
-	AssertEqual(t, a, d.OutEdge(EK_LOOP).Dst, "should be ok")
+	AssertEqual(t, c, b.OutSeqEdge().Dst, "should be ok")
+	AssertEqual(t, exit, b.OutJmpEdge(ET_JMP_F).Dst, "should be ok")
+
+	AssertEqual(t, d, c.OutSeqEdge().Dst, "should be ok")
+	AssertEqual(t, a, d.OutJmpEdge(ET_LOOP).Dst, "should be ok")
 }
 
 func TestCtrlflow_Continue(t *testing.T) {
@@ -645,45 +762,7 @@ func TestCtrlflow_Continue(t *testing.T) {
 	ana := NewAnalysis(ast, symtab)
 	ana.Analyze()
 
-	fmt.Println(ana.Graph().Dot())
-
-	// _, _, astNodeMap := ana.Graph().NodesEdges()
-	// stmt := ast.(*parser.Prog).Body()[0].(*parser.WhileStmt)
-	// begin := ana.Graph().Head
-	// test := stmt.Test().(*parser.BinExpr)
-	// body := stmt.Body().(*parser.BlockStmt).Body()[0].(*parser.ExprStmt).Expr()
-	// a := astNodeMap[test.Lhs()]
-	// b := astNodeMap[test.Rhs().(*parser.BinExpr).Lhs()]
-	// c := astNodeMap[test.Rhs().(*parser.BinExpr).Rhs()]
-	// d := astNodeMap[body]
-	// exit := c.OutEdge(EK_JMP_FALSE).Dst
-
-	// AssertEqual(t, a, begin.OutEdge(EK_SEQ).Dst, "should be ok")
-	// AssertEqual(t, b, a.OutEdge(EK_SEQ).Dst, "should be ok")
-	// AssertEqual(t, d, a.OutEdge(EK_JMP_TRUE).Dst, "should be ok")
-
-	// AssertEqual(t, c, b.OutEdge(EK_SEQ).Dst, "should be ok")
-	// AssertEqual(t, exit, b.OutEdge(EK_JMP_FALSE).Dst, "should be ok")
-
-	// AssertEqual(t, d, c.OutEdge(EK_SEQ).Dst, "should be ok")
-	// AssertEqual(t, a, d.OutEdge(EK_LOOP).Dst, "should be ok")
-}
-
-func TestCtrlflow_ContinueLabeled(t *testing.T) {
-	ast, symtab, err := compile(`
-  outer: while(a && b) {
-    while(c) {
-      continue outer;
-      d
-    }
-  }
-  `, nil)
-	AssertEqual(t, nil, err, "should be prog ok")
-
-	ana := NewAnalysis(ast, symtab)
-	ana.Analyze()
-
-	fmt.Println(ana.Graph().Dot())
+	// fmt.Println(ana.Graph().Dot())
 
 	// _, _, astNodeMap := ana.Graph().NodesEdges()
 	// stmt := ast.(*parser.Prog).Body()[0].(*parser.WhileStmt)
