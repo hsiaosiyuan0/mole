@@ -1,6 +1,8 @@
 package parser
 
-import "github.com/hsiaosiyuan0/mole/fuzz"
+import (
+	"github.com/hsiaosiyuan0/mole/util"
+)
 
 // #[visitor(TsTyp)]
 type TsTypAnnot struct {
@@ -1154,14 +1156,14 @@ func (n *TsImportType) Loc() *Loc {
 
 // ClassDec
 func (n *ClassDec) Implements() []Node {
-	if fuzz.IsNilPtr(n.ti) {
+	if util.IsNilPtr(n.ti) {
 		return nil
 	}
 	return n.ti.Implements()
 }
 
 func (n *ClassDec) Abstract() bool {
-	if fuzz.IsNilPtr(n.ti) {
+	if util.IsNilPtr(n.ti) {
 		return false
 	}
 	return n.ti.Abstract()
@@ -1187,7 +1189,7 @@ func (n *ClassDec) SuperTypArgs() Node {
 }
 
 func (n *ClassDec) TypParams() Node {
-	if fuzz.IsNilPtr(n.ti) {
+	if util.IsNilPtr(n.ti) {
 		return nil
 	}
 	return n.ti.typParams

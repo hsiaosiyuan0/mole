@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/hsiaosiyuan0/mole/fuzz"
 	span "github.com/hsiaosiyuan0/mole/span"
+	"github.com/hsiaosiyuan0/mole/util"
 )
 
 // AST nodes are referred to [ESTree](https://github.com/estree/estree/blob/master/es5.md) with some variants:
@@ -596,7 +596,7 @@ type NodeWithTypInfo interface {
 }
 
 func locOfNode(node Node) *Loc {
-	if fuzz.IsNilPtr(node) {
+	if util.IsNilPtr(node) {
 		return nil
 	}
 	return node.Loc()
@@ -1730,7 +1730,7 @@ func (n *BlockStmt) NewScope() bool {
 	return n.newScope
 }
 
-// #[visitor(Test,Body)]
+// #[visitor(Body,Test)]
 type DoWhileStmt struct {
 	typ  NodeType
 	loc  *Loc

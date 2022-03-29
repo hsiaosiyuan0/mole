@@ -3,7 +3,7 @@ package parser
 import (
 	"reflect"
 
-	"github.com/hsiaosiyuan0/mole/fuzz"
+	"github.com/hsiaosiyuan0/mole/util"
 )
 
 func DecoratorsOf(node Node) []Node {
@@ -121,7 +121,7 @@ func (ti *TypInfo) intiClsTyp() {
 }
 
 func (ti *TypInfo) AccMod() ACC_MOD {
-	if fuzz.IsNilPtr(ti.clsTyp) {
+	if util.IsNilPtr(ti.clsTyp) {
 		return ACC_MOD_NONE
 	}
 	return ti.clsTyp.accMod
@@ -133,7 +133,7 @@ func (ti *TypInfo) SetAccMod(accMod ACC_MOD) {
 }
 
 func (ti *TypInfo) SuperTypArgs() Node {
-	if fuzz.IsNilPtr(ti.clsTyp) {
+	if util.IsNilPtr(ti.clsTyp) {
 		return nil
 	}
 	return ti.clsTyp.superTypArgs
@@ -145,7 +145,7 @@ func (ti *TypInfo) SetSuperTypArgs(node Node) {
 }
 
 func (ti *TypInfo) BeginLoc() *Loc {
-	if fuzz.IsNilPtr(ti.clsTyp) {
+	if util.IsNilPtr(ti.clsTyp) {
 		return nil
 	}
 	return ti.clsTyp.beginLoc
@@ -157,7 +157,7 @@ func (ti *TypInfo) SetBeginLoc(loc *Loc) {
 }
 
 func (ti *TypInfo) Abstract() bool {
-	if fuzz.IsNilPtr(ti.clsTyp) {
+	if util.IsNilPtr(ti.clsTyp) {
 		return false
 	}
 	return ti.clsTyp.abstract
@@ -169,7 +169,7 @@ func (ti *TypInfo) SetAbstract(flag bool) {
 }
 
 func (ti *TypInfo) Readonly() bool {
-	if fuzz.IsNilPtr(ti.clsTyp) {
+	if util.IsNilPtr(ti.clsTyp) {
 		return false
 	}
 	return ti.clsTyp.readonly
@@ -181,7 +181,7 @@ func (ti *TypInfo) SetReadonly(flag bool) {
 }
 
 func (ti *TypInfo) Override() bool {
-	if fuzz.IsNilPtr(ti.clsTyp) {
+	if util.IsNilPtr(ti.clsTyp) {
 		return false
 	}
 	return ti.clsTyp.override
@@ -193,7 +193,7 @@ func (ti *TypInfo) SetOverride(flag bool) {
 }
 
 func (ti *TypInfo) Declare() bool {
-	if fuzz.IsNilPtr(ti.clsTyp) {
+	if util.IsNilPtr(ti.clsTyp) {
 		return false
 	}
 	return ti.clsTyp.declare
@@ -205,7 +205,7 @@ func (ti *TypInfo) SetDeclare(flag bool) {
 }
 
 func (ti *TypInfo) Implements() []Node {
-	if fuzz.IsNilPtr(ti.clsTyp) {
+	if util.IsNilPtr(ti.clsTyp) {
 		return nil
 	}
 	return ti.clsTyp.implements

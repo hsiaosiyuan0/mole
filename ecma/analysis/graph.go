@@ -2,7 +2,6 @@ package analysis
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/hsiaosiyuan0/mole/ecma/parser"
@@ -59,11 +58,11 @@ type Edge struct {
 func (e *Edge) Key() string {
 	from := "s"
 	if e.Src != nil {
-		from = e.Src.IdStr()
+		from = e.Src.DotId()
 	}
 	to := "e"
 	if e.Dst != nil {
-		to = e.Dst.IdStr()
+		to = e.Dst.DotId()
 	}
 	return from + "_" + to
 }
@@ -71,11 +70,11 @@ func (e *Edge) Key() string {
 func (e *Edge) Dot() string {
 	s := "initial"
 	if e.Src != nil {
-		s = e.Src.IdStr()
+		s = e.Src.DotId()
 	}
 	d := "final"
 	if e.Dst != nil {
-		d = e.Dst.IdStr()
+		d = e.Dst.DotId()
 	}
 	c := e.Tag.DotColor()
 	fromCorner := ""
@@ -103,17 +102,17 @@ type Block struct {
 	Outlets []*Edge
 }
 
-func (b *Block) Id() uint64 {
+func (b *Block) Id() string {
 	if len(b.Nodes) == 0 {
-		return 0
+		return ""
 	}
 	return IdOfAstNode(b.Nodes[0])
 }
 
-func (b *Block) IdStr() string {
+func (b *Block) DotId() string {
 	switch b.Kind {
 	case BK_BASIC:
-		return IdStrOfAstNode(b.Nodes[0])
+		return IdOfAstNode(b.Nodes[0])
 	case BK_START:
 		return "s"
 	case BK_GROUP:
@@ -140,8 +139,26 @@ func (b *Block) OutJmpEdge(ET EdgeTag) *Edge {
 	return nil
 }
 
+func (b *Block) InSeqEdge() *Edge {
+	for _, edge := range b.Inlets {
+		if edge.Kind == EK_SEQ {
+			return edge
+		}
+	}
+	return nil
+}
+
+func (b *Block) InJmpEdge(ET EdgeTag) *Edge {
+	for _, edge := range b.Inlets {
+		if edge.Tag&ET != 0 {
+			return edge
+		}
+	}
+	return nil
+}
+
 func (b *Block) Dot() string {
-	return fmt.Sprintf("%s[label=\"%s\"];\n", b.IdStr(), nodesToString(b.Nodes))
+	return fmt.Sprintf("%s[label=\"%s\"];\n", b.DotId(), nodesToString(b.Nodes))
 }
 
 func (b *Block) canBeJoined() bool {
@@ -150,6 +167,26 @@ func (b *Block) canBeJoined() bool {
 
 func (b *Block) joinable() bool {
 	return len(b.Outlets) == 1 && b.Outlets[0].Kind&EK_SEQ != 0
+}
+
+func (b *Block) OnlyInfo() bool {
+	for i := len(b.Nodes) - 1; i >= 0; i-- {
+		if b.Nodes[i].Type() != N_CFG_DEBUG {
+			return false
+		}
+	}
+	return true
+}
+
+func (b *Block) NextBlk() *Block {
+	if !b.OnlyInfo() {
+		return b
+	}
+	next := b.OutSeqEdge().Dst
+	if next == nil {
+		return b
+	}
+	return b.OutSeqEdge().Dst.NextBlk()
 }
 
 func (b *Block) unwrapSeqIn() *Block {
@@ -173,10 +210,14 @@ func (b *Block) unwrapSeqOut() *Block {
 func (b *Block) join(blk *Block) {
 	to := blk.unwrapSeqIn()
 	from := b.unwrapSeqOut()
+	isCutted := from.IsOutCutted()
 	from.Nodes = append(from.Nodes, to.Nodes...)
 	from.Outlets = to.Outlets
 	for _, edge := range from.Outlets {
 		edge.Src = from
+		if isCutted && edge.Dst == nil {
+			edge.Tag |= ET_CUT
+		}
 	}
 }
 
@@ -256,6 +297,19 @@ func (b *Block) mrkJmpOutAsLoop(tag EdgeTag) {
 	}
 }
 
+func (b *Block) mrkSeqOutAsCutted() {
+	b.seqOutEdge().Tag |= ET_CUT
+}
+
+func (b *Block) IsInCutted() bool {
+	edge := b.InSeqEdge()
+	return edge != nil && edge.Tag&ET_CUT != 0
+}
+
+func (b *Block) IsOutCutted() bool {
+	return len(b.Outlets) > 0 && b.Outlets[0].Tag&ET_CUT != 0
+}
+
 func newBasicBlk() *Block {
 	b := &Block{
 		Kind:    BK_BASIC,
@@ -273,7 +327,7 @@ func nodeToString(node parser.Node) string {
 	case parser.N_NAME, parser.N_LIT_NUM:
 		return fmt.Sprintf("%s(%s)", node.Type().String(), node.Loc().Text())
 	case N_CFG_DEBUG:
-		return node.(*DebugNode).String()
+		return node.(*InfoNode).String()
 	}
 	return node.Type().String()
 }
@@ -306,16 +360,9 @@ func newGroupBlk() *Block {
 	return b
 }
 
-func IdOfAstNode(node parser.Node) uint64 {
+func IdOfAstNode(node parser.Node) string {
 	pos := node.Loc().Begin()
-	return uint64(pos.Line())<<32 | uint64(pos.Column())
-}
-
-func IdStrOfAstNode(node parser.Node) string {
-	pos := node.Loc().Begin()
-	line := strconv.FormatUint(uint64(pos.Line()), 10)
-	col := strconv.FormatUint(uint64(pos.Column()), 10)
-	return fmt.Sprintf("loc%s_%s", line, col)
+	return fmt.Sprintf("loc%d_%d_%d", pos.Line(), pos.Column(), node.Type())
 }
 
 type Graph struct {
@@ -324,18 +371,21 @@ type Graph struct {
 	Parent *Graph
 	Subs   []*Graph
 
-	// scopeId => label name => entry block
-	labels map[uint]map[string]*Block
+	// map the labelled ast node to its basic block
+	labelAstMap   map[string]*Block
+	hangingLabels []string
+
+	hangingLabelEntries map[string]*Block
 }
 
-func (g *Graph) setLabel(scopeId uint, labelName string, blk *Block) {
-	labels, ok := g.labels[scopeId]
-	if !ok {
-		labels = map[string]*Block{}
-		g.labels[scopeId] = labels
-	}
-	labels[labelName] = blk
-}
+// func (g *Graph) setLabel(scopeId uint, labelName string, blk *Block) {
+// 	labels, ok := g.labels[scopeId]
+// 	if !ok {
+// 		labels = map[string]*Block{}
+// 		g.labels[scopeId] = labels
+// 	}
+// 	labels[labelName] = blk
+// }
 
 func (g *Graph) NodesEdges() (map[string]*Block, map[string]*Edge, map[parser.Node]*Block) {
 	uniqueBlocks := map[string]*Block{}
@@ -351,7 +401,7 @@ func (g *Graph) NodesEdges() (map[string]*Block, map[string]*Edge, map[parser.No
 		last, rest := whites[cnt-1], whites[:cnt-1]
 		whites = rest
 
-		id := last.IdStr()
+		id := last.DotId()
 		if _, ok := uniqueBlocks[id]; ok {
 			continue
 		}
@@ -362,17 +412,14 @@ func (g *Graph) NodesEdges() (map[string]*Block, map[string]*Edge, map[parser.No
 			astNodeMap[astNode] = last
 		}
 
-		if last.Outlets != nil {
+		for _, edge := range last.Outlets {
+			ek := edge.Key()
+			if _, ok := uniqueEdges[ek]; !ok {
+				uniqueEdges[ek] = edge
+			}
 
-			for _, edge := range last.Outlets {
-				ek := edge.Key()
-				if _, ok := uniqueEdges[ek]; !ok {
-					uniqueEdges[ek] = edge
-				}
-
-				if edge.Dst != nil {
-					whites = append(whites, edge.Dst)
-				}
+			if edge.Dst != nil {
+				whites = append(whites, edge.Dst)
 			}
 		}
 	}
@@ -406,24 +453,25 @@ final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height
 
 func newGraph() *Graph {
 	g := &Graph{
-		Subs: make([]*Graph, 0),
-		// LabeledLoops: map[string]*Node{},
+		Subs:          make([]*Graph, 0),
+		labelAstMap:   map[string]*Block{},
+		hangingLabels: make([]string, 0),
 	}
 	g.Head = newStartBlk()
 	return g
 }
 
-type DebugNode struct {
+type InfoNode struct {
 	astNode parser.Node
 	enter   bool
 	info    string
 }
 
-func newDebugNode(node parser.Node, enter bool, info string) *DebugNode {
-	return &DebugNode{node, enter, info}
+func newInfoNode(node parser.Node, enter bool, info string) *InfoNode {
+	return &InfoNode{node, enter, info}
 }
 
-func (n *DebugNode) String() string {
+func (n *InfoNode) String() string {
 	if n.info != "" {
 		return n.info
 	}
@@ -444,11 +492,11 @@ func (n *DebugNode) String() string {
 	return fmt.Sprintf("%s:%s", typ.String(), enter)
 }
 
-func (n *DebugNode) Type() parser.NodeType {
+func (n *InfoNode) Type() parser.NodeType {
 	return N_CFG_DEBUG
 }
 
-func (n *DebugNode) Loc() *parser.Loc {
+func (n *InfoNode) Loc() *parser.Loc {
 	return n.astNode.Loc()
 }
 
@@ -467,7 +515,7 @@ func link(a *AnalysisCtx, from *Block, fromKind EdgeKind, fromTag EdgeTag, to *B
 	fromSeqEdge := from.OutSeqEdge()
 	if fromSeqEdge != nil {
 		fromSeq := fromSeqEdge.Src
-		if fromSeq.Kind == BK_BASIC && len(fromSeq.Outlets) == 1 && fromKind == EK_SEQ && to.Kind == BK_BASIC {
+		if fromSeq.Kind == BK_BASIC && len(fromSeq.Outlets) == 1 && fromKind == EK_SEQ && to.Kind == BK_BASIC && to.canBeJoined() {
 			from.join(to)
 			return
 		}
@@ -476,10 +524,22 @@ func link(a *AnalysisCtx, from *Block, fromKind EdgeKind, fromTag EdgeTag, to *B
 	to = to.unwrapSeqIn()
 
 	// process reaches here means the `from` maybe group block or basic block which has multiple outlets
+	isCutted := from.IsOutCutted()
 	for _, edge := range from.Outlets {
-		if fromKind == EK_NONE || (edge.Kind == fromKind && (fromTag == ET_NONE || edge.Tag&fromTag != 0)) {
+		if (fromKind == EK_NONE && edge.Dst == nil) || (edge.Kind == fromKind && (fromTag == ET_NONE || edge.Tag&fromTag != 0)) {
 			edge.Dst = to
-			to.Inlets = append(to.Inlets, edge)
+		}
+	}
+
+	for _, edge := range to.Inlets {
+		if (fromKind == EK_NONE && edge.Src == nil) || (edge.Kind == fromKind && (fromTag == ET_NONE || edge.Tag&fromTag != 0)) {
+			edge.Src = from
+		}
+	}
+
+	if isCutted && len(to.Inlets) == 1 {
+		for _, edge := range to.Outlets {
+			edge.Tag |= ET_CUT
 		}
 	}
 }

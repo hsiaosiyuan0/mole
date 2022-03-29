@@ -1,4 +1,4 @@
-package fuzz
+package util
 
 import (
 	"encoding/json"

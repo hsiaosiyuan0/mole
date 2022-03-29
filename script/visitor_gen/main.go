@@ -13,8 +13,8 @@ import (
 	"path"
 	"strings"
 
-	"github.com/hsiaosiyuan0/mole/fuzz"
 	"github.com/hsiaosiyuan0/mole/script/macro"
+	"github.com/hsiaosiyuan0/mole/util"
 )
 
 type MethodInfo struct {
@@ -369,5 +369,5 @@ import "github.com/hsiaosiyuan0/mole/ecma/parser"
 	}
 
 	ioutil.WriteFile(distFile, buf.Bytes(), 0644)
-	fuzz.Shell("gofmt", "-w", distFile)
+	util.Shell("gofmt", "-w", distFile)
 }

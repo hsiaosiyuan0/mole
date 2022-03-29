@@ -40,13 +40,13 @@ func (a *AnalysisCtx) lastStmt() *Block {
 
 func (a *AnalysisCtx) newEnter(astNode parser.Node, info string) *Block {
 	b := newBasicBlk()
-	b.Nodes = append(b.Nodes, newDebugNode(astNode, true, info))
+	b.Nodes = append(b.Nodes, newInfoNode(astNode, true, info))
 	return b
 }
 
 func (a *AnalysisCtx) newExit(astNode parser.Node, info string) *Block {
 	b := newBasicBlk()
-	b.Nodes = append(b.Nodes, newDebugNode(astNode, false, info))
+	b.Nodes = append(b.Nodes, newInfoNode(astNode, false, info))
 	return b
 }
 
@@ -95,15 +95,16 @@ func (a *Analysis) Graph() *Graph {
 }
 
 // below stmts and exprs have the condJmp(conditional-jump) semantic:
-// - [ ] logicAnd
-// - [ ] logicOr
-// - [ ] if
-// - [ ] for
-// - [ ] while
-// - [ ] doWhile
+// - [x] logicAnd
+// - [x] logicOr
+// - [x] if
+// - [x] for
+// - [x] while
+// - [x] doWhile
+// - [] for-in-of
 
 // - [ ] Loop
-// - [ ] Test
+// - [x] Test
 
 // below stmts have the unCondJmp(unconditional-jump) semantic
 // - [ ] contine
@@ -120,11 +121,12 @@ func isAtom(t parser.NodeType) bool {
 	return ok
 }
 
-func pushAtomNode(node parser.Node, key string, ctx *walk.VisitorCtx) {
+func pushAtomNode(node parser.Node, key string, ctx *walk.VisitorCtx) *Block {
 	ac := analysisCtx(ctx)
-	n := newBasicBlk()
-	n.Nodes = append(n.Nodes, node)
-	ac.pushExpr(n)
+	b := newBasicBlk()
+	b.Nodes = append(b.Nodes, node)
+	ac.pushExpr(b)
+	return b
 }
 
 func handleBefore(node parser.Node, key string, ctx *walk.VisitorCtx) {
@@ -133,43 +135,41 @@ func handleBefore(node parser.Node, key string, ctx *walk.VisitorCtx) {
 	astTyp := node.Type()
 	pAstTyp := ctx.ParentNodeType()
 
-	if isAtom(astTyp) && pAstTyp != parser.N_STMT_LABEL {
-		pushAtomNode(node, key, ctx)
+	var blk *Block
+	if isAtom(astTyp) {
+		blk = pushAtomNode(node, key, ctx)
+	} else {
+		blk = ac.newEnter(node, "")
+	}
+
+	if astTyp.IsExpr() && pAstTyp != parser.N_STMT_LABEL {
+		if cnt := len(ac.graph.hangingLabels); cnt > 0 {
+			blk.newLoopIn()
+			last, rest := ac.graph.hangingLabels[cnt-1], ac.graph.hangingLabels[:cnt-1]
+			ac.graph.hangingLabels = rest
+			ac.graph.labelAstMap[last] = blk
+		}
 	}
 
 	if astTyp.IsStmt() || astTyp == parser.N_PROG {
-		enter := ac.newEnter(node, "")
+		if astTyp == parser.N_STMT_LABEL && node.(*parser.LabelStmt).Used() {
+			id := IdOfAstNode(node)
+			ac.graph.labelAstMap[id] = newBasicBlk()
+			ac.graph.hangingLabels = append(ac.graph.hangingLabels, id)
+		}
 
-		if pAstTyp == parser.N_STMT_IF || pAstTyp == parser.N_STMT_LABEL || isLoop(pAstTyp) {
+		if pAstTyp == parser.N_STMT_IF || isLoop(pAstTyp) || pAstTyp == parser.N_STMT_LABEL {
 			// just pushing `enter` into stack without linking to the `prevStmt` to imitate a new branch
 			// the forked branch will be linked to its source branch point in the post-process listener
 			// of its astNode
-			ac.pushStmt(enter)
+			ac.pushStmt(blk)
 		} else {
 			prev := ac.popStmt()
-			link(ac, prev, EK_NONE, ET_NONE, enter)
-			ac.pushStmt(grpBlock(ac, prev, enter))
+			link(ac, prev, EK_NONE, ET_NONE, blk)
+			ac.pushStmt(grpBlock(ac, prev, blk))
 		}
-
-		// }
-		// if isLoopTyp(astTyp) {
-		// 	if pAstTyp == parser.N_STMT_LABEL {
-		// 		enter.newLoopIn()
-		// 	}
-
-		// 	// record the loops, key is the id of their parent label node
-		// 	c := ctx
-		// 	pn := c.ParentNode()
-		// 	for pn != nil && pn.Type() == parser.N_STMT_LABEL {
-		// 		ac.astNodeInBlock[IdOfAstNode(pn)] = enter
-		// 		c = c.Parent
-		// 		if c == nil {
-		// 			break
-		// 		}
-		// 		pn = c.Node
-		// 	}
-	} else if (astTyp.IsExpr() || astTyp == parser.N_VAR_DEC) && !isAtom(astTyp) {
-		ac.pushExpr(ac.newEnter(node, ""))
+	} else if astTyp.IsExpr() && !isAtom(astTyp) || astTyp == parser.N_VAR_DEC {
+		ac.pushExpr(blk)
 	}
 }
 
@@ -429,11 +429,29 @@ func handleAfter(node parser.Node, key string, ctx *walk.VisitorCtx) {
 		enter := ac.popStmt()
 
 		link(ac, enter, EK_NONE, ET_NONE, body)
-
 		exit := ac.newExit(node, "")
 		link(ac, body, EK_NONE, ET_NONE, exit)
-
 		ac.pushStmt(grpBlock(ac, enter, exit))
+
+	case parser.N_STMT_CONT:
+		prev := ac.popStmt()
+		exit := ac.newExit(node, "")
+		exit.newJmp(ET_LOOP)
+
+		n := node.(*parser.ContStmt)
+		var target *Block
+		if n.Label() != nil {
+			name := ac.popExpr()
+			link(ac, prev, EK_SEQ, ET_NONE, name)
+			link(ac, name, EK_SEQ, ET_NONE, exit)
+			target = ac.graph.labelAstMap[IdOfAstNode(n.Target())]
+		} // TODO: no label
+
+		link(ac, exit, EK_JMP, ET_LOOP, target)
+		exit.mrkSeqOutAsCutted()
+
+		vn := grpBlock(ac, prev, exit)
+		ac.pushStmt(vn)
 
 	default:
 		if !isAtom(astTyp) {

@@ -5,7 +5,7 @@ import (
 
 	. "github.com/hsiaosiyuan0/mole/ecma/estree/test"
 	"github.com/hsiaosiyuan0/mole/ecma/parser"
-	. "github.com/hsiaosiyuan0/mole/fuzz"
+	. "github.com/hsiaosiyuan0/mole/util"
 )
 
 // below tests follow the copyright declaration in the head of file:

@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	"github.com/hsiaosiyuan0/mole/ecma/parser"
-	. "github.com/hsiaosiyuan0/mole/fuzz"
 	"github.com/hsiaosiyuan0/mole/span"
+	. "github.com/hsiaosiyuan0/mole/util"
 )
 
 func newParser(code string, opts *parser.ParserOpts) *parser.Parser {

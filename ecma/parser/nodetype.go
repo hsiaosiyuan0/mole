@@ -1,4 +1,4 @@
-//go:generate stringer -type=NodeType
+//go:generate go run github.com/hsiaosiyuan0/mole/script/nodetype_gen -d=../parser
 
 package parser
 
