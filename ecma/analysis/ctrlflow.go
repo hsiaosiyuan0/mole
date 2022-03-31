@@ -101,7 +101,7 @@ func (a *Analysis) Graph() *Graph {
 // - [x] for
 // - [x] while
 // - [x] doWhile
-// - [] for-in-of
+// - [x] for-in-of
 
 // - [ ] Loop
 // - [x] Test
@@ -113,7 +113,7 @@ func (a *Analysis) Graph() *Graph {
 // - [ ] callExpr
 
 func isLoop(t parser.NodeType) bool {
-	return t == parser.N_STMT_FOR || t == parser.N_STMT_WHILE || t == parser.N_STMT_DO_WHILE
+	return t == parser.N_STMT_FOR || t == parser.N_STMT_WHILE || t == parser.N_STMT_DO_WHILE || t == parser.N_STMT_FOR_IN_OF
 }
 
 func isAtom(t parser.NodeType) bool {
@@ -142,7 +142,7 @@ func handleBefore(node parser.Node, key string, ctx *walk.VisitorCtx) {
 		blk = ac.newEnter(node, "")
 	}
 
-	if astTyp.IsExpr() && pAstTyp != parser.N_STMT_LABEL {
+	if isAtom(astTyp) && pAstTyp != parser.N_STMT_LABEL {
 		if cnt := len(ac.graph.hangingLabels); cnt > 0 {
 			blk.newLoopIn()
 			last, rest := ac.graph.hangingLabels[cnt-1], ac.graph.hangingLabels[:cnt-1]
@@ -165,7 +165,7 @@ func handleBefore(node parser.Node, key string, ctx *walk.VisitorCtx) {
 			ac.pushStmt(blk)
 		} else {
 			prev := ac.popStmt()
-			link(ac, prev, EK_NONE, ET_NONE, blk)
+			link(ac, prev, EK_NONE, ET_NONE, EK_NONE, ET_NONE, blk)
 			ac.pushStmt(grpBlock(ac, prev, blk))
 		}
 	} else if astTyp.IsExpr() && !isAtom(astTyp) || astTyp == parser.N_VAR_DEC {
@@ -186,7 +186,7 @@ func handleAfter(node parser.Node, key string, ctx *walk.VisitorCtx) {
 		rhs := ac.popExpr()
 		lhs := ac.popExpr()
 		enter := ac.popExpr()
-		link(ac, enter, EK_NONE, ET_NONE, lhs)
+		link(ac, enter, EK_NONE, ET_NONE, EK_NONE, ET_NONE, lhs)
 		lhs = grpBlock(ac, enter, lhs)
 
 		op := n.Op()
@@ -199,10 +199,10 @@ func handleAfter(node parser.Node, key string, ctx *walk.VisitorCtx) {
 			logic = false
 		}
 
-		link(ac, lhs, EK_SEQ, ET_NONE, rhs)
+		link(ac, lhs, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, rhs)
 
 		if op == parser.T_OR {
-			link(ac, lhs, EK_JMP, ET_JMP_F, rhs)
+			link(ac, lhs, EK_JMP, ET_JMP_F, EK_SEQ, ET_NONE, rhs)
 		}
 
 		vn := newGroupBlk()
@@ -214,24 +214,35 @@ func handleAfter(node parser.Node, key string, ctx *walk.VisitorCtx) {
 		}
 
 		exit := ac.newExit(node, "")
-		link(ac, vn, EK_SEQ, ET_NONE, exit)
+		link(ac, vn, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, exit)
 		ac.pushExpr(grpBlock(ac, vn, exit))
 
 	case parser.N_EXPR_UPDATE, parser.N_EXPR_PAREN:
 		expr := ac.popExpr()
 		enter := ac.popExpr()
-		link(ac, enter, EK_NONE, ET_NONE, expr)
+		link(ac, enter, EK_NONE, ET_NONE, EK_NONE, ET_NONE, expr)
 		exit := ac.newExit(node, "")
-		link(ac, expr, EK_NONE, ET_NONE, exit)
+		link(ac, expr, EK_NONE, ET_NONE, EK_NONE, ET_NONE, exit)
 		ac.pushExpr(grpBlock(ac, enter, exit))
+
+	case parser.N_EXPR_ASSIGN:
+		rhs := ac.popExpr()
+		lhs := ac.popExpr()
+		enter := ac.popExpr()
+		exit := ac.newExit(node, "")
+		link(ac, enter, EK_NONE, ET_NONE, EK_NONE, ET_NONE, lhs)
+		link(ac, lhs, EK_NONE, ET_NONE, EK_NONE, ET_NONE, rhs)
+		link(ac, rhs, EK_NONE, ET_NONE, EK_NONE, ET_NONE, exit)
+		vn := grpBlock(ac, enter, exit)
+		ac.pushExpr(vn)
 
 	case parser.N_STMT_EXPR:
 		expr := ac.popExpr()
 		prev := ac.popStmt()
-		link(ac, prev, EK_SEQ, ET_NONE, expr)
+		link(ac, prev, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, expr)
 
 		exit := ac.newExit(node, "")
-		link(ac, expr, EK_NONE, ET_NONE, exit)
+		link(ac, expr, EK_NONE, ET_NONE, EK_NONE, ET_NONE, exit)
 		ac.pushStmt(grpBlock(ac, prev, exit))
 
 	case parser.N_VAR_DEC:
@@ -242,35 +253,36 @@ func handleAfter(node parser.Node, key string, ctx *walk.VisitorCtx) {
 		}
 		id = ac.popExpr()
 		enter := ac.popExpr()
-		link(ac, enter, EK_NONE, ET_NONE, id)
+		link(ac, enter, EK_NONE, ET_NONE, EK_NONE, ET_NONE, id)
 
 		exit := ac.newExit(node, "")
 		if init != nil {
-			link(ac, id, EK_NONE, ET_NONE, init)
-			link(ac, init, EK_NONE, ET_NONE, exit)
+			link(ac, id, EK_NONE, ET_NONE, EK_NONE, ET_NONE, init)
+			link(ac, init, EK_NONE, ET_NONE, EK_NONE, ET_NONE, exit)
 		} else {
-			link(ac, id, EK_NONE, ET_NONE, exit)
+			link(ac, id, EK_NONE, ET_NONE, EK_NONE, ET_NONE, exit)
 		}
 		vn := grpBlock(ac, enter, exit)
 
 		prev := ac.popStmt()
-		link(ac, prev, EK_NONE, ET_NONE, vn)
+		link(ac, prev, EK_NONE, ET_NONE, EK_NONE, ET_NONE, vn)
 		ac.pushStmt(grpBlock(ac, prev, vn))
 
 	case parser.N_STMT_VAR_DEC:
 		prev := ac.popStmt()
 		exit := ac.newExit(node, "")
-		link(ac, prev, EK_NONE, ET_NONE, exit)
+		link(ac, prev, EK_NONE, ET_NONE, EK_NONE, ET_NONE, exit)
 		ac.pushStmt(grpBlock(ac, prev, exit))
 
-		if pAstTyp == parser.N_STMT_FOR && key == "Init" {
+		if pAstTyp == parser.N_STMT_FOR && key == "Init" ||
+			pAstTyp == parser.N_STMT_FOR_IN_OF && key == "Left" {
 			ac.pushExpr(ac.popStmt())
 		}
 
 	case parser.N_PROG, parser.N_STMT_BLOCK:
 		prev := ac.popStmt()
 		exit := ac.newExit(node, "")
-		link(ac, prev, EK_NONE, ET_NONE, exit)
+		link(ac, prev, EK_NONE, ET_NONE, EK_NONE, ET_NONE, exit)
 		ac.pushStmt(grpBlock(ac, prev, exit))
 
 	case parser.N_STMT_IF:
@@ -283,14 +295,14 @@ func handleAfter(node parser.Node, key string, ctx *walk.VisitorCtx) {
 		test = ac.popExpr()
 		enter = ac.popStmt()
 
-		link(ac, enter, EK_NONE, ET_NONE, test)
+		link(ac, enter, EK_NONE, ET_NONE, EK_NONE, ET_NONE, test)
 		test = grpBlock(ac, enter, test)
 
 		test.newJmp(ET_JMP_F)
-		link(ac, test, EK_SEQ, ET_NONE, cons)
-		link(ac, test, EK_JMP, ET_JMP_T, cons)
+		link(ac, test, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, cons)
+		link(ac, test, EK_JMP, ET_JMP_T, EK_SEQ, ET_NONE, cons)
 		if alt != nil {
-			link(ac, test, EK_JMP, ET_JMP_F, alt)
+			link(ac, test, EK_JMP, ET_JMP_F, EK_SEQ, ET_NONE, alt)
 		}
 
 		vn := newGroupBlk()
@@ -303,16 +315,14 @@ func handleAfter(node parser.Node, key string, ctx *walk.VisitorCtx) {
 		}
 
 		exit := ac.newExit(node, "")
-		link(ac, vn, EK_NONE, ET_NONE, exit)
+		link(ac, vn, EK_NONE, ET_NONE, EK_NONE, ET_NONE, exit)
 		vn = grpBlock(ac, vn, exit)
 		ac.pushStmt(vn)
 
 	case parser.N_STMT_FOR:
 		n := node.(*parser.ForStmt)
 		var enter, init, test, update, body *Block
-		if n.Body() != nil {
-			body = ac.popStmt()
-		}
+		body = ac.popStmt()
 		if n.Update() != nil {
 			update = ac.popExpr()
 		}
@@ -327,37 +337,37 @@ func handleAfter(node parser.Node, key string, ctx *walk.VisitorCtx) {
 		enter = ac.popStmt()
 
 		if init != nil {
-			link(ac, enter, EK_NONE, ET_NONE, init)
-			link(ac, init, EK_SEQ, ET_NONE, test)
+			link(ac, enter, EK_NONE, ET_NONE, EK_NONE, ET_NONE, init)
+			link(ac, init, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, test)
 		}
 
 		if test != nil {
 			if init == nil {
-				link(ac, enter, EK_NONE, ET_NONE, test)
+				link(ac, enter, EK_NONE, ET_NONE, EK_NONE, ET_NONE, test)
 			}
-			link(ac, test, EK_SEQ, ET_NONE, body)
+			link(ac, test, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, body)
 		} else {
 			body.newLoopIn()
 			if init == nil {
-				link(ac, enter, EK_SEQ, ET_NONE, body)
+				link(ac, enter, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, body)
 			} else {
-				link(ac, init, EK_SEQ, ET_NONE, body)
+				link(ac, init, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, body)
 			}
 		}
 
 		if update != nil {
-			link(ac, body, EK_SEQ, ET_NONE, update)
+			link(ac, body, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, update)
 			if test != nil {
-				link(ac, update, EK_NONE, ET_NONE, test)
+				link(ac, update, EK_NONE, ET_NONE, EK_NONE, ET_NONE, test)
 			} else {
-				link(ac, update, EK_NONE, ET_NONE, body)
+				link(ac, update, EK_NONE, ET_NONE, EK_NONE, ET_NONE, body)
 			}
 			update.mrkSeqOutAsLoop()
 		} else {
 			if test != nil {
-				link(ac, body, EK_NONE, ET_NONE, test)
+				link(ac, body, EK_NONE, ET_NONE, EK_NONE, ET_NONE, test)
 			} else {
-				link(ac, body, EK_SEQ, ET_NONE, body)
+				link(ac, body, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, body)
 			}
 			body.mrkSeqOutAsLoop()
 		}
@@ -370,7 +380,7 @@ func handleAfter(node parser.Node, key string, ctx *walk.VisitorCtx) {
 		vn.Outlets = append(vn.Outlets, body.xOutEdges()...)
 
 		exit := ac.newExit(node, "")
-		link(ac, vn, EK_NONE, ET_NONE, exit)
+		link(ac, vn, EK_NONE, ET_NONE, EK_NONE, ET_NONE, exit)
 		ac.pushStmt(grpBlock(ac, vn, exit))
 
 	case parser.N_STMT_WHILE:
@@ -380,11 +390,11 @@ func handleAfter(node parser.Node, key string, ctx *walk.VisitorCtx) {
 
 		test.newJmp(ET_JMP_F)
 		test.newLoopIn()
-		link(ac, enter, EK_SEQ, ET_NONE, test)
+		link(ac, enter, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, test)
 
-		link(ac, test, EK_SEQ, ET_NONE, body)
-		link(ac, test, EK_JMP, ET_JMP_T, body)
-		link(ac, body, EK_NONE, ET_NONE, test)
+		link(ac, test, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, body)
+		link(ac, test, EK_JMP, ET_JMP_T, EK_SEQ, ET_NONE, body)
+		link(ac, body, EK_NONE, ET_NONE, EK_NONE, ET_NONE, test)
 		body.mrkSeqOutAsLoop()
 
 		vn := newGroupBlk()
@@ -395,7 +405,7 @@ func handleAfter(node parser.Node, key string, ctx *walk.VisitorCtx) {
 		vn.Outlets = append(vn.Outlets, body.xOutEdges()...)
 
 		exit := ac.newExit(node, "")
-		link(ac, vn, EK_NONE, ET_NONE, exit)
+		link(ac, vn, EK_NONE, ET_NONE, EK_NONE, ET_NONE, exit)
 		ac.pushStmt(grpBlock(ac, vn, exit))
 
 	case parser.N_STMT_DO_WHILE:
@@ -405,12 +415,12 @@ func handleAfter(node parser.Node, key string, ctx *walk.VisitorCtx) {
 
 		test.newJmp(ET_JMP_F)
 		body.newLoopIn()
-		link(ac, enter, EK_NONE, ET_NONE, body)
-		link(ac, body, EK_SEQ, ET_NONE, test)
+		link(ac, enter, EK_NONE, ET_NONE, EK_NONE, ET_NONE, body)
+		link(ac, body, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, test)
 
-		link(ac, test, EK_SEQ, ET_NONE, body)
+		link(ac, test, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, body)
 		test.mrkSeqOutAsLoop()
-		link(ac, test, EK_JMP, ET_JMP_T, body)
+		link(ac, test, EK_JMP, ET_JMP_T, EK_JMP, ET_NONE, body)
 		test.mrkJmpOutAsLoop(ET_JMP_T)
 
 		vn := newGroupBlk()
@@ -421,16 +431,37 @@ func handleAfter(node parser.Node, key string, ctx *walk.VisitorCtx) {
 		vn.Outlets = append(vn.Outlets, body.xOutEdges()...)
 
 		exit := ac.newExit(node, "")
-		link(ac, vn, EK_NONE, ET_NONE, exit)
+		link(ac, vn, EK_NONE, ET_NONE, EK_NONE, ET_NONE, exit)
 		ac.pushStmt(grpBlock(ac, vn, exit))
+
+	case parser.N_STMT_FOR_IN_OF:
+		body := ac.popStmt()
+		enter := ac.popStmt()
+		rhs := ac.popExpr()
+		lhs := ac.popExpr()
+
+		lhs.newLoopIn()
+		link(ac, enter, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, lhs)
+		link(ac, lhs, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, rhs)
+
+		rhs.newJmp(ET_JMP_F)
+		link(ac, rhs, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, body)
+
+		body.mrkSeqOutAsLoop()
+		link(ac, body, EK_JMP, ET_LOOP, EK_JMP, ET_LOOP, lhs)
+
+		exit := ac.newExit(node, "")
+		link(ac, rhs, EK_JMP, ET_JMP_F, EK_SEQ, ET_NONE, exit)
+
+		ac.pushStmt(grpBlock(ac, enter, exit))
 
 	case parser.N_STMT_LABEL:
 		body := ac.popStmt()
 		enter := ac.popStmt()
 
-		link(ac, enter, EK_NONE, ET_NONE, body)
+		link(ac, enter, EK_NONE, ET_NONE, EK_NONE, ET_NONE, body)
 		exit := ac.newExit(node, "")
-		link(ac, body, EK_NONE, ET_NONE, exit)
+		link(ac, body, EK_NONE, ET_NONE, EK_NONE, ET_NONE, exit)
 		ac.pushStmt(grpBlock(ac, enter, exit))
 
 	case parser.N_STMT_CONT:
@@ -442,12 +473,12 @@ func handleAfter(node parser.Node, key string, ctx *walk.VisitorCtx) {
 		var target *Block
 		if n.Label() != nil {
 			name := ac.popExpr()
-			link(ac, prev, EK_SEQ, ET_NONE, name)
-			link(ac, name, EK_SEQ, ET_NONE, exit)
+			link(ac, prev, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, name)
+			link(ac, name, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, exit)
 			target = ac.graph.labelAstMap[IdOfAstNode(n.Target())]
 		} // TODO: no label
 
-		link(ac, exit, EK_JMP, ET_LOOP, target)
+		link(ac, exit, EK_JMP, ET_LOOP, EK_JMP, ET_LOOP, target)
 		exit.mrkSeqOutAsCutted()
 
 		vn := grpBlock(ac, prev, exit)
@@ -457,7 +488,7 @@ func handleAfter(node parser.Node, key string, ctx *walk.VisitorCtx) {
 		if !isAtom(astTyp) {
 			prev := ac.popStmt()
 			exit := ac.newExit(node, "")
-			link(ac, prev, EK_NONE, ET_NONE, exit)
+			link(ac, prev, EK_NONE, ET_NONE, EK_NONE, ET_NONE, exit)
 			ac.pushStmt(grpBlock(ac, prev, exit))
 		}
 	}

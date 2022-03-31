@@ -2,6 +2,7 @@ package analysis
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/hsiaosiyuan0/mole/ecma/parser"
@@ -114,7 +115,7 @@ func (b *Block) DotId() string {
 	case BK_BASIC:
 		return IdOfAstNode(b.Nodes[0])
 	case BK_START:
-		return "s"
+		return "loc0"
 	case BK_GROUP:
 		return "v"
 	}
@@ -362,7 +363,15 @@ func newGroupBlk() *Block {
 
 func IdOfAstNode(node parser.Node) string {
 	pos := node.Loc().Begin()
-	return fmt.Sprintf("loc%d_%d_%d", pos.Line(), pos.Column(), node.Type())
+	i := ""
+	if node.Type() == N_CFG_DEBUG {
+		if node.(*InfoNode).enter {
+			i = "_0"
+		} else {
+			i = "_1"
+		}
+	}
+	return fmt.Sprintf("loc%d_%d_%d%s", pos.Line(), pos.Column(), node.Type(), i)
 }
 
 type Graph struct {
@@ -374,26 +383,20 @@ type Graph struct {
 	// map the labelled ast node to its basic block
 	labelAstMap   map[string]*Block
 	hangingLabels []string
-
-	hangingLabelEntries map[string]*Block
 }
 
-// func (g *Graph) setLabel(scopeId uint, labelName string, blk *Block) {
-// 	labels, ok := g.labels[scopeId]
-// 	if !ok {
-// 		labels = map[string]*Block{}
-// 		g.labels[scopeId] = labels
-// 	}
-// 	labels[labelName] = blk
-// }
-
-func (g *Graph) NodesEdges() (map[string]*Block, map[string]*Edge, map[parser.Node]*Block) {
+func (g *Graph) NodesEdges() (map[string]*Block, []string, map[string]*Edge, []string, map[parser.Node]*Block) {
 	uniqueBlocks := map[string]*Block{}
 	uniqueEdges := map[string]*Edge{}
 	astNodeMap := map[parser.Node]*Block{}
 
 	start := g.Head.Inlets[0]
 	uniqueEdges[start.Key()] = start
+
+	blKKeys := []string{}
+	edgeKeys := []string{
+		start.Key(),
+	}
 
 	whites := []*Block{g.Head}
 	for len(whites) > 0 {
@@ -406,6 +409,7 @@ func (g *Graph) NodesEdges() (map[string]*Block, map[string]*Edge, map[parser.No
 			continue
 		}
 		uniqueBlocks[id] = last
+		blKKeys = append(blKKeys, id)
 
 		// map astNodes to its basic block
 		for _, astNode := range last.Nodes {
@@ -416,6 +420,7 @@ func (g *Graph) NodesEdges() (map[string]*Block, map[string]*Edge, map[parser.No
 			ek := edge.Key()
 			if _, ok := uniqueEdges[ek]; !ok {
 				uniqueEdges[ek] = edge
+				edgeKeys = append(edgeKeys, ek)
 			}
 
 			if edge.Dst != nil {
@@ -424,11 +429,13 @@ func (g *Graph) NodesEdges() (map[string]*Block, map[string]*Edge, map[parser.No
 		}
 	}
 
-	return uniqueBlocks, uniqueEdges, astNodeMap
+	sort.Strings(blKKeys)
+	sort.Strings(edgeKeys)
+	return uniqueBlocks, blKKeys, uniqueEdges, edgeKeys, astNodeMap
 }
 
 func (g *Graph) Dot() string {
-	blocks, edges, _ := g.NodesEdges()
+	blocks, blKKeys, edges, edgeKeys, _ := g.NodesEdges()
 
 	var b strings.Builder
 
@@ -439,12 +446,12 @@ initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.2
 final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
 `)
 
-	for _, blk := range blocks {
-		b.WriteString(blk.Dot())
+	for _, bk := range blKKeys {
+		b.WriteString(blocks[bk].Dot())
 	}
 
-	for _, edge := range edges {
-		b.WriteString(edge.Dot())
+	for _, ek := range edgeKeys {
+		b.WriteString(edges[ek].Dot())
 	}
 
 	b.WriteString("}\n\n")
@@ -500,7 +507,7 @@ func (n *InfoNode) Loc() *parser.Loc {
 	return n.astNode.Loc()
 }
 
-func link(a *AnalysisCtx, from *Block, fromKind EdgeKind, fromTag EdgeTag, to *Block) {
+func link(a *AnalysisCtx, from *Block, fromKind EdgeKind, fromTag EdgeTag, toKind EdgeKind, toTag EdgeTag, to *Block) {
 	if from == nil || to == nil {
 		return
 	}
@@ -532,7 +539,7 @@ func link(a *AnalysisCtx, from *Block, fromKind EdgeKind, fromTag EdgeTag, to *B
 	}
 
 	for _, edge := range to.Inlets {
-		if (fromKind == EK_NONE && edge.Src == nil) || (edge.Kind == fromKind && (fromTag == ET_NONE || edge.Tag&fromTag != 0)) {
+		if (toKind == EK_NONE && edge.Src == nil) || (edge.Kind == toKind && (toTag == ET_NONE || edge.Tag&toTag != 0)) {
 			edge.Src = from
 		}
 	}
@@ -554,9 +561,9 @@ func grpBlock(a *AnalysisCtx, from *Block, to *Block) *Block {
 		vn = from
 	} else {
 		vn = newGroupBlk()
+		vn.Inlets = from.Inlets
 	}
 
-	vn.Inlets = from.Inlets
 	vn.Outlets = append(to.Outlets, from.xJmpOutEdges()...)
 	return vn
 }

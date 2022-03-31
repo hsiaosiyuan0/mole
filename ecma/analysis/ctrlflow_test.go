@@ -34,7 +34,7 @@ a
 	ana := NewAnalysis(ast, symtab)
 	ana.Analyze()
 
-	_, _, astNodeMap := ana.Graph().NodesEdges()
+	_, _, _, _, astNodeMap := ana.Graph().NodesEdges()
 
 	expr := ast.(*parser.Prog).Body()[0].(*parser.ExprStmt).Expr().(*parser.Ident)
 	block := astNodeMap[expr]
@@ -56,7 +56,7 @@ func TestCtrlflow_Logic(t *testing.T) {
 	ana := NewAnalysis(ast, symtab)
 	ana.Analyze()
 
-	_, _, astNodeMap := ana.Graph().NodesEdges()
+	_, _, _, _, astNodeMap := ana.Graph().NodesEdges()
 	expr := ast.(*parser.Prog).Body()[0].(*parser.ExprStmt).Expr().(*parser.BinExpr)
 	a := astNodeMap[expr.Lhs()]
 	b := astNodeMap[expr.Rhs()]
@@ -77,7 +77,7 @@ func TestCtrlflow_LogicMix(t *testing.T) {
 	ana := NewAnalysis(ast, symtab)
 	ana.Analyze()
 
-	_, _, astNodeMap := ana.Graph().NodesEdges()
+	_, _, _, _, astNodeMap := ana.Graph().NodesEdges()
 	expr := ast.(*parser.Prog).Body()[0].(*parser.ExprStmt).Expr().(*parser.BinExpr)
 	ab := expr.Lhs().(*parser.BinExpr)
 	a := astNodeMap[ab.Lhs()]
@@ -106,7 +106,7 @@ func TestCtrlflow_IfStmt(t *testing.T) {
 	ana := NewAnalysis(ast, symtab)
 	ana.Analyze()
 
-	_, _, astNodeMap := ana.Graph().NodesEdges()
+	_, _, _, _, astNodeMap := ana.Graph().NodesEdges()
 	stmt := ast.(*parser.Prog).Body()[1].(*parser.IfStmt)
 	b := astNodeMap[stmt.Test()]
 	c := astNodeMap[stmt.Cons().(*parser.ExprStmt).Expr()]
@@ -137,7 +137,7 @@ func TestCtrlflow_IfBlkStmt(t *testing.T) {
 	ana := NewAnalysis(ast, symtab)
 	ana.Analyze()
 
-	_, _, astNodeMap := ana.Graph().NodesEdges()
+	_, _, _, _, astNodeMap := ana.Graph().NodesEdges()
 	stmt := ast.(*parser.Prog).Body()[1].(*parser.IfStmt)
 	a := astNodeMap[ast.(*parser.Prog).Body()[0].(*parser.ExprStmt).Expr()]
 	e := astNodeMap[stmt.Alt().(*parser.ExprStmt).Expr()]
@@ -174,7 +174,7 @@ func TestCtrlflow_IfBlk2Stmt(t *testing.T) {
 	ana := NewAnalysis(ast, symtab)
 	ana.Analyze()
 
-	_, _, astNodeMap := ana.Graph().NodesEdges()
+	_, _, _, _, astNodeMap := ana.Graph().NodesEdges()
 	stmt := ast.(*parser.Prog).Body()[1].(*parser.IfStmt)
 	a := astNodeMap[ast.(*parser.Prog).Body()[0].(*parser.ExprStmt).Expr()]
 	b := astNodeMap[stmt.Test()]
@@ -208,7 +208,7 @@ func TestCtrlflow_IfLogic(t *testing.T) {
 	ana := NewAnalysis(ast, symtab)
 	ana.Analyze()
 
-	_, _, astNodeMap := ana.Graph().NodesEdges()
+	_, _, _, _, astNodeMap := ana.Graph().NodesEdges()
 	stmt := ast.(*parser.Prog).Body()[0].(*parser.IfStmt)
 	ab := stmt.Test().(*parser.BinExpr)
 	a := astNodeMap[ab.Lhs()]
@@ -238,7 +238,7 @@ func TestCtrlflow_IfLogicMix(t *testing.T) {
 	ana := NewAnalysis(ast, symtab)
 	ana.Analyze()
 
-	_, _, astNodeMap := ana.Graph().NodesEdges()
+	_, _, _, _, astNodeMap := ana.Graph().NodesEdges()
 	a := astNodeMap[ast.(*parser.Prog).Body()[0].(*parser.ExprStmt).Expr()]
 	stmt := ast.(*parser.Prog).Body()[1].(*parser.IfStmt)
 	bcd := stmt.Test().(*parser.BinExpr)
@@ -276,7 +276,7 @@ func TestCtrlflow_UpdateExpr(t *testing.T) {
 	ana := NewAnalysis(ast, symtab)
 	ana.Analyze()
 
-	_, _, astNodeMap := ana.Graph().NodesEdges()
+	_, _, _, _, astNodeMap := ana.Graph().NodesEdges()
 	a := astNodeMap[ast.(*parser.Prog).Body()[0].(*parser.ExprStmt).Expr().(*parser.UpdateExpr).Arg()]
 
 	AssertEqual(t, "UpdateExpr(++):exit", nodeToString(a.Nodes[4]), "should be ok")
@@ -293,7 +293,7 @@ func TestCtrlflow_VarDecStmt(t *testing.T) {
 	ana := NewAnalysis(ast, symtab)
 	ana.Analyze()
 
-	_, _, astNodeMap := ana.Graph().NodesEdges()
+	_, _, _, _, astNodeMap := ana.Graph().NodesEdges()
 	varDecStmt := ast.(*parser.Prog).Body()[0].(*parser.VarDecStmt)
 	varDec0 := varDecStmt.DecList()[0].(*parser.VarDec)
 	varDec1 := varDecStmt.DecList()[1].(*parser.VarDec)
@@ -323,7 +323,7 @@ func TestCtrlflow_ForStmt(t *testing.T) {
 	ana := NewAnalysis(ast, symtab)
 	ana.Analyze()
 
-	_, _, astNodeMap := ana.Graph().NodesEdges()
+	_, _, _, _, astNodeMap := ana.Graph().NodesEdges()
 	stmt := ast.(*parser.Prog).Body()[0].(*parser.ForStmt)
 	init := stmt.Init().(*parser.VarDecStmt)
 	test := stmt.Test().(*parser.BinExpr)
@@ -364,7 +364,7 @@ func TestCtrlflow_ForStmtOmitInit(t *testing.T) {
 	ana := NewAnalysis(ast, symtab)
 	ana.Analyze()
 
-	_, _, astNodeMap := ana.Graph().NodesEdges()
+	_, _, _, _, astNodeMap := ana.Graph().NodesEdges()
 	stmt := ast.(*parser.Prog).Body()[0].(*parser.ForStmt)
 	begin := ana.Graph().Head
 	test := stmt.Test().(*parser.BinExpr)
@@ -407,7 +407,7 @@ func TestCtrlflow_ForStmtOmitInitUpdate(t *testing.T) {
 	ana := NewAnalysis(ast, symtab)
 	ana.Analyze()
 
-	_, _, astNodeMap := ana.Graph().NodesEdges()
+	_, _, _, _, astNodeMap := ana.Graph().NodesEdges()
 	stmt := ast.(*parser.Prog).Body()[0].(*parser.ForStmt)
 	begin := ana.Graph().Head
 	test := stmt.Test().(*parser.BinExpr)
@@ -437,7 +437,7 @@ func TestCtrlflow_ForStmtOmitInitUpdate_TestLogic(t *testing.T) {
 	ana := NewAnalysis(ast, symtab)
 	ana.Analyze()
 
-	_, _, astNodeMap := ana.Graph().NodesEdges()
+	_, _, _, _, astNodeMap := ana.Graph().NodesEdges()
 	stmt := ast.(*parser.Prog).Body()[0].(*parser.ForStmt)
 	begin := ana.Graph().Head
 	test := stmt.Test().(*parser.BinExpr)
@@ -476,7 +476,7 @@ func TestCtrlflow_ForStmtOmitAll(t *testing.T) {
 	ana := NewAnalysis(ast, symtab)
 	ana.Analyze()
 
-	_, _, astNodeMap := ana.Graph().NodesEdges()
+	_, _, _, _, astNodeMap := ana.Graph().NodesEdges()
 	stmt := ast.(*parser.Prog).Body()[0].(*parser.ForStmt)
 	begin := ana.Graph().Head
 	body := stmt.Body().(*parser.BlockStmt).Body()[0].(*parser.ExprStmt).Expr()
@@ -501,7 +501,7 @@ func TestCtrlflow_While(t *testing.T) {
 	ana := NewAnalysis(ast, symtab)
 	ana.Analyze()
 
-	_, _, astNodeMap := ana.Graph().NodesEdges()
+	_, _, _, _, astNodeMap := ana.Graph().NodesEdges()
 	stmt := ast.(*parser.Prog).Body()[0].(*parser.WhileStmt)
 	begin := ana.Graph().Head
 	test := stmt.Test().(*parser.Ident)
@@ -530,7 +530,7 @@ func TestCtrlflow_WhileBodyBlk(t *testing.T) {
 	ana := NewAnalysis(ast, symtab)
 	ana.Analyze()
 
-	_, _, astNodeMap := ana.Graph().NodesEdges()
+	_, _, _, _, astNodeMap := ana.Graph().NodesEdges()
 	stmt := ast.(*parser.Prog).Body()[0].(*parser.WhileStmt)
 	begin := ana.Graph().Head
 	test := stmt.Test().(*parser.Ident)
@@ -561,7 +561,7 @@ func TestCtrlflow_WhileLogicOr(t *testing.T) {
 	ana := NewAnalysis(ast, symtab)
 	ana.Analyze()
 
-	_, _, astNodeMap := ana.Graph().NodesEdges()
+	_, _, _, _, astNodeMap := ana.Graph().NodesEdges()
 	stmt := ast.(*parser.Prog).Body()[0].(*parser.WhileStmt)
 	begin := ana.Graph().Head
 	test := stmt.Test().(*parser.BinExpr)
@@ -599,7 +599,7 @@ func TestCtrlflow_ParenExpr(t *testing.T) {
 	ana := NewAnalysis(ast, symtab)
 	ana.Analyze()
 
-	_, _, astNodeMap := ana.Graph().NodesEdges()
+	_, _, _, _, astNodeMap := ana.Graph().NodesEdges()
 	a := astNodeMap[ast.(*parser.Prog).Body()[0].(*parser.ExprStmt).Expr().(*parser.ParenExpr).Expr().(*parser.BinExpr).Lhs()]
 	AssertEqual(t, 10, len(a.Nodes), "should be ok")
 	AssertEqual(t, "BinExpr(+):exit", nodeToString(a.Nodes[6]), "should be ok")
@@ -615,7 +615,7 @@ func TestCtrlflow_ParenExprLogic(t *testing.T) {
 	ana := NewAnalysis(ast, symtab)
 	ana.Analyze()
 
-	_, _, astNodeMap := ana.Graph().NodesEdges()
+	_, _, _, _, astNodeMap := ana.Graph().NodesEdges()
 	ab := ast.(*parser.Prog).Body()[0].(*parser.ExprStmt).Expr().(*parser.ParenExpr).Expr().(*parser.BinExpr)
 	a := astNodeMap[ab.Lhs()]
 	b := astNodeMap[ab.Rhs()]
@@ -637,7 +637,7 @@ func TestCtrlflow_DoWhile(t *testing.T) {
 	ana := NewAnalysis(ast, symtab)
 	ana.Analyze()
 
-	_, _, astNodeMap := ana.Graph().NodesEdges()
+	_, _, _, _, astNodeMap := ana.Graph().NodesEdges()
 	stmt := ast.(*parser.Prog).Body()[0].(*parser.DoWhileStmt)
 	begin := ana.Graph().Head
 	test := stmt.Test().(*parser.Ident)
@@ -662,7 +662,7 @@ func TestCtrlflow_DoWhileLogicOr(t *testing.T) {
 	ana := NewAnalysis(ast, symtab)
 	ana.Analyze()
 
-	_, _, astNodeMap := ana.Graph().NodesEdges()
+	_, _, _, _, astNodeMap := ana.Graph().NodesEdges()
 	stmt := ast.(*parser.Prog).Body()[0].(*parser.DoWhileStmt)
 	begin := ana.Graph().Head
 	test := stmt.Test().(*parser.BinExpr)
@@ -694,7 +694,7 @@ func TestCtrlflow_DoWhileLogicAnd(t *testing.T) {
 	ana := NewAnalysis(ast, symtab)
 	ana.Analyze()
 
-	_, _, astNodeMap := ana.Graph().NodesEdges()
+	_, _, _, _, astNodeMap := ana.Graph().NodesEdges()
 	stmt := ast.(*parser.Prog).Body()[0].(*parser.DoWhileStmt)
 	begin := ana.Graph().Head
 	test := stmt.Test().(*parser.BinExpr)
@@ -726,7 +726,7 @@ func TestCtrlflow_WhileLogicMix(t *testing.T) {
 	ana := NewAnalysis(ast, symtab)
 	ana.Analyze()
 
-	_, _, astNodeMap := ana.Graph().NodesEdges()
+	_, _, _, _, astNodeMap := ana.Graph().NodesEdges()
 	stmt := ast.(*parser.Prog).Body()[0].(*parser.WhileStmt)
 	begin := ana.Graph().Head
 	test := stmt.Test().(*parser.BinExpr)
@@ -762,7 +762,7 @@ func TestCtrlflow_ContinueBasicEntry(t *testing.T) {
 	ana := NewAnalysis(ast, symtab)
 	ana.Analyze()
 
-	_, _, astNodeMap := ana.Graph().NodesEdges()
+	_, _, _, _, astNodeMap := ana.Graph().NodesEdges()
 	stmt := ast.(*parser.Prog).Body()[0].(*parser.LabelStmt).Body().(*parser.WhileStmt)
 	begin := ana.Graph().Head
 	a := astNodeMap[stmt.Test()]
@@ -796,7 +796,7 @@ func TestCtrlflow_Continue(t *testing.T) {
 	ana := NewAnalysis(ast, symtab)
 	ana.Analyze()
 
-	_, _, astNodeMap := ana.Graph().NodesEdges()
+	_, _, _, _, astNodeMap := ana.Graph().NodesEdges()
 	stmt := ast.(*parser.Prog).Body()[0].(*parser.LabelStmt).Body().(*parser.WhileStmt)
 	begin := ana.Graph().Head
 	test := stmt.Test().(*parser.BinExpr)
@@ -810,7 +810,7 @@ func TestCtrlflow_Continue(t *testing.T) {
 	AssertEqual(t, "WhileStmt:exit", nodeToString(exit.Nodes[0]), "should be ok")
 	AssertEqual(t, "LabelStmt:exit", nodeToString(exit.Nodes[1]), "should be ok")
 
-	AssertEqual(t, a, begin.OutSeqEdge().Dst, "should be ok")
+	AssertEqual(t, a, begin.OutSeqEdge().Dst.NextBlk(), "should be ok")
 	AssertEqual(t, b, a.OutSeqEdge().Dst, "should be ok")
 	AssertEqual(t, cont, a.OutJmpEdge(ET_JMP_T).Dst, "should be ok")
 
@@ -824,7 +824,7 @@ func TestCtrlflow_Continue(t *testing.T) {
 	AssertEqual(t, d, cont.OutSeqEdge().Dst, "should be ok")
 	AssertEqual(t, true, cont.IsOutCutted(), "should be ok")
 
-	AssertEqual(t, a, d.OutJmpEdge(ET_LOOP).Dst, "should be ok")
+	AssertEqual(t, begin.OutSeqEdge().Dst, d.OutJmpEdge(ET_LOOP).Dst, "should be ok")
 	AssertEqual(t, true, d.IsOutCutted(), "should be ok")
 }
 
@@ -842,7 +842,7 @@ func TestCtrlflow_ContinueOuter(t *testing.T) {
 	ana := NewAnalysis(ast, symtab)
 	ana.Analyze()
 
-	_, _, astNodeMap := ana.Graph().NodesEdges()
+	_, _, _, _, astNodeMap := ana.Graph().NodesEdges()
 	while1 := ast.(*parser.Prog).Body()[0].(*parser.LabelStmt).Body().(*parser.WhileStmt)
 	while2 := while1.Body().(*parser.BlockStmt).Body()[0].(*parser.WhileStmt)
 	begin := ana.Graph().Head
@@ -890,7 +890,7 @@ LabelA: do {
 	ana := NewAnalysis(ast, symtab)
 	ana.Analyze()
 
-	_, _, astNodeMap := ana.Graph().NodesEdges()
+	_, _, _, _, astNodeMap := ana.Graph().NodesEdges()
 	doWhile1 := ast.(*parser.Prog).Body()[0].(*parser.LabelStmt).Body().(*parser.DoWhileStmt)
 	doWhile2 := doWhile1.Body().(*parser.BlockStmt).Body()[1].(*parser.DoWhileStmt)
 	begin := ana.Graph().Head
@@ -917,4 +917,175 @@ LabelA: do {
 	AssertEqual(t, b, c.OutJmpEdge(ET_JMP_F).Dst, "should be ok")
 
 	AssertEqual(t, begin.OutSeqEdge().Dst, b.OutJmpEdge(ET_LOOP).Dst, "should be ok")
+}
+
+func TestCtrlflow_ContinueFor(t *testing.T) {
+	ast, symtab, err := compile(`
+LabelA: for(let a = 1; a < 10; a++) {
+  for(let b = a; b < 10; b++) {
+    if (b > 3) {
+      continue LabelA
+      c
+    }
+  }
+}
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+loc0[label="Prog:enter\nLabelStmt:enter\nForStmt:enter\nVarDecStmt:enter\nVarDec:enter\n"];
+loc2_16_54[label="Ident(a)\nNumLit(1)\nVarDec:exit\nVarDecStmt:exit\n"];
+loc2_23_156_0[label="BinExpr(<):enter\nIdent(a)\nNumLit(10)\nBinExpr(<):exit\n"];
+loc2_36_156_0[label="BlockStmt:enter\nForStmt:enter\nVarDecStmt:enter\nVarDec:enter\nIdent(b)\nIdent(a)\nVarDec:exit\nVarDecStmt:exit\n"];
+loc2_8_156_1[label="ForStmt:exit\nLabelStmt:exit\nProg:exit\n"];
+loc3_17_156_0[label="BinExpr(<):enter\nIdent(b)\nNumLit(10)\nBinExpr(<):exit\n"];
+loc3_2_156_1[label="ForStmt:exit\nBlockStmt:exit\nUpdateExpr(++):enter\nIdent(a)\nUpdateExpr(++):exit\n"];
+loc3_30_156_0[label="BlockStmt:enter\nIfStmt:enter\nBinExpr(>):enter\nIdent(b)\nNumLit(3)\nBinExpr(>):exit\n"];
+loc4_15_156_0[label="BlockStmt:enter\nContStmt:enter\nIdent(LabelA)\nContStmt:exit\n"];
+loc4_4_156_1[label="IfStmt:exit\nBlockStmt:exit\nUpdateExpr(++):enter\nIdent(b)\nUpdateExpr(++):exit\n"];
+loc6_6_156_0[label="ExprStmt:enter\nIdent(c)\nExprStmt:exit\nBlockStmt:exit\n"];
+loc0->loc2_16_54 [xlabel="",color="black"];
+loc2_16_54->loc2_23_156_0 [xlabel="",color="black"];
+loc2_23_156_0->loc2_36_156_0 [xlabel="",color="black"];
+loc2_23_156_0->loc2_8_156_1 [xlabel="F",color="orange"];
+loc2_36_156_0->loc3_17_156_0 [xlabel="",color="black"];
+loc2_8_156_1->final [xlabel="",color="black"];
+loc3_17_156_0->loc3_2_156_1 [xlabel="F",color="orange"];
+loc3_17_156_0->loc3_30_156_0 [xlabel="",color="black"];
+loc3_2_156_1:s->loc2_23_156_0:ne [xlabel="L",color="orange"];
+loc3_30_156_0->loc4_15_156_0 [xlabel="",color="black"];
+loc3_30_156_0->loc4_4_156_1 [xlabel="F",color="orange"];
+loc4_15_156_0:s->loc2_16_54:ne [xlabel="L",color="orange"];
+loc4_15_156_0->loc6_6_156_0 [xlabel="",color="red"];
+loc4_4_156_1:s->loc3_17_156_0:ne [xlabel="L",color="orange"];
+loc6_6_156_0->loc4_4_156_1 [xlabel="",color="red"];
+initial->loc0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
+}
+
+func TestCtrlflow_ForIn(t *testing.T) {
+	ast, symtab, err := compile(`
+for(a in b) {
+    c
+}
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+loc0[label="Prog:enter\nForInOfStmt:enter\n"];
+loc2_0_156_1[label="ForInOfStmt:exit\nProg:exit\n"];
+loc2_12_156_0[label="BlockStmt:enter\nExprStmt:enter\nIdent(c)\nExprStmt:exit\nBlockStmt:exit\n"];
+loc2_4_54[label="Ident(a)\nIdent(b)\n"];
+loc0->loc2_4_54 [xlabel="",color="black"];
+loc2_0_156_1->final [xlabel="",color="black"];
+loc2_12_156_0:s->loc2_4_54:ne [xlabel="L",color="orange"];
+loc2_4_54->loc2_0_156_1 [xlabel="F",color="orange"];
+loc2_4_54->loc2_12_156_0 [xlabel="",color="black"];
+initial->loc0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
+}
+
+func TestCtrlflow_ForInLet(t *testing.T) {
+	ast, symtab, err := compile(`
+for(let a in b) {
+    c
+}
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+loc0[label="Prog:enter\nForInOfStmt:enter\n"];
+loc2_0_156_1[label="ForInOfStmt:exit\nProg:exit\n"];
+loc2_16_156_0[label="BlockStmt:enter\nExprStmt:enter\nIdent(c)\nExprStmt:exit\nBlockStmt:exit\n"];
+loc2_4_156_0[label="VarDecStmt:enter\nVarDec:enter\nIdent(a)\nVarDec:exit\nVarDecStmt:exit\nIdent(b)\n"];
+loc0->loc2_4_156_0 [xlabel="",color="black"];
+loc2_0_156_1->final [xlabel="",color="black"];
+loc2_16_156_0:s->loc2_4_156_0:ne [xlabel="L",color="orange"];
+loc2_4_156_0->loc2_0_156_1 [xlabel="F",color="orange"];
+loc2_4_156_0->loc2_16_156_0 [xlabel="",color="black"];
+initial->loc0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
+}
+
+func TestCtrlflow_ContinueForIn(t *testing.T) {
+	ast, symtab, err := compile(`
+s
+LabelA: for(a in b) {
+  for(c in d) {
+    if (e && f) {
+      continue LabelA
+    }
+    g
+  }
+  h
+}
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+loc0[label="Prog:enter\nExprStmt:enter\nIdent(s)\nExprStmt:exit\nLabelStmt:enter\nForInOfStmt:enter\n"];
+loc3_12_54[label="Ident(a)\nIdent(b)\n"];
+loc3_20_156_0[label="BlockStmt:enter\nForInOfStmt:enter\n"];
+loc3_8_156_1[label="ForInOfStmt:exit\nLabelStmt:exit\nProg:exit\n"];
+loc4_14_156_0[label="BlockStmt:enter\nIfStmt:enter\nBinExpr(&&):enter\nIdent(e)\n"];
+loc4_2_156_1[label="ForInOfStmt:exit\nExprStmt:enter\nIdent(h)\nExprStmt:exit\nBlockStmt:exit\n"];
+loc4_6_54[label="Ident(c)\nIdent(d)\n"];
+loc5_13_54[label="Ident(f)\nBinExpr(&&):exit\n"];
+loc5_16_156_0[label="BlockStmt:enter\nContStmt:enter\nIdent(LabelA)\nContStmt:exit\n"];
+loc5_16_156_1[label="BlockStmt:exit\n"];
+loc5_4_156_1[label="IfStmt:exit\nExprStmt:enter\nIdent(g)\nExprStmt:exit\nBlockStmt:exit\n"];
+loc0->loc3_12_54 [xlabel="",color="black"];
+loc3_12_54->loc3_20_156_0 [xlabel="",color="black"];
+loc3_12_54->loc3_8_156_1 [xlabel="F",color="orange"];
+loc3_20_156_0->loc4_6_54 [xlabel="",color="black"];
+loc3_8_156_1->final [xlabel="",color="black"];
+loc4_14_156_0->loc5_13_54 [xlabel="",color="black"];
+loc4_14_156_0->loc5_4_156_1 [xlabel="F",color="orange"];
+loc4_2_156_1:s->loc3_12_54:ne [xlabel="L",color="orange"];
+loc4_6_54->loc4_14_156_0 [xlabel="",color="black"];
+loc4_6_54->loc4_2_156_1 [xlabel="F",color="orange"];
+loc5_13_54->loc5_16_156_0 [xlabel="",color="black"];
+loc5_13_54->loc5_4_156_1 [xlabel="F",color="orange"];
+loc5_16_156_0:s->loc3_12_54:ne [xlabel="L",color="orange"];
+loc5_16_156_0->loc5_16_156_1 [xlabel="",color="red"];
+loc5_16_156_1->loc5_4_156_1 [xlabel="",color="red"];
+loc5_4_156_1:s->loc4_6_54:ne [xlabel="L",color="orange"];
+initial->loc0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
 }
