@@ -1730,7 +1730,7 @@ func (n *BlockStmt) NewScope() bool {
 	return n.newScope
 }
 
-// #[visitor(Body,Test)]
+// #[visitor(PUSH_SCOPE,Body,Test)]
 type DoWhileStmt struct {
 	typ  NodeType
 	loc  *Loc
@@ -1754,7 +1754,7 @@ func (n *DoWhileStmt) Loc() *Loc {
 	return n.loc
 }
 
-// #[visitor(Test,Body)]
+// #[visitor(PUSH_SCOPE,Test,Body)]
 type WhileStmt struct {
 	typ  NodeType
 	loc  *Loc

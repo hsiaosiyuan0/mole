@@ -22,6 +22,7 @@ const (
 	ET_NONE  EdgeTag = 0
 	ET_JMP_T EdgeTag = 1 << iota
 	ET_JMP_F
+	ET_JMP_U
 	ET_LOOP
 	ET_CUT
 )
@@ -36,6 +37,9 @@ func (t EdgeTag) String() string {
 	if t&ET_LOOP != 0 {
 		return "L"
 	}
+	if t&ET_JMP_U != 0 {
+		return "U"
+	}
 	return ""
 }
 
@@ -43,7 +47,7 @@ func (t EdgeTag) DotColor() string {
 	if t&ET_CUT != 0 {
 		return "red"
 	}
-	if t&ET_JMP_T != 0 || t&ET_JMP_F != 0 || t&ET_LOOP != 0 {
+	if t&ET_JMP_T != 0 || t&ET_JMP_F != 0 || t&ET_LOOP != 0 || t&ET_JMP_U != 0 {
 		return "orange"
 	}
 	return "black"
@@ -133,6 +137,15 @@ func (b *Block) OutSeqEdge() *Edge {
 
 func (b *Block) OutJmpEdge(ET EdgeTag) *Edge {
 	for _, edge := range b.Outlets {
+		if edge.Kind == EK_JMP && edge.Tag&ET != 0 {
+			return edge
+		}
+	}
+	return nil
+}
+
+func (b *Block) OutEdge(ET EdgeTag) *Edge {
+	for _, edge := range b.Outlets {
 		if edge.Tag&ET != 0 {
 			return edge
 		}
@@ -156,6 +169,22 @@ func (b *Block) InJmpEdge(ET EdgeTag) *Edge {
 		}
 	}
 	return nil
+}
+
+func (b *Block) FindInEdge(ek EdgeKind, et EdgeTag, create bool) *Edge {
+	var e *Edge
+	for _, edge := range b.Inlets {
+		if edge.Kind == ek && (edge.Tag == ET_NONE || edge.Tag&et != 0) {
+			e = edge
+			e.Tag = et
+			break
+		}
+	}
+	if e == nil && create {
+		e = &Edge{ek, et, nil, b}
+		b.Inlets = append(b.Inlets, e)
+	}
+	return e
 }
 
 func (b *Block) Dot() string {
@@ -211,7 +240,7 @@ func (b *Block) unwrapSeqOut() *Block {
 func (b *Block) join(blk *Block) {
 	to := blk.unwrapSeqIn()
 	from := b.unwrapSeqOut()
-	isCutted := from.IsOutCutted()
+	isCutted := from.HasOutCutted()
 	from.Nodes = append(from.Nodes, to.Nodes...)
 	from.Outlets = to.Outlets
 	for _, edge := range from.Outlets {
@@ -307,8 +336,13 @@ func (b *Block) IsInCutted() bool {
 	return edge != nil && edge.Tag&ET_CUT != 0
 }
 
-func (b *Block) IsOutCutted() bool {
+func (b *Block) HasOutCutted() bool {
 	return len(b.Outlets) > 0 && b.Outlets[0].Tag&ET_CUT != 0
+}
+
+func (b *Block) IsOutCutted(to *Block) bool {
+	cutEdge := b.OutEdge(ET_CUT)
+	return cutEdge != nil && cutEdge.Dst == to
 }
 
 func newBasicBlk() *Block {
@@ -380,9 +414,20 @@ type Graph struct {
 	Parent *Graph
 	Subs   []*Graph
 
-	// map the labelled ast node to its basic block
-	labelAstMap   map[string]*Block
+	// map the label to its first basic block
+	labelBlk map[string]*Block
+
+	// map the label to its scope
+	labelLoop map[string]int
+
 	hangingLabels []string
+
+	// map the loop to its first basic block, key is the scope id of the loop
+	loopBlk      map[int]*Block
+	hangingLoops []int
+
+	// records basic blocks need to be resolved, key is the scope id of its target loop
+	hangingBrk map[int][]*Block
 }
 
 func (g *Graph) NodesEdges() (map[string]*Block, []string, map[string]*Edge, []string, map[parser.Node]*Block) {
@@ -458,11 +503,21 @@ final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height
 	return b.String()
 }
 
+func (g *Graph) addHangingBrk(id int, blk *Block) {
+	list := g.hangingBrk[id]
+	if list == nil {
+		list = make([]*Block, 0)
+	}
+	g.hangingBrk[id] = append(list, blk)
+}
+
 func newGraph() *Graph {
 	g := &Graph{
 		Subs:          make([]*Graph, 0),
-		labelAstMap:   map[string]*Block{},
+		labelBlk:      map[string]*Block{},
 		hangingLabels: make([]string, 0),
+		loopBlk:       map[int]*Block{},
+		hangingBrk:    map[int][]*Block{},
 	}
 	g.Head = newStartBlk()
 	return g
@@ -531,19 +586,15 @@ func link(a *AnalysisCtx, from *Block, fromKind EdgeKind, fromTag EdgeTag, toKin
 	to = to.unwrapSeqIn()
 
 	// process reaches here means the `from` maybe group block or basic block which has multiple outlets
-	isCutted := from.IsOutCutted()
 	for _, edge := range from.Outlets {
 		if (fromKind == EK_NONE && edge.Dst == nil) || (edge.Kind == fromKind && (fromTag == ET_NONE || edge.Tag&fromTag != 0)) {
 			edge.Dst = to
+			toEdge := to.FindInEdge(edge.Kind, edge.Tag, true)
+			toEdge.Src = from
 		}
 	}
 
-	for _, edge := range to.Inlets {
-		if (toKind == EK_NONE && edge.Src == nil) || (edge.Kind == toKind && (toTag == ET_NONE || edge.Tag&toTag != 0)) {
-			edge.Src = from
-		}
-	}
-
+	isCutted := from.IsOutCutted(to)
 	if isCutted && len(to.Inlets) == 1 {
 		for _, edge := range to.Outlets {
 			edge.Tag |= ET_CUT

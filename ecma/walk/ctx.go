@@ -40,7 +40,7 @@ func (c *WalkCtx) ScopeId() int {
 }
 
 func (c *WalkCtx) Scope() *parser.Scope {
-	return c.Symtab.Scopes[uint(c.ScopeId())]
+	return c.Symtab.Scopes[c.ScopeId()]
 }
 
 func (c *WalkCtx) VisitorCtx() *VisitorCtx {

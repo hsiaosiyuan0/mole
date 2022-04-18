@@ -125,7 +125,7 @@ func NewRef() *Ref {
 type Scope struct {
 	// an auto-increment number which is generated according
 	// the depth-first walk over the entire AST
-	Id   uint
+	Id   int
 	Kind ScopeKind
 
 	Up   *Scope
@@ -214,6 +214,17 @@ func (s *Scope) OuterScope() *Scope {
 		return s
 	}
 	return s.Up
+}
+
+func (s *Scope) UpperLoop() *Scope {
+	scope := s
+	for scope != nil {
+		if scope.IsKind(SPK_LOOP_DIRECT) {
+			return scope
+		}
+		scope = scope.Up
+	}
+	return nil
 }
 
 func (s *Scope) AddLocal(ref *Ref, name string, checkDup bool) bool {
@@ -430,11 +441,11 @@ func (s *Scope) GetLabel(name string) Node {
 
 type SymTab struct {
 	Externals []string
-	Scopes    map[uint]*Scope
+	Scopes    map[int]*Scope
 	Root      *Scope
 	Cur       *Scope
 
-	scopeIdSeed uint // the seed of scope id
+	scopeIdSeed int // the seed of scope id
 }
 
 func NewSymTab(externals []string) *SymTab {
@@ -442,7 +453,7 @@ func NewSymTab(externals []string) *SymTab {
 
 	symtab := &SymTab{
 		Externals: externals,
-		Scopes:    make(map[uint]*Scope),
+		Scopes:    make(map[int]*Scope),
 		Root:      scope,
 		Cur:       scope,
 	}

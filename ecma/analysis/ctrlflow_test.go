@@ -778,10 +778,10 @@ func TestCtrlflow_ContinueBasicEntry(t *testing.T) {
 
 	AssertEqual(t, a, cont.OutJmpEdge(ET_LOOP).Dst, "should be ok")
 	AssertEqual(t, d, cont.OutSeqEdge().Dst, "should be ok")
-	AssertEqual(t, true, cont.IsOutCutted(), "should be ok")
+	AssertEqual(t, true, cont.HasOutCutted(), "should be ok")
 
 	AssertEqual(t, a, d.OutJmpEdge(ET_LOOP).Dst, "should be ok")
-	AssertEqual(t, true, d.IsOutCutted(), "should be ok")
+	AssertEqual(t, true, d.HasOutCutted(), "should be ok")
 }
 
 func TestCtrlflow_Continue(t *testing.T) {
@@ -822,10 +822,10 @@ func TestCtrlflow_Continue(t *testing.T) {
 
 	AssertEqual(t, a, cont.OutJmpEdge(ET_LOOP).Dst, "should be ok")
 	AssertEqual(t, d, cont.OutSeqEdge().Dst, "should be ok")
-	AssertEqual(t, true, cont.IsOutCutted(), "should be ok")
+	AssertEqual(t, true, cont.HasOutCutted(), "should be ok")
 
 	AssertEqual(t, begin.OutSeqEdge().Dst, d.OutJmpEdge(ET_LOOP).Dst, "should be ok")
-	AssertEqual(t, true, d.IsOutCutted(), "should be ok")
+	AssertEqual(t, true, d.HasOutCutted(), "should be ok")
 }
 
 func TestCtrlflow_ContinueOuter(t *testing.T) {
@@ -869,10 +869,10 @@ func TestCtrlflow_ContinueOuter(t *testing.T) {
 
 	AssertEqual(t, a, cont.OutJmpEdge(ET_LOOP).Dst, "should be ok")
 	AssertEqual(t, c, cont.OutSeqEdge().Dst, "should be ok")
-	AssertEqual(t, true, cont.IsOutCutted(), "should be ok")
+	AssertEqual(t, true, cont.HasOutCutted(), "should be ok")
 
 	AssertEqual(t, b, c.OutJmpEdge(ET_LOOP).Dst, "should be ok")
-	AssertEqual(t, true, c.IsOutCutted(), "should be ok")
+	AssertEqual(t, true, c.HasOutCutted(), "should be ok")
 }
 
 func TestCtrlflow_ContinueDoWhile(t *testing.T) {
@@ -909,11 +909,11 @@ LabelA: do {
 
 	AssertEqual(t, a, cont.OutJmpEdge(ET_LOOP).Dst, "should be ok")
 	AssertEqual(t, d, cont.OutSeqEdge().Dst, "should be ok")
-	AssertEqual(t, true, cont.IsOutCutted(), "should be ok")
+	AssertEqual(t, true, cont.HasOutCutted(), "should be ok")
 
 	AssertEqual(t, c, d, "should be ok")
 	AssertEqual(t, cont, c.OutJmpEdge(ET_LOOP).Dst, "should be ok")
-	AssertEqual(t, true, c.IsOutCutted(), "should be ok")
+	AssertEqual(t, true, c.HasOutCutted(), "should be ok")
 	AssertEqual(t, b, c.OutJmpEdge(ET_JMP_F).Dst, "should be ok")
 
 	AssertEqual(t, begin.OutSeqEdge().Dst, b.OutJmpEdge(ET_LOOP).Dst, "should be ok")
@@ -1085,6 +1085,127 @@ loc5_16_156_0:s->loc3_12_54:ne [xlabel="L",color="orange"];
 loc5_16_156_0->loc5_16_156_1 [xlabel="",color="red"];
 loc5_16_156_1->loc5_4_156_1 [xlabel="",color="red"];
 loc5_4_156_1:s->loc4_6_54:ne [xlabel="L",color="orange"];
+initial->loc0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
+}
+
+func TestCtrlflow_ContinueNoLabel(t *testing.T) {
+	ast, symtab, err := compile(`
+while(a) {
+  if (a > 10) continue;
+  a--
+}
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	// fmt.Println(ana.Graph().Dot())
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+loc0[label="Prog:enter\nWhileStmt:enter\n"];
+loc2_0_156_1[label="WhileStmt:exit\nProg:exit\n"];
+loc2_6_54[label="Ident(a)\n"];
+loc2_9_156_0[label="BlockStmt:enter\nIfStmt:enter\nBinExpr(>):enter\nIdent(a)\nNumLit(10)\nBinExpr(>):exit\n"];
+loc3_14_156_0[label="ContStmt:enter\nContStmt:exit\n"];
+loc3_2_156_1[label="IfStmt:exit\nExprStmt:enter\nUpdateExpr(--):enter\nIdent(a)\nUpdateExpr(--):exit\nExprStmt:exit\nBlockStmt:exit\n"];
+loc0->loc2_6_54 [xlabel="",color="black"];
+loc2_0_156_1->final [xlabel="",color="black"];
+loc2_6_54->loc2_0_156_1 [xlabel="F",color="orange"];
+loc2_6_54->loc2_9_156_0 [xlabel="",color="black"];
+loc2_9_156_0->loc3_14_156_0 [xlabel="",color="black"];
+loc2_9_156_0->loc3_2_156_1 [xlabel="F",color="orange"];
+loc3_14_156_0:s->loc2_6_54:ne [xlabel="L",color="orange"];
+loc3_14_156_0->loc3_2_156_1 [xlabel="",color="red"];
+loc3_2_156_1:s->loc2_6_54:ne [xlabel="L",color="orange"];
+initial->loc0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
+}
+
+func TestCtrlflow_BreakNoLabel(t *testing.T) {
+	ast, symtab, err := compile(`
+while(a) {
+  if (a > 10) break;
+  a--
+}
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+loc0[label="Prog:enter\nWhileStmt:enter\n"];
+loc2_0_156_1[label="WhileStmt:exit\nProg:exit\n"];
+loc2_6_54[label="Ident(a)\n"];
+loc2_9_156_0[label="BlockStmt:enter\nIfStmt:enter\nBinExpr(>):enter\nIdent(a)\nNumLit(10)\nBinExpr(>):exit\n"];
+loc3_14_156_0[label="BrkStmt:enter\nBrkStmt:exit\n"];
+loc3_2_156_1[label="IfStmt:exit\nExprStmt:enter\nUpdateExpr(--):enter\nIdent(a)\nUpdateExpr(--):exit\nExprStmt:exit\nBlockStmt:exit\n"];
+loc0->loc2_6_54 [xlabel="",color="black"];
+loc2_0_156_1->final [xlabel="",color="black"];
+loc2_6_54->loc2_0_156_1 [xlabel="F",color="orange"];
+loc2_6_54->loc2_9_156_0 [xlabel="",color="black"];
+loc2_9_156_0->loc3_14_156_0 [xlabel="",color="black"];
+loc2_9_156_0->loc3_2_156_1 [xlabel="F",color="orange"];
+loc3_14_156_0->loc2_0_156_1 [xlabel="U",color="orange"];
+loc3_14_156_0->loc3_2_156_1 [xlabel="",color="red"];
+loc3_2_156_1:s->loc2_6_54:ne [xlabel="L",color="orange"];
+initial->loc0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
+}
+
+func TestCtrlflow_BreakNoLabelFor(t *testing.T) {
+	ast, symtab, err := compile(`
+for (;a;) {
+  if (a > 10) {
+    break;
+    c
+  }
+  a--
+}
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+loc0[label="Prog:enter\nForStmt:enter\n"];
+loc2_0_156_1[label="ForStmt:exit\nProg:exit\n"];
+loc2_10_156_0[label="BlockStmt:enter\nIfStmt:enter\nBinExpr(>):enter\nIdent(a)\nNumLit(10)\nBinExpr(>):exit\n"];
+loc2_6_54[label="Ident(a)\n"];
+loc3_14_156_0[label="BlockStmt:enter\nBrkStmt:enter\nBrkStmt:exit\n"];
+loc3_2_156_1[label="IfStmt:exit\nExprStmt:enter\nUpdateExpr(--):enter\nIdent(a)\nUpdateExpr(--):exit\nExprStmt:exit\nBlockStmt:exit\n"];
+loc5_4_156_0[label="ExprStmt:enter\nIdent(c)\nExprStmt:exit\nBlockStmt:exit\n"];
+loc0->loc2_6_54 [xlabel="",color="black"];
+loc2_0_156_1->final [xlabel="",color="black"];
+loc2_10_156_0->loc3_14_156_0 [xlabel="",color="black"];
+loc2_10_156_0->loc3_2_156_1 [xlabel="F",color="orange"];
+loc2_6_54->loc2_0_156_1 [xlabel="F",color="orange"];
+loc2_6_54->loc2_10_156_0 [xlabel="",color="black"];
+loc3_14_156_0->loc2_0_156_1 [xlabel="U",color="orange"];
+loc3_14_156_0->loc5_4_156_0 [xlabel="",color="red"];
+loc3_2_156_1:s->loc2_6_54:ne [xlabel="L",color="orange"];
+loc5_4_156_0->loc3_2_156_1 [xlabel="",color="red"];
 initial->loc0 [xlabel="",color="black"];
 }
 `, ana.Graph().Dot(), "should be ok")

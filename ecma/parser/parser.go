@@ -2068,7 +2068,7 @@ func (p *Parser) doWhileStmt() (Node, error) {
 
 	tok := p.lexer.PeekStmtBegin()
 
-	scope := p.symtab.EnterScope(false, false, false)
+	scope := p.symtab.EnterScope(false, false, true)
 	scope.AddKind(SPK_LOOP_DIRECT).AddKind(SPK_INTERIM)
 	body, err := p.stmt()
 	scope.EraseKind(SPK_INTERIM)
@@ -2118,7 +2118,7 @@ func (p *Parser) whileStmt() (Node, error) {
 		return nil, err
 	}
 
-	scope := p.symtab.EnterScope(false, false, false)
+	scope := p.symtab.EnterScope(false, false, true)
 	scope.AddKind(SPK_LOOP_DIRECT)
 
 	tok := p.lexer.PeekStmtBegin()

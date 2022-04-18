@@ -113,17 +113,15 @@ while(1) {
 
 	ctx := NewWalkCtx(ast, symtab)
 
-	fnScopeId := 0
+	scopeId := 0
 	SetVisitor(&ctx.Visitors, N_STMT_BLOCK_BEFORE, func(node parser.Node, key string, ctx *VisitorCtx) {
-		if ctx.ScopeId() > fnScopeId {
-			fnScopeId = ctx.ScopeId()
-		}
+		scopeId = ctx.ScopeId()
 	})
 
 	VisitNode(ast, "", ctx.VisitorCtx())
-	AssertEqual(t, 1, fnScopeId, "should pass")
+	AssertEqual(t, 2, scopeId, "should pass")
 
-	AssertEqual(t, true, symtab.Scopes[1].HasName("a"), "should pass")
+	AssertEqual(t, true, symtab.Scopes[2].HasName("a"), "should pass")
 }
 
 func TestVisitorScopeArrowFn(t *testing.T) {
@@ -258,17 +256,17 @@ do {
 
 	ctx := NewWalkCtx(ast, symtab)
 
-	fnScopeId := 0
+	scopeId := 0
 	SetVisitor(&ctx.Visitors, N_STMT_BLOCK_BEFORE, func(node parser.Node, key string, ctx *VisitorCtx) {
-		if ctx.ScopeId() > fnScopeId {
-			fnScopeId = ctx.ScopeId()
+		if ctx.ScopeId() > scopeId {
+			scopeId = ctx.ScopeId()
 		}
 	})
 
 	VisitNode(ast, "", ctx.VisitorCtx())
-	AssertEqual(t, 1, fnScopeId, "should pass")
+	AssertEqual(t, 2, scopeId, "should pass")
 
-	AssertEqual(t, true, symtab.Scopes[1].HasName("a"), "should pass")
+	AssertEqual(t, true, symtab.Scopes[2].HasName("a"), "should pass")
 }
 
 func TestVisitorScopeTry(t *testing.T) {
@@ -354,11 +352,11 @@ do {
 
 	ctx := NewWalkCtx(ast, symtab)
 
-	fnScopeId := 0
+	scopeId := 0
 	// also test `AddBeforeListener`
 	AddBeforeListener(&ctx.Listeners, func(node parser.Node, key string, ctx *VisitorCtx) {
-		if ctx.ScopeId() > fnScopeId {
-			fnScopeId = ctx.ScopeId()
+		if ctx.ScopeId() > scopeId {
+			scopeId = ctx.ScopeId()
 		}
 	})
 
@@ -368,8 +366,8 @@ do {
 	})
 
 	VisitNode(ast, "", ctx.VisitorCtx())
-	AssertEqual(t, 1, fnScopeId, "should pass")
+	AssertEqual(t, 2, scopeId, "should pass")
 
-	AssertEqual(t, true, symtab.Scopes[1].HasName("a"), "should pass")
+	AssertEqual(t, true, symtab.Scopes[2].HasName("a"), "should pass")
 	AssertEqual(t, "a", idName, "should pass")
 }

@@ -947,7 +947,7 @@ func TestMetaProp(t *testing.T) {
 func TestScopeBalance(t *testing.T) {
 	parser := newParser("function a () {}", nil)
 	parser.Prog()
-	AssertEqual(t, uint(0), parser.symtab.Cur.Id, "scope should be balanced")
+	AssertEqual(t, 0, parser.symtab.Cur.Id, "scope should be balanced")
 }
 
 func TestLabelledUsage(t *testing.T) {
