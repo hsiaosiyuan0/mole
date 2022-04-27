@@ -24,8 +24,8 @@ func AssertEqual(t *testing.T, except, actual interface{}, msg string) {
 }
 
 func AssertEqualString(t *testing.T, except, actual, msg string) {
-	except = strings.Trim(except, " \n")
-	actual = strings.Trim(actual, " \n")
+	except = strings.TrimSpace(except)
+	actual = strings.TrimSpace(actual)
 	if except != actual {
 		t.Fatalf("%s Except: \n%v\nActual: \n%v", msg, except, actual)
 	}

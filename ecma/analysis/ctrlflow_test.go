@@ -1102,8 +1102,6 @@ while(a) {
 	ana := NewAnalysis(ast, symtab)
 	ana.Analyze()
 
-	// fmt.Println(ana.Graph().Dot())
-
 	AssertEqualString(t, `
 digraph G {
 node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
@@ -1130,7 +1128,7 @@ initial->loc0 [xlabel="",color="black"];
 `, ana.Graph().Dot(), "should be ok")
 }
 
-func TestCtrlflow_BreakNoLabel(t *testing.T) {
+func TestCtrlflow_BreakNoLabelForNest(t *testing.T) {
 	ast, symtab, err := compile(`
 while(a) {
   if (a > 10) break;
@@ -1210,3 +1208,537 @@ initial->loc0 [xlabel="",color="black"];
 }
 `, ana.Graph().Dot(), "should be ok")
 }
+
+func TestCtrlflow_BreakLabelWhile(t *testing.T) {
+	ast, symtab, err := compile(`
+  LabelA: while(a) {
+    for(;b;) {
+      break LabelA
+      c
+    }
+  }
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+loc0[label="Prog:enter\nLabelStmt:enter\nWhileStmt:enter\n"];
+loc2_10_156_1[label="WhileStmt:exit\nLabelStmt:exit\nProg:exit\n"];
+loc2_16_54[label="Ident(a)\n"];
+loc2_19_156_0[label="BlockStmt:enter\nForStmt:enter\n"];
+loc3_13_156_0[label="BlockStmt:enter\nBrkStmt:enter\nIdent(LabelA)\nBrkStmt:exit\n"];
+loc3_4_156_1[label="ForStmt:exit\nBlockStmt:exit\n"];
+loc3_9_54[label="Ident(b)\n"];
+loc5_6_156_0[label="ExprStmt:enter\nIdent(c)\nExprStmt:exit\nBlockStmt:exit\n"];
+loc0->loc2_16_54 [xlabel="",color="black"];
+loc2_10_156_1->final [xlabel="",color="black"];
+loc2_16_54->loc2_10_156_1 [xlabel="F",color="orange"];
+loc2_16_54->loc2_19_156_0 [xlabel="",color="black"];
+loc2_19_156_0->loc3_9_54 [xlabel="",color="black"];
+loc3_13_156_0->loc2_10_156_1 [xlabel="U",color="orange"];
+loc3_13_156_0->loc5_6_156_0 [xlabel="",color="red"];
+loc3_4_156_1:s->loc2_16_54:ne [xlabel="L",color="orange"];
+loc3_9_54->loc3_13_156_0 [xlabel="",color="black"];
+loc3_9_54->loc3_4_156_1 [xlabel="F",color="orange"];
+loc5_6_156_0:s->loc3_9_54:ne [xlabel="L",color="red"];
+initial->loc0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
+}
+
+func TestCtrlflow_BreakNoLabelWhile(t *testing.T) {
+	ast, symtab, err := compile(`
+  LabelA: while(a) {
+    for(;b;) {
+      break
+      c
+    }
+  }
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+loc0[label="Prog:enter\nLabelStmt:enter\nWhileStmt:enter\n"];
+loc2_10_156_1[label="WhileStmt:exit\nLabelStmt:exit\nProg:exit\n"];
+loc2_16_54[label="Ident(a)\n"];
+loc2_19_156_0[label="BlockStmt:enter\nForStmt:enter\n"];
+loc3_13_156_0[label="BlockStmt:enter\nBrkStmt:enter\nBrkStmt:exit\n"];
+loc3_4_156_1[label="ForStmt:exit\nBlockStmt:exit\n"];
+loc3_9_54[label="Ident(b)\n"];
+loc5_6_156_0[label="ExprStmt:enter\nIdent(c)\nExprStmt:exit\nBlockStmt:exit\n"];
+loc0->loc2_16_54 [xlabel="",color="black"];
+loc2_10_156_1->final [xlabel="",color="black"];
+loc2_16_54->loc2_10_156_1 [xlabel="F",color="orange"];
+loc2_16_54->loc2_19_156_0 [xlabel="",color="black"];
+loc2_19_156_0->loc3_9_54 [xlabel="",color="black"];
+loc3_13_156_0->loc3_4_156_1 [xlabel="U",color="orange"];
+loc3_13_156_0->loc5_6_156_0 [xlabel="",color="red"];
+loc3_4_156_1:s->loc2_16_54:ne [xlabel="L",color="orange"];
+loc3_9_54->loc3_13_156_0 [xlabel="",color="black"];
+loc3_9_54->loc3_4_156_1 [xlabel="F",color="orange"];
+loc5_6_156_0:s->loc3_9_54:ne [xlabel="L",color="red"];
+initial->loc0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
+}
+
+func TestCtrlflow_CallExpr(t *testing.T) {
+	ast, symtab, err := compile(`
+  fn()
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+loc0[label="Prog:enter\nExprStmt:enter\nCallExpr:enter\nIdent(fn)\nCallExpr:exit\nExprStmt:exit\nProg:exit\n"];
+loc0->final [xlabel="",color="black"];
+initial->loc0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
+}
+
+func TestCtrlflow_CallExprArgs(t *testing.T) {
+	ast, symtab, err := compile(`
+  fn(1, 2, a && b)
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+loc0[label="Prog:enter\nExprStmt:enter\nCallExpr:enter\nIdent(fn)\nNumLit(1)\nNumLit(2)\nBinExpr(&&):enter\nIdent(a)\n"];
+loc2_16_54[label="Ident(b)\nBinExpr(&&):exit\n"];
+loc2_2_156_1[label="CallExpr:exit\nExprStmt:exit\nProg:exit\n"];
+loc0->loc2_16_54 [xlabel="",color="black"];
+loc0->loc2_2_156_1 [xlabel="F",color="orange"];
+loc2_16_54->loc2_2_156_1 [xlabel="",color="black"];
+loc2_2_156_1->final [xlabel="",color="black"];
+initial->loc0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
+}
+
+func TestCtrlflow_CallExprArgsLoc(t *testing.T) {
+	ast, symtab, err := compile(`
+  fn(1, a || b && c, d && e)
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+loc0[label="Prog:enter\nExprStmt:enter\nCallExpr:enter\nIdent(fn)\nNumLit(1)\nBinExpr(||):enter\nIdent(a)\n"];
+loc2_13_156_0[label="BinExpr(&&):enter\nIdent(b)\n"];
+loc2_18_54[label="Ident(c)\nBinExpr(&&):exit\nBinExpr(||):exit\n"];
+loc2_21_156_0[label="BinExpr(&&):enter\nIdent(d)\n"];
+loc2_26_54[label="Ident(e)\nBinExpr(&&):exit\n"];
+loc2_2_156_1[label="CallExpr:exit\nExprStmt:exit\nProg:exit\n"];
+loc0->loc2_13_156_0 [xlabel="",color="black"];
+loc0->loc2_21_156_0 [xlabel="T",color="orange"];
+loc2_13_156_0->loc2_18_54 [xlabel="",color="black"];
+loc2_13_156_0->loc2_21_156_0 [xlabel="F",color="orange"];
+loc2_18_54->loc2_21_156_0 [xlabel="",color="black"];
+loc2_21_156_0->loc2_26_54 [xlabel="",color="black"];
+loc2_21_156_0->loc2_2_156_1 [xlabel="F",color="orange"];
+loc2_26_54->loc2_2_156_1 [xlabel="",color="black"];
+loc2_2_156_1->final [xlabel="",color="black"];
+initial->loc0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
+}
+
+func TestCtrlflow_Nullish(t *testing.T) {
+	ast, symtab, err := compile(`
+  const foo = null ?? 'default string';
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+loc0[label="Prog:enter\nVarDecStmt:enter\nVarDec:enter\nIdent(foo)\nBinExpr(??):enter\nNullLit\n"];
+loc2_22_31[label="StrLit\nBinExpr(??):exit\n"];
+loc2_8_156_1[label="VarDec:exit\nVarDecStmt:exit\nProg:exit\n"];
+loc0->loc2_22_31 [xlabel="",color="black"];
+loc0->loc2_8_156_1 [xlabel="T",color="orange"];
+loc2_22_31->loc2_8_156_1 [xlabel="",color="black"];
+loc2_8_156_1->final [xlabel="",color="black"];
+initial->loc0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
+}
+
+func TestCtrlflow_FnDecOuter(t *testing.T) {
+	ast, symtab, err := compile(`
+function f() {
+}
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+loc0[label="Prog:enter\nFnDec\nProg:exit\n"];
+loc0->final [xlabel="",color="black"];
+initial->loc0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
+}
+
+func TestCtrlflow_FnDec(t *testing.T) {
+	ast, symtab, err := compile(`
+function f() {
+  a
+}
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	fn := ast.(*parser.Prog).Body()[0]
+	fnGraph := ana.AnalysisCtx().GraphOf(fn)
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+loc2_0_156_0[label="FnDec:enter\nIdent(f)\nBlockStmt:enter\nExprStmt:enter\nIdent(a)\nExprStmt:exit\nBlockStmt:exit\nFnDec:exit\n"];
+loc2_0_156_0->final [xlabel="",color="black"];
+initial->loc2_0_156_0 [xlabel="",color="black"];
+}
+`, fnGraph.Dot(), "should be ok")
+}
+
+func TestCtrlflow_ReturnNoArg(t *testing.T) {
+	ast, symtab, err := compile(`
+function f() {
+  a;
+  return;
+  b
+}
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	fn := ast.(*parser.Prog).Body()[0]
+	fnGraph := ana.AnalysisCtx().GraphOf(fn)
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+loc2_0_156_0[label="FnDec:enter\nIdent(f)\nBlockStmt:enter\nExprStmt:enter\nIdent(a)\nExprStmt:exit\nRetStmt:enter\nRetStmt:exit\n"];
+loc2_0_156_1[label="FnDec:exit\n"];
+loc5_2_156_0[label="ExprStmt:enter\nIdent(b)\nExprStmt:exit\nBlockStmt:exit\n"];
+loc2_0_156_0->loc2_0_156_1 [xlabel="U",color="orange"];
+loc2_0_156_0->loc5_2_156_0 [xlabel="",color="red"];
+loc2_0_156_1->final [xlabel="",color="black"];
+loc5_2_156_0->loc2_0_156_1 [xlabel="",color="red"];
+initial->loc2_0_156_0 [xlabel="",color="black"];
+}
+`, fnGraph.Dot(), "should be ok")
+}
+
+func TestCtrlflow_ReturnArg(t *testing.T) {
+	ast, symtab, err := compile(`
+function f() {
+  a;
+  return a ?? b;
+  c
+}
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	fn := ast.(*parser.Prog).Body()[0]
+	fnGraph := ana.AnalysisCtx().GraphOf(fn)
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+loc2_0_156_0[label="FnDec:enter\nIdent(f)\nBlockStmt:enter\nExprStmt:enter\nIdent(a)\nExprStmt:exit\nRetStmt:enter\nBinExpr(??):enter\nIdent(a)\n"];
+loc2_0_156_1[label="FnDec:exit\n"];
+loc4_14_54[label="Ident(b)\nBinExpr(??):exit\n"];
+loc4_2_156_1[label="RetStmt:exit\n"];
+loc5_2_156_0[label="ExprStmt:enter\nIdent(c)\nExprStmt:exit\nBlockStmt:exit\n"];
+loc2_0_156_0->loc4_14_54 [xlabel="",color="black"];
+loc2_0_156_0->loc4_2_156_1 [xlabel="T",color="orange"];
+loc2_0_156_1->final [xlabel="",color="black"];
+loc4_14_54->loc4_2_156_1 [xlabel="",color="black"];
+loc4_2_156_1->loc2_0_156_1 [xlabel="U",color="orange"];
+loc4_2_156_1->loc5_2_156_0 [xlabel="",color="red"];
+loc5_2_156_0->loc2_0_156_1 [xlabel="",color="red"];
+initial->loc2_0_156_0 [xlabel="",color="black"];
+}
+`, fnGraph.Dot(), "should be ok")
+}
+
+func TestCtrlflow_FnDecParam(t *testing.T) {
+	ast, symtab, err := compile(`
+function f(a, b) {
+}
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	fn := ast.(*parser.Prog).Body()[0]
+	fnGraph := ana.AnalysisCtx().GraphOf(fn)
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+loc2_0_156_0[label="FnDec:enter\nIdent(f)\nIdent(a)\nIdent(b)\nBlockStmt:enter\nBlockStmt:exit\nFnDec:exit\n"];
+loc2_0_156_0->final [xlabel="",color="black"];
+initial->loc2_0_156_0 [xlabel="",color="black"];
+}
+`, fnGraph.Dot(), "should be ok")
+}
+
+func TestCtrlflow_FnDecParamDefVal(t *testing.T) {
+	ast, symtab, err := compile(`
+function f(a, b = 1) {
+}
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	fn := ast.(*parser.Prog).Body()[0]
+	fnGraph := ana.AnalysisCtx().GraphOf(fn)
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+loc2_0_156_0[label="FnDec:enter\nAssignPat:enter\nIdent(b)\nNumLit(1)\nAssignPat:exit\nBlockStmt:enter\nBlockStmt:exit\nFnDec:exit\n"];
+loc2_0_156_0->final [xlabel="",color="black"];
+initial->loc2_0_156_0 [xlabel="",color="black"];
+}
+`, fnGraph.Dot(), "should be ok")
+}
+
+// func TestCtrlflow_FnExpr(t *testing.T) {
+// 	ast, symtab, err := compile(`
+// fn = function f(a, b = 1) {}
+//   `, nil)
+// 	AssertEqual(t, nil, err, "should be prog ok")
+
+// 	ana := NewAnalysis(ast, symtab)
+// 	ana.Analyze()
+
+// 	fn := ast.(*parser.Prog).Body()[0].(*parser.ExprStmt).Expr().(*parser.AssignExpr).Rhs()
+// 	fnGraph := ana.AnalysisCtx().GraphOf(fn)
+
+// 	AssertEqualString(t, `
+// digraph G {
+// node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+// edge[fontname="Consolas",fontsize=10]
+// initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+// final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+// loc2_0_156_0[label="FnDec:enter\nAssignPat:enter\nIdent(b)\nNumLit(1)\nAssignPat:exit\nBlockStmt:enter\nBlockStmt:exit\nFnDec:exit\n"];
+// loc2_0_156_0->final [xlabel="",color="black"];
+// initial->loc2_0_156_0 [xlabel="",color="black"];
+// }
+// `, fnGraph.Dot(), "should be ok")
+// }
+
+func TestCtrlflow_ArrLit(t *testing.T) {
+	ast, symtab, err := compile(`
+a = [b, c, d ?? e]
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+loc0[label="Prog:enter\nExprStmt:enter\nAssignExpr:enter\nIdent(a)\nArrLit:enter\nIdent(b)\nIdent(c)\nBinExpr(??):enter\nIdent(d)\n"];
+loc2_16_54[label="Ident(e)\nBinExpr(??):exit\n"];
+loc2_4_156_1[label="ArrLit:exit\nAssignExpr:exit\nExprStmt:exit\nProg:exit\n"];
+loc0->loc2_16_54 [xlabel="",color="black"];
+loc0->loc2_4_156_1 [xlabel="T",color="orange"];
+loc2_16_54->loc2_4_156_1 [xlabel="",color="black"];
+loc2_4_156_1->final [xlabel="",color="black"];
+initial->loc0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
+}
+
+func TestCtrlflow_ObjLit(t *testing.T) {
+	ast, symtab, err := compile(`
+a = { b: 1, c: d }
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+loc0[label="Prog:enter\nExprStmt:enter\nAssignExpr:enter\nIdent(a)\nObjLit:enter\nProp:enter\nIdent(b)\nNumLit(1)\nProp:exit\nProp:enter\nIdent(c)\nIdent(d)\nProp:exit\nObjLit:exit\nAssignExpr:exit\nExprStmt:exit\nProg:exit\n"];
+loc0->final [xlabel="",color="black"];
+initial->loc0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
+}
+
+func TestCtrlflow_ObjLitNest(t *testing.T) {
+	ast, symtab, err := compile(`
+a = { b: {c: 1} }
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+loc0[label="Prog:enter\nExprStmt:enter\nAssignExpr:enter\nIdent(a)\nObjLit:enter\nProp:enter\nIdent(b)\nObjLit:enter\nProp:enter\nIdent(c)\nNumLit(1)\nProp:exit\nObjLit:exit\nProp:exit\nObjLit:exit\nAssignExpr:exit\nExprStmt:exit\nProg:exit\n"];
+loc0->final [xlabel="",color="black"];
+initial->loc0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
+}
+
+// func TestCtrlflow_ObjLitFnFieldValue(t *testing.T) {
+// 	ast, symtab, err := compile(`
+// a = { b: function (a, b) {} }
+//   `, nil)
+// 	AssertEqual(t, nil, err, "should be prog ok")
+
+// 	ana := NewAnalysis(ast, symtab)
+// 	ana.Analyze()
+
+// 	// 	AssertEqualString(t, `
+// 	// digraph G {
+// 	// node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+// 	// edge[fontname="Consolas",fontsize=10]
+// 	// initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+// 	// final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+// 	// loc0[label="Prog:enter\nExprStmt:enter\nAssignExpr:enter\nIdent(a)\nObjLit:enter\nProp:enter\nIdent(b)\nObjLit:enter\nProp:enter\nIdent(c)\nNumLit(1)\nProp:exit\nObjLit:exit\nProp:exit\nObjLit:exit\nAssignExpr:exit\nExprStmt:exit\nProg:exit\n"];
+// 	// loc0->final [xlabel="",color="black"];
+// 	// initial->loc0 [xlabel="",color="black"];
+// 	// }
+// 	// `, ana.Graph().Dot(), "should be ok")
+
+// 	rhs := ast.(*parser.Prog).Body()[0].(*parser.ExprStmt).Expr().(*parser.AssignExpr).Rhs().(*parser.ObjLit)
+// 	fn := rhs.Props()[0].(*parser.Prop).Val()
+// 	fnGraph := ana.AnalysisCtx().GraphOf(fn)
+
+// 	AssertEqualString(t, `
+// digraph G {
+// node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+// edge[fontname="Consolas",fontsize=10]
+// initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+// final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+// loc0[label="Prog:enter\nExprStmt:enter\nAssignExpr:enter\nIdent(a)\nObjLit:enter\nProp:enter\nIdent(b)\nObjLit:enter\nProp:enter\nIdent(c)\nNumLit(1)\nProp:exit\nObjLit:exit\nProp:exit\nObjLit:exit\nAssignExpr:exit\nExprStmt:exit\nProg:exit\n"];
+// loc0->final [xlabel="",color="black"];
+// initial->loc0 [xlabel="",color="black"];
+// }
+// `, fnGraph.Dot(), "should be ok")
+
+// }
+
+// func TestCtrlflow_FnParamDestruction(t *testing.T) {
+// 	ast, symtab, err := compile(`
+// function fn(a, {b: c}) {}
+//   `, nil)
+// 	AssertEqual(t, nil, err, "should be prog ok")
+
+// 	ana := NewAnalysis(ast, symtab)
+// 	ana.Analyze()
+
+// 	fn := ast.(*parser.Prog).Body()[0]
+// 	fnGraph := ana.AnalysisCtx().GraphOf(fn)
+
+// 	AssertEqualString(t, `
+// digraph G {
+// node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+// edge[fontname="Consolas",fontsize=10]
+// initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+// final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+// loc0[label="Prog:enter\nExprStmt:enter\nAssignExpr:enter\nIdent(a)\nObjLit:enter\nProp:enter\nIdent(b)\nObjLit:enter\nProp:enter\nIdent(c)\nNumLit(1)\nProp:exit\nObjLit:exit\nProp:exit\nObjLit:exit\nAssignExpr:exit\nExprStmt:exit\nProg:exit\n"];
+// loc0->final [xlabel="",color="black"];
+// initial->loc0 [xlabel="",color="black"];
+// }
+// `, fnGraph.Dot(), "should be ok")
+// }

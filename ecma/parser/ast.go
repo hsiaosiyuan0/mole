@@ -1930,13 +1930,18 @@ func (n *SwitchCase) Loc() *Loc {
 
 // #[visitor(Label)]
 type BrkStmt struct {
-	typ   NodeType
-	loc   *Loc
-	label Node
+	typ    NodeType
+	loc    *Loc
+	label  Node
+	target Node
 }
 
 func (n *BrkStmt) Label() Node {
 	return n.label
+}
+
+func (n *BrkStmt) Target() Node {
+	return n.target
 }
 
 func (n *BrkStmt) Type() NodeType {

@@ -1865,7 +1865,7 @@ func (p *Parser) brkStmt() (Node, error) {
 			target.(*LabelStmt).used = true
 		}
 
-		return &BrkStmt{N_STMT_BRK, p.finLoc(loc), label}, nil
+		return &BrkStmt{N_STMT_BRK, p.finLoc(loc), label, target}, nil
 	}
 
 	if err := p.advanceIfSemi(true); err != nil {
@@ -1878,7 +1878,7 @@ func (p *Parser) brkStmt() (Node, error) {
 		!scope.IsKind(SPK_SWITCH) {
 		return nil, p.errorAtLoc(loc, ERR_ILLEGAL_BREAK)
 	}
-	return &BrkStmt{N_STMT_BRK, p.finLoc(loc), nil}, nil
+	return &BrkStmt{N_STMT_BRK, p.finLoc(loc), nil, nil}, nil
 }
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-statements-and-declarations.html#prod-ContinueStatement

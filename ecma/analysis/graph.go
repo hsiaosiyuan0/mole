@@ -171,17 +171,17 @@ func (b *Block) InJmpEdge(ET EdgeTag) *Edge {
 	return nil
 }
 
-func (b *Block) FindInEdge(ek EdgeKind, et EdgeTag, create bool) *Edge {
+func (b *Block) FindInEdge(k EdgeKind, t EdgeTag, create bool) *Edge {
 	var e *Edge
 	for _, edge := range b.Inlets {
-		if edge.Kind == ek && (edge.Tag == ET_NONE || edge.Tag&et != 0) {
+		if edge.Kind == k && (edge.Tag == ET_NONE || edge.Tag&t != 0) {
 			e = edge
-			e.Tag = et
+			e.Tag = t
 			break
 		}
 	}
 	if e == nil && create {
-		e = &Edge{ek, et, nil, b}
+		e = &Edge{k, t, nil, b}
 		b.Inlets = append(b.Inlets, e)
 	}
 	return e
@@ -302,6 +302,15 @@ func (b *Block) newJmp(k EdgeTag) {
 	}
 }
 
+func (b *Block) hasXOut(k EdgeKind, t EdgeTag) bool {
+	for _, edge := range b.Outlets {
+		if edge.Kind == k && (t == ET_NONE || edge.Tag&t != 0) {
+			return true
+		}
+	}
+	return false
+}
+
 // add new loop branch to the dest node of seqIn
 func (b *Block) newLoopIn() {
 	seq := b.seqInEdge()
@@ -412,15 +421,13 @@ type Graph struct {
 	Id     string
 	Head   *Block
 	Parent *Graph
-	Subs   []*Graph
 
 	// map the label to its first basic block
-	labelBlk map[string]*Block
+	labelBlk      map[string]*Block
+	hangingLabels []string
 
 	// map the label to its scope
 	labelLoop map[string]int
-
-	hangingLabels []string
 
 	// map the loop to its first basic block, key is the scope id of the loop
 	loopBlk      map[int]*Block
@@ -513,10 +520,10 @@ func (g *Graph) addHangingBrk(id int, blk *Block) {
 
 func newGraph() *Graph {
 	g := &Graph{
-		Subs:          make([]*Graph, 0),
 		labelBlk:      map[string]*Block{},
 		hangingLabels: make([]string, 0),
 		loopBlk:       map[int]*Block{},
+		labelLoop:     map[string]int{},
 		hangingBrk:    map[int][]*Block{},
 	}
 	g.Head = newStartBlk()

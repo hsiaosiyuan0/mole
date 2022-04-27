@@ -10,7 +10,9 @@ const (
 )
 
 type AnalysisCtx struct {
-	graph *Graph
+	graphMap map[parser.Node]*Graph
+	root     *Graph
+	graph    *Graph
 
 	stmtStack []*Block
 	exprStack []*Block
@@ -20,14 +22,37 @@ type AnalysisCtx struct {
 }
 
 func newAnalysisCtx() *AnalysisCtx {
+	root := newGraph()
 	a := &AnalysisCtx{
-		graph:          newGraph(),
+		graphMap:       map[parser.Node]*Graph{},
+		root:           root,
+		graph:          root,
 		stmtStack:      make([]*Block, 0),
 		exprStack:      make([]*Block, 0),
 		astNodeToBlock: map[uint64]Block{},
 	}
 	a.stmtStack = append(a.stmtStack, a.graph.Head)
 	return a
+}
+
+func (a *AnalysisCtx) GraphOf(node parser.Node) *Graph {
+	g, ok := a.graphMap[node]
+	if !ok {
+		return nil
+	}
+	return g
+}
+
+func (a *AnalysisCtx) enterGraph(node parser.Node) {
+	graph := newGraph()
+	graph.Parent = a.graph
+
+	a.graphMap[node] = graph
+	a.graph = graph
+}
+
+func (a *AnalysisCtx) leaveGraph() {
+	a.graph = a.graph.Parent
 }
 
 func (a *AnalysisCtx) lastExpr() *Block {
@@ -90,6 +115,10 @@ func NewAnalysis(root parser.Node, symtab *parser.SymTab) *Analysis {
 	return a
 }
 
+func (a *Analysis) AnalysisCtx() *AnalysisCtx {
+	return analysisCtx(a.WalkCtx.VisitorCtx())
+}
+
 func (a *Analysis) Graph() *Graph {
 	return analysisCtx(a.WalkCtx.VisitorCtx()).graph
 }
@@ -108,7 +137,10 @@ func (a *Analysis) Graph() *Graph {
 
 // below stmts have the unCondJmp(unconditional-jump) semantic
 // - [x] contine
-// - [ ] break
+// - [x] break
+// - [ ] fnDec
+// - [ ] fnExpr
+// - [ ] arrowExpr
 // - [ ] return
 // - [ ] callExpr
 
@@ -119,6 +151,10 @@ func isLoop(t parser.NodeType) bool {
 func isAtom(t parser.NodeType) bool {
 	_, ok := walk.AtomNodeTypes[t]
 	return ok
+}
+
+func isFn(t parser.NodeType) bool {
+	return t == parser.N_STMT_FN || t == parser.N_EXPR_FN || t == parser.N_EXPR_ARROW
 }
 
 func pushAtomNode(node parser.Node, key string, ctx *walk.VisitorCtx) *Block {
@@ -149,6 +185,7 @@ func handleBefore(node parser.Node, key string, ctx *walk.VisitorCtx) {
 			last, rest := ac.graph.hangingLabels[cnt-1], ac.graph.hangingLabels[:cnt-1]
 			ac.graph.hangingLabels = rest
 			ac.graph.labelBlk[last] = blk
+			ac.graph.labelLoop[last] = ctx.ScopeId()
 		}
 
 		if cnt := len(ac.graph.hangingLoops); cnt > 0 {
@@ -158,15 +195,16 @@ func handleBefore(node parser.Node, key string, ctx *walk.VisitorCtx) {
 		}
 	}
 
+	// stmt
 	if astTyp.IsStmt() || astTyp == parser.N_PROG {
 		if astTyp == parser.N_STMT_LABEL && node.(*parser.LabelStmt).Used() {
 			id := IdOfAstNode(node)
 			ac.graph.hangingLabels = append(ac.graph.hangingLabels, id)
-		}
-
-		if isLoop(astTyp) {
+		} else if isLoop(astTyp) {
 			id := ctx.ScopeId()
 			ac.graph.hangingLoops = append(ac.graph.hangingLoops, id)
+		} else if astTyp == parser.N_STMT_FN || astTyp == parser.N_EXPR_FN {
+			enterFnGraph(node, ctx, true)
 		}
 
 		if pAstTyp == parser.N_STMT_IF || isLoop(pAstTyp) || pAstTyp == parser.N_STMT_LABEL {
@@ -174,13 +212,47 @@ func handleBefore(node parser.Node, key string, ctx *walk.VisitorCtx) {
 			// the forked branch will be linked to its source branch point in the post-process listener
 			// of its astNode
 			ac.pushStmt(blk)
-		} else {
+		} else if astTyp != parser.N_STMT_FN && astTyp != parser.N_EXPR_FN {
 			prev := ac.popStmt()
 			link(ac, prev, EK_SEQ, ET_NONE, EK_NONE, ET_NONE, blk)
 			ac.pushStmt(grpBlock(ac, prev, blk))
 		}
-	} else if astTyp.IsExpr() && !isAtom(astTyp) || astTyp == parser.N_VAR_DEC {
-		ac.pushExpr(blk)
+	} else if !isAtom(astTyp) {
+		if isFn(astTyp) {
+			enterFnGraph(node, ctx, false)
+		} else {
+			ac.pushExpr(blk)
+		}
+	}
+}
+
+func enterFnGraph(node parser.Node, ctx *walk.VisitorCtx, stmt bool) {
+	ac := analysisCtx(ctx)
+	var prev *Block
+	if stmt {
+		prev = ac.popStmt()
+	} else {
+		prev = ac.popExpr()
+	}
+
+	// reflects the graph entry in parent graph
+	b := newBasicBlk()
+	b.Nodes = append(b.Nodes, node)
+	link(ac, prev, EK_SEQ, ET_NONE, EK_NONE, ET_NONE, b)
+	if stmt {
+		ac.pushStmt(grpBlock(ac, prev, b))
+	} else {
+		ac.pushExpr(grpBlock(ac, prev, b))
+	}
+
+	// enter new graph
+	ac.enterGraph(node)
+	// use an empty block as header since we will push fn id and params back to header
+	ac.graph.Head = newBasicBlk()
+	if stmt {
+		ac.pushStmt(ac.graph.Head)
+	} else {
+		ac.pushExpr(ac.graph.Head)
 	}
 }
 
@@ -204,7 +276,7 @@ func handleAfter(node parser.Node, key string, ctx *walk.VisitorCtx) {
 		logic := true
 		if op == parser.T_AND {
 			lhs.newJmp(ET_JMP_F)
-		} else if op == parser.T_OR {
+		} else if op == parser.T_OR || op == parser.T_NULLISH {
 			lhs.newJmp(ET_JMP_T)
 		} else {
 			logic = false
@@ -212,7 +284,7 @@ func handleAfter(node parser.Node, key string, ctx *walk.VisitorCtx) {
 
 		link(ac, lhs, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, rhs)
 
-		if op == parser.T_OR {
+		if op == parser.T_OR || op == parser.T_NULLISH {
 			link(ac, lhs, EK_JMP, ET_JMP_F, EK_SEQ, ET_NONE, rhs)
 		}
 
@@ -236,6 +308,90 @@ func handleAfter(node parser.Node, key string, ctx *walk.VisitorCtx) {
 		link(ac, expr, EK_NONE, ET_NONE, EK_NONE, ET_NONE, exit)
 		ac.pushExpr(grpBlock(ac, enter, exit))
 
+	case parser.N_LIT_ARR:
+		n := node.(*parser.ArrLit)
+
+		var head, tail, th, tt *Block
+		elemLen := len(n.Elems())
+		if elemLen == 1 {
+			head = ac.popExpr()
+			tail = head
+		} else if elemLen > 1 {
+			tail = ac.popExpr()
+			tt = tail
+			for i := elemLen - 2; i >= 0; i-- {
+				th = ac.popExpr()
+				link(ac, th, EK_NONE, ET_NONE, EK_NONE, ET_NONE, tt)
+				tt = th
+			}
+			head = th
+		}
+
+		enter := ac.popExpr()
+		exit := ac.newExit(node, "")
+		if head != nil {
+			link(ac, enter, EK_NONE, ET_NONE, EK_NONE, ET_NONE, head)
+			link(ac, tail, EK_NONE, ET_NONE, EK_NONE, ET_NONE, exit)
+		} else {
+			link(ac, enter, EK_NONE, ET_NONE, EK_NONE, ET_NONE, exit)
+		}
+
+		vn := grpBlock(ac, enter, exit)
+		ac.pushExpr(vn)
+
+	case parser.N_PROP:
+		n := node.(*parser.Prop)
+		var key, val *Block
+		if n.Val() != nil {
+			val = ac.popExpr()
+		}
+		key = ac.popExpr()
+
+		enter := ac.popExpr()
+		link(ac, enter, EK_NONE, ET_NONE, EK_NONE, ET_NONE, key)
+
+		exit := ac.newExit(node, "")
+		if val != nil {
+			link(ac, key, EK_NONE, ET_NONE, EK_NONE, ET_NONE, val)
+			link(ac, val, EK_NONE, ET_NONE, EK_NONE, ET_NONE, exit)
+		} else {
+			link(ac, key, EK_NONE, ET_NONE, EK_NONE, ET_NONE, exit)
+		}
+
+		vn := grpBlock(ac, enter, exit)
+		ac.pushExpr(vn)
+
+	case parser.N_LIT_OBJ:
+		n := node.(*parser.ObjLit)
+
+		var head, tail, th, tt *Block
+		propLen := len(n.Props())
+		if propLen == 1 {
+			head = ac.popExpr()
+			tail = head
+		} else if propLen > 1 {
+			tail = ac.popExpr()
+			tt = tail
+			for i := propLen - 2; i >= 0; i-- {
+				th = ac.popExpr()
+				link(ac, th, EK_NONE, ET_NONE, EK_NONE, ET_NONE, tt)
+				tt = th
+			}
+			head = th
+		}
+
+		enter := ac.popExpr()
+		exit := ac.newExit(node, "")
+		if head != nil {
+			link(ac, enter, EK_NONE, ET_NONE, EK_NONE, ET_NONE, head)
+			link(ac, tail, EK_NONE, ET_NONE, EK_NONE, ET_NONE, exit)
+		} else {
+			link(ac, enter, EK_NONE, ET_NONE, EK_NONE, ET_NONE, exit)
+		}
+
+		vn := grpBlock(ac, enter, exit)
+		ac.pushExpr(vn)
+
 	case parser.N_EXPR_ASSIGN:
 		rhs := ac.popExpr()
 		lhs := ac.popExpr()
@@ -244,6 +400,40 @@ func handleAfter(node parser.Node, key string, ctx *walk.VisitorCtx) {
 		link(ac, enter, EK_SEQ, ET_NONE, EK_NONE, ET_NONE, lhs)
 		link(ac, lhs, EK_NONE, ET_NONE, EK_NONE, ET_NONE, rhs)
 		link(ac, rhs, EK_NONE, ET_NONE, EK_NONE, ET_NONE, exit)
+		vn := grpBlock(ac, enter, exit)
+		ac.pushExpr(vn)
+
+	case parser.N_EXPR_CALL:
+		n := node.(*parser.CallExpr)
+
+		var head, tail, th, tt *Block
+		argsLen := len(n.Args())
+		if argsLen == 1 {
+			head = ac.popExpr()
+			tail = head
+		} else if argsLen > 1 {
+			tail = ac.popExpr()
+			tt = tail
+			for i := argsLen - 2; i >= 0; i-- {
+				th = ac.popExpr()
+				link(ac, th, EK_NONE, ET_NONE, EK_NONE, ET_NONE, tt)
+				tt = th
+			}
+			head = th
+		}
+
+		fn := ac.popExpr()
+		enter := ac.popExpr()
+		exit := ac.newExit(node, "")
+		if head != nil {
+			link(ac, enter, EK_NONE, ET_NONE, EK_NONE, ET_NONE, fn)
+			link(ac, fn, EK_NONE, ET_NONE, EK_NONE, ET_NONE, head)
+			link(ac, tail, EK_NONE, ET_NONE, EK_NONE, ET_NONE, exit)
+		} else {
+			link(ac, enter, EK_NONE, ET_NONE, EK_NONE, ET_NONE, fn)
+			link(ac, fn, EK_NONE, ET_NONE, EK_NONE, ET_NONE, exit)
+		}
+
 		vn := grpBlock(ac, enter, exit)
 		ac.pushExpr(vn)
 
@@ -505,7 +695,13 @@ func handleAfter(node parser.Node, key string, ctx *walk.VisitorCtx) {
 
 		n := node.(*parser.BrkStmt)
 		if n.Label() != nil {
-
+			name := ac.popExpr()
+			link(ac, prev, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, name)
+			link(ac, name, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, exit)
+			exit.mrkSeqOutAsCutted()
+			exit.newJmp(ET_JMP_U)
+			id := ac.graph.labelLoop[IdOfAstNode(n.Target())]
+			ac.graph.addHangingBrk(id, exit)
 		} else {
 			link(ac, prev, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, exit)
 			exit.mrkSeqOutAsCutted()
@@ -513,6 +709,82 @@ func handleAfter(node parser.Node, key string, ctx *walk.VisitorCtx) {
 			id := ctx.Scope().UpperLoop().Id
 			ac.graph.addHangingBrk(id, exit)
 		}
+
+		vn := grpBlock(ac, prev, exit)
+		ac.pushStmt(vn)
+
+	case parser.N_STMT_FN, parser.N_EXPR_FN:
+		n := node.(*parser.FnDec)
+
+		var head, tail, th, tt *Block
+		paramsLen := len(n.Params())
+		if paramsLen == 1 {
+			head = ac.popExpr()
+			tail = head
+		} else if paramsLen > 1 {
+			tail = ac.popExpr()
+			tt = tail
+			for i := paramsLen - 2; i >= 0; i-- {
+				th = ac.popExpr()
+				link(ac, th, EK_NONE, ET_NONE, EK_NONE, ET_NONE, tt)
+				tt = th
+			}
+			head = th
+		}
+
+		var fnName *Block
+		if n.Id() != nil {
+			fnName = ac.popExpr()
+		}
+		body := ac.graph.Head
+
+		// the actual entry node
+		ac.graph.Head = ac.newEnter(node, "")
+
+		// - do the connection to link: head of fnDec -> fn id -> params -> fn body
+		if head != nil {
+			if fnName != nil {
+				link(ac, ac.graph.Head, EK_NONE, ET_NONE, EK_NONE, ET_NONE, fnName)
+				link(ac, fnName, EK_NONE, ET_NONE, EK_NONE, ET_NONE, head)
+				link(ac, tail, EK_NONE, ET_NONE, EK_NONE, ET_NONE, body)
+			} else {
+				link(ac, ac.graph.Head, EK_NONE, ET_NONE, EK_NONE, ET_NONE, body)
+			}
+		} else {
+			if fnName != nil {
+				link(ac, ac.graph.Head, EK_NONE, ET_NONE, EK_NONE, ET_NONE, fnName)
+				link(ac, fnName, EK_NONE, ET_NONE, EK_NONE, ET_NONE, body)
+			} else {
+				link(ac, ac.graph.Head, EK_NONE, ET_NONE, EK_NONE, ET_NONE, body)
+			}
+		}
+
+		var prev *Block
+		if astTyp == parser.N_STMT_FN {
+			prev = ac.popStmt()
+		} else {
+			prev = ac.popExpr()
+		}
+
+		exit := ac.newExit(node, "")
+
+		// connect the tail of body to the exit node
+		link(ac, prev, EK_NONE, ET_NONE, EK_NONE, ET_NONE, exit)
+		ac.leaveGraph()
+
+	case parser.N_STMT_RET:
+		prev := ac.popStmt()
+		exit := ac.newExit(node, "")
+		exit.newJmp(ET_JMP_U)
+
+		n := node.(*parser.RetStmt)
+		if n.Arg() != nil {
+			arg := ac.popExpr()
+			link(ac, prev, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, arg)
+			prev = arg
+		}
+		link(ac, prev, EK_NONE, ET_NONE, EK_SEQ, ET_NONE, exit)
+		exit.mrkSeqOutAsCutted()
 
 		vn := grpBlock(ac, prev, exit)
 		ac.pushStmt(vn)
@@ -533,7 +805,9 @@ func handleAfter(node parser.Node, key string, ctx *walk.VisitorCtx) {
 		loopExit := loopBlk.OutSeqEdge().Src
 		brkList := ac.graph.hangingBrk[id]
 		for _, brk := range brkList {
-			loopExit.newJmp(ET_JMP_U)
+			if !loopExit.hasXOut(EK_JMP, ET_JMP_U) {
+				loopExit.newJmp(ET_JMP_U)
+			}
 			link(ac, brk, EK_JMP, ET_NONE, EK_JMP, ET_NONE, loopExit)
 		}
 	}

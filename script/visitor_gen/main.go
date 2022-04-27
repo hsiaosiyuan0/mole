@@ -24,9 +24,10 @@ type MethodInfo struct {
 }
 
 type StructInfo struct {
-	Name    string
-	TypName string
-	Methods []*MethodInfo
+	Name      string
+	TypName   string
+	PushScope bool
+	Methods   []*MethodInfo
 }
 
 func genVisitor(output io.Writer, s *StructInfo) error {
@@ -41,26 +42,26 @@ func Visit{{ .Name }}(node parser.Node, key string, ctx *VisitorCtx) {
     n := node.(*parser.{{ .Name }})
 
     {{- range $key, $value := .Methods }}
+      {{ if and (not $.PushScope) (eq $key 0) }}
+        CallVisitor(N_{{ $.TypName | UnPrefix }}_BEFORE, n, key, ctx)
+        defer CallVisitor(N_{{ $.TypName | UnPrefix }}_AFTER, n, key, ctx)
+      {{- end }}
       {{ if eq $value.Name "PUSH_SCOPE" }}
         ctx.WalkCtx.PushScope()
         defer ctx.WalkCtx.PopScope()
 
         CallVisitor(N_{{ $.TypName | UnPrefix }}_BEFORE, n, key, ctx)
         defer CallVisitor(N_{{ $.TypName | UnPrefix }}_AFTER, n, key, ctx)
-      {{- else }}
-        {{ if eq $key 0 }}
-          CallVisitor(N_{{ $.TypName | UnPrefix }}_BEFORE, n, key, ctx)
-          defer CallVisitor(N_{{ $.TypName | UnPrefix }}_AFTER, n, key, ctx)
-        {{- end }}
+      {{ else }}
         {{ if .Nodes }}
           VisitNodes(n, n.{{ $value.Name }}(), "{{ $value.Name }}", ctx)
         {{- else }}
           VisitNode(n.{{ $value.Name }}(), "{{ $value.Name }}", ctx)
         {{- end }}
-        if ctx.WalkCtx.Stopped() {
-          return
-        }
       {{- end }}
+      if ctx.WalkCtx.Stopped() {
+        return
+      }
     {{- end }}
   {{- else}}
     CallListener(N_{{ $.TypName | UnPrefix }}_BEFORE, node, key, ctx)
@@ -290,7 +291,7 @@ func main() {
 		if ok {
 			return s
 		}
-		structColl[name] = &StructInfo{name, "", []*MethodInfo{}}
+		structColl[name] = &StructInfo{name, "", false, []*MethodInfo{}}
 		return structColl[name]
 	}
 
@@ -309,6 +310,9 @@ func main() {
 		} else if name, _, ok := macro.IsStructDec(ctx.Node); ok {
 			s := getStruct(name)
 			for _, n := range ctx.Args {
+				if n == "PUSH_SCOPE" {
+					s.PushScope = true
+				}
 				s.Methods = append(s.Methods, &MethodInfo{Name: n.(string), Dec: nil})
 			}
 		}
