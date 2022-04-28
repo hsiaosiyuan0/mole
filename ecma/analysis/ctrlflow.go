@@ -228,32 +228,34 @@ func handleBefore(node parser.Node, key string, ctx *walk.VisitorCtx) {
 
 func enterFnGraph(node parser.Node, ctx *walk.VisitorCtx, stmt bool) {
 	ac := analysisCtx(ctx)
-	var prev *Block
-	if stmt {
-		prev = ac.popStmt()
-	} else {
-		prev = ac.popExpr()
-	}
 
-	// reflects the graph entry in parent graph
+	// reflects the graph entry in parent graph, parent graph only hold
+	// the entry node to represent that there is a sub-graph fork from
+	// that place
 	b := newBasicBlk()
-	b.Nodes = append(b.Nodes, node)
-	link(ac, prev, EK_SEQ, ET_NONE, EK_NONE, ET_NONE, b)
+	b.Nodes = append(b.Nodes, newInfoNode(node, true, node.Type().String()))
+
 	if stmt {
+		// the info node should be connected to previous block if its origin is fnStmt
+		// that's because the link strategy of stmt
+		prev := ac.popStmt()
+		link(ac, prev, EK_SEQ, ET_NONE, EK_NONE, ET_NONE, b)
 		ac.pushStmt(grpBlock(ac, prev, b))
 	} else {
-		ac.pushExpr(grpBlock(ac, prev, b))
+		// as opposed to the link strategy of stmt, link-to-previous process is not
+		// needed in expr situation, the connection will be done in its parent expr
+		// process
+		ac.pushExpr(b)
 	}
 
 	// enter new graph
 	ac.enterGraph(node)
+
 	// use an empty block as header since we will push fn id and params back to header
+	// the mimic header will be used the start of function body, so `pushStmt` is needed
+	// below
 	ac.graph.Head = newBasicBlk()
-	if stmt {
-		ac.pushStmt(ac.graph.Head)
-	} else {
-		ac.pushExpr(ac.graph.Head)
-	}
+	ac.pushStmt(ac.graph.Head)
 }
 
 func handleAfter(node parser.Node, key string, ctx *walk.VisitorCtx) {
@@ -748,7 +750,8 @@ func handleAfter(node parser.Node, key string, ctx *walk.VisitorCtx) {
 				link(ac, fnName, EK_NONE, ET_NONE, EK_NONE, ET_NONE, head)
 				link(ac, tail, EK_NONE, ET_NONE, EK_NONE, ET_NONE, body)
 			} else {
-				link(ac, ac.graph.Head, EK_NONE, ET_NONE, EK_NONE, ET_NONE, body)
+				link(ac, ac.graph.Head, EK_NONE, ET_NONE, EK_NONE, ET_NONE, head)
+				link(ac, tail, EK_NONE, ET_NONE, EK_NONE, ET_NONE, body)
 			}
 		} else {
 			if fnName != nil {
@@ -759,17 +762,11 @@ func handleAfter(node parser.Node, key string, ctx *walk.VisitorCtx) {
 			}
 		}
 
-		var prev *Block
-		if astTyp == parser.N_STMT_FN {
-			prev = ac.popStmt()
-		} else {
-			prev = ac.popExpr()
-		}
-
-		exit := ac.newExit(node, "")
-
 		// connect the tail of body to the exit node
-		link(ac, prev, EK_NONE, ET_NONE, EK_NONE, ET_NONE, exit)
+		enter := ac.popStmt()
+		exit := ac.newExit(node, "")
+		link(ac, enter, EK_NONE, ET_NONE, EK_NONE, ET_NONE, exit)
+
 		ac.leaveGraph()
 
 	case parser.N_STMT_RET:

@@ -42,26 +42,26 @@ func Visit{{ .Name }}(node parser.Node, key string, ctx *VisitorCtx) {
     n := node.(*parser.{{ .Name }})
 
     {{- range $key, $value := .Methods }}
-      {{ if and (not $.PushScope) (eq $key 0) }}
-        CallVisitor(N_{{ $.TypName | UnPrefix }}_BEFORE, n, key, ctx)
-        defer CallVisitor(N_{{ $.TypName | UnPrefix }}_AFTER, n, key, ctx)
-      {{- end }}
       {{ if eq $value.Name "PUSH_SCOPE" }}
         ctx.WalkCtx.PushScope()
         defer ctx.WalkCtx.PopScope()
+      {{- end }}
 
+      {{ if eq $key 0 }}
         CallVisitor(N_{{ $.TypName | UnPrefix }}_BEFORE, n, key, ctx)
         defer CallVisitor(N_{{ $.TypName | UnPrefix }}_AFTER, n, key, ctx)
-      {{ else }}
+      {{- end }}
+
+      {{ if ne $value.Name "PUSH_SCOPE" }}
         {{ if .Nodes }}
           VisitNodes(n, n.{{ $value.Name }}(), "{{ $value.Name }}", ctx)
         {{- else }}
           VisitNode(n.{{ $value.Name }}(), "{{ $value.Name }}", ctx)
         {{- end }}
+        if ctx.WalkCtx.Stopped() {
+          return
+        }
       {{- end }}
-      if ctx.WalkCtx.Stopped() {
-        return
-      }
     {{- end }}
   {{- else}}
     CallListener(N_{{ $.TypName | UnPrefix }}_BEFORE, node, key, ctx)

@@ -32,6 +32,7 @@ func NewWalkCtx(root parser.Node, symtab *parser.SymTab) *WalkCtx {
 	c.Symtab = symtab
 	c.vc = &VisitorCtx{c, c.vc, []string{}, root}
 	c.scopeIds = []int{0}
+	c.scopeIdSeed = len(c.scopeIds)
 	return c
 }
 
@@ -57,8 +58,8 @@ func (c *WalkCtx) PushScope() {
 		newScope = v.NewScope()
 	}
 	if newScope {
-		c.scopeIdSeed += 1
 		c.scopeIds = append(c.scopeIds, c.scopeIdSeed)
+		c.scopeIdSeed += 1
 	}
 }
 
