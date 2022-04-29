@@ -123,27 +123,6 @@ func (a *Analysis) Graph() *Graph {
 	return analysisCtx(a.WalkCtx.VisitorCtx()).graph
 }
 
-// below stmts and exprs have the condJmp(conditional-jump) semantic:
-// - [x] logicAnd
-// - [x] logicOr
-// - [x] if
-// - [x] for
-// - [x] while
-// - [x] doWhile
-// - [x] for-in-of
-
-// - [x] Loop
-// - [x] Test
-
-// below stmts have the unCondJmp(unconditional-jump) semantic
-// - [x] contine
-// - [x] break
-// - [ ] fnDec
-// - [ ] fnExpr
-// - [ ] arrowExpr
-// - [ ] return
-// - [ ] callExpr
-
 func isLoop(t parser.NodeType) bool {
 	return t == parser.N_STMT_FOR || t == parser.N_STMT_WHILE || t == parser.N_STMT_DO_WHILE || t == parser.N_STMT_FOR_IN_OF
 }
