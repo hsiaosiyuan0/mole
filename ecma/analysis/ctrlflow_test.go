@@ -778,10 +778,10 @@ func TestCtrlflow_ContinueBasicEntry(t *testing.T) {
 
 	AssertEqual(t, a, cont.OutJmpEdge(ET_LOOP).Dst, "should be ok")
 	AssertEqual(t, d, cont.OutSeqEdge().Dst, "should be ok")
-	AssertEqual(t, true, cont.HasOutCutted(), "should be ok")
+	AssertEqual(t, true, cont.HasOutCut(), "should be ok")
 
 	AssertEqual(t, a, d.OutJmpEdge(ET_LOOP).Dst, "should be ok")
-	AssertEqual(t, true, d.HasOutCutted(), "should be ok")
+	AssertEqual(t, true, d.HasOutCut(), "should be ok")
 }
 
 func TestCtrlflow_Continue(t *testing.T) {
@@ -822,10 +822,10 @@ func TestCtrlflow_Continue(t *testing.T) {
 
 	AssertEqual(t, a, cont.OutJmpEdge(ET_LOOP).Dst, "should be ok")
 	AssertEqual(t, d, cont.OutSeqEdge().Dst, "should be ok")
-	AssertEqual(t, true, cont.HasOutCutted(), "should be ok")
+	AssertEqual(t, true, cont.HasOutCut(), "should be ok")
 
 	AssertEqual(t, begin.OutSeqEdge().Dst, d.OutJmpEdge(ET_LOOP).Dst, "should be ok")
-	AssertEqual(t, true, d.HasOutCutted(), "should be ok")
+	AssertEqual(t, true, d.HasOutCut(), "should be ok")
 }
 
 func TestCtrlflow_ContinueOuter(t *testing.T) {
@@ -869,10 +869,10 @@ func TestCtrlflow_ContinueOuter(t *testing.T) {
 
 	AssertEqual(t, a, cont.OutJmpEdge(ET_LOOP).Dst, "should be ok")
 	AssertEqual(t, c, cont.OutSeqEdge().Dst, "should be ok")
-	AssertEqual(t, true, cont.HasOutCutted(), "should be ok")
+	AssertEqual(t, true, cont.HasOutCut(), "should be ok")
 
 	AssertEqual(t, b, c.OutJmpEdge(ET_LOOP).Dst, "should be ok")
-	AssertEqual(t, true, c.HasOutCutted(), "should be ok")
+	AssertEqual(t, true, c.HasOutCut(), "should be ok")
 }
 
 func TestCtrlflow_ContinueDoWhile(t *testing.T) {
@@ -909,11 +909,11 @@ LabelA: do {
 
 	AssertEqual(t, a, cont.OutJmpEdge(ET_LOOP).Dst, "should be ok")
 	AssertEqual(t, d, cont.OutSeqEdge().Dst, "should be ok")
-	AssertEqual(t, true, cont.HasOutCutted(), "should be ok")
+	AssertEqual(t, true, cont.HasOutCut(), "should be ok")
 
 	AssertEqual(t, c, d, "should be ok")
 	AssertEqual(t, cont, c.OutJmpEdge(ET_LOOP).Dst, "should be ok")
-	AssertEqual(t, true, c.HasOutCutted(), "should be ok")
+	AssertEqual(t, true, c.HasOutCut(), "should be ok")
 	AssertEqual(t, b, c.OutJmpEdge(ET_JMP_F).Dst, "should be ok")
 
 	AssertEqual(t, begin.OutSeqEdge().Dst, b.OutJmpEdge(ET_LOOP).Dst, "should be ok")
@@ -1963,4 +1963,604 @@ loc0->final [xlabel="",color="black"];
 initial->loc0 [xlabel="",color="black"];
 }
 `, ana.Graph().Dot(), "should be ok")
+}
+
+func TestCtrlflow_SwitchCase(t *testing.T) {
+	ast, symtab, err := compile(`
+switch(a) {
+  case 1: doSth1();
+  case 2: doSth2();
+  case 3: doSth3();
+  default: doSthDefault();
+}
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+loc0[label="Prog:enter\nSwitchStmt:enter\nIdent(a)\nSwitchCase:enter\nNumLit(1)\n"];
+loc3_10_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth1)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
+loc4_10_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth2)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
+loc4_2_156_0[label="SwitchCase:enter\nNumLit(2)\n"];
+loc5_10_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth3)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
+loc5_2_156_0[label="SwitchCase:enter\nNumLit(3)\n"];
+loc6_11_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSthDefault)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\nSwitchStmt:exit\nProg:exit\n"];
+loc6_2_156_0[label="SwitchCase:enter\n"];
+loc0->loc3_10_156_0 [xlabel="",color="black"];
+loc0->loc4_2_156_0 [xlabel="F",color="orange"];
+loc3_10_156_0->loc4_10_156_0 [xlabel="",color="black"];
+loc4_10_156_0->loc5_10_156_0 [xlabel="",color="black"];
+loc4_2_156_0->loc4_10_156_0 [xlabel="",color="black"];
+loc4_2_156_0->loc5_2_156_0 [xlabel="F",color="orange"];
+loc5_10_156_0->loc6_11_156_0 [xlabel="",color="black"];
+loc5_2_156_0->loc5_10_156_0 [xlabel="",color="black"];
+loc5_2_156_0->loc6_2_156_0 [xlabel="F",color="orange"];
+loc6_11_156_0->final [xlabel="",color="black"];
+loc6_2_156_0->loc6_11_156_0 [xlabel="",color="black"];
+initial->loc0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
+}
+
+func TestCtrlflow_SwitchCaseBlk(t *testing.T) {
+	ast, symtab, err := compile(`
+switch(a) {
+  case 1: doSth1();
+  case 2: {
+    doSth21();
+    doSth22();
+  }
+  case 3: doSth3();
+  default: doSthDefault();
+}
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+loc0[label="Prog:enter\nSwitchStmt:enter\nIdent(a)\nSwitchCase:enter\nNumLit(1)\n"];
+loc3_10_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth1)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
+loc4_10_156_0[label="BlockStmt:enter\nExprStmt:enter\nCallExpr:enter\nIdent(doSth21)\nCallExpr:exit\nExprStmt:exit\nExprStmt:enter\nCallExpr:enter\nIdent(doSth22)\nCallExpr:exit\nExprStmt:exit\nBlockStmt:exit\nSwitchCase:exit\n"];
+loc4_2_156_0[label="SwitchCase:enter\nNumLit(2)\n"];
+loc8_10_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth3)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
+loc8_2_156_0[label="SwitchCase:enter\nNumLit(3)\n"];
+loc9_11_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSthDefault)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\nSwitchStmt:exit\nProg:exit\n"];
+loc9_2_156_0[label="SwitchCase:enter\n"];
+loc0->loc3_10_156_0 [xlabel="",color="black"];
+loc0->loc4_2_156_0 [xlabel="F",color="orange"];
+loc3_10_156_0->loc4_10_156_0 [xlabel="",color="black"];
+loc4_10_156_0->loc8_10_156_0 [xlabel="",color="black"];
+loc4_2_156_0->loc4_10_156_0 [xlabel="",color="black"];
+loc4_2_156_0->loc8_2_156_0 [xlabel="F",color="orange"];
+loc8_10_156_0->loc9_11_156_0 [xlabel="",color="black"];
+loc8_2_156_0->loc8_10_156_0 [xlabel="",color="black"];
+loc8_2_156_0->loc9_2_156_0 [xlabel="F",color="orange"];
+loc9_11_156_0->final [xlabel="",color="black"];
+loc9_2_156_0->loc9_11_156_0 [xlabel="",color="black"];
+initial->loc0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
+}
+
+func TestCtrlflow_SwitchCaseFallthrough(t *testing.T) {
+	ast, symtab, err := compile(`
+switch(a) {
+  case 1:
+  case 2: {
+    doSth21();
+    doSth22();
+  }
+  case 3: doSth3();
+  default: doSthDefault();
+}
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+loc0[label="Prog:enter\nSwitchStmt:enter\nIdent(a)\nSwitchCase:enter\nNumLit(1)\n"];
+loc3_2_156_1[label="SwitchCase:exit\n"];
+loc4_10_156_0[label="BlockStmt:enter\nExprStmt:enter\nCallExpr:enter\nIdent(doSth21)\nCallExpr:exit\nExprStmt:exit\nExprStmt:enter\nCallExpr:enter\nIdent(doSth22)\nCallExpr:exit\nExprStmt:exit\nBlockStmt:exit\nSwitchCase:exit\n"];
+loc4_2_156_0[label="SwitchCase:enter\nNumLit(2)\n"];
+loc8_10_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth3)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
+loc8_2_156_0[label="SwitchCase:enter\nNumLit(3)\n"];
+loc9_11_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSthDefault)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\nSwitchStmt:exit\nProg:exit\n"];
+loc9_2_156_0[label="SwitchCase:enter\n"];
+loc0->loc3_2_156_1 [xlabel="",color="black"];
+loc0->loc4_2_156_0 [xlabel="F",color="orange"];
+loc3_2_156_1->loc4_10_156_0 [xlabel="",color="black"];
+loc4_10_156_0->loc8_10_156_0 [xlabel="",color="black"];
+loc4_2_156_0->loc4_10_156_0 [xlabel="",color="black"];
+loc4_2_156_0->loc8_2_156_0 [xlabel="F",color="orange"];
+loc8_10_156_0->loc9_11_156_0 [xlabel="",color="black"];
+loc8_2_156_0->loc8_10_156_0 [xlabel="",color="black"];
+loc8_2_156_0->loc9_2_156_0 [xlabel="F",color="orange"];
+loc9_11_156_0->final [xlabel="",color="black"];
+loc9_2_156_0->loc9_11_156_0 [xlabel="",color="black"];
+initial->loc0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
+}
+
+func TestCtrlflow_SwitchCaseDefaultFirst(t *testing.T) {
+	ast, symtab, err := compile(`
+switch(a) {
+  default: doSthDefault();
+  case 1: doSth1();
+  case 2: doSth2();
+}
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+loc0[label="Prog:enter\nSwitchStmt:enter\nIdent(a)\nSwitchCase:enter\n"];
+loc3_11_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSthDefault)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
+loc4_10_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth1)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
+loc4_2_156_0[label="SwitchCase:enter\nNumLit(1)\n"];
+loc5_10_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth2)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\nSwitchStmt:exit\nProg:exit\n"];
+loc5_2_156_0[label="SwitchCase:enter\nNumLit(2)\n"];
+loc0->loc4_2_156_0 [xlabel="",color="black"];
+loc3_11_156_0->loc4_10_156_0 [xlabel="",color="black"];
+loc4_10_156_0->loc5_10_156_0 [xlabel="",color="black"];
+loc4_2_156_0->loc4_10_156_0 [xlabel="",color="black"];
+loc4_2_156_0->loc5_2_156_0 [xlabel="F",color="orange"];
+loc5_10_156_0->final [xlabel="",color="black"];
+loc5_2_156_0->loc3_11_156_0 [xlabel="F",color="orange"];
+loc5_2_156_0->loc5_10_156_0 [xlabel="",color="black"];
+initial->loc0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
+}
+
+func TestCtrlflow_SwitchCaseDefaultInMiddle(t *testing.T) {
+	ast, symtab, err := compile(`
+switch(a) {
+  case 1: doSth1();
+  default: doSthDefault();
+  case 2: doSth2();
+  case 3: doSth3();
+}
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+loc0[label="Prog:enter\nSwitchStmt:enter\nIdent(a)\nSwitchCase:enter\nNumLit(1)\n"];
+loc3_10_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth1)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
+loc4_11_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSthDefault)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
+loc4_2_156_0[label="SwitchCase:enter\n"];
+loc5_10_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth2)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
+loc5_2_156_0[label="SwitchCase:enter\nNumLit(2)\n"];
+loc6_10_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth3)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\nSwitchStmt:exit\nProg:exit\n"];
+loc6_2_156_0[label="SwitchCase:enter\nNumLit(3)\n"];
+loc0->loc3_10_156_0 [xlabel="",color="black"];
+loc0->loc4_2_156_0 [xlabel="F",color="orange"];
+loc3_10_156_0->loc4_11_156_0 [xlabel="",color="black"];
+loc4_11_156_0->loc5_10_156_0 [xlabel="",color="black"];
+loc4_2_156_0->loc5_2_156_0 [xlabel="",color="black"];
+loc5_10_156_0->loc6_10_156_0 [xlabel="",color="black"];
+loc5_2_156_0->loc5_10_156_0 [xlabel="",color="black"];
+loc5_2_156_0->loc6_2_156_0 [xlabel="F",color="orange"];
+loc6_10_156_0->final [xlabel="",color="black"];
+loc6_2_156_0->loc4_11_156_0 [xlabel="F",color="orange"];
+loc6_2_156_0->loc6_10_156_0 [xlabel="",color="black"];
+initial->loc0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
+}
+
+func TestCtrlflow_SwitchCaseDefaultInMiddleFallthrough(t *testing.T) {
+	ast, symtab, err := compile(`
+switch(a) {
+  case 1:
+  default: doSthDefault();
+  case 2: doSth2();
+  case 3: doSth3();
+}
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+loc0[label="Prog:enter\nSwitchStmt:enter\nIdent(a)\nSwitchCase:enter\nNumLit(1)\n"];
+loc3_2_156_1[label="SwitchCase:exit\n"];
+loc4_11_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSthDefault)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
+loc4_2_156_0[label="SwitchCase:enter\n"];
+loc5_10_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth2)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
+loc5_2_156_0[label="SwitchCase:enter\nNumLit(2)\n"];
+loc6_10_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth3)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\nSwitchStmt:exit\nProg:exit\n"];
+loc6_2_156_0[label="SwitchCase:enter\nNumLit(3)\n"];
+loc0->loc3_2_156_1 [xlabel="",color="black"];
+loc0->loc4_2_156_0 [xlabel="F",color="orange"];
+loc3_2_156_1->loc4_11_156_0 [xlabel="",color="black"];
+loc4_11_156_0->loc5_10_156_0 [xlabel="",color="black"];
+loc4_2_156_0->loc5_2_156_0 [xlabel="",color="black"];
+loc5_10_156_0->loc6_10_156_0 [xlabel="",color="black"];
+loc5_2_156_0->loc5_10_156_0 [xlabel="",color="black"];
+loc5_2_156_0->loc6_2_156_0 [xlabel="F",color="orange"];
+loc6_10_156_0->final [xlabel="",color="black"];
+loc6_2_156_0->loc4_11_156_0 [xlabel="F",color="orange"];
+loc6_2_156_0->loc6_10_156_0 [xlabel="",color="black"];
+initial->loc0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
+}
+
+func TestCtrlflow_SwitchCaseBasic(t *testing.T) {
+	ast, symtab, err := compile(`
+switch(a) {
+  case 1: doSth1(); break;
+  case 2: doSth2();
+  case 3: doSth3();
+}
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+loc0[label="Prog:enter\nSwitchStmt:enter\nIdent(a)\nSwitchCase:enter\nNumLit(1)\n"];
+loc2_0_156_1[label="SwitchStmt:exit\nProg:exit\n"];
+loc3_10_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth1)\nCallExpr:exit\nExprStmt:exit\nBrkStmt:enter\nBrkStmt:exit\n"];
+loc3_2_156_1[label="SwitchCase:exit\n"];
+loc4_10_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth2)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
+loc4_2_156_0[label="SwitchCase:enter\nNumLit(2)\n"];
+loc5_10_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth3)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
+loc5_2_156_0[label="SwitchCase:enter\nNumLit(3)\n"];
+loc0->loc3_10_156_0 [xlabel="",color="black"];
+loc0->loc4_2_156_0 [xlabel="F",color="orange"];
+loc2_0_156_1->final [xlabel="",color="black"];
+loc3_10_156_0->loc2_0_156_1 [xlabel="U",color="orange"];
+loc3_10_156_0->loc3_2_156_1 [xlabel="",color="red"];
+loc3_2_156_1->loc4_10_156_0 [xlabel="",color="red"];
+loc4_10_156_0->loc5_10_156_0 [xlabel="",color="black"];
+loc4_2_156_0->loc4_10_156_0 [xlabel="",color="black"];
+loc4_2_156_0->loc5_2_156_0 [xlabel="F",color="orange"];
+loc5_10_156_0->loc2_0_156_1 [xlabel="",color="black"];
+loc5_2_156_0->final [xlabel="F",color="orange"];
+loc5_2_156_0->loc5_10_156_0 [xlabel="",color="black"];
+initial->loc0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
+}
+
+func TestCtrlflow_SwitchCaseBreak(t *testing.T) {
+	ast, symtab, err := compile(`
+switch(a) {
+  case 1: doSth1(); break;
+  default: doSthDefault();
+  case 2: doSth2();
+  case 3: doSth3();
+}
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+loc0[label="Prog:enter\nSwitchStmt:enter\nIdent(a)\nSwitchCase:enter\nNumLit(1)\n"];
+loc2_0_156_1[label="SwitchStmt:exit\nProg:exit\n"];
+loc3_10_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth1)\nCallExpr:exit\nExprStmt:exit\nBrkStmt:enter\nBrkStmt:exit\n"];
+loc3_2_156_1[label="SwitchCase:exit\n"];
+loc4_11_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSthDefault)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
+loc4_2_156_0[label="SwitchCase:enter\n"];
+loc5_10_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth2)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
+loc5_2_156_0[label="SwitchCase:enter\nNumLit(2)\n"];
+loc6_10_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth3)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
+loc6_2_156_0[label="SwitchCase:enter\nNumLit(3)\n"];
+loc0->loc3_10_156_0 [xlabel="",color="black"];
+loc0->loc4_2_156_0 [xlabel="F",color="orange"];
+loc2_0_156_1->final [xlabel="",color="black"];
+loc3_10_156_0->loc2_0_156_1 [xlabel="U",color="orange"];
+loc3_10_156_0->loc3_2_156_1 [xlabel="",color="red"];
+loc3_2_156_1->loc4_11_156_0 [xlabel="",color="red"];
+loc4_11_156_0->loc5_10_156_0 [xlabel="",color="black"];
+loc4_2_156_0->loc5_2_156_0 [xlabel="",color="black"];
+loc5_10_156_0->loc6_10_156_0 [xlabel="",color="black"];
+loc5_2_156_0->loc5_10_156_0 [xlabel="",color="black"];
+loc5_2_156_0->loc6_2_156_0 [xlabel="F",color="orange"];
+loc6_10_156_0->loc2_0_156_1 [xlabel="",color="black"];
+loc6_2_156_0->loc4_11_156_0 [xlabel="F",color="orange"];
+loc6_2_156_0->loc6_10_156_0 [xlabel="",color="black"];
+initial->loc0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
+}
+
+func TestCtrlflow_SwitchCaseBreakInBlock(t *testing.T) {
+	ast, symtab, err := compile(`
+switch(a) {
+  case 1: {
+    doSth1(); break;
+  }
+  default: doSthDefault();
+  case 2: doSth2();
+  case 3: doSth3();
+}
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+loc0[label="Prog:enter\nSwitchStmt:enter\nIdent(a)\nSwitchCase:enter\nNumLit(1)\n"];
+loc2_0_156_1[label="SwitchStmt:exit\nProg:exit\n"];
+loc3_10_156_0[label="BlockStmt:enter\nExprStmt:enter\nCallExpr:enter\nIdent(doSth1)\nCallExpr:exit\nExprStmt:exit\nBrkStmt:enter\nBrkStmt:exit\n"];
+loc3_10_156_1[label="BlockStmt:exit\nSwitchCase:exit\n"];
+loc6_11_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSthDefault)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
+loc6_2_156_0[label="SwitchCase:enter\n"];
+loc7_10_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth2)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
+loc7_2_156_0[label="SwitchCase:enter\nNumLit(2)\n"];
+loc8_10_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth3)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
+loc8_2_156_0[label="SwitchCase:enter\nNumLit(3)\n"];
+loc0->loc3_10_156_0 [xlabel="",color="black"];
+loc0->loc6_2_156_0 [xlabel="F",color="orange"];
+loc2_0_156_1->final [xlabel="",color="black"];
+loc3_10_156_0->loc2_0_156_1 [xlabel="U",color="orange"];
+loc3_10_156_0->loc3_10_156_1 [xlabel="",color="red"];
+loc3_10_156_1->loc6_11_156_0 [xlabel="",color="red"];
+loc6_11_156_0->loc7_10_156_0 [xlabel="",color="black"];
+loc6_2_156_0->loc7_2_156_0 [xlabel="",color="black"];
+loc7_10_156_0->loc8_10_156_0 [xlabel="",color="black"];
+loc7_2_156_0->loc7_10_156_0 [xlabel="",color="black"];
+loc7_2_156_0->loc8_2_156_0 [xlabel="F",color="orange"];
+loc8_10_156_0->loc2_0_156_1 [xlabel="",color="black"];
+loc8_2_156_0->loc6_11_156_0 [xlabel="F",color="orange"];
+loc8_2_156_0->loc8_10_156_0 [xlabel="",color="black"];
+initial->loc0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
+}
+
+func TestCtrlflow_SwitchCaseBreakSiblingBlock(t *testing.T) {
+	ast, symtab, err := compile(`
+switch(a) {
+  case 1: {
+    doSth1();
+  }
+  break;
+  default: doSthDefault();
+  case 2: doSth2();
+  case 3: doSth3();
+}
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+loc0[label="Prog:enter\nSwitchStmt:enter\nIdent(a)\nSwitchCase:enter\nNumLit(1)\n"];
+loc2_0_156_1[label="SwitchStmt:exit\nProg:exit\n"];
+loc3_10_156_0[label="BlockStmt:enter\nExprStmt:enter\nCallExpr:enter\nIdent(doSth1)\nCallExpr:exit\nExprStmt:exit\nBlockStmt:exit\nBrkStmt:enter\nBrkStmt:exit\n"];
+loc3_2_156_1[label="SwitchCase:exit\n"];
+loc7_11_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSthDefault)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
+loc7_2_156_0[label="SwitchCase:enter\n"];
+loc8_10_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth2)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
+loc8_2_156_0[label="SwitchCase:enter\nNumLit(2)\n"];
+loc9_10_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth3)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
+loc9_2_156_0[label="SwitchCase:enter\nNumLit(3)\n"];
+loc0->loc3_10_156_0 [xlabel="",color="black"];
+loc0->loc7_2_156_0 [xlabel="F",color="orange"];
+loc2_0_156_1->final [xlabel="",color="black"];
+loc3_10_156_0->loc2_0_156_1 [xlabel="U",color="orange"];
+loc3_10_156_0->loc3_2_156_1 [xlabel="",color="red"];
+loc3_2_156_1->loc7_11_156_0 [xlabel="",color="red"];
+loc7_11_156_0->loc8_10_156_0 [xlabel="",color="black"];
+loc7_2_156_0->loc8_2_156_0 [xlabel="",color="black"];
+loc8_10_156_0->loc9_10_156_0 [xlabel="",color="black"];
+loc8_2_156_0->loc8_10_156_0 [xlabel="",color="black"];
+loc8_2_156_0->loc9_2_156_0 [xlabel="F",color="orange"];
+loc9_10_156_0->loc2_0_156_1 [xlabel="",color="black"];
+loc9_2_156_0->loc7_11_156_0 [xlabel="F",color="orange"];
+loc9_2_156_0->loc9_10_156_0 [xlabel="",color="black"];
+initial->loc0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
+}
+
+func TestCtrlflow_SwitchCaseBreakDefaultFirst(t *testing.T) {
+	ast, symtab, err := compile(`
+switch(a) {
+  default: doSthDefault(); break;
+  case 2: doSth2();
+  case 3: doSth3();
+}
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+loc0[label="Prog:enter\nSwitchStmt:enter\nIdent(a)\nSwitchCase:enter\n"];
+loc2_0_156_1[label="SwitchStmt:exit\nProg:exit\n"];
+loc3_11_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSthDefault)\nCallExpr:exit\nExprStmt:exit\nBrkStmt:enter\nBrkStmt:exit\n"];
+loc3_2_156_1[label="SwitchCase:exit\n"];
+loc4_10_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth2)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
+loc4_2_156_0[label="SwitchCase:enter\nNumLit(2)\n"];
+loc5_10_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth3)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
+loc5_2_156_0[label="SwitchCase:enter\nNumLit(3)\n"];
+loc0->loc4_2_156_0 [xlabel="",color="black"];
+loc2_0_156_1->final [xlabel="",color="black"];
+loc3_11_156_0->loc2_0_156_1 [xlabel="U",color="orange"];
+loc3_11_156_0->loc3_2_156_1 [xlabel="",color="red"];
+loc3_2_156_1->loc4_10_156_0 [xlabel="",color="red"];
+loc4_10_156_0->loc5_10_156_0 [xlabel="",color="black"];
+loc4_2_156_0->loc4_10_156_0 [xlabel="",color="black"];
+loc4_2_156_0->loc5_2_156_0 [xlabel="F",color="orange"];
+loc5_10_156_0->loc2_0_156_1 [xlabel="",color="black"];
+loc5_2_156_0->loc3_11_156_0 [xlabel="F",color="orange"];
+loc5_2_156_0->loc5_10_156_0 [xlabel="",color="black"];
+initial->loc0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
+}
+
+func TestCtrlflow_SwitchCaseBreakDefaultMiddle(t *testing.T) {
+	ast, symtab, err := compile(`
+switch(a) {
+  case 1: doSth1();
+  default: doSthDefault(); break;
+  case 2: doSth2();
+  case 3: doSth3();
+}
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+loc0[label="Prog:enter\nSwitchStmt:enter\nIdent(a)\nSwitchCase:enter\nNumLit(1)\n"];
+loc2_0_156_1[label="SwitchStmt:exit\nProg:exit\n"];
+loc3_10_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth1)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
+loc4_11_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSthDefault)\nCallExpr:exit\nExprStmt:exit\nBrkStmt:enter\nBrkStmt:exit\n"];
+loc4_2_156_0[label="SwitchCase:enter\n"];
+loc4_2_156_1[label="SwitchCase:exit\n"];
+loc5_10_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth2)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
+loc5_2_156_0[label="SwitchCase:enter\nNumLit(2)\n"];
+loc6_10_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth3)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
+loc6_2_156_0[label="SwitchCase:enter\nNumLit(3)\n"];
+loc0->loc3_10_156_0 [xlabel="",color="black"];
+loc0->loc4_2_156_0 [xlabel="F",color="orange"];
+loc2_0_156_1->final [xlabel="",color="black"];
+loc3_10_156_0->loc4_11_156_0 [xlabel="",color="black"];
+loc4_11_156_0->loc2_0_156_1 [xlabel="U",color="orange"];
+loc4_11_156_0->loc4_2_156_1 [xlabel="",color="red"];
+loc4_2_156_0->loc5_2_156_0 [xlabel="",color="black"];
+loc4_2_156_1->loc5_10_156_0 [xlabel="",color="red"];
+loc5_10_156_0->loc6_10_156_0 [xlabel="",color="black"];
+loc5_2_156_0->loc5_10_156_0 [xlabel="",color="black"];
+loc5_2_156_0->loc6_2_156_0 [xlabel="F",color="orange"];
+loc6_10_156_0->loc2_0_156_1 [xlabel="",color="black"];
+loc6_2_156_0->loc4_11_156_0 [xlabel="F",color="orange"];
+loc6_2_156_0->loc6_10_156_0 [xlabel="",color="black"];
+initial->loc0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
+}
+
+func TestCtrlflow_SwitchCaseReturnDefaultMiddle(t *testing.T) {
+	ast, symtab, err := compile(`
+function f() {
+  switch(a) {
+    case 1: {
+      doSth1(); return;
+    }
+    default: doSthDefault();
+    case 2: doSth2();
+  }
+}
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	fn := ast.(*parser.Prog).Body()[0]
+	fnGraph := ana.AnalysisCtx().GraphOf(fn)
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+loc2_0_156_0[label="FnDec:enter\nIdent(f)\nBlockStmt:enter\nSwitchStmt:enter\nIdent(a)\nSwitchCase:enter\nNumLit(1)\n"];
+loc4_12_156_0[label="BlockStmt:enter\nExprStmt:enter\nCallExpr:enter\nIdent(doSth1)\nCallExpr:exit\nExprStmt:exit\nRetStmt:enter\nRetStmt:exit\n"];
+loc4_12_156_1[label="BlockStmt:exit\nSwitchCase:exit\n"];
+loc7_13_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSthDefault)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
+loc7_4_156_0[label="SwitchCase:enter\n"];
+loc8_12_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth2)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\nSwitchStmt:exit\nBlockStmt:exit\nFnDec:exit\n"];
+loc8_4_156_0[label="SwitchCase:enter\nNumLit(2)\n"];
+loc2_0_156_0->loc4_12_156_0 [xlabel="",color="black"];
+loc2_0_156_0->loc7_4_156_0 [xlabel="F",color="orange"];
+loc4_12_156_0->final [xlabel="U",color="orange"];
+loc4_12_156_0->loc4_12_156_1 [xlabel="",color="red"];
+loc4_12_156_1->loc7_13_156_0 [xlabel="",color="red"];
+loc7_13_156_0->loc8_12_156_0 [xlabel="",color="black"];
+loc7_4_156_0->loc8_4_156_0 [xlabel="",color="black"];
+loc8_12_156_0->final [xlabel="",color="black"];
+loc8_4_156_0->loc7_13_156_0 [xlabel="F",color="orange"];
+loc8_4_156_0->loc8_12_156_0 [xlabel="",color="black"];
+initial->loc2_0_156_0 [xlabel="",color="black"];
+}
+`, fnGraph.Dot(), "should be ok")
 }

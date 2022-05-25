@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/hsiaosiyuan0/mole/ecma/parser"
+	"github.com/hsiaosiyuan0/mole/util"
 )
 
 type EdgeKind uint8
@@ -171,18 +172,49 @@ func (b *Block) InJmpEdge(ET EdgeTag) *Edge {
 	return nil
 }
 
-func (b *Block) FindInEdge(k EdgeKind, t EdgeTag, create bool) *Edge {
+func FindEdge(edges []*Edge, k EdgeKind, t EdgeTag) (*Edge, int) {
 	var e *Edge
-	for _, edge := range b.Inlets {
+	idx := -1
+	for i, edge := range edges {
 		if edge.Kind == k && (edge.Tag == ET_NONE || edge.Tag&t != 0) {
 			e = edge
 			e.Tag = t
+			idx = i
 			break
 		}
 	}
+	return e, idx
+}
+
+func RemoveEdge(edges *[]*Edge, k EdgeKind, t EdgeTag) {
+	_, i := FindEdge(*edges, k, t)
+	if i != -1 {
+		util.RemoveAt(edges, i)
+	}
+}
+
+func SwitchCase(clauseBlk *Block) (*Block, *Block, bool) {
+	test := clauseBlk.seqInEdge().Dst
+	body := test.seqOutEdge().Dst
+	return test, body, len(test.Nodes) == 1
+}
+
+func (b *Block) FindInEdge(k EdgeKind, t EdgeTag, create bool) *Edge {
+	e, _ := FindEdge(b.Inlets, k, t)
+
 	if e == nil && create {
 		e = &Edge{k, t, nil, b}
 		b.Inlets = append(b.Inlets, e)
+	}
+	return e
+}
+
+func (b *Block) FindOutEdge(k EdgeKind, t EdgeTag, create bool) *Edge {
+	e, _ := FindEdge(b.Outlets, k, t)
+
+	if e == nil && create {
+		e = &Edge{k, t, b, nil}
+		b.Outlets = append(b.Outlets, e)
 	}
 	return e
 }
@@ -191,11 +223,11 @@ func (b *Block) Dot() string {
 	return fmt.Sprintf("%s[label=\"%s\"];\n", b.DotId(), nodesToString(b.Nodes))
 }
 
-func (b *Block) canBeJoined() bool {
+func (b *Block) onlySeqIn() bool {
 	return len(b.Inlets) == 1 && b.Inlets[0].Kind&EK_SEQ != 0
 }
 
-func (b *Block) joinable() bool {
+func (b *Block) onlySeqOut() bool {
 	return len(b.Outlets) == 1 && b.Outlets[0].Kind&EK_SEQ != 0
 }
 
@@ -240,12 +272,12 @@ func (b *Block) unwrapSeqOut() *Block {
 func (b *Block) join(blk *Block) {
 	to := blk.unwrapSeqIn()
 	from := b.unwrapSeqOut()
-	isCutted := from.HasOutCutted()
+	isCut := from.HasOutCut()
 	from.Nodes = append(from.Nodes, to.Nodes...)
 	from.Outlets = to.Outlets
 	for _, edge := range from.Outlets {
 		edge.Src = from
-		if isCutted && edge.Dst == nil {
+		if isCut && edge.Dst == nil {
 			edge.Tag |= ET_CUT
 		}
 	}
@@ -290,7 +322,7 @@ func (b *Block) seqInEdge() *Edge {
 }
 
 // add new jmp branch from the source node of seqOut
-func (b *Block) newJmp(k EdgeTag) {
+func (b *Block) newJmpOut(k EdgeTag) {
 	seq := b.seqOutEdge()
 	edge := &Edge{EK_JMP, k, seq.Src, nil}
 	seq.Src.Outlets = append(seq.Src.Outlets, edge)
@@ -322,6 +354,16 @@ func (b *Block) newLoopIn() {
 	}
 }
 
+func (b *Block) newJmpIn(t EdgeTag) {
+	seq := b.seqInEdge()
+	edge := &Edge{EK_JMP, t, nil, seq.Dst}
+	seq.Dst.Inlets = append(seq.Dst.Inlets, edge)
+
+	if seq.Dst != b {
+		b.Inlets = append(b.Inlets, edge)
+	}
+}
+
 func (b *Block) mrkSeqOutAsLoop() {
 	edge := b.seqOutEdge()
 	edge.Kind = EK_JMP
@@ -336,20 +378,20 @@ func (b *Block) mrkJmpOutAsLoop(tag EdgeTag) {
 	}
 }
 
-func (b *Block) mrkSeqOutAsCutted() {
+func (b *Block) mrkSeqOutAsCut() {
 	b.seqOutEdge().Tag |= ET_CUT
 }
 
-func (b *Block) IsInCutted() bool {
+func (b *Block) IsInCut() bool {
 	edge := b.InSeqEdge()
 	return edge != nil && edge.Tag&ET_CUT != 0
 }
 
-func (b *Block) HasOutCutted() bool {
+func (b *Block) HasOutCut() bool {
 	return len(b.Outlets) > 0 && b.Outlets[0].Tag&ET_CUT != 0
 }
 
-func (b *Block) IsOutCutted(to *Block) bool {
+func (b *Block) IsOutCut(to *Block) bool {
 	cutEdge := b.OutEdge(ET_CUT)
 	return cutEdge != nil && cutEdge.Dst == to
 }
@@ -433,7 +475,7 @@ type Graph struct {
 	loopBlk      map[int]*Block
 	hangingLoops []int
 
-	// records basic blocks need to be resolved, key is the scope id of its target loop
+	// records basic block need to be resolved, key is the id of the scope which includes the basic block
 	hangingBrk map[int][]*Block
 }
 
@@ -569,13 +611,13 @@ func (n *InfoNode) Loc() *parser.Loc {
 	return n.astNode.Loc()
 }
 
-func link(a *AnalysisCtx, from *Block, fromKind EdgeKind, fromTag EdgeTag, toKind EdgeKind, toTag EdgeTag, to *Block) {
+func link(a *AnalysisCtx, from *Block, fromKind EdgeKind, fromTag EdgeTag, toKind EdgeKind, toTag EdgeTag, to *Block, forceSep bool) {
 	if from == nil || to == nil {
 		return
 	}
 
 	// if `from` has only one outlet then that outlet must be seq, merge the first node of `to` into `from`
-	if from.joinable() && to.canBeJoined() {
+	if !forceSep && from.onlySeqOut() && to.onlySeqIn() {
 		from.join(to)
 		return
 	}
@@ -584,7 +626,8 @@ func link(a *AnalysisCtx, from *Block, fromKind EdgeKind, fromTag EdgeTag, toKin
 	fromSeqEdge := from.OutSeqEdge()
 	if fromSeqEdge != nil {
 		fromSeq := fromSeqEdge.Src
-		if fromSeq.Kind == BK_BASIC && len(fromSeq.Outlets) == 1 && fromKind == EK_SEQ && to.Kind == BK_BASIC && to.canBeJoined() {
+		if !forceSep && fromSeq.Kind == BK_BASIC && len(fromSeq.Outlets) == 1 && fromKind == EK_SEQ &&
+			to.Kind == BK_BASIC && to.onlySeqIn() {
 			from.join(to)
 			return
 		}
@@ -601,8 +644,8 @@ func link(a *AnalysisCtx, from *Block, fromKind EdgeKind, fromTag EdgeTag, toKin
 		}
 	}
 
-	isCutted := from.IsOutCutted(to)
-	if isCutted && len(to.Inlets) == 1 {
+	isCut := from.IsOutCut(to)
+	if isCut && len(to.Inlets) == 1 {
 		for _, edge := range to.Outlets {
 			edge.Tag |= ET_CUT
 		}

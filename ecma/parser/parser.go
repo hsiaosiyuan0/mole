@@ -1875,7 +1875,8 @@ func (p *Parser) brkStmt() (Node, error) {
 	scope := p.scope()
 	if !scope.IsKind(SPK_LOOP_DIRECT) &&
 		!scope.IsKind(SPK_LOOP_INDIRECT) &&
-		!scope.IsKind(SPK_SWITCH) {
+		!scope.IsKind(SPK_SWITCH) &&
+		!scope.IsKind(SPK_SWITCH_INDIRECT) {
 		return nil, p.errorAtLoc(loc, ERR_ILLEGAL_BREAK)
 	}
 	return &BrkStmt{N_STMT_BRK, p.finLoc(loc), nil, nil}, nil

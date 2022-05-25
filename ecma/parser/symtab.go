@@ -7,6 +7,7 @@ const (
 	SPK_LOOP_DIRECT ScopeKind = 1 << iota
 	SPK_LOOP_INDIRECT
 	SPK_SWITCH
+	SPK_SWITCH_INDIRECT
 	SPK_STRICT
 	SPK_STRICT_DIR
 	SPK_CATCH
@@ -221,6 +222,19 @@ func (s *Scope) UpperLoop() *Scope {
 	for scope != nil {
 		if scope.IsKind(SPK_LOOP_DIRECT) {
 			return scope
+		}
+		scope = scope.Up
+	}
+	return nil
+}
+
+func (s *Scope) UpperScope(kinds *[]ScopeKind) *Scope {
+	scope := s
+	for scope != nil {
+		for _, k := range *kinds {
+			if scope.IsKind(k) {
+				return scope
+			}
 		}
 		scope = scope.Up
 	}
@@ -484,6 +498,9 @@ func (s *SymTab) EnterScope(fn bool, arrow bool, settled bool) *Scope {
 	if s.Cur.IsKind(SPK_LOOP_DIRECT) || s.Cur.IsKind(SPK_LOOP_INDIRECT) && !fn {
 		scope.Kind |= SPK_LOOP_INDIRECT
 	}
+	if s.Cur.IsKind(SPK_SWITCH) || s.Cur.IsKind(SPK_SWITCH_INDIRECT) {
+		scope.Kind |= SPK_SWITCH_INDIRECT
+	}
 	if s.Cur.IsKind(SPK_FUNC) || s.Cur.IsKind(SPK_FUNC_INDIRECT) {
 		scope.Kind |= SPK_FUNC_INDIRECT
 	}
@@ -535,7 +552,7 @@ func (s *SymTab) EnterScope(fn bool, arrow bool, settled bool) *Scope {
 }
 
 func (s *SymTab) LeaveScope() {
-	// prevent the scope being overlayed by its tmp child
+	// prevent the scope being overlaid by its tmp child
 	s.Scopes[s.Cur.Up.Id] = s.Cur.Up
 	s.Cur = s.Cur.Up
 }

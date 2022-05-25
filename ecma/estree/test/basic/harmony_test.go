@@ -30729,30 +30729,3 @@ func TestHarmony317(t *testing.T) {
 }
 	`, ast)
 }
-
-func TestHarmony318(t *testing.T) {
-	// ast, err := Compile("x = { false: 42 }")
-	// AssertEqual(t, nil, err, "should be prog ok")
-
-	// AssertEqualJson(t, `
-
-	// `, ast)
-}
-
-func TestHarmony319(t *testing.T) {
-	// ast, err := Compile("x = { false: 42 }")
-	// AssertEqual(t, nil, err, "should be prog ok")
-
-	// AssertEqualJson(t, `
-
-	// `, ast)
-}
-
-func TestHarmony320(t *testing.T) {
-	// ast, err := Compile("x = { false: 42 }")
-	// AssertEqual(t, nil, err, "should be prog ok")
-
-	// AssertEqualJson(t, `
-
-	// `, ast)
-}
