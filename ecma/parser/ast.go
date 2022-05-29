@@ -1548,6 +1548,7 @@ type FnDec struct {
 	async      bool
 	params     []Node
 	body       Node
+	rets       []Node
 	outerParen *Loc
 	ti         *TypInfo
 }
@@ -1570,6 +1571,10 @@ func (n *FnDec) Params() []Node {
 
 func (n *FnDec) Body() Node {
 	return n.body
+}
+
+func (n *FnDec) ExpRet() bool {
+	return len(n.rets) > 0
 }
 
 func (n *FnDec) Type() NodeType {
@@ -1609,6 +1614,7 @@ type ArrowFn struct {
 	params     []Node
 	body       Node
 	expr       bool
+	rets       []Node
 	outerParen *Loc
 	ti         *TypInfo
 }
@@ -1619,6 +1625,10 @@ func (n *ArrowFn) Async() bool {
 
 func (n *ArrowFn) Params() []Node {
 	return n.params
+}
+
+func (n *ArrowFn) ExpRet() bool {
+	return len(n.rets) > 0
 }
 
 func (n *ArrowFn) Body() Node {

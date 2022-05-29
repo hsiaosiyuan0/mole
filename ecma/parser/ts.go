@@ -23,16 +23,16 @@ var builtinTyp = map[string]NodeType{
 
 // indicates the closing `>` is missing, so the processed `<` should be considered
 // as the LessThan operator. produced in `tsTypArgs`
-type ErrTypArgMssingGT struct {
+type ErrTypArgMissingGT struct {
 	line uint32
 	col  uint32
 }
 
-func (e *ErrTypArgMssingGT) Error() string {
+func (e *ErrTypArgMissingGT) Error() string {
 	return "missing the closing `>`"
 }
 
-var errTypArgMissingGT = &ErrTypArgMssingGT{}
+var errTypArgMissingGT = &ErrTypArgMissingGT{}
 
 // indicates the current position should be re-entered as `jsx`. produced in `tsTypArgs`
 var errTypArgMaybeJsx = errors.New("maybe jsx")

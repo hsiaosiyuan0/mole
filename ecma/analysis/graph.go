@@ -23,6 +23,7 @@ const (
 	ET_NONE  EdgeTag = 0
 	ET_JMP_T EdgeTag = 1 << iota
 	ET_JMP_F
+	ET_JMP_E
 	ET_JMP_U
 	ET_LOOP
 	ET_CUT
@@ -41,6 +42,9 @@ func (t EdgeTag) String() string {
 	if t&ET_JMP_U != 0 {
 		return "U"
 	}
+	if t&ET_JMP_E != 0 {
+		return "E"
+	}
 	return ""
 }
 
@@ -48,7 +52,7 @@ func (t EdgeTag) DotColor() string {
 	if t&ET_CUT != 0 {
 		return "red"
 	}
-	if t&ET_JMP_T != 0 || t&ET_JMP_F != 0 || t&ET_LOOP != 0 || t&ET_JMP_U != 0 {
+	if t&ET_JMP_T != 0 || t&ET_JMP_F != 0 || t&ET_LOOP != 0 || t&ET_JMP_U != 0 || t&ET_JMP_E != 0 {
 		return "orange"
 	}
 	return "black"
@@ -102,29 +106,20 @@ const (
 )
 
 type Block struct {
+	id uint
+
 	Kind    BlockKind
 	Nodes   []parser.Node
 	Inlets  []*Edge
 	Outlets []*Edge
 }
 
-func (b *Block) Id() string {
-	if len(b.Nodes) == 0 {
-		return ""
-	}
-	return IdOfAstNode(b.Nodes[0])
+func (b *Block) Id() uint {
+	return b.id
 }
 
 func (b *Block) DotId() string {
-	switch b.Kind {
-	case BK_BASIC:
-		return IdOfAstNode(b.Nodes[0])
-	case BK_START:
-		return "loc0"
-	case BK_GROUP:
-		return "v"
-	}
-	panic("unreachable")
+	return fmt.Sprintf("b%d", b.id)
 }
 
 func (b *Block) OutSeqEdge() *Edge {
@@ -186,6 +181,16 @@ func FindEdge(edges []*Edge, k EdgeKind, t EdgeTag) (*Edge, int) {
 	return e, idx
 }
 
+func FindEdges(edges []*Edge, k EdgeKind, t EdgeTag) []*Edge {
+	ret := []*Edge{}
+	for _, edge := range edges {
+		if edge.Kind == k && (edge.Tag == ET_NONE || edge.Tag&t != 0) {
+			ret = append(ret, edge)
+		}
+	}
+	return ret
+}
+
 func RemoveEdge(edges *[]*Edge, k EdgeKind, t EdgeTag) {
 	_, i := FindEdge(*edges, k, t)
 	if i != -1 {
@@ -224,11 +229,18 @@ func (b *Block) Dot() string {
 }
 
 func (b *Block) onlySeqIn() bool {
-	return len(b.Inlets) == 1 && b.Inlets[0].Kind&EK_SEQ != 0
+	return len(b.Inlets) == 1 && b.Inlets[0].Kind == EK_SEQ
 }
 
 func (b *Block) onlySeqOut() bool {
-	return len(b.Outlets) == 1 && b.Outlets[0].Kind&EK_SEQ != 0
+	if len(b.Outlets) != 1 || b.Outlets[0].Kind != EK_SEQ {
+		return false
+	}
+	if b.Outlets[0].Tag == ET_NONE {
+		return true
+	}
+	blk := b.Outlets[0].Src
+	return len(blk.Outlets) == 1 && blk.Outlets[0].Kind == EK_SEQ
 }
 
 func (b *Block) OnlyInfo() bool {
@@ -253,11 +265,13 @@ func (b *Block) NextBlk() *Block {
 
 func (b *Block) unwrapSeqIn() *Block {
 	for _, edge := range b.Inlets {
-		if edge.Kind&EK_SEQ != 0 {
+		if edge.Kind == EK_SEQ {
 			return edge.Dst
 		}
 	}
-	panic("unreachable")
+
+	// the start block have no seq-in edge
+	return nil
 }
 
 func (b *Block) unwrapSeqOut() *Block {
@@ -266,7 +280,9 @@ func (b *Block) unwrapSeqOut() *Block {
 			return edge.Src
 		}
 	}
-	panic("unreachable")
+	// group-block and the end block may have no seq-out edge,
+	// so return nil to indicate those cases
+	return nil
 }
 
 func (b *Block) join(blk *Block) {
@@ -296,7 +312,7 @@ func (b *Block) xOutEdges() []*Edge {
 func (b *Block) xJmpOutEdges() []*Edge {
 	ret := []*Edge{}
 	for _, edge := range b.Outlets {
-		if edge.Kind&EK_SEQ == 0 && edge.Dst == nil {
+		if edge.Kind != EK_SEQ && edge.Dst == nil {
 			ret = append(ret, edge)
 		}
 	}
@@ -305,7 +321,7 @@ func (b *Block) xJmpOutEdges() []*Edge {
 
 func (b *Block) seqOutEdge() *Edge {
 	for _, edge := range b.Outlets {
-		if edge.Kind&EK_SEQ != 0 {
+		if edge.Kind == EK_SEQ {
 			return edge
 		}
 	}
@@ -314,7 +330,7 @@ func (b *Block) seqOutEdge() *Edge {
 
 func (b *Block) seqInEdge() *Edge {
 	for _, edge := range b.Inlets {
-		if edge.Kind&EK_SEQ != 0 {
+		if edge.Kind == EK_SEQ {
 			return edge
 		}
 	}
@@ -322,7 +338,7 @@ func (b *Block) seqInEdge() *Edge {
 }
 
 // add new jmp branch from the source node of seqOut
-func (b *Block) newJmpOut(k EdgeTag) {
+func (b *Block) newJmpOut(k EdgeTag) *Edge {
 	seq := b.seqOutEdge()
 	edge := &Edge{EK_JMP, k, seq.Src, nil}
 	seq.Src.Outlets = append(seq.Src.Outlets, edge)
@@ -332,6 +348,7 @@ func (b *Block) newJmpOut(k EdgeTag) {
 	if seq.Src != b {
 		b.Outlets = append(b.Outlets, edge)
 	}
+	return edge
 }
 
 func (b *Block) hasXOut(k EdgeKind, t EdgeTag) bool {
@@ -370,9 +387,20 @@ func (b *Block) mrkSeqOutAsLoop() {
 	edge.Tag |= ET_LOOP
 }
 
+func (b *Block) addCutOutEdge() {
+	blk := b.Outlets[0].Src
+	edge := &Edge{EK_SEQ, ET_NONE, blk, nil}
+	edge.Tag |= ET_CUT
+	blk.Outlets = append(b.Outlets, edge)
+
+	if blk != b {
+		b.Outlets = append(b.Outlets, edge)
+	}
+}
+
 func (b *Block) mrkJmpOutAsLoop(tag EdgeTag) {
 	for _, edge := range b.Outlets {
-		if edge.Kind&EK_JMP != 0 && edge.Tag&tag != 0 {
+		if edge.Kind == EK_JMP && edge.Tag&tag != 0 {
 			edge.Tag |= ET_LOOP
 		}
 	}
@@ -396,18 +424,6 @@ func (b *Block) IsOutCut(to *Block) bool {
 	return cutEdge != nil && cutEdge.Dst == to
 }
 
-func newBasicBlk() *Block {
-	b := &Block{
-		Kind:    BK_BASIC,
-		Nodes:   make([]parser.Node, 0),
-		Inlets:  make([]*Edge, 0),
-		Outlets: make([]*Edge, 0),
-	}
-	b.Inlets = append(b.Inlets, &Edge{Kind: EK_SEQ, Src: nil, Dst: b})
-	b.Outlets = append(b.Outlets, &Edge{Kind: EK_SEQ, Src: b, Dst: nil})
-	return b
-}
-
 func nodeToString(node parser.Node) string {
 	switch node.Type() {
 	case parser.N_NAME, parser.N_LIT_NUM:
@@ -424,26 +440,6 @@ func nodesToString(nodes []parser.Node) string {
 		b.WriteString(nodeToString(node) + "\\n")
 	}
 	return b.String()
-}
-
-func newStartBlk() *Block {
-	b := &Block{
-		Kind:    BK_START,
-		Inlets:  nil,
-		Outlets: make([]*Edge, 0),
-	}
-	b.Inlets = append(b.Outlets, &Edge{Kind: EK_SEQ, Src: nil, Dst: b})
-	b.Outlets = append(b.Outlets, &Edge{Kind: EK_SEQ, Src: b, Dst: nil})
-	return b
-}
-
-func newGroupBlk() *Block {
-	b := &Block{
-		Kind:    BK_GROUP,
-		Inlets:  nil,
-		Outlets: nil,
-	}
-	return b
 }
 
 func IdOfAstNode(node parser.Node) string {
@@ -464,19 +460,96 @@ type Graph struct {
 	Head   *Block
 	Parent *Graph
 
-	// map the label to its first basic block
-	labelBlk      map[string]*Block
-	hangingLabels []string
-
-	// map the label to its scope
-	labelLoop map[string]int
-
-	// map the loop to its first basic block, key is the scope id of the loop
-	loopBlk      map[int]*Block
-	hangingLoops []int
+	// map the label to its target scope
+	hangingLabels []parser.Node
+	labelLoop     map[parser.Node]int
 
 	// records basic block need to be resolved, key is the id of the scope which includes the basic block
 	hangingBrk map[int][]*Block
+
+	// cont jumps to tail of the loop, so when processing the labelled-cont, the jump target is unknown since
+	// the tail of the loop has not been processed, for resolving this problem, a placeholder is introduced
+	// here for imitating the jump target and the placeholder will be resolved when the tail of the loop
+	// being processed
+	//
+	// the tail of the loop means:
+	// - while-stmt, use the test part
+	// - do-while, use the test part
+	// - for-in, use the test part
+	// - for, first use the update part, then the test part, then the head of the loop body
+	//
+	// key of below map is the loop which has unresolved cont-stmts
+	hangingCont map[parser.Node][]*Block
+
+	blkSeed uint
+}
+
+func newGraph() *Graph {
+	g := &Graph{
+		labelLoop:   map[parser.Node]int{},
+		hangingBrk:  map[int][]*Block{},
+		hangingCont: map[parser.Node][]*Block{},
+	}
+	g.Head = g.newStartBlk()
+	return g
+}
+
+func (g *Graph) addHangingBrk(id int, blk *Block) {
+	list := g.hangingBrk[id]
+	if list == nil {
+		list = make([]*Block, 0)
+	}
+	g.hangingBrk[id] = append(list, blk)
+}
+
+func (g *Graph) addHangingCont(loopNode parser.Node, blk *Block) {
+	list := g.hangingCont[loopNode]
+	if list == nil {
+		list = make([]*Block, 0)
+	}
+	g.hangingCont[loopNode] = append(list, blk)
+}
+
+func (g *Graph) isLoopHasCont(loopNode parser.Node) bool {
+	return len(g.hangingCont[loopNode]) > 0
+}
+
+func (g *Graph) newBasicBlk() *Block {
+	b := &Block{
+		id:      g.blkSeed,
+		Kind:    BK_BASIC,
+		Nodes:   make([]parser.Node, 0),
+		Inlets:  make([]*Edge, 0),
+		Outlets: make([]*Edge, 0),
+	}
+	g.blkSeed += 1
+	b.Inlets = append(b.Inlets, &Edge{Kind: EK_SEQ, Src: nil, Dst: b})
+	b.Outlets = append(b.Outlets, &Edge{Kind: EK_SEQ, Src: b, Dst: nil})
+	return b
+}
+
+func (g *Graph) newStartBlk() *Block {
+	b := &Block{
+		id:      g.blkSeed,
+		Kind:    BK_START,
+		Inlets:  nil,
+		Outlets: make([]*Edge, 0),
+	}
+	g.blkSeed += 1
+	b.Inlets = append(b.Outlets, &Edge{Kind: EK_SEQ, Src: nil, Dst: b})
+	b.Outlets = append(b.Outlets, &Edge{Kind: EK_SEQ, Src: b, Dst: nil})
+	return b
+}
+
+func (g *Graph) newGroupBlk() *Block {
+	b := &Block{
+		id:      g.blkSeed,
+		Kind:    BK_GROUP,
+		Inlets:  nil,
+		Outlets: nil,
+	}
+	g.blkSeed += 1
+	return b
 }
 
 func (g *Graph) NodesEdges() (map[string]*Block, []string, map[string]*Edge, []string, map[parser.Node]*Block) {
@@ -552,26 +625,6 @@ final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height
 	return b.String()
 }
 
-func (g *Graph) addHangingBrk(id int, blk *Block) {
-	list := g.hangingBrk[id]
-	if list == nil {
-		list = make([]*Block, 0)
-	}
-	g.hangingBrk[id] = append(list, blk)
-}
-
-func newGraph() *Graph {
-	g := &Graph{
-		labelBlk:      map[string]*Block{},
-		hangingLabels: make([]string, 0),
-		loopBlk:       map[int]*Block{},
-		labelLoop:     map[string]int{},
-		hangingBrk:    map[int][]*Block{},
-	}
-	g.Head = newStartBlk()
-	return g
-}
-
 type InfoNode struct {
 	astNode parser.Node
 	enter   bool
@@ -611,24 +664,28 @@ func (n *InfoNode) Loc() *parser.Loc {
 	return n.astNode.Loc()
 }
 
-func link(a *AnalysisCtx, from *Block, fromKind EdgeKind, fromTag EdgeTag, toKind EdgeKind, toTag EdgeTag, to *Block, forceSep bool) {
+func link(a *AnalysisCtx, from *Block, fromKind EdgeKind, fromTag EdgeTag, toKind EdgeKind, toTag EdgeTag, to *Block, forceSep bool, forceJoin bool) {
 	if from == nil || to == nil {
 		return
 	}
 
 	// if `from` has only one outlet then that outlet must be seq, merge the first node of `to` into `from`
-	if !forceSep && from.onlySeqOut() && to.onlySeqIn() {
-		from.join(to)
-		return
-	}
+	if (fromKind == EK_SEQ || fromKind == EK_NONE) && !forceSep && to.onlySeqIn() {
 
-	// `from` maybe group block, so use `unwrapSeqOut` to get the inner seq block
-	fromSeqEdge := from.OutSeqEdge()
-	if fromSeqEdge != nil {
-		fromSeq := fromSeqEdge.Src
-		if !forceSep && fromSeq.Kind == BK_BASIC && len(fromSeq.Outlets) == 1 && fromKind == EK_SEQ &&
-			to.Kind == BK_BASIC && to.onlySeqIn() {
+		// process `from` which maybe group blk
+		if from.onlySeqOut() || forceJoin {
 			from.join(to)
+			return
+		}
+
+		// `to` is basic blk, try to merge it into `from`
+		var fromSeq *Block
+		if edge := from.OutSeqEdge(); edge != nil {
+			fromSeq = edge.Src
+		}
+		if fromSeq != nil && fromSeq.Kind == BK_BASIC && fromSeq.onlySeqOut() &&
+			toKind == EK_SEQ && to.Kind == BK_BASIC && (forceJoin || fromSeq.IsInCut()) {
+			fromSeq.join(to)
 			return
 		}
 	}
@@ -636,18 +693,21 @@ func link(a *AnalysisCtx, from *Block, fromKind EdgeKind, fromTag EdgeTag, toKin
 	to = to.unwrapSeqIn()
 
 	// process reaches here means the `from` maybe group block or basic block which has multiple outlets
-	for _, edge := range from.Outlets {
+	linkEdges(from.Outlets, fromKind, fromTag, toKind, toTag, to)
+
+	if from.IsOutCut(to) && len(to.Inlets) == 1 {
+		for _, edge := range to.Outlets {
+			edge.Tag |= ET_CUT
+		}
+	}
+}
+
+func linkEdges(fromEdges []*Edge, fromKind EdgeKind, fromTag EdgeTag, toKind EdgeKind, toTag EdgeTag, to *Block) {
+	for _, edge := range fromEdges {
 		if (fromKind == EK_NONE && edge.Dst == nil) || (edge.Kind == fromKind && (fromTag == ET_NONE || edge.Tag&fromTag != 0)) {
 			edge.Dst = to
 			toEdge := to.FindInEdge(edge.Kind, edge.Tag, true)
-			toEdge.Src = from
-		}
-	}
-
-	isCut := from.IsOutCut(to)
-	if isCut && len(to.Inlets) == 1 {
-		for _, edge := range to.Outlets {
-			edge.Tag |= ET_CUT
+			toEdge.Src = edge.Src
 		}
 	}
 }
@@ -661,7 +721,7 @@ func grpBlock(a *AnalysisCtx, from *Block, to *Block) *Block {
 	if from.Kind == BK_GROUP {
 		vn = from
 	} else {
-		vn = newGroupBlk()
+		vn = a.graph.newGroupBlk()
 		vn.Inlets = from.Inlets
 	}
 

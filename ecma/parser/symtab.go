@@ -10,6 +10,8 @@ const (
 	SPK_SWITCH_INDIRECT
 	SPK_STRICT
 	SPK_STRICT_DIR
+	SPK_TRY
+	SPK_TRY_INDIRECT
 	SPK_CATCH
 	SPK_BLOCK
 	SPK_GLOBAL
@@ -128,6 +130,10 @@ type Scope struct {
 	// the depth-first walk over the entire AST
 	Id   int
 	Kind ScopeKind
+
+	// the Node which introduces this Scope, only usable after the scope is post-process since
+	// the Node has not been resolved before the scope leave, eg. `p.fnDec`` can also return `ArrowFn`
+	Node
 
 	Up   *Scope
 	Down []*Scope
@@ -495,29 +501,41 @@ func (s *SymTab) EnterScope(fn bool, arrow bool, settled bool) *Scope {
 		scope.Kind = SPK_BLOCK
 	}
 	// inherit scope kind
-	if s.Cur.IsKind(SPK_LOOP_DIRECT) || s.Cur.IsKind(SPK_LOOP_INDIRECT) && !fn {
-		scope.Kind |= SPK_LOOP_INDIRECT
+	if !fn {
+		if s.Cur.IsKind(SPK_LOOP_DIRECT) || s.Cur.IsKind(SPK_LOOP_INDIRECT) {
+			scope.Kind |= SPK_LOOP_INDIRECT
+		}
+		if s.Cur.IsKind(SPK_SWITCH) || s.Cur.IsKind(SPK_SWITCH_INDIRECT) {
+			scope.Kind |= SPK_SWITCH_INDIRECT
+		}
+		if s.Cur.IsKind(SPK_TRY) || s.Cur.IsKind(SPK_TRY_INDIRECT) {
+			scope.Kind |= SPK_SWITCH_INDIRECT
+		}
+		if s.Cur.IsKind(SPK_FORMAL_PARAMS) {
+			scope.Kind |= SPK_FORMAL_PARAMS
+		}
+		if s.Cur.IsKind(SPK_GENERATOR) {
+			scope.Kind |= SPK_GENERATOR
+		}
+		if s.Cur.IsKind(SPK_ASYNC) {
+			scope.Kind |= SPK_ASYNC
+		}
 	}
-	if s.Cur.IsKind(SPK_SWITCH) || s.Cur.IsKind(SPK_SWITCH_INDIRECT) {
-		scope.Kind |= SPK_SWITCH_INDIRECT
-	}
+
 	if s.Cur.IsKind(SPK_FUNC) || s.Cur.IsKind(SPK_FUNC_INDIRECT) {
 		scope.Kind |= SPK_FUNC_INDIRECT
 	}
 	if s.Cur.IsKind(SPK_CLASS) || s.Cur.IsKind(SPK_CLASS_INDIRECT) {
 		scope.Kind |= SPK_CLASS_INDIRECT
 	}
+	if s.Cur.IsKind(SPK_CLASS_HAS_SUPER) {
+		scope.Kind |= SPK_CLASS_HAS_SUPER
+	}
 	if s.Cur.IsKind(SPK_STRICT) {
 		scope.Kind |= SPK_STRICT
 	}
 	if s.Cur.IsKind(SPK_ABSTRACT_CLASS) {
 		scope.Kind |= SPK_ABSTRACT_CLASS
-	}
-	if s.Cur.IsKind(SPK_CLASS_HAS_SUPER) {
-		scope.Kind |= SPK_CLASS_HAS_SUPER
-	}
-	if s.Cur.IsKind(SPK_FORMAL_PARAMS) && !fn {
-		scope.Kind |= SPK_FORMAL_PARAMS
 	}
 	if s.Cur.IsKind(SPK_TS_DECLARE) {
 		scope.Kind |= SPK_TS_DECLARE
@@ -535,13 +553,6 @@ func (s *SymTab) EnterScope(fn bool, arrow bool, settled bool) *Scope {
 		}
 	}
 
-	if s.Cur.IsKind(SPK_GENERATOR) && !fn {
-		scope.Kind |= SPK_GENERATOR
-	}
-	if s.Cur.IsKind(SPK_ASYNC) && !fn {
-		scope.Kind |= SPK_ASYNC
-	}
-
 	s.Scopes[scope.Id] = scope
 
 	scope.Up = s.Cur
@@ -551,10 +562,12 @@ func (s *SymTab) EnterScope(fn bool, arrow bool, settled bool) *Scope {
 	return scope
 }
 
-func (s *SymTab) LeaveScope() {
+func (s *SymTab) LeaveScope() *Scope {
+	cur := s.Cur
 	// prevent the scope being overlaid by its tmp child
 	s.Scopes[s.Cur.Up.Id] = s.Cur.Up
 	s.Cur = s.Cur.Up
+	return cur
 }
 
 func (s *SymTab) HasExternal(name string) bool {

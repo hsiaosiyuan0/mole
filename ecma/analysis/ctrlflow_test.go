@@ -34,17 +34,17 @@ a
 	ana := NewAnalysis(ast, symtab)
 	ana.Analyze()
 
-	_, _, _, _, astNodeMap := ana.Graph().NodesEdges()
-
-	expr := ast.(*parser.Prog).Body()[0].(*parser.ExprStmt).Expr().(*parser.Ident)
-	block := astNodeMap[expr]
-
-	AssertEqual(t, 5, len(block.Nodes), "should be ok")
-	AssertEqual(t, "Prog:enter", nodeToString(block.Nodes[0]), "should be ok")
-	AssertEqual(t, "ExprStmt:enter", nodeToString(block.Nodes[1]), "should be ok")
-	AssertEqual(t, "Ident(a)", nodeToString(block.Nodes[2]), "should be ok")
-	AssertEqual(t, "ExprStmt:exit", nodeToString(block.Nodes[3]), "should be ok")
-	AssertEqual(t, "Prog:exit", nodeToString(block.Nodes[4]), "should be ok")
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b0[label="Prog:enter\nExprStmt:enter\nIdent(a)\nExprStmt:exit\nProg:exit\n"];
+b0->final [xlabel="",color="black"];
+initial->b0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
 }
 
 func TestCtrlflow_Logic(t *testing.T) {
@@ -56,16 +56,22 @@ func TestCtrlflow_Logic(t *testing.T) {
 	ana := NewAnalysis(ast, symtab)
 	ana.Analyze()
 
-	_, _, _, _, astNodeMap := ana.Graph().NodesEdges()
-	expr := ast.(*parser.Prog).Body()[0].(*parser.ExprStmt).Expr().(*parser.BinExpr)
-	a := astNodeMap[expr.Lhs()]
-	b := astNodeMap[expr.Rhs()]
-	AssertEqual(t, b, a.OutSeqEdge().Dst, "should be ok")
-
-	AssertEqual(t, "BinExpr(&&):exit", nodeToString(b.Nodes[1]), "should be ok")
-
-	exit := a.OutJmpEdge(ET_JMP_F).Dst
-	AssertEqual(t, "ExprStmt:exit", nodeToString(exit.Nodes[0]), "should be ok")
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b0[label="Prog:enter\nExprStmt:enter\nBinExpr(&&):enter\nIdent(a)\n"];
+b10[label="ExprStmt:exit\nProg:exit\n"];
+b6[label="Ident(b)\nBinExpr(&&):exit\n"];
+b0->b10 [xlabel="F",color="orange"];
+b0->b6 [xlabel="",color="black"];
+b10->final [xlabel="",color="black"];
+b6->b10 [xlabel="",color="black"];
+initial->b0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
 }
 
 func TestCtrlflow_LogicMix(t *testing.T) {
@@ -77,21 +83,25 @@ func TestCtrlflow_LogicMix(t *testing.T) {
 	ana := NewAnalysis(ast, symtab)
 	ana.Analyze()
 
-	_, _, _, _, astNodeMap := ana.Graph().NodesEdges()
-	expr := ast.(*parser.Prog).Body()[0].(*parser.ExprStmt).Expr().(*parser.BinExpr)
-	ab := expr.Lhs().(*parser.BinExpr)
-	a := astNodeMap[ab.Lhs()]
-	b := astNodeMap[ab.Rhs()]
-	c := astNodeMap[expr.Rhs()]
-	AssertEqual(t, c, a.OutJmpEdge(ET_JMP_F).Dst, "should be ok")
-	AssertEqual(t, b, a.OutSeqEdge().Dst, "should be ok")
-
-	AssertEqual(t, "BinExpr(&&):exit", nodeToString(b.Nodes[1]), "should be ok")
-	AssertEqual(t, "BinExpr(||):exit", nodeToString(c.Nodes[1]), "should be ok")
-
-	bTrue := b.OutJmpEdge(ET_JMP_T)
-	exit := bTrue.Dst.Nodes[0]
-	AssertEqual(t, "ExprStmt:exit", nodeToString(exit), "should be ok")
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b0[label="Prog:enter\nExprStmt:enter\nBinExpr(||):enter\nBinExpr(&&):enter\nIdent(a)\n"];
+b11[label="Ident(c)\n"];
+b14[label="BinExpr(||):exit\nExprStmt:exit\nProg:exit\n"];
+b7[label="Ident(b)\nBinExpr(&&):exit\n"];
+b0->b11 [xlabel="F",color="orange"];
+b0->b7 [xlabel="",color="black"];
+b11->b14 [xlabel="",color="black"];
+b14->final [xlabel="",color="black"];
+b7->b11 [xlabel="",color="black"];
+b7->b14 [xlabel="T",color="orange"];
+initial->b0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
 }
 
 func TestCtrlflow_IfStmt(t *testing.T) {
@@ -106,20 +116,24 @@ func TestCtrlflow_IfStmt(t *testing.T) {
 	ana := NewAnalysis(ast, symtab)
 	ana.Analyze()
 
-	_, _, _, _, astNodeMap := ana.Graph().NodesEdges()
-	stmt := ast.(*parser.Prog).Body()[1].(*parser.IfStmt)
-	b := astNodeMap[stmt.Test()]
-	c := astNodeMap[stmt.Cons().(*parser.ExprStmt).Expr()]
-	d := astNodeMap[stmt.Alt().(*parser.ExprStmt).Expr()]
-
-	AssertEqual(t, d, b.OutJmpEdge(ET_JMP_F).Dst, "should be ok")
-	AssertEqual(t, c, b.OutSeqEdge().Dst, "should be ok")
-
-	AssertEqual(t, "ExprStmt:exit", nodeToString(c.Nodes[2]), "should be ok")
-	AssertEqual(t, "ExprStmt:exit", nodeToString(d.Nodes[2]), "should be ok")
-
-	ifExit := c.OutSeqEdge().Dst.Nodes[0]
-	AssertEqual(t, "IfStmt:exit", nodeToString(ifExit), "should be ok")
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b0[label="Prog:enter\nExprStmt:enter\nIdent(a)\nExprStmt:exit\nIfStmt:enter\nIdent(b)\n"];
+b12[label="ExprStmt:enter\nIdent(d)\nExprStmt:exit\n"];
+b17[label="IfStmt:exit\nExprStmt:enter\nIdent(e)\nExprStmt:exit\nProg:exit\n"];
+b8[label="ExprStmt:enter\nIdent(c)\nExprStmt:exit\n"];
+b0->b12 [xlabel="F",color="orange"];
+b0->b8 [xlabel="",color="black"];
+b12->b17 [xlabel="",color="black"];
+b17->final [xlabel="",color="black"];
+b8->b17 [xlabel="",color="black"];
+initial->b0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
 }
 
 func TestCtrlflow_IfBlkStmt(t *testing.T) {
@@ -137,24 +151,24 @@ func TestCtrlflow_IfBlkStmt(t *testing.T) {
 	ana := NewAnalysis(ast, symtab)
 	ana.Analyze()
 
-	_, _, _, _, astNodeMap := ana.Graph().NodesEdges()
-	stmt := ast.(*parser.Prog).Body()[1].(*parser.IfStmt)
-	a := astNodeMap[ast.(*parser.Prog).Body()[0].(*parser.ExprStmt).Expr()]
-	e := astNodeMap[stmt.Alt().(*parser.ExprStmt).Expr()]
-
-	cons := stmt.Cons().(*parser.BlockStmt).Body()
-	c := astNodeMap[cons[0].(*parser.ExprStmt).Expr()]
-	d := astNodeMap[cons[1].(*parser.ExprStmt).Expr()]
-	AssertEqual(t, c, d, "should be ok")
-
-	AssertEqual(t, "ExprStmt:exit", nodeToString(d.Nodes[6]), "should be ok")
-	AssertEqual(t, "BlockStmt:exit", nodeToString(d.Nodes[7]), "should be ok")
-
-	AssertEqual(t, e, a.OutJmpEdge(ET_JMP_F).Dst, "should be ok")
-	AssertEqual(t, d, a.OutSeqEdge().Dst, "should be ok")
-
-	ifExit := a.OutJmpEdge(ET_JMP_F).Dst.OutSeqEdge().Dst.Nodes[0]
-	AssertEqual(t, "IfStmt:exit", nodeToString(ifExit), "should be ok")
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b0[label="Prog:enter\nExprStmt:enter\nIdent(a)\nExprStmt:exit\nIfStmt:enter\nIdent(b)\n"];
+b17[label="ExprStmt:enter\nIdent(e)\nExprStmt:exit\n"];
+b22[label="IfStmt:exit\nExprStmt:enter\nIdent(f)\nExprStmt:exit\nProg:exit\n"];
+b8[label="BlockStmt:enter\nExprStmt:enter\nIdent(c)\nExprStmt:exit\nExprStmt:enter\nIdent(d)\nExprStmt:exit\nBlockStmt:exit\n"];
+b0->b17 [xlabel="F",color="orange"];
+b0->b8 [xlabel="",color="black"];
+b17->b22 [xlabel="",color="black"];
+b22->final [xlabel="",color="black"];
+b8->b22 [xlabel="",color="black"];
+initial->b0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
 }
 
 func TestCtrlflow_IfBlk2Stmt(t *testing.T) {
@@ -174,28 +188,24 @@ func TestCtrlflow_IfBlk2Stmt(t *testing.T) {
 	ana := NewAnalysis(ast, symtab)
 	ana.Analyze()
 
-	_, _, _, _, astNodeMap := ana.Graph().NodesEdges()
-	stmt := ast.(*parser.Prog).Body()[1].(*parser.IfStmt)
-	a := astNodeMap[ast.(*parser.Prog).Body()[0].(*parser.ExprStmt).Expr()]
-	b := astNodeMap[stmt.Test()]
-	e := astNodeMap[stmt.Alt().(*parser.BlockStmt).Body()[0].(*parser.ExprStmt).Expr()]
-	cons := stmt.Cons().(*parser.BlockStmt).Body()
-	c := astNodeMap[cons[0].(*parser.ExprStmt).Expr()]
-	d := astNodeMap[cons[1].(*parser.ExprStmt).Expr()]
-	AssertEqual(t, a, b, "should be ok")
-	AssertEqual(t, c, d, "should be ok")
-
-	AssertEqual(t, "ExprStmt:exit", nodeToString(d.Nodes[6]), "should be ok")
-	AssertEqual(t, "BlockStmt:exit", nodeToString(d.Nodes[7]), "should be ok")
-
-	AssertEqual(t, "ExprStmt:exit", nodeToString(e.Nodes[3]), "should be ok")
-	AssertEqual(t, "BlockStmt:exit", nodeToString(e.Nodes[4]), "should be ok")
-
-	AssertEqual(t, e, a.OutJmpEdge(ET_JMP_F).Dst, "should be ok")
-	AssertEqual(t, c, a.OutSeqEdge().Dst, "should be ok")
-
-	ifExit := a.OutJmpEdge(ET_JMP_F).Dst.OutSeqEdge().Dst.Nodes[0]
-	AssertEqual(t, "IfStmt:exit", nodeToString(ifExit), "should be ok")
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b0[label="Prog:enter\nExprStmt:enter\nIdent(a)\nExprStmt:exit\nIfStmt:enter\nIdent(b)\n"];
+b17[label="BlockStmt:enter\nExprStmt:enter\nIdent(e)\nExprStmt:exit\nBlockStmt:exit\n"];
+b24[label="IfStmt:exit\nExprStmt:enter\nIdent(f)\nExprStmt:exit\nProg:exit\n"];
+b8[label="BlockStmt:enter\nExprStmt:enter\nIdent(c)\nExprStmt:exit\nExprStmt:enter\nIdent(d)\nExprStmt:exit\nBlockStmt:exit\n"];
+b0->b17 [xlabel="F",color="orange"];
+b0->b8 [xlabel="",color="black"];
+b17->b24 [xlabel="",color="black"];
+b24->final [xlabel="",color="black"];
+b8->b24 [xlabel="",color="black"];
+initial->b0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
 }
 
 func TestCtrlflow_IfLogic(t *testing.T) {
@@ -208,23 +218,27 @@ func TestCtrlflow_IfLogic(t *testing.T) {
 	ana := NewAnalysis(ast, symtab)
 	ana.Analyze()
 
-	_, _, _, _, astNodeMap := ana.Graph().NodesEdges()
-	stmt := ast.(*parser.Prog).Body()[0].(*parser.IfStmt)
-	ab := stmt.Test().(*parser.BinExpr)
-	a := astNodeMap[ab.Lhs()]
-	b := astNodeMap[ab.Rhs()]
-	c := astNodeMap[stmt.Cons().(*parser.ExprStmt).Expr()]
-	d := astNodeMap[stmt.Alt().(*parser.ExprStmt).Expr()]
-
-	AssertEqual(t, d, a.OutJmpEdge(ET_JMP_F).Dst, "should be ok")
-	AssertEqual(t, d, b.OutJmpEdge(ET_JMP_F).Dst, "should be ok")
-	AssertEqual(t, c, b.OutSeqEdge().Dst, "should be ok")
-
-	AssertEqual(t, "ExprStmt:exit", nodeToString(c.Nodes[2]), "should be ok")
-	AssertEqual(t, "ExprStmt:exit", nodeToString(d.Nodes[2]), "should be ok")
-
-	ifExit := a.OutJmpEdge(ET_JMP_F).Dst.OutSeqEdge().Dst.Nodes[0]
-	AssertEqual(t, "IfStmt:exit", nodeToString(ifExit), "should be ok")
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b0[label="Prog:enter\nIfStmt:enter\nBinExpr(&&):enter\nIdent(a)\n"];
+b10[label="ExprStmt:enter\nIdent(c)\nExprStmt:exit\n"];
+b14[label="ExprStmt:enter\nIdent(d)\nExprStmt:exit\n"];
+b19[label="IfStmt:exit\nProg:exit\n"];
+b6[label="Ident(b)\nBinExpr(&&):exit\n"];
+b0->b14 [xlabel="F",color="orange"];
+b0->b6 [xlabel="",color="black"];
+b10->b19 [xlabel="",color="black"];
+b14->b19 [xlabel="",color="black"];
+b19->final [xlabel="",color="black"];
+b6->b10 [xlabel="",color="black"];
+b6->b14 [xlabel="F",color="orange"];
+initial->b0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
 }
 
 func TestCtrlflow_IfLogicMix(t *testing.T) {
@@ -238,33 +252,30 @@ func TestCtrlflow_IfLogicMix(t *testing.T) {
 	ana := NewAnalysis(ast, symtab)
 	ana.Analyze()
 
-	_, _, _, _, astNodeMap := ana.Graph().NodesEdges()
-	a := astNodeMap[ast.(*parser.Prog).Body()[0].(*parser.ExprStmt).Expr()]
-	stmt := ast.(*parser.Prog).Body()[1].(*parser.IfStmt)
-	bcd := stmt.Test().(*parser.BinExpr)
-	b := astNodeMap[bcd.Lhs()]
-	cd := bcd.Rhs().(*parser.BinExpr)
-	c := astNodeMap[cd.Lhs()]
-	d := astNodeMap[cd.Rhs()]
-	e := astNodeMap[stmt.Cons().(*parser.ExprStmt).Expr()]
-	f := astNodeMap[stmt.Alt().(*parser.ExprStmt).Expr()]
-
-	AssertEqual(t, a, b, "should be ok")
-
-	AssertEqual(t, e, a.OutJmpEdge(ET_JMP_T).Dst, "should be ok")
-	AssertEqual(t, c, a.OutSeqEdge().Dst, "should be ok")
-
-	AssertEqual(t, d, c.OutSeqEdge().Dst, "should be ok")
-	AssertEqual(t, f, c.OutJmpEdge(ET_JMP_F).Dst, "should be ok")
-
-	AssertEqual(t, f, d.OutJmpEdge(ET_JMP_F).Dst, "should be ok")
-	AssertEqual(t, e, d.OutSeqEdge().Dst, "should be ok")
-
-	AssertEqual(t, "ExprStmt:exit", nodeToString(e.Nodes[2]), "should be ok")
-	AssertEqual(t, "ExprStmt:exit", nodeToString(f.Nodes[2]), "should be ok")
-
-	ifExit := e.OutSeqEdge().Dst.Nodes[0]
-	AssertEqual(t, "IfStmt:exit", nodeToString(ifExit), "should be ok")
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b0[label="Prog:enter\nExprStmt:enter\nIdent(a)\nExprStmt:exit\nIfStmt:enter\nBinExpr(||):enter\nIdent(b)\n"];
+b11[label="Ident(d)\nBinExpr(&&):exit\nBinExpr(||):exit\n"];
+b18[label="ExprStmt:enter\nIdent(e)\nExprStmt:exit\n"];
+b22[label="ExprStmt:enter\nIdent(f)\nExprStmt:exit\n"];
+b27[label="IfStmt:exit\nProg:exit\n"];
+b9[label="BinExpr(&&):enter\nIdent(c)\n"];
+b0->b18 [xlabel="T",color="orange"];
+b0->b9 [xlabel="",color="black"];
+b11->b18 [xlabel="",color="black"];
+b11->b22 [xlabel="F",color="orange"];
+b18->b27 [xlabel="",color="black"];
+b22->b27 [xlabel="",color="black"];
+b27->final [xlabel="",color="black"];
+b9->b11 [xlabel="",color="black"];
+b9->b22 [xlabel="F",color="orange"];
+initial->b0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
 }
 
 func TestCtrlflow_UpdateExpr(t *testing.T) {
@@ -276,12 +287,17 @@ func TestCtrlflow_UpdateExpr(t *testing.T) {
 	ana := NewAnalysis(ast, symtab)
 	ana.Analyze()
 
-	_, _, _, _, astNodeMap := ana.Graph().NodesEdges()
-	a := astNodeMap[ast.(*parser.Prog).Body()[0].(*parser.ExprStmt).Expr().(*parser.UpdateExpr).Arg()]
-
-	AssertEqual(t, "UpdateExpr(++):exit", nodeToString(a.Nodes[4]), "should be ok")
-	AssertEqual(t, "ExprStmt:exit", nodeToString(a.Nodes[5]), "should be ok")
-	AssertEqual(t, "Prog:exit", nodeToString(a.Nodes[6]), "should be ok")
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b0[label="Prog:enter\nExprStmt:enter\nUpdateExpr(++):enter\nIdent(a)\nUpdateExpr(++):exit\nExprStmt:exit\nProg:exit\n"];
+b0->final [xlabel="",color="black"];
+initial->b0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
 }
 
 func TestCtrlflow_VarDecStmt(t *testing.T) {
@@ -293,22 +309,17 @@ func TestCtrlflow_VarDecStmt(t *testing.T) {
 	ana := NewAnalysis(ast, symtab)
 	ana.Analyze()
 
-	_, _, _, _, astNodeMap := ana.Graph().NodesEdges()
-	varDecStmt := ast.(*parser.Prog).Body()[0].(*parser.VarDecStmt)
-	varDec0 := varDecStmt.DecList()[0].(*parser.VarDec)
-	varDec1 := varDecStmt.DecList()[1].(*parser.VarDec)
-	a := astNodeMap[varDec0.Id()]
-	c := astNodeMap[varDec1.Id()]
-
-	AssertEqual(t, a, c, "should be ok")
-
-	AssertEqual(t, "VarDecStmt:enter", nodeToString(a.Nodes[1]), "should be ok")
-	AssertEqual(t, "VarDec:enter", nodeToString(a.Nodes[2]), "should be ok")
-	AssertEqual(t, "VarDec:exit", nodeToString(a.Nodes[5]), "should be ok")
-	AssertEqual(t, "VarDec:enter", nodeToString(a.Nodes[6]), "should be ok")
-	AssertEqual(t, "VarDec:exit", nodeToString(a.Nodes[9]), "should be ok")
-	AssertEqual(t, "VarDecStmt:exit", nodeToString(a.Nodes[10]), "should be ok")
-	AssertEqual(t, "Prog:exit", nodeToString(a.Nodes[11]), "should be ok")
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b0[label="Prog:enter\nVarDecStmt:enter\nVarDec:enter\nIdent(a)\nNumLit(1)\nVarDec:exit\nVarDec:enter\nIdent(c)\nIdent(d)\nVarDec:exit\nVarDecStmt:exit\nProg:exit\n"];
+b0->final [xlabel="",color="black"];
+initial->b0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
 }
 
 func TestCtrlflow_ForStmt(t *testing.T) {
@@ -323,33 +334,24 @@ func TestCtrlflow_ForStmt(t *testing.T) {
 	ana := NewAnalysis(ast, symtab)
 	ana.Analyze()
 
-	_, _, _, _, astNodeMap := ana.Graph().NodesEdges()
-	stmt := ast.(*parser.Prog).Body()[0].(*parser.ForStmt)
-	init := stmt.Init().(*parser.VarDecStmt)
-	test := stmt.Test().(*parser.BinExpr)
-	update := stmt.Update().(*parser.UpdateExpr)
-	body := stmt.Body().(*parser.BlockStmt).Body()[0].(*parser.ExprStmt).Expr()
-	d := astNodeMap[body]
-	b := astNodeMap[init.DecList()[0].(*parser.VarDec).Id()]
-	bc := astNodeMap[test.Lhs()]
-	bu := astNodeMap[update.Arg()]
-	e := astNodeMap[ast.(*parser.Prog).Body()[1].(*parser.ExprStmt).Expr()]
-
-	AssertEqual(t, "VarDecStmt:exit", nodeToString(b.Nodes[7]), "should be ok")
-	AssertEqual(t, "BinExpr(<):enter", nodeToString(bc.Nodes[0]), "should be ok")
-	AssertEqual(t, "BinExpr(<):exit", nodeToString(bc.Nodes[3]), "should be ok")
-
-	AssertEqual(t, bc, b.OutSeqEdge().Dst, "should be ok")
-	AssertEqual(t, e, bc.OutJmpEdge(ET_JMP_F).Dst, "should be ok")
-	AssertEqual(t, "ForStmt:exit", nodeToString(e.Nodes[0]), "should be ok")
-	AssertEqual(t, "ExprStmt:enter", nodeToString(e.Nodes[1]), "should be ok")
-	AssertEqual(t, "ExprStmt:exit", nodeToString(e.Nodes[3]), "should be ok")
-
-	AssertEqual(t, bu, bc.OutSeqEdge().Dst, "should be ok")
-	AssertEqual(t, "UpdateExpr(++):exit", nodeToString(bu.Nodes[7]), "should be ok")
-
-	AssertEqual(t, d, bc.OutSeqEdge().Dst, "should be ok")
-	AssertEqual(t, bc, bu.OutJmpEdge(ET_LOOP).Dst, "should be ok")
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b0[label="Prog:enter\nForStmt:enter\nVarDecStmt:enter\nVarDec:enter\nIdent(b)\nNumLit(1)\nVarDec:exit\nVarDecStmt:exit\n"];
+b12[label="BinExpr(<):enter\nIdent(b)\nIdent(c)\nBinExpr(<):exit\n"];
+b22[label="BlockStmt:enter\nExprStmt:enter\nIdent(d)\nExprStmt:exit\nBlockStmt:exit\nUpdateExpr(++):enter\nIdent(b)\nUpdateExpr(++):exit\n"];
+b29[label="ForStmt:exit\nExprStmt:enter\nIdent(e)\nExprStmt:exit\nProg:exit\n"];
+b0->b12 [xlabel="",color="black"];
+b12->b22 [xlabel="",color="black"];
+b12->b29 [xlabel="F",color="orange"];
+b22:s->b12:ne [xlabel="L",color="orange"];
+b29->final [xlabel="",color="black"];
+initial->b0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
 }
 
 func TestCtrlflow_ForStmtOmitInit(t *testing.T) {
@@ -364,35 +366,24 @@ func TestCtrlflow_ForStmtOmitInit(t *testing.T) {
 	ana := NewAnalysis(ast, symtab)
 	ana.Analyze()
 
-	_, _, _, _, astNodeMap := ana.Graph().NodesEdges()
-	stmt := ast.(*parser.Prog).Body()[0].(*parser.ForStmt)
-	begin := ana.Graph().Head
-	test := stmt.Test().(*parser.BinExpr)
-	update := stmt.Update().(*parser.UpdateExpr)
-	body := stmt.Body().(*parser.BlockStmt).Body()[0].(*parser.ExprStmt).Expr()
-	d := astNodeMap[body]
-	bc := astNodeMap[test.Lhs()]
-	bu := astNodeMap[update.Arg()]
-	e := astNodeMap[ast.(*parser.Prog).Body()[1].(*parser.ExprStmt).Expr()]
-
-	AssertEqual(t, "BinExpr(<):enter", nodeToString(bc.Nodes[0]), "should be ok")
-	AssertEqual(t, "BinExpr(<):exit", nodeToString(bc.Nodes[3]), "should be ok")
-
-	AssertEqual(t, "Prog:enter", nodeToString(begin.Nodes[0]), "should be ok")
-	AssertEqual(t, "ForStmt:enter", nodeToString(begin.Nodes[1]), "should be ok")
-
-	AssertEqual(t, bc, begin.OutSeqEdge().Dst, "should be ok")
-	AssertEqual(t, e, bc.OutJmpEdge(ET_JMP_F).Dst, "should be ok")
-	AssertEqual(t, "ForStmt:exit", nodeToString(e.Nodes[0]), "should be ok")
-	AssertEqual(t, "ExprStmt:enter", nodeToString(e.Nodes[1]), "should be ok")
-	AssertEqual(t, "ExprStmt:exit", nodeToString(e.Nodes[3]), "should be ok")
-
-	AssertEqual(t, bu, bc.OutSeqEdge().Dst, "should be ok")
-	AssertEqual(t, "UpdateExpr(++):exit", nodeToString(bu.Nodes[7]), "should be ok")
-
-	AssertEqual(t, d, bu, "should be ok")
-	AssertEqual(t, d, bc.OutSeqEdge().Dst, "should be ok")
-	AssertEqual(t, bc, bu.OutJmpEdge(ET_LOOP).Dst, "should be ok")
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b0[label="Prog:enter\nForStmt:enter\n"];
+b14[label="BlockStmt:enter\nExprStmt:enter\nIdent(d)\nExprStmt:exit\nBlockStmt:exit\nUpdateExpr(++):enter\nIdent(b)\nUpdateExpr(++):exit\n"];
+b21[label="ForStmt:exit\nExprStmt:enter\nIdent(e)\nExprStmt:exit\nProg:exit\n"];
+b4[label="BinExpr(<):enter\nIdent(b)\nIdent(c)\nBinExpr(<):exit\n"];
+b0->b4 [xlabel="",color="black"];
+b14:s->b4:ne [xlabel="L",color="orange"];
+b21->final [xlabel="",color="black"];
+b4->b14 [xlabel="",color="black"];
+b4->b21 [xlabel="F",color="orange"];
+initial->b0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
 }
 
 func TestCtrlflow_ForStmtOmitInitUpdate(t *testing.T) {
@@ -407,22 +398,24 @@ func TestCtrlflow_ForStmtOmitInitUpdate(t *testing.T) {
 	ana := NewAnalysis(ast, symtab)
 	ana.Analyze()
 
-	_, _, _, _, astNodeMap := ana.Graph().NodesEdges()
-	stmt := ast.(*parser.Prog).Body()[0].(*parser.ForStmt)
-	begin := ana.Graph().Head
-	test := stmt.Test().(*parser.BinExpr)
-	body := stmt.Body().(*parser.BlockStmt).Body()[0].(*parser.ExprStmt).Expr()
-	d := astNodeMap[body]
-	bc := astNodeMap[test.Lhs()]
-	e := astNodeMap[ast.(*parser.Prog).Body()[1].(*parser.ExprStmt).Expr()]
-
-	AssertEqual(t, "Prog:enter", nodeToString(begin.Nodes[0]), "should be ok")
-	AssertEqual(t, "ForStmt:enter", nodeToString(begin.Nodes[1]), "should be ok")
-	AssertEqual(t, bc, begin.OutSeqEdge().Dst, "should be ok")
-
-	AssertEqual(t, e, bc.OutJmpEdge(ET_JMP_F).Dst, "should be ok")
-	AssertEqual(t, d, bc.OutSeqEdge().Dst, "should be ok")
-	AssertEqual(t, bc, d.OutJmpEdge(ET_LOOP).Dst, "should be ok")
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b0[label="Prog:enter\nForStmt:enter\n"];
+b10[label="BlockStmt:enter\nExprStmt:enter\nIdent(d)\nExprStmt:exit\nBlockStmt:exit\n"];
+b17[label="ForStmt:exit\nExprStmt:enter\nIdent(e)\nExprStmt:exit\nProg:exit\n"];
+b4[label="BinExpr(<):enter\nIdent(b)\nIdent(c)\nBinExpr(<):exit\n"];
+b0->b4 [xlabel="",color="black"];
+b10:s->b4:ne [xlabel="L",color="orange"];
+b17->final [xlabel="",color="black"];
+b4->b10 [xlabel="",color="black"];
+b4->b17 [xlabel="F",color="orange"];
+initial->b0 [xlabel="",color="black"];
+}
+  `, ana.Graph().Dot(), "should be ok")
 }
 
 func TestCtrlflow_ForStmtOmitInitUpdate_TestLogic(t *testing.T) {
@@ -437,31 +430,27 @@ func TestCtrlflow_ForStmtOmitInitUpdate_TestLogic(t *testing.T) {
 	ana := NewAnalysis(ast, symtab)
 	ana.Analyze()
 
-	_, _, _, _, astNodeMap := ana.Graph().NodesEdges()
-	stmt := ast.(*parser.Prog).Body()[0].(*parser.ForStmt)
-	begin := ana.Graph().Head
-	test := stmt.Test().(*parser.BinExpr)
-	body := stmt.Body().(*parser.BlockStmt).Body()[0].(*parser.ExprStmt).Expr()
-	d := astNodeMap[body]
-	b := astNodeMap[test.Lhs()]
-	c := astNodeMap[test.Rhs()]
-	e := astNodeMap[ast.(*parser.Prog).Body()[1].(*parser.ExprStmt).Expr()]
-
-	AssertEqual(t, "Prog:enter", nodeToString(begin.Nodes[0]), "should be ok")
-	AssertEqual(t, "ForStmt:enter", nodeToString(begin.Nodes[1]), "should be ok")
-	AssertEqual(t, b, begin.OutSeqEdge().Dst, "should be ok")
-
-	AssertEqual(t, e, b.OutJmpEdge(ET_JMP_F).Dst, "should be ok")
-	AssertEqual(t, c, b.OutSeqEdge().Dst, "should be ok")
-
-	AssertEqual(t, e, c.OutJmpEdge(ET_JMP_F).Dst, "should be ok")
-	AssertEqual(t, d, c.OutSeqEdge().Dst, "should be ok")
-
-	AssertEqual(t, b, d.OutJmpEdge(ET_LOOP).Dst, "should be ok")
-	AssertEqual(t, "BlockStmt:enter", nodeToString(d.Nodes[0]), "should be ok")
-	AssertEqual(t, "BlockStmt:exit", nodeToString(d.Nodes[4]), "should be ok")
-
-	AssertEqual(t, "ForStmt:exit", nodeToString(e.Nodes[0]), "should be ok")
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b0[label="Prog:enter\nForStmt:enter\n"];
+b10[label="BlockStmt:enter\nExprStmt:enter\nIdent(d)\nExprStmt:exit\nBlockStmt:exit\n"];
+b17[label="ForStmt:exit\nExprStmt:enter\nIdent(e)\nExprStmt:exit\nProg:exit\n"];
+b4[label="BinExpr(&&):enter\nIdent(b)\n"];
+b6[label="Ident(c)\nBinExpr(&&):exit\n"];
+b0->b4 [xlabel="",color="black"];
+b10:s->b4:ne [xlabel="L",color="orange"];
+b17->final [xlabel="",color="black"];
+b4->b17 [xlabel="F",color="orange"];
+b4->b6 [xlabel="",color="black"];
+b6->b10 [xlabel="",color="black"];
+b6->b17 [xlabel="F",color="orange"];
+initial->b0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
 }
 
 func TestCtrlflow_ForStmtOmitAll(t *testing.T) {
@@ -476,20 +465,54 @@ func TestCtrlflow_ForStmtOmitAll(t *testing.T) {
 	ana := NewAnalysis(ast, symtab)
 	ana.Analyze()
 
-	_, _, _, _, astNodeMap := ana.Graph().NodesEdges()
-	stmt := ast.(*parser.Prog).Body()[0].(*parser.ForStmt)
-	begin := ana.Graph().Head
-	body := stmt.Body().(*parser.BlockStmt).Body()[0].(*parser.ExprStmt).Expr()
-	d := astNodeMap[body]
-	e := astNodeMap[ast.(*parser.Prog).Body()[1].(*parser.ExprStmt).Expr()]
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b0[label="Prog:enter\nForStmt:enter\n"];
+b11[label="ForStmt:exit\nExprStmt:enter\nIdent(e)\nExprStmt:exit\nProg:exit\n"];
+b4[label="BlockStmt:enter\nExprStmt:enter\nIdent(d)\nExprStmt:exit\nBlockStmt:exit\n"];
+b0->b4 [xlabel="",color="black"];
+b11->final [xlabel="",color="red"];
+b4->b11 [xlabel="",color="red"];
+b4:s->b4:ne [xlabel="L",color="orange"];
+initial->b0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
+}
 
-	AssertEqual(t, "Prog:enter", nodeToString(begin.Nodes[0]), "should be ok")
-	AssertEqual(t, "ForStmt:enter", nodeToString(begin.Nodes[1]), "should be ok")
-	AssertEqual(t, d, begin.OutSeqEdge().Dst, "should be ok")
+func TestCtrlflow_ForStmtLitTest(t *testing.T) {
+	ast, symtab, err := compile(`
+  for (; 1 ;) {
+    d;
+  }
+  e;
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
 
-	AssertEqual(t, d, d.OutJmpEdge(ET_LOOP).Dst, "should be ok")
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
 
-	AssertEqual(t, nil, e, "should be ok")
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b0[label="Prog:enter\nForStmt:enter\n"];
+b12[label="ForStmt:exit\nExprStmt:enter\nIdent(e)\nExprStmt:exit\nProg:exit\n"];
+b4[label="NumLit(1)\n"];
+b5[label="BlockStmt:enter\nExprStmt:enter\nIdent(d)\nExprStmt:exit\nBlockStmt:exit\n"];
+b0->b4 [xlabel="",color="black"];
+b12->final [xlabel="",color="black"];
+b4->b12 [xlabel="",color="red"];
+b4->b5 [xlabel="",color="black"];
+b5:s->b4:ne [xlabel="L",color="orange"];
+initial->b0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
 }
 
 func TestCtrlflow_While(t *testing.T) {
@@ -501,22 +524,24 @@ func TestCtrlflow_While(t *testing.T) {
 	ana := NewAnalysis(ast, symtab)
 	ana.Analyze()
 
-	_, _, _, _, astNodeMap := ana.Graph().NodesEdges()
-	stmt := ast.(*parser.Prog).Body()[0].(*parser.WhileStmt)
-	begin := ana.Graph().Head
-	test := stmt.Test().(*parser.Ident)
-	body := stmt.Body().(*parser.ExprStmt).Expr()
-	a := astNodeMap[test]
-	b := astNodeMap[body]
-
-	AssertEqual(t, "Prog:enter", nodeToString(begin.Nodes[0]), "should be ok")
-	AssertEqual(t, "WhileStmt:enter", nodeToString(begin.Nodes[1]), "should be ok")
-	AssertEqual(t, b, a.OutSeqEdge().Dst, "should be ok")
-
-	exit := a.OutJmpEdge(ET_JMP_F).Dst.Nodes[0]
-	AssertEqual(t, "WhileStmt:exit", nodeToString(exit), "should be ok")
-
-	AssertEqual(t, a, b.OutJmpEdge(ET_LOOP).Dst, "should be ok")
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b0[label="Prog:enter\nWhileStmt:enter\n"];
+b10[label="WhileStmt:exit\nProg:exit\n"];
+b4[label="Ident(a)\n"];
+b5[label="ExprStmt:enter\nIdent(b)\nExprStmt:exit\n"];
+b0->b4 [xlabel="",color="black"];
+b10->final [xlabel="",color="black"];
+b4->b10 [xlabel="F",color="orange"];
+b4->b5 [xlabel="",color="black"];
+b5:s->b4:ne [xlabel="L",color="orange"];
+initial->b0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
 }
 
 func TestCtrlflow_WhileBodyBlk(t *testing.T) {
@@ -530,24 +555,24 @@ func TestCtrlflow_WhileBodyBlk(t *testing.T) {
 	ana := NewAnalysis(ast, symtab)
 	ana.Analyze()
 
-	_, _, _, _, astNodeMap := ana.Graph().NodesEdges()
-	stmt := ast.(*parser.Prog).Body()[0].(*parser.WhileStmt)
-	begin := ana.Graph().Head
-	test := stmt.Test().(*parser.Ident)
-	body := stmt.Body().(*parser.BlockStmt).Body()[0].(*parser.ExprStmt).Expr()
-	a := astNodeMap[test]
-	b := astNodeMap[body]
-
-	AssertEqual(t, "Prog:enter", nodeToString(begin.Nodes[0]), "should be ok")
-	AssertEqual(t, "WhileStmt:enter", nodeToString(begin.Nodes[1]), "should be ok")
-	AssertEqual(t, b, a.OutSeqEdge().Dst, "should be ok")
-	AssertEqual(t, a, b.OutJmpEdge(ET_LOOP).Dst, "should be ok")
-
-	exit := a.OutJmpEdge(ET_JMP_F).Dst.Nodes[0]
-	AssertEqual(t, "WhileStmt:exit", nodeToString(exit), "should be ok")
-
-	AssertEqual(t, "BlockStmt:enter", nodeToString(b.Nodes[0]), "should be ok")
-	AssertEqual(t, "BlockStmt:exit", nodeToString(b.Nodes[4]), "should be ok")
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b0[label="Prog:enter\nWhileStmt:enter\n"];
+b12[label="WhileStmt:exit\nProg:exit\n"];
+b4[label="Ident(a)\n"];
+b5[label="BlockStmt:enter\nExprStmt:enter\nIdent(b)\nExprStmt:exit\nBlockStmt:exit\n"];
+b0->b4 [xlabel="",color="black"];
+b12->final [xlabel="",color="black"];
+b4->b12 [xlabel="F",color="orange"];
+b4->b5 [xlabel="",color="black"];
+b5:s->b4:ne [xlabel="L",color="orange"];
+initial->b0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
 }
 
 func TestCtrlflow_WhileLogicOr(t *testing.T) {
@@ -561,158 +586,56 @@ func TestCtrlflow_WhileLogicOr(t *testing.T) {
 	ana := NewAnalysis(ast, symtab)
 	ana.Analyze()
 
-	_, _, _, _, astNodeMap := ana.Graph().NodesEdges()
-	stmt := ast.(*parser.Prog).Body()[0].(*parser.WhileStmt)
-	begin := ana.Graph().Head
-	test := stmt.Test().(*parser.BinExpr)
-	body := stmt.Body().(*parser.BlockStmt).Body()[0].(*parser.ExprStmt).Expr()
-	a := astNodeMap[test.Lhs().(*parser.ParenExpr).Expr().(*parser.BinExpr).Lhs()]
-	b := astNodeMap[test.Lhs().(*parser.ParenExpr).Expr().(*parser.BinExpr).Rhs()]
-	c := astNodeMap[test.Rhs()]
-	d := astNodeMap[body]
-
-	AssertEqual(t, "Prog:enter", nodeToString(begin.Nodes[0]), "should be ok")
-	AssertEqual(t, "WhileStmt:enter", nodeToString(begin.Nodes[1]), "should be ok")
-	AssertEqual(t, b, a, "should be ok")
-
-	AssertEqual(t, d, a.OutJmpEdge(ET_JMP_T).Dst, "should be ok")
-	AssertEqual(t, c, a.OutSeqEdge().Dst, "should be ok")
-
-	AssertEqual(t, "BinExpr(+):exit", nodeToString(a.Nodes[5]), "should be ok")
-	AssertEqual(t, "ParenExpr:exit", nodeToString(a.Nodes[6]), "should be ok")
-
-	exit := c.OutJmpEdge(ET_JMP_F).Dst
-	AssertEqual(t, "WhileStmt:exit", nodeToString(exit.Nodes[0]), "should be ok")
-	AssertEqual(t, d, c.OutSeqEdge().Dst, "should be ok")
-
-	AssertEqual(t, a, d.OutJmpEdge(ET_LOOP).Dst, "should be ok")
-	AssertEqual(t, "BlockStmt:enter", nodeToString(d.Nodes[0]), "should be ok")
-	AssertEqual(t, "BlockStmt:exit", nodeToString(d.Nodes[4]), "should be ok")
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b0[label="Prog:enter\nWhileStmt:enter\n"];
+b14[label="Ident(c)\nBinExpr(||):exit\n"];
+b18[label="BlockStmt:enter\nExprStmt:enter\nIdent(d)\nExprStmt:exit\nBlockStmt:exit\n"];
+b25[label="WhileStmt:exit\nProg:exit\n"];
+b4[label="BinExpr(||):enter\nParenExpr:enter\nBinExpr(+):enter\nIdent(a)\nIdent(b)\nBinExpr(+):exit\nParenExpr:exit\n"];
+b0->b4 [xlabel="",color="black"];
+b14->b18 [xlabel="",color="black"];
+b14->b25 [xlabel="F",color="orange"];
+b18:s->b4:ne [xlabel="L",color="orange"];
+b25->final [xlabel="",color="black"];
+b4->b14 [xlabel="",color="black"];
+b4->b18 [xlabel="T",color="orange"];
+initial->b0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
 }
 
-func TestCtrlflow_ParenExpr(t *testing.T) {
+func TestCtrlflow_WhileTestLit(t *testing.T) {
 	ast, symtab, err := compile(`
-  (a + b)
+  while(1) {
+    d;
+  }
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
 	ana := NewAnalysis(ast, symtab)
 	ana.Analyze()
 
-	_, _, _, _, astNodeMap := ana.Graph().NodesEdges()
-	a := astNodeMap[ast.(*parser.Prog).Body()[0].(*parser.ExprStmt).Expr().(*parser.ParenExpr).Expr().(*parser.BinExpr).Lhs()]
-	AssertEqual(t, 10, len(a.Nodes), "should be ok")
-	AssertEqual(t, "BinExpr(+):exit", nodeToString(a.Nodes[6]), "should be ok")
-	AssertEqual(t, "ParenExpr:exit", nodeToString(a.Nodes[7]), "should be ok")
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b0[label="Prog:enter\nWhileStmt:enter\n"];
+b12[label="WhileStmt:exit\nProg:exit\n"];
+b4[label="NumLit(1)\nBlockStmt:enter\nExprStmt:enter\nIdent(d)\nExprStmt:exit\nBlockStmt:exit\n"];
+b0->b4 [xlabel="",color="black"];
+b12->final [xlabel="",color="red"];
+b4->b12 [xlabel="",color="red"];
+b4:s->b4:ne [xlabel="L",color="orange"];
+initial->b0 [xlabel="",color="black"];
 }
-
-func TestCtrlflow_ParenExprLogic(t *testing.T) {
-	ast, symtab, err := compile(`
-  (a && b)
-  `, nil)
-	AssertEqual(t, nil, err, "should be prog ok")
-
-	ana := NewAnalysis(ast, symtab)
-	ana.Analyze()
-
-	_, _, _, _, astNodeMap := ana.Graph().NodesEdges()
-	ab := ast.(*parser.Prog).Body()[0].(*parser.ExprStmt).Expr().(*parser.ParenExpr).Expr().(*parser.BinExpr)
-	a := astNodeMap[ab.Lhs()]
-	b := astNodeMap[ab.Rhs()]
-
-	AssertEqual(t, b, a.OutSeqEdge().Dst, "should be ok")
-	AssertEqual(t, "BinExpr(&&):exit", nodeToString(b.Nodes[1]), "should be ok")
-
-	exit := a.OutJmpEdge(ET_JMP_F).Dst
-	AssertEqual(t, "ParenExpr:exit", nodeToString(exit.Nodes[0]), "should be ok")
-	AssertEqual(t, "ExprStmt:exit", nodeToString(exit.Nodes[1]), "should be ok")
-}
-
-func TestCtrlflow_DoWhile(t *testing.T) {
-	ast, symtab, err := compile(`
-  do { a } while(b)
-  `, nil)
-	AssertEqual(t, nil, err, "should be prog ok")
-
-	ana := NewAnalysis(ast, symtab)
-	ana.Analyze()
-
-	_, _, _, _, astNodeMap := ana.Graph().NodesEdges()
-	stmt := ast.(*parser.Prog).Body()[0].(*parser.DoWhileStmt)
-	begin := ana.Graph().Head
-	test := stmt.Test().(*parser.Ident)
-	body := stmt.Body().(*parser.BlockStmt).Body()[0].(*parser.ExprStmt).Expr()
-	b := astNodeMap[test]
-	a := astNodeMap[body]
-
-	AssertEqual(t, a, begin.OutSeqEdge().Dst, "should be ok")
-	AssertEqual(t, a, b, "should be ok")
-	AssertEqual(t, a, b.OutJmpEdge(ET_LOOP).Dst, "should be ok")
-
-	exit := a.OutJmpEdge(ET_JMP_F).Dst
-	AssertEqual(t, "DoWhileStmt:exit", nodeToString(exit.Nodes[0]), "should be ok")
-}
-
-func TestCtrlflow_DoWhileLogicOr(t *testing.T) {
-	ast, symtab, err := compile(`
-  do { a } while(b || c)
-  `, nil)
-	AssertEqual(t, nil, err, "should be prog ok")
-
-	ana := NewAnalysis(ast, symtab)
-	ana.Analyze()
-
-	_, _, _, _, astNodeMap := ana.Graph().NodesEdges()
-	stmt := ast.(*parser.Prog).Body()[0].(*parser.DoWhileStmt)
-	begin := ana.Graph().Head
-	test := stmt.Test().(*parser.BinExpr)
-	body := stmt.Body().(*parser.BlockStmt).Body()[0].(*parser.ExprStmt).Expr()
-	b := astNodeMap[test.Lhs()]
-	c := astNodeMap[test.Rhs()]
-	a := astNodeMap[body]
-
-	AssertEqual(t, a, begin.OutSeqEdge().Dst, "should be ok")
-	AssertEqual(t, a, b, "should be ok")
-
-	AssertEqual(t, a, b.OutJmpEdge(ET_JMP_T).Dst, "should be ok")
-	AssertEqual(t, a, b.OutJmpEdge(ET_LOOP).Dst, "should be ok")
-	AssertEqual(t, c, b.OutSeqEdge().Dst, "should be ok")
-
-	AssertEqual(t, a, c.OutJmpEdge(ET_LOOP).Dst, "should be ok")
-
-	exit := c.OutJmpEdge(ET_JMP_F).Dst
-	AssertEqual(t, "DoWhileStmt:exit", nodeToString(exit.Nodes[0]), "should be ok")
-	AssertEqual(t, "Prog:exit", nodeToString(exit.Nodes[1]), "should be ok")
-}
-
-func TestCtrlflow_DoWhileLogicAnd(t *testing.T) {
-	ast, symtab, err := compile(`
-  do { a } while(b && c)
-  `, nil)
-	AssertEqual(t, nil, err, "should be prog ok")
-
-	ana := NewAnalysis(ast, symtab)
-	ana.Analyze()
-
-	_, _, _, _, astNodeMap := ana.Graph().NodesEdges()
-	stmt := ast.(*parser.Prog).Body()[0].(*parser.DoWhileStmt)
-	begin := ana.Graph().Head
-	test := stmt.Test().(*parser.BinExpr)
-	body := stmt.Body().(*parser.BlockStmt).Body()[0].(*parser.ExprStmt).Expr()
-	b := astNodeMap[test.Lhs()]
-	c := astNodeMap[test.Rhs()]
-	a := astNodeMap[body]
-
-	AssertEqual(t, a, begin.OutSeqEdge().Dst, "should be ok")
-	AssertEqual(t, a, b, "should be ok")
-
-	exit := b.OutJmpEdge(ET_JMP_F).Dst
-	AssertEqual(t, "DoWhileStmt:exit", nodeToString(exit.Nodes[0]), "should be ok")
-	AssertEqual(t, "Prog:exit", nodeToString(exit.Nodes[1]), "should be ok")
-
-	AssertEqual(t, c, b.OutSeqEdge().Dst, "should be ok")
-	AssertEqual(t, exit, c.OutJmpEdge(ET_JMP_F).Dst, "should be ok")
-	AssertEqual(t, a, c.OutJmpEdge(ET_LOOP).Dst, "should be ok")
+`, ana.Graph().Dot(), "should be ok")
 }
 
 func TestCtrlflow_WhileLogicMix(t *testing.T) {
@@ -726,28 +649,333 @@ func TestCtrlflow_WhileLogicMix(t *testing.T) {
 	ana := NewAnalysis(ast, symtab)
 	ana.Analyze()
 
-	_, _, _, _, astNodeMap := ana.Graph().NodesEdges()
-	stmt := ast.(*parser.Prog).Body()[0].(*parser.WhileStmt)
-	begin := ana.Graph().Head
-	test := stmt.Test().(*parser.BinExpr)
-	body := stmt.Body().(*parser.BlockStmt).Body()[0].(*parser.ExprStmt).Expr()
-	a := astNodeMap[test.Lhs()]
-	b := astNodeMap[test.Rhs().(*parser.BinExpr).Lhs()]
-	c := astNodeMap[test.Rhs().(*parser.BinExpr).Rhs()]
-	d := astNodeMap[body]
-	exit := c.OutJmpEdge(ET_JMP_F).Dst
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b0[label="Prog:enter\nWhileStmt:enter\n"];
+b15[label="BlockStmt:enter\nExprStmt:enter\nIdent(d)\nExprStmt:exit\nBlockStmt:exit\n"];
+b22[label="WhileStmt:exit\nProg:exit\n"];
+b4[label="BinExpr(||):enter\nIdent(a)\n"];
+b6[label="BinExpr(&&):enter\nIdent(b)\n"];
+b8[label="Ident(c)\nBinExpr(&&):exit\nBinExpr(||):exit\n"];
+b0->b4 [xlabel="",color="black"];
+b15:s->b4:ne [xlabel="L",color="orange"];
+b22->final [xlabel="",color="black"];
+b4->b15 [xlabel="T",color="orange"];
+b4->b6 [xlabel="",color="black"];
+b6->b22 [xlabel="F",color="orange"];
+b6->b8 [xlabel="",color="black"];
+b8->b15 [xlabel="",color="black"];
+b8->b22 [xlabel="F",color="orange"];
+initial->b0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
+}
 
-	AssertEqual(t, "WhileStmt:exit", nodeToString(exit.Nodes[0]), "should be ok")
-	AssertEqual(t, a, begin.OutSeqEdge().Dst, "should be ok")
+func TestCtrlflow_WhileCont(t *testing.T) {
+	ast, symtab, err := compile(`
+while (a) {
+  continue
+  c
+}
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
 
-	AssertEqual(t, b, a.OutSeqEdge().Dst, "should be ok")
-	AssertEqual(t, d, a.OutJmpEdge(ET_JMP_T).Dst, "should be ok")
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
 
-	AssertEqual(t, c, b.OutSeqEdge().Dst, "should be ok")
-	AssertEqual(t, exit, b.OutJmpEdge(ET_JMP_F).Dst, "should be ok")
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b0[label="Prog:enter\nWhileStmt:enter\n"];
+b10[label="ExprStmt:enter\nIdent(c)\nExprStmt:exit\nBlockStmt:exit\n"];
+b15[label="WhileStmt:exit\nProg:exit\n"];
+b4[label="Ident(a)\n"];
+b5[label="BlockStmt:enter\nContStmt:enter\nContStmt:exit\n"];
+b0->b4 [xlabel="",color="black"];
+b10:s->b4:ne [xlabel="L",color="red"];
+b15->final [xlabel="",color="black"];
+b4->b15 [xlabel="F",color="orange"];
+b4->b5 [xlabel="",color="black"];
+b5->b10 [xlabel="",color="red"];
+b5:s->b4:ne [xlabel="L",color="orange"];
+initial->b0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
+}
 
-	AssertEqual(t, d, c.OutSeqEdge().Dst, "should be ok")
-	AssertEqual(t, a, d.OutJmpEdge(ET_LOOP).Dst, "should be ok")
+func TestCtrlflow_WhileLitCont(t *testing.T) {
+	ast, symtab, err := compile(`
+while (1) {
+  continue
+  c
+}
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b0[label="Prog:enter\nWhileStmt:enter\n"];
+b10[label="ExprStmt:enter\nIdent(c)\nExprStmt:exit\nBlockStmt:exit\n"];
+b15[label="WhileStmt:exit\nProg:exit\n"];
+b4[label="NumLit(1)\nBlockStmt:enter\nContStmt:enter\nContStmt:exit\n"];
+b0->b4 [xlabel="",color="black"];
+b10->b15 [xlabel="",color="red"];
+b10:s->b4:ne [xlabel="L",color="red"];
+b15->final [xlabel="",color="red"];
+b4->b10 [xlabel="",color="red"];
+b4:s->b4:ne [xlabel="L",color="orange"];
+initial->b0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
+}
+
+func TestCtrlflow_ParenExpr(t *testing.T) {
+	ast, symtab, err := compile(`
+  (a + b)
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b0[label="Prog:enter\nExprStmt:enter\nParenExpr:enter\nBinExpr(+):enter\nIdent(a)\nIdent(b)\nBinExpr(+):exit\nParenExpr:exit\nExprStmt:exit\nProg:exit\n"];
+b0->final [xlabel="",color="black"];
+initial->b0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
+}
+
+func TestCtrlflow_ParenExprLogic(t *testing.T) {
+	ast, symtab, err := compile(`
+  (a && b)
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b0[label="Prog:enter\nExprStmt:enter\nParenExpr:enter\nBinExpr(&&):enter\nIdent(a)\n"];
+b11[label="ParenExpr:exit\nExprStmt:exit\nProg:exit\n"];
+b7[label="Ident(b)\nBinExpr(&&):exit\n"];
+b0->b11 [xlabel="F",color="orange"];
+b0->b7 [xlabel="",color="black"];
+b11->final [xlabel="",color="black"];
+b7->b11 [xlabel="",color="black"];
+initial->b0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
+}
+
+func TestCtrlflow_DoWhile(t *testing.T) {
+	ast, symtab, err := compile(`
+  do { a } while(b)
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b0[label="Prog:enter\nDoWhileStmt:enter\n"];
+b12[label="DoWhileStmt:exit\nProg:exit\n"];
+b4[label="BlockStmt:enter\nExprStmt:enter\nIdent(a)\nExprStmt:exit\nBlockStmt:exit\nIdent(b)\n"];
+b0->b4 [xlabel="",color="black"];
+b12->final [xlabel="",color="black"];
+b4->b12 [xlabel="F",color="orange"];
+b4:s->b4:ne [xlabel="L",color="orange"];
+initial->b0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
+}
+
+func TestCtrlflow_DoWhileLogicOr(t *testing.T) {
+	ast, symtab, err := compile(`
+  do { a } while(b || c)
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b0[label="Prog:enter\nDoWhileStmt:enter\n"];
+b12[label="Ident(c)\nBinExpr(||):exit\n"];
+b17[label="DoWhileStmt:exit\nProg:exit\n"];
+b4[label="BlockStmt:enter\nExprStmt:enter\nIdent(a)\nExprStmt:exit\nBlockStmt:exit\nBinExpr(||):enter\nIdent(b)\n"];
+b0->b4 [xlabel="",color="black"];
+b12->b17 [xlabel="F",color="orange"];
+b12:s->b4:ne [xlabel="L",color="orange"];
+b17->final [xlabel="",color="black"];
+b4->b12 [xlabel="",color="black"];
+b4:s->b4:ne [xlabel="T",color="orange"];
+initial->b0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
+}
+
+func TestCtrlflow_DoWhileLogicAnd(t *testing.T) {
+	ast, symtab, err := compile(`
+  do { a } while(b && c)
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b0[label="Prog:enter\nDoWhileStmt:enter\n"];
+b12[label="Ident(c)\nBinExpr(&&):exit\n"];
+b17[label="DoWhileStmt:exit\nProg:exit\n"];
+b4[label="BlockStmt:enter\nExprStmt:enter\nIdent(a)\nExprStmt:exit\nBlockStmt:exit\nBinExpr(&&):enter\nIdent(b)\n"];
+b0->b4 [xlabel="",color="black"];
+b12->b17 [xlabel="F",color="orange"];
+b12:s->b4:ne [xlabel="L",color="orange"];
+b17->final [xlabel="",color="black"];
+b4->b12 [xlabel="",color="black"];
+b4->b17 [xlabel="F",color="orange"];
+initial->b0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
+}
+
+func TestCtrlflow_DoWhileLit(t *testing.T) {
+	ast, symtab, err := compile(`
+  do {
+    d;
+  } while(1)
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b0[label="Prog:enter\nDoWhileStmt:enter\n"];
+b12[label="DoWhileStmt:exit\nProg:exit\n"];
+b4[label="BlockStmt:enter\nExprStmt:enter\nIdent(d)\nExprStmt:exit\nBlockStmt:exit\nNumLit(1)\n"];
+b0->b4 [xlabel="",color="black"];
+b12->final [xlabel="",color="black"];
+b4->b12 [xlabel="",color="red"];
+b4:s->b4:ne [xlabel="L",color="orange"];
+initial->b0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
+}
+
+func TestCtrlflow_DoWhileCont(t *testing.T) {
+	ast, symtab, err := compile(`
+do {
+  continue
+  c
+} while(a)
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b0[label="Prog:enter\nDoWhileStmt:enter\n"];
+b13[label="Ident(a)\n"];
+b15[label="DoWhileStmt:exit\nProg:exit\n"];
+b4[label="BlockStmt:enter\nContStmt:enter\nContStmt:exit\n"];
+b9[label="ExprStmt:enter\nIdent(c)\nExprStmt:exit\nBlockStmt:exit\n"];
+b0->b4 [xlabel="",color="black"];
+b13->b15 [xlabel="F",color="orange"];
+b13:s->b4:ne [xlabel="L",color="orange"];
+b15->final [xlabel="",color="black"];
+b4:s->b13:ne [xlabel="L",color="orange"];
+b4->b9 [xlabel="",color="red"];
+b9->b13 [xlabel="",color="red"];
+initial->b0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
+}
+
+func TestCtrlflow_DoWhileLitCont(t *testing.T) {
+	ast, symtab, err := compile(`
+do {
+  continue
+  c
+} while(1)
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b0[label="Prog:enter\nDoWhileStmt:enter\n"];
+b13[label="NumLit(1)\n"];
+b15[label="DoWhileStmt:exit\nProg:exit\n"];
+b4[label="BlockStmt:enter\nContStmt:enter\nContStmt:exit\n"];
+b9[label="ExprStmt:enter\nIdent(c)\nExprStmt:exit\nBlockStmt:exit\n"];
+b0->b4 [xlabel="",color="black"];
+b13->b15 [xlabel="",color="red"];
+b13:s->b4:ne [xlabel="L",color="orange"];
+b15->final [xlabel="",color="black"];
+b4:s->b13:ne [xlabel="L",color="orange"];
+b4->b9 [xlabel="",color="red"];
+b9->b13 [xlabel="",color="red"];
+initial->b0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
 }
 
 func TestCtrlflow_ContinueBasicEntry(t *testing.T) {
@@ -762,26 +990,27 @@ func TestCtrlflow_ContinueBasicEntry(t *testing.T) {
 	ana := NewAnalysis(ast, symtab)
 	ana.Analyze()
 
-	_, _, _, _, astNodeMap := ana.Graph().NodesEdges()
-	stmt := ast.(*parser.Prog).Body()[0].(*parser.LabelStmt).Body().(*parser.WhileStmt)
-	begin := ana.Graph().Head
-	a := astNodeMap[stmt.Test()]
-	cont := astNodeMap[stmt.Body().(*parser.BlockStmt).Body()[0].(*parser.ContStmt).Label()]
-	d := astNodeMap[stmt.Body().(*parser.BlockStmt).Body()[1].(*parser.ExprStmt).Expr()]
-	exit := a.OutJmpEdge(ET_JMP_F).Dst
-
-	AssertEqual(t, "WhileStmt:exit", nodeToString(exit.Nodes[0]), "should be ok")
-	AssertEqual(t, "LabelStmt:exit", nodeToString(exit.Nodes[1]), "should be ok")
-
-	AssertEqual(t, a, begin.OutSeqEdge().Dst, "should be ok")
-	AssertEqual(t, cont, a.OutSeqEdge().Dst, "should be ok")
-
-	AssertEqual(t, a, cont.OutJmpEdge(ET_LOOP).Dst, "should be ok")
-	AssertEqual(t, d, cont.OutSeqEdge().Dst, "should be ok")
-	AssertEqual(t, true, cont.HasOutCut(), "should be ok")
-
-	AssertEqual(t, a, d.OutJmpEdge(ET_LOOP).Dst, "should be ok")
-	AssertEqual(t, true, d.HasOutCut(), "should be ok")
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b0[label="Prog:enter\nLabelStmt:enter\nIdent(LabelA)\nWhileStmt:enter\n"];
+b13[label="ExprStmt:enter\nIdent(d)\nExprStmt:exit\nBlockStmt:exit\n"];
+b18[label="WhileStmt:exit\nLabelStmt:exit\nProg:exit\n"];
+b6[label="Ident(a)\n"];
+b7[label="BlockStmt:enter\nContStmt:enter\nIdent(LabelA)\nContStmt:exit\n"];
+b0->b6 [xlabel="",color="black"];
+b13:s->b6:ne [xlabel="L",color="red"];
+b18->final [xlabel="",color="black"];
+b6->b18 [xlabel="F",color="orange"];
+b6->b7 [xlabel="",color="black"];
+b7->b13 [xlabel="",color="red"];
+b7:s->b6:ne [xlabel="L",color="orange"];
+initial->b0 [xlabel="",color="black"];
+}
+  `, ana.Graph().Dot(), "should be ok")
 }
 
 func TestCtrlflow_Continue(t *testing.T) {
@@ -796,36 +1025,33 @@ func TestCtrlflow_Continue(t *testing.T) {
 	ana := NewAnalysis(ast, symtab)
 	ana.Analyze()
 
-	_, _, _, _, astNodeMap := ana.Graph().NodesEdges()
-	stmt := ast.(*parser.Prog).Body()[0].(*parser.LabelStmt).Body().(*parser.WhileStmt)
-	begin := ana.Graph().Head
-	test := stmt.Test().(*parser.BinExpr)
-	a := astNodeMap[test.Lhs()]
-	b := astNodeMap[test.Rhs().(*parser.BinExpr).Lhs()]
-	c := astNodeMap[test.Rhs().(*parser.BinExpr).Rhs()]
-	cont := astNodeMap[stmt.Body().(*parser.BlockStmt).Body()[0].(*parser.ContStmt).Label()]
-	d := astNodeMap[stmt.Body().(*parser.BlockStmt).Body()[1].(*parser.ExprStmt).Expr()]
-	exit := c.OutJmpEdge(ET_JMP_F).Dst
-
-	AssertEqual(t, "WhileStmt:exit", nodeToString(exit.Nodes[0]), "should be ok")
-	AssertEqual(t, "LabelStmt:exit", nodeToString(exit.Nodes[1]), "should be ok")
-
-	AssertEqual(t, a, begin.OutSeqEdge().Dst.NextBlk(), "should be ok")
-	AssertEqual(t, b, a.OutSeqEdge().Dst, "should be ok")
-	AssertEqual(t, cont, a.OutJmpEdge(ET_JMP_T).Dst, "should be ok")
-
-	AssertEqual(t, c, b.OutSeqEdge().Dst, "should be ok")
-	AssertEqual(t, exit, b.OutJmpEdge(ET_JMP_F).Dst, "should be ok")
-
-	AssertEqual(t, cont, c.OutSeqEdge().Dst, "should be ok")
-	AssertEqual(t, exit, b.OutJmpEdge(ET_JMP_F).Dst, "should be ok")
-
-	AssertEqual(t, a, cont.OutJmpEdge(ET_LOOP).Dst, "should be ok")
-	AssertEqual(t, d, cont.OutSeqEdge().Dst, "should be ok")
-	AssertEqual(t, true, cont.HasOutCut(), "should be ok")
-
-	AssertEqual(t, begin.OutSeqEdge().Dst, d.OutJmpEdge(ET_LOOP).Dst, "should be ok")
-	AssertEqual(t, true, d.HasOutCut(), "should be ok")
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b0[label="Prog:enter\nLabelStmt:enter\nIdent(LabelA)\nWhileStmt:enter\n"];
+b10[label="Ident(c)\nBinExpr(&&):exit\nBinExpr(||):exit\n"];
+b17[label="BlockStmt:enter\nContStmt:enter\nIdent(LabelA)\nContStmt:exit\n"];
+b23[label="ExprStmt:enter\nIdent(d)\nExprStmt:exit\nBlockStmt:exit\n"];
+b28[label="WhileStmt:exit\nLabelStmt:exit\nProg:exit\n"];
+b6[label="BinExpr(||):enter\nIdent(a)\n"];
+b8[label="BinExpr(&&):enter\nIdent(b)\n"];
+b0->b6 [xlabel="",color="black"];
+b10->b17 [xlabel="",color="black"];
+b10->b28 [xlabel="F",color="orange"];
+b17->b23 [xlabel="",color="red"];
+b17:s->b6:ne [xlabel="L",color="orange"];
+b23:s->b6:ne [xlabel="L",color="red"];
+b28->final [xlabel="",color="black"];
+b6->b17 [xlabel="T",color="orange"];
+b6->b8 [xlabel="",color="black"];
+b8->b10 [xlabel="",color="black"];
+b8->b28 [xlabel="F",color="orange"];
+initial->b0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
 }
 
 func TestCtrlflow_ContinueOuter(t *testing.T) {
@@ -842,37 +1068,34 @@ func TestCtrlflow_ContinueOuter(t *testing.T) {
 	ana := NewAnalysis(ast, symtab)
 	ana.Analyze()
 
-	_, _, _, _, astNodeMap := ana.Graph().NodesEdges()
-	while1 := ast.(*parser.Prog).Body()[0].(*parser.LabelStmt).Body().(*parser.WhileStmt)
-	while2 := while1.Body().(*parser.BlockStmt).Body()[0].(*parser.WhileStmt)
-	begin := ana.Graph().Head
-	a := astNodeMap[while1.Test()]
-	b := astNodeMap[while2.Test()]
-	c := astNodeMap[while2.Body().(*parser.BlockStmt).Body()[1].(*parser.ExprStmt).Expr()]
-	cont := astNodeMap[while2.Body().(*parser.BlockStmt).Body()[0].(*parser.ContStmt).Label()]
-	exit := a.OutJmpEdge(ET_JMP_F).Dst
-
-	AssertEqual(t, "WhileStmt:exit", nodeToString(exit.Nodes[0]), "should be ok")
-	AssertEqual(t, "LabelStmt:exit", nodeToString(exit.Nodes[1]), "should be ok")
-
-	innerWhileEnter := a.OutSeqEdge().Dst
-	AssertEqual(t, "BlockStmt:enter", nodeToString(innerWhileEnter.Nodes[0]), "should be ok")
-	AssertEqual(t, "WhileStmt:enter", nodeToString(innerWhileEnter.Nodes[1]), "should be ok")
-
-	AssertEqual(t, a, begin.OutSeqEdge().Dst, "should be ok")
-	AssertEqual(t, b, innerWhileEnter.OutSeqEdge().Dst, "should be ok")
-
-	innerWhileExit := b.OutJmpEdge(ET_JMP_F).Dst
-	AssertEqual(t, "WhileStmt:exit", nodeToString(innerWhileExit.Nodes[0]), "should be ok")
-	AssertEqual(t, "BlockStmt:exit", nodeToString(innerWhileExit.Nodes[1]), "should be ok")
-	AssertEqual(t, cont, b.OutSeqEdge().Dst, "should be ok")
-
-	AssertEqual(t, a, cont.OutJmpEdge(ET_LOOP).Dst, "should be ok")
-	AssertEqual(t, c, cont.OutSeqEdge().Dst, "should be ok")
-	AssertEqual(t, true, cont.HasOutCut(), "should be ok")
-
-	AssertEqual(t, b, c.OutJmpEdge(ET_LOOP).Dst, "should be ok")
-	AssertEqual(t, true, c.HasOutCut(), "should be ok")
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b0[label="Prog:enter\nLabelStmt:enter\nIdent(LabelA)\nWhileStmt:enter\n"];
+b10[label="Ident(b)\n"];
+b11[label="BlockStmt:enter\nContStmt:enter\nIdent(LabelA)\nContStmt:exit\n"];
+b17[label="ExprStmt:enter\nIdent(c)\nExprStmt:exit\nBlockStmt:exit\n"];
+b22[label="WhileStmt:exit\nBlockStmt:exit\n"];
+b25[label="WhileStmt:exit\nLabelStmt:exit\nProg:exit\n"];
+b6[label="Ident(a)\n"];
+b7[label="BlockStmt:enter\nWhileStmt:enter\n"];
+b0->b6 [xlabel="",color="black"];
+b10->b11 [xlabel="",color="black"];
+b10->b22 [xlabel="F",color="orange"];
+b11->b17 [xlabel="",color="red"];
+b11:s->b6:ne [xlabel="L",color="orange"];
+b17:s->b10:ne [xlabel="L",color="red"];
+b22:s->b6:ne [xlabel="L",color="orange"];
+b25->final [xlabel="",color="black"];
+b6->b25 [xlabel="F",color="orange"];
+b6->b7 [xlabel="",color="black"];
+b7->b10 [xlabel="",color="black"];
+initial->b0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
 }
 
 func TestCtrlflow_ContinueDoWhile(t *testing.T) {
@@ -890,43 +1113,151 @@ LabelA: do {
 	ana := NewAnalysis(ast, symtab)
 	ana.Analyze()
 
-	_, _, _, _, astNodeMap := ana.Graph().NodesEdges()
-	doWhile1 := ast.(*parser.Prog).Body()[0].(*parser.LabelStmt).Body().(*parser.DoWhileStmt)
-	doWhile2 := doWhile1.Body().(*parser.BlockStmt).Body()[1].(*parser.DoWhileStmt)
-	begin := ana.Graph().Head
-	a := astNodeMap[doWhile1.Body().(*parser.BlockStmt).Body()[0].(*parser.ExprStmt).Expr()]
-	b := astNodeMap[doWhile1.Test()]
-	c := astNodeMap[doWhile2.Test()]
-	cont := astNodeMap[doWhile2.Body().(*parser.BlockStmt).Body()[0].(*parser.ContStmt).Label()]
-	d := astNodeMap[doWhile2.Body().(*parser.BlockStmt).Body()[1].(*parser.ExprStmt).Expr()]
-	exit := b.OutJmpEdge(ET_JMP_F).Dst
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b0[label="Prog:enter\nLabelStmt:enter\nIdent(LabelA)\nDoWhileStmt:enter\n"];
+b12[label="BlockStmt:enter\nContStmt:enter\nIdent(LabelA)\nContStmt:exit\n"];
+b18[label="ExprStmt:enter\nIdent(d)\nExprStmt:exit\nBlockStmt:exit\nIdent(c)\n"];
+b24[label="DoWhileStmt:exit\nBlockStmt:exit\n"];
+b26[label="Ident(b)\n"];
+b28[label="DoWhileStmt:exit\nLabelStmt:exit\nProg:exit\n"];
+b6[label="BlockStmt:enter\nExprStmt:enter\nIdent(a)\nExprStmt:exit\nDoWhileStmt:enter\n"];
+b0->b6 [xlabel="",color="black"];
+b12->b18 [xlabel="",color="red"];
+b12:s->b26:ne [xlabel="L",color="orange"];
+b18:s->b12:ne [xlabel="L",color="red"];
+b18->b24 [xlabel="F",color="red"];
+b24->b26 [xlabel="",color="black"];
+b26->b28 [xlabel="F",color="orange"];
+b26:s->b6:ne [xlabel="L",color="orange"];
+b28->final [xlabel="",color="black"];
+b6->b12 [xlabel="",color="black"];
+initial->b0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
+}
 
-	AssertEqual(t, "DoWhileStmt:exit", nodeToString(exit.Nodes[0]), "should be ok")
-	AssertEqual(t, "LabelStmt:exit", nodeToString(exit.Nodes[1]), "should be ok")
+func TestCtrlflow_ContinueForBasic(t *testing.T) {
+	ast, symtab, err := compile(`
+for (let a = 1; a < 10; a++) {
+  continue
+  c
+}
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
 
-	AssertEqual(t, a, begin.OutSeqEdge().Dst.NextBlk(), "should be ok")
-	AssertEqual(t, cont, a.OutSeqEdge().Dst, "should be ok")
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
 
-	AssertEqual(t, a, cont.OutJmpEdge(ET_LOOP).Dst, "should be ok")
-	AssertEqual(t, d, cont.OutSeqEdge().Dst, "should be ok")
-	AssertEqual(t, true, cont.HasOutCut(), "should be ok")
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b0[label="Prog:enter\nForStmt:enter\nVarDecStmt:enter\nVarDec:enter\nIdent(a)\nNumLit(1)\nVarDec:exit\nVarDecStmt:exit\n"];
+b12[label="BinExpr(<):enter\nIdent(a)\nNumLit(10)\nBinExpr(<):exit\n"];
+b18[label="UpdateExpr(++):enter\nIdent(a)\nUpdateExpr(++):exit\n"];
+b22[label="BlockStmt:enter\nContStmt:enter\nContStmt:exit\n"];
+b27[label="ExprStmt:enter\nIdent(c)\nExprStmt:exit\nBlockStmt:exit\n"];
+b32[label="ForStmt:exit\nProg:exit\n"];
+b0->b12 [xlabel="",color="black"];
+b12->b22 [xlabel="",color="black"];
+b12->b32 [xlabel="F",color="orange"];
+b18:s->b12:ne [xlabel="L",color="orange"];
+b22:s->b18:ne [xlabel="L",color="orange"];
+b22->b27 [xlabel="",color="red"];
+b27->b18 [xlabel="",color="red"];
+b32->final [xlabel="",color="black"];
+initial->b0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
+}
 
-	AssertEqual(t, c, d, "should be ok")
-	AssertEqual(t, cont, c.OutJmpEdge(ET_LOOP).Dst, "should be ok")
-	AssertEqual(t, true, c.HasOutCut(), "should be ok")
-	AssertEqual(t, b, c.OutJmpEdge(ET_JMP_F).Dst, "should be ok")
+func TestCtrlflow_ContinueForListTestLabel(t *testing.T) {
+	ast, symtab, err := compile(`
+LabelA: for (let a = 1; 1; a++) {
+  continue LabelA
+  c
+}
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
 
-	AssertEqual(t, begin.OutSeqEdge().Dst, b.OutJmpEdge(ET_LOOP).Dst, "should be ok")
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b0[label="Prog:enter\nLabelStmt:enter\nIdent(LabelA)\nForStmt:enter\nVarDecStmt:enter\nVarDec:enter\nIdent(a)\nNumLit(1)\nVarDec:exit\nVarDecStmt:exit\n"];
+b14[label="NumLit(1)\n"];
+b15[label="UpdateExpr(++):enter\nIdent(a)\nUpdateExpr(++):exit\n"];
+b19[label="BlockStmt:enter\nContStmt:enter\nIdent(LabelA)\nContStmt:exit\n"];
+b25[label="ExprStmt:enter\nIdent(c)\nExprStmt:exit\nBlockStmt:exit\n"];
+b30[label="ForStmt:exit\nLabelStmt:exit\nProg:exit\n"];
+b0->b14 [xlabel="",color="black"];
+b14->b19 [xlabel="",color="black"];
+b14->b30 [xlabel="",color="red"];
+b15:s->b14:ne [xlabel="L",color="orange"];
+b19:s->b15:ne [xlabel="L",color="orange"];
+b19->b25 [xlabel="",color="red"];
+b25->b15 [xlabel="",color="red"];
+b30->final [xlabel="",color="black"];
+initial->b0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
+}
+
+func TestCtrlflow_ContinueForBasicLabel(t *testing.T) {
+	ast, symtab, err := compile(`
+LabelA: for (let a = 1; a < 10; a++) {
+  continue LabelA
+  c
+}
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b0[label="Prog:enter\nLabelStmt:enter\nIdent(LabelA)\nForStmt:enter\nVarDecStmt:enter\nVarDec:enter\nIdent(a)\nNumLit(1)\nVarDec:exit\nVarDecStmt:exit\n"];
+b14[label="BinExpr(<):enter\nIdent(a)\nNumLit(10)\nBinExpr(<):exit\n"];
+b20[label="UpdateExpr(++):enter\nIdent(a)\nUpdateExpr(++):exit\n"];
+b24[label="BlockStmt:enter\nContStmt:enter\nIdent(LabelA)\nContStmt:exit\n"];
+b30[label="ExprStmt:enter\nIdent(c)\nExprStmt:exit\nBlockStmt:exit\n"];
+b35[label="ForStmt:exit\nLabelStmt:exit\nProg:exit\n"];
+b0->b14 [xlabel="",color="black"];
+b14->b24 [xlabel="",color="black"];
+b14->b35 [xlabel="F",color="orange"];
+b20:s->b14:ne [xlabel="L",color="orange"];
+b24:s->b20:ne [xlabel="L",color="orange"];
+b24->b30 [xlabel="",color="red"];
+b30->b20 [xlabel="",color="red"];
+b35->final [xlabel="",color="black"];
+initial->b0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
 }
 
 func TestCtrlflow_ContinueFor(t *testing.T) {
 	ast, symtab, err := compile(`
-LabelA: for(let a = 1; a < 10; a++) {
-  for(let b = a; b < 10; b++) {
-    if (b > 3) {
-      continue LabelA
-      c
-    }
+LabelA: for (let a = 1; a < 10; a++) {
+  for (let b = a; b < 10; b++) {
+    continue LabelA
+    c
   }
 }
   `, nil)
@@ -941,40 +1272,121 @@ node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsi
 edge[fontname="Consolas",fontsize=10]
 initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
 final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
-loc0[label="Prog:enter\nLabelStmt:enter\nForStmt:enter\nVarDecStmt:enter\nVarDec:enter\n"];
-loc2_16_54[label="Ident(a)\nNumLit(1)\nVarDec:exit\nVarDecStmt:exit\n"];
-loc2_23_156_0[label="BinExpr(<):enter\nIdent(a)\nNumLit(10)\nBinExpr(<):exit\n"];
-loc2_36_156_0[label="BlockStmt:enter\nForStmt:enter\nVarDecStmt:enter\nVarDec:enter\nIdent(b)\nIdent(a)\nVarDec:exit\nVarDecStmt:exit\n"];
-loc2_8_156_1[label="ForStmt:exit\nLabelStmt:exit\nProg:exit\n"];
-loc3_17_156_0[label="BinExpr(<):enter\nIdent(b)\nNumLit(10)\nBinExpr(<):exit\n"];
-loc3_2_156_1[label="ForStmt:exit\nBlockStmt:exit\nUpdateExpr(++):enter\nIdent(a)\nUpdateExpr(++):exit\n"];
-loc3_30_156_0[label="BlockStmt:enter\nIfStmt:enter\nBinExpr(>):enter\nIdent(b)\nNumLit(3)\nBinExpr(>):exit\n"];
-loc4_15_156_0[label="BlockStmt:enter\nContStmt:enter\nIdent(LabelA)\nContStmt:exit\n"];
-loc4_4_156_1[label="IfStmt:exit\nBlockStmt:exit\nUpdateExpr(++):enter\nIdent(b)\nUpdateExpr(++):exit\n"];
-loc6_6_156_0[label="ExprStmt:enter\nIdent(c)\nExprStmt:exit\nBlockStmt:exit\n"];
-loc0->loc2_16_54 [xlabel="",color="black"];
-loc2_16_54->loc2_23_156_0 [xlabel="",color="black"];
-loc2_23_156_0->loc2_36_156_0 [xlabel="",color="black"];
-loc2_23_156_0->loc2_8_156_1 [xlabel="F",color="orange"];
-loc2_36_156_0->loc3_17_156_0 [xlabel="",color="black"];
-loc2_8_156_1->final [xlabel="",color="black"];
-loc3_17_156_0->loc3_2_156_1 [xlabel="F",color="orange"];
-loc3_17_156_0->loc3_30_156_0 [xlabel="",color="black"];
-loc3_2_156_1:s->loc2_23_156_0:ne [xlabel="L",color="orange"];
-loc3_30_156_0->loc4_15_156_0 [xlabel="",color="black"];
-loc3_30_156_0->loc4_4_156_1 [xlabel="F",color="orange"];
-loc4_15_156_0:s->loc2_16_54:ne [xlabel="L",color="orange"];
-loc4_15_156_0->loc6_6_156_0 [xlabel="",color="red"];
-loc4_4_156_1:s->loc3_17_156_0:ne [xlabel="L",color="orange"];
-loc6_6_156_0->loc4_4_156_1 [xlabel="",color="red"];
-initial->loc0 [xlabel="",color="black"];
+b0[label="Prog:enter\nLabelStmt:enter\nIdent(LabelA)\nForStmt:enter\nVarDecStmt:enter\nVarDec:enter\nIdent(a)\nNumLit(1)\nVarDec:exit\nVarDecStmt:exit\n"];
+b14[label="BinExpr(<):enter\nIdent(a)\nNumLit(10)\nBinExpr(<):exit\n"];
+b20[label="UpdateExpr(++):enter\nIdent(a)\nUpdateExpr(++):exit\n"];
+b24[label="BlockStmt:enter\nForStmt:enter\nVarDecStmt:enter\nVarDec:enter\nIdent(b)\nIdent(a)\nVarDec:exit\nVarDecStmt:exit\n"];
+b35[label="BinExpr(<):enter\nIdent(b)\nNumLit(10)\nBinExpr(<):exit\n"];
+b45[label="BlockStmt:enter\nContStmt:enter\nIdent(LabelA)\nContStmt:exit\n"];
+b51[label="ExprStmt:enter\nIdent(c)\nExprStmt:exit\nBlockStmt:exit\nUpdateExpr(++):enter\nIdent(b)\nUpdateExpr(++):exit\n"];
+b56[label="ForStmt:exit\nBlockStmt:exit\n"];
+b59[label="ForStmt:exit\nLabelStmt:exit\nProg:exit\n"];
+b0->b14 [xlabel="",color="black"];
+b14->b24 [xlabel="",color="black"];
+b14->b59 [xlabel="F",color="orange"];
+b20:s->b14:ne [xlabel="L",color="orange"];
+b24->b35 [xlabel="",color="black"];
+b35->b45 [xlabel="",color="black"];
+b35->b56 [xlabel="F",color="orange"];
+b45:s->b20:ne [xlabel="L",color="orange"];
+b45->b51 [xlabel="",color="red"];
+b51:s->b35:ne [xlabel="L",color="red"];
+b56->b20 [xlabel="",color="black"];
+b59->final [xlabel="",color="black"];
+initial->b0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
+}
+
+func TestCtrlflow_ContinueForNoUpdate(t *testing.T) {
+	ast, symtab, err := compile(`
+LabelA: for (let a = 1; a < 10; ) {
+  for (let b = a; b < 10; b++) {
+    continue LabelA
+    c
+  }
+}
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b0[label="Prog:enter\nLabelStmt:enter\nIdent(LabelA)\nForStmt:enter\nVarDecStmt:enter\nVarDec:enter\nIdent(a)\nNumLit(1)\nVarDec:exit\nVarDecStmt:exit\n"];
+b14[label="BinExpr(<):enter\nIdent(a)\nNumLit(10)\nBinExpr(<):exit\n"];
+b20[label="BlockStmt:enter\nForStmt:enter\nVarDecStmt:enter\nVarDec:enter\nIdent(b)\nIdent(a)\nVarDec:exit\nVarDecStmt:exit\n"];
+b31[label="BinExpr(<):enter\nIdent(b)\nNumLit(10)\nBinExpr(<):exit\n"];
+b41[label="BlockStmt:enter\nContStmt:enter\nIdent(LabelA)\nContStmt:exit\n"];
+b47[label="ExprStmt:enter\nIdent(c)\nExprStmt:exit\nBlockStmt:exit\nUpdateExpr(++):enter\nIdent(b)\nUpdateExpr(++):exit\n"];
+b52[label="ForStmt:exit\nBlockStmt:exit\n"];
+b55[label="ForStmt:exit\nLabelStmt:exit\nProg:exit\n"];
+b0->b14 [xlabel="",color="black"];
+b14->b20 [xlabel="",color="black"];
+b14->b55 [xlabel="F",color="orange"];
+b20->b31 [xlabel="",color="black"];
+b31->b41 [xlabel="",color="black"];
+b31->b52 [xlabel="F",color="orange"];
+b41:s->b14:ne [xlabel="L",color="orange"];
+b41->b47 [xlabel="",color="red"];
+b47:s->b31:ne [xlabel="L",color="red"];
+b52:s->b14:ne [xlabel="L",color="orange"];
+b55->final [xlabel="",color="black"];
+initial->b0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
+}
+
+func TestCtrlflow_ContinueForNoTest(t *testing.T) {
+	ast, symtab, err := compile(`
+LabelA: for (let a = 1; ; ) {
+  for (let b = a; b < 10; b++) {
+    continue LabelA
+    c
+  }
+}
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b0[label="Prog:enter\nLabelStmt:enter\nIdent(LabelA)\nForStmt:enter\nVarDecStmt:enter\nVarDec:enter\nIdent(a)\nNumLit(1)\nVarDec:exit\nVarDecStmt:exit\n"];
+b14[label="BlockStmt:enter\nForStmt:enter\nVarDecStmt:enter\nVarDec:enter\nIdent(b)\nIdent(a)\nVarDec:exit\nVarDecStmt:exit\n"];
+b25[label="BinExpr(<):enter\nIdent(b)\nNumLit(10)\nBinExpr(<):exit\n"];
+b35[label="BlockStmt:enter\nContStmt:enter\nIdent(LabelA)\nContStmt:exit\n"];
+b41[label="ExprStmt:enter\nIdent(c)\nExprStmt:exit\nBlockStmt:exit\nUpdateExpr(++):enter\nIdent(b)\nUpdateExpr(++):exit\n"];
+b46[label="ForStmt:exit\nBlockStmt:exit\n"];
+b49[label="ForStmt:exit\nLabelStmt:exit\nProg:exit\n"];
+b0->b14 [xlabel="",color="black"];
+b14->b25 [xlabel="",color="black"];
+b25->b35 [xlabel="",color="black"];
+b25->b46 [xlabel="F",color="orange"];
+b35:s->b14:ne [xlabel="L",color="orange"];
+b35->b41 [xlabel="",color="red"];
+b41:s->b25:ne [xlabel="L",color="red"];
+b46:s->b14:ne [xlabel="L",color="orange"];
+b46->b49 [xlabel="",color="red"];
+b49->final [xlabel="",color="red"];
+initial->b0 [xlabel="",color="black"];
 }
 `, ana.Graph().Dot(), "should be ok")
 }
 
 func TestCtrlflow_ForIn(t *testing.T) {
 	ast, symtab, err := compile(`
-for(a in b) {
+for (a in b) {
     c
 }
   `, nil)
@@ -989,23 +1401,23 @@ node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsi
 edge[fontname="Consolas",fontsize=10]
 initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
 final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
-loc0[label="Prog:enter\nForInOfStmt:enter\n"];
-loc2_0_156_1[label="ForInOfStmt:exit\nProg:exit\n"];
-loc2_12_156_0[label="BlockStmt:enter\nExprStmt:enter\nIdent(c)\nExprStmt:exit\nBlockStmt:exit\n"];
-loc2_4_54[label="Ident(a)\nIdent(b)\n"];
-loc0->loc2_4_54 [xlabel="",color="black"];
-loc2_0_156_1->final [xlabel="",color="black"];
-loc2_12_156_0:s->loc2_4_54:ne [xlabel="L",color="orange"];
-loc2_4_54->loc2_0_156_1 [xlabel="F",color="orange"];
-loc2_4_54->loc2_12_156_0 [xlabel="",color="black"];
-initial->loc0 [xlabel="",color="black"];
+b0[label="Prog:enter\nForInOfStmt:enter\n"];
+b12[label="ForInOfStmt:exit\nProg:exit\n"];
+b4[label="Ident(a)\nIdent(b)\n"];
+b6[label="BlockStmt:enter\nExprStmt:enter\nIdent(c)\nExprStmt:exit\nBlockStmt:exit\n"];
+b0->b4 [xlabel="",color="black"];
+b12->final [xlabel="",color="black"];
+b4->b12 [xlabel="F",color="orange"];
+b4->b6 [xlabel="",color="black"];
+b6:s->b4:ne [xlabel="L",color="orange"];
+initial->b0 [xlabel="",color="black"];
 }
 `, ana.Graph().Dot(), "should be ok")
 }
 
 func TestCtrlflow_ForInLet(t *testing.T) {
 	ast, symtab, err := compile(`
-for(let a in b) {
+for (let a in b) {
     c
 }
   `, nil)
@@ -1020,16 +1432,16 @@ node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsi
 edge[fontname="Consolas",fontsize=10]
 initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
 final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
-loc0[label="Prog:enter\nForInOfStmt:enter\n"];
-loc2_0_156_1[label="ForInOfStmt:exit\nProg:exit\n"];
-loc2_16_156_0[label="BlockStmt:enter\nExprStmt:enter\nIdent(c)\nExprStmt:exit\nBlockStmt:exit\n"];
-loc2_4_156_0[label="VarDecStmt:enter\nVarDec:enter\nIdent(a)\nVarDec:exit\nVarDecStmt:exit\nIdent(b)\n"];
-loc0->loc2_4_156_0 [xlabel="",color="black"];
-loc2_0_156_1->final [xlabel="",color="black"];
-loc2_16_156_0:s->loc2_4_156_0:ne [xlabel="L",color="orange"];
-loc2_4_156_0->loc2_0_156_1 [xlabel="F",color="orange"];
-loc2_4_156_0->loc2_16_156_0 [xlabel="",color="black"];
-initial->loc0 [xlabel="",color="black"];
+b0[label="Prog:enter\nForInOfStmt:enter\n"];
+b12[label="BlockStmt:enter\nExprStmt:enter\nIdent(c)\nExprStmt:exit\nBlockStmt:exit\n"];
+b18[label="ForInOfStmt:exit\nProg:exit\n"];
+b4[label="VarDecStmt:enter\nVarDec:enter\nIdent(a)\nVarDec:exit\nVarDecStmt:exit\nIdent(b)\n"];
+b0->b4 [xlabel="",color="black"];
+b12:s->b4:ne [xlabel="L",color="orange"];
+b18->final [xlabel="",color="black"];
+b4->b12 [xlabel="",color="black"];
+b4->b18 [xlabel="F",color="orange"];
+initial->b0 [xlabel="",color="black"];
 }
 `, ana.Graph().Dot(), "should be ok")
 }
@@ -1058,34 +1470,34 @@ node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsi
 edge[fontname="Consolas",fontsize=10]
 initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
 final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
-loc0[label="Prog:enter\nExprStmt:enter\nIdent(s)\nExprStmt:exit\nLabelStmt:enter\nForInOfStmt:enter\n"];
-loc3_12_54[label="Ident(a)\nIdent(b)\n"];
-loc3_20_156_0[label="BlockStmt:enter\nForInOfStmt:enter\n"];
-loc3_8_156_1[label="ForInOfStmt:exit\nLabelStmt:exit\nProg:exit\n"];
-loc4_14_156_0[label="BlockStmt:enter\nIfStmt:enter\nBinExpr(&&):enter\nIdent(e)\n"];
-loc4_2_156_1[label="ForInOfStmt:exit\nExprStmt:enter\nIdent(h)\nExprStmt:exit\nBlockStmt:exit\n"];
-loc4_6_54[label="Ident(c)\nIdent(d)\n"];
-loc5_13_54[label="Ident(f)\nBinExpr(&&):exit\n"];
-loc5_16_156_0[label="BlockStmt:enter\nContStmt:enter\nIdent(LabelA)\nContStmt:exit\n"];
-loc5_16_156_1[label="BlockStmt:exit\n"];
-loc5_4_156_1[label="IfStmt:exit\nExprStmt:enter\nIdent(g)\nExprStmt:exit\nBlockStmt:exit\n"];
-loc0->loc3_12_54 [xlabel="",color="black"];
-loc3_12_54->loc3_20_156_0 [xlabel="",color="black"];
-loc3_12_54->loc3_8_156_1 [xlabel="F",color="orange"];
-loc3_20_156_0->loc4_6_54 [xlabel="",color="black"];
-loc3_8_156_1->final [xlabel="",color="black"];
-loc4_14_156_0->loc5_13_54 [xlabel="",color="black"];
-loc4_14_156_0->loc5_4_156_1 [xlabel="F",color="orange"];
-loc4_2_156_1:s->loc3_12_54:ne [xlabel="L",color="orange"];
-loc4_6_54->loc4_14_156_0 [xlabel="",color="black"];
-loc4_6_54->loc4_2_156_1 [xlabel="F",color="orange"];
-loc5_13_54->loc5_16_156_0 [xlabel="",color="black"];
-loc5_13_54->loc5_4_156_1 [xlabel="F",color="orange"];
-loc5_16_156_0:s->loc3_12_54:ne [xlabel="L",color="orange"];
-loc5_16_156_0->loc5_16_156_1 [xlabel="",color="red"];
-loc5_16_156_1->loc5_4_156_1 [xlabel="",color="red"];
-loc5_4_156_1:s->loc4_6_54:ne [xlabel="L",color="orange"];
-initial->loc0 [xlabel="",color="black"];
+b0[label="Prog:enter\nExprStmt:enter\nIdent(s)\nExprStmt:exit\nLabelStmt:enter\nIdent(LabelA)\nForInOfStmt:enter\n"];
+b11[label="BlockStmt:enter\nForInOfStmt:enter\n"];
+b14[label="Ident(c)\nIdent(d)\n"];
+b16[label="BlockStmt:enter\nIfStmt:enter\nBinExpr(&&):enter\nIdent(e)\n"];
+b21[label="Ident(f)\nBinExpr(&&):exit\n"];
+b25[label="BlockStmt:enter\nContStmt:enter\nIdent(LabelA)\nContStmt:exit\n"];
+b31[label="BlockStmt:exit\n"];
+b33[label="IfStmt:exit\nExprStmt:enter\nIdent(g)\nExprStmt:exit\nBlockStmt:exit\n"];
+b38[label="ForInOfStmt:exit\nExprStmt:enter\nIdent(h)\nExprStmt:exit\nBlockStmt:exit\n"];
+b43[label="ForInOfStmt:exit\nLabelStmt:exit\nProg:exit\n"];
+b9[label="Ident(a)\nIdent(b)\n"];
+b0->b9 [xlabel="",color="black"];
+b11->b14 [xlabel="",color="black"];
+b14->b16 [xlabel="",color="black"];
+b14->b38 [xlabel="F",color="orange"];
+b16->b21 [xlabel="",color="black"];
+b16->b33 [xlabel="F",color="orange"];
+b21->b25 [xlabel="",color="black"];
+b21->b33 [xlabel="F",color="orange"];
+b25->b31 [xlabel="",color="red"];
+b25:s->b9:ne [xlabel="L",color="orange"];
+b31->b33 [xlabel="",color="red"];
+b33:s->b14:ne [xlabel="L",color="orange"];
+b38:s->b9:ne [xlabel="L",color="orange"];
+b43->final [xlabel="",color="black"];
+b9->b11 [xlabel="",color="black"];
+b9->b43 [xlabel="F",color="orange"];
+initial->b0 [xlabel="",color="black"];
 }
 `, ana.Graph().Dot(), "should be ok")
 }
@@ -1093,7 +1505,10 @@ initial->loc0 [xlabel="",color="black"];
 func TestCtrlflow_ContinueNoLabel(t *testing.T) {
 	ast, symtab, err := compile(`
 while(a) {
-  if (a > 10) continue;
+  if (a > 10) {
+    continue;
+    b
+  }
   a--
 }
   `, nil)
@@ -1108,22 +1523,24 @@ node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsi
 edge[fontname="Consolas",fontsize=10]
 initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
 final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
-loc0[label="Prog:enter\nWhileStmt:enter\n"];
-loc2_0_156_1[label="WhileStmt:exit\nProg:exit\n"];
-loc2_6_54[label="Ident(a)\n"];
-loc2_9_156_0[label="BlockStmt:enter\nIfStmt:enter\nBinExpr(>):enter\nIdent(a)\nNumLit(10)\nBinExpr(>):exit\n"];
-loc3_14_156_0[label="ContStmt:enter\nContStmt:exit\n"];
-loc3_2_156_1[label="IfStmt:exit\nExprStmt:enter\nUpdateExpr(--):enter\nIdent(a)\nUpdateExpr(--):exit\nExprStmt:exit\nBlockStmt:exit\n"];
-loc0->loc2_6_54 [xlabel="",color="black"];
-loc2_0_156_1->final [xlabel="",color="black"];
-loc2_6_54->loc2_0_156_1 [xlabel="F",color="orange"];
-loc2_6_54->loc2_9_156_0 [xlabel="",color="black"];
-loc2_9_156_0->loc3_14_156_0 [xlabel="",color="black"];
-loc2_9_156_0->loc3_2_156_1 [xlabel="F",color="orange"];
-loc3_14_156_0:s->loc2_6_54:ne [xlabel="L",color="orange"];
-loc3_14_156_0->loc3_2_156_1 [xlabel="",color="red"];
-loc3_2_156_1:s->loc2_6_54:ne [xlabel="L",color="orange"];
-initial->loc0 [xlabel="",color="black"];
+b0[label="Prog:enter\nWhileStmt:enter\n"];
+b14[label="BlockStmt:enter\nContStmt:enter\nContStmt:exit\n"];
+b19[label="ExprStmt:enter\nIdent(b)\nExprStmt:exit\nBlockStmt:exit\n"];
+b24[label="IfStmt:exit\nExprStmt:enter\nUpdateExpr(--):enter\nIdent(a)\nUpdateExpr(--):exit\nExprStmt:exit\nBlockStmt:exit\n"];
+b33[label="WhileStmt:exit\nProg:exit\n"];
+b4[label="Ident(a)\n"];
+b5[label="BlockStmt:enter\nIfStmt:enter\nBinExpr(>):enter\nIdent(a)\nNumLit(10)\nBinExpr(>):exit\n"];
+b0->b4 [xlabel="",color="black"];
+b14->b19 [xlabel="",color="red"];
+b14:s->b4:ne [xlabel="L",color="orange"];
+b19->b24 [xlabel="",color="red"];
+b24:s->b4:ne [xlabel="L",color="orange"];
+b33->final [xlabel="",color="black"];
+b4->b33 [xlabel="F",color="orange"];
+b4->b5 [xlabel="",color="black"];
+b5->b14 [xlabel="",color="black"];
+b5->b24 [xlabel="F",color="orange"];
+initial->b0 [xlabel="",color="black"];
 }
 `, ana.Graph().Dot(), "should be ok")
 }
@@ -1146,29 +1563,29 @@ node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsi
 edge[fontname="Consolas",fontsize=10]
 initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
 final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
-loc0[label="Prog:enter\nWhileStmt:enter\n"];
-loc2_0_156_1[label="WhileStmt:exit\nProg:exit\n"];
-loc2_6_54[label="Ident(a)\n"];
-loc2_9_156_0[label="BlockStmt:enter\nIfStmt:enter\nBinExpr(>):enter\nIdent(a)\nNumLit(10)\nBinExpr(>):exit\n"];
-loc3_14_156_0[label="BrkStmt:enter\nBrkStmt:exit\n"];
-loc3_2_156_1[label="IfStmt:exit\nExprStmt:enter\nUpdateExpr(--):enter\nIdent(a)\nUpdateExpr(--):exit\nExprStmt:exit\nBlockStmt:exit\n"];
-loc0->loc2_6_54 [xlabel="",color="black"];
-loc2_0_156_1->final [xlabel="",color="black"];
-loc2_6_54->loc2_0_156_1 [xlabel="F",color="orange"];
-loc2_6_54->loc2_9_156_0 [xlabel="",color="black"];
-loc2_9_156_0->loc3_14_156_0 [xlabel="",color="black"];
-loc2_9_156_0->loc3_2_156_1 [xlabel="F",color="orange"];
-loc3_14_156_0->loc2_0_156_1 [xlabel="U",color="orange"];
-loc3_14_156_0->loc3_2_156_1 [xlabel="",color="red"];
-loc3_2_156_1:s->loc2_6_54:ne [xlabel="L",color="orange"];
-initial->loc0 [xlabel="",color="black"];
+b0[label="Prog:enter\nWhileStmt:enter\n"];
+b14[label="BrkStmt:enter\nBrkStmt:exit\n"];
+b18[label="IfStmt:exit\nExprStmt:enter\nUpdateExpr(--):enter\nIdent(a)\nUpdateExpr(--):exit\nExprStmt:exit\nBlockStmt:exit\n"];
+b27[label="WhileStmt:exit\nProg:exit\n"];
+b4[label="Ident(a)\n"];
+b5[label="BlockStmt:enter\nIfStmt:enter\nBinExpr(>):enter\nIdent(a)\nNumLit(10)\nBinExpr(>):exit\n"];
+b0->b4 [xlabel="",color="black"];
+b14->b18 [xlabel="",color="red"];
+b14->b27 [xlabel="U",color="orange"];
+b18:s->b4:ne [xlabel="L",color="orange"];
+b27->final [xlabel="",color="black"];
+b4->b27 [xlabel="F",color="orange"];
+b4->b5 [xlabel="",color="black"];
+b5->b14 [xlabel="",color="black"];
+b5->b18 [xlabel="F",color="orange"];
+initial->b0 [xlabel="",color="black"];
 }
 `, ana.Graph().Dot(), "should be ok")
 }
 
 func TestCtrlflow_BreakNoLabelFor(t *testing.T) {
 	ast, symtab, err := compile(`
-for (;a;) {
+for (; a; ) {
   if (a > 10) {
     break;
     c
@@ -1187,24 +1604,24 @@ node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsi
 edge[fontname="Consolas",fontsize=10]
 initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
 final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
-loc0[label="Prog:enter\nForStmt:enter\n"];
-loc2_0_156_1[label="ForStmt:exit\nProg:exit\n"];
-loc2_10_156_0[label="BlockStmt:enter\nIfStmt:enter\nBinExpr(>):enter\nIdent(a)\nNumLit(10)\nBinExpr(>):exit\n"];
-loc2_6_54[label="Ident(a)\n"];
-loc3_14_156_0[label="BlockStmt:enter\nBrkStmt:enter\nBrkStmt:exit\n"];
-loc3_2_156_1[label="IfStmt:exit\nExprStmt:enter\nUpdateExpr(--):enter\nIdent(a)\nUpdateExpr(--):exit\nExprStmt:exit\nBlockStmt:exit\n"];
-loc5_4_156_0[label="ExprStmt:enter\nIdent(c)\nExprStmt:exit\nBlockStmt:exit\n"];
-loc0->loc2_6_54 [xlabel="",color="black"];
-loc2_0_156_1->final [xlabel="",color="black"];
-loc2_10_156_0->loc3_14_156_0 [xlabel="",color="black"];
-loc2_10_156_0->loc3_2_156_1 [xlabel="F",color="orange"];
-loc2_6_54->loc2_0_156_1 [xlabel="F",color="orange"];
-loc2_6_54->loc2_10_156_0 [xlabel="",color="black"];
-loc3_14_156_0->loc2_0_156_1 [xlabel="U",color="orange"];
-loc3_14_156_0->loc5_4_156_0 [xlabel="",color="red"];
-loc3_2_156_1:s->loc2_6_54:ne [xlabel="L",color="orange"];
-loc5_4_156_0->loc3_2_156_1 [xlabel="",color="red"];
-initial->loc0 [xlabel="",color="black"];
+b0[label="Prog:enter\nForStmt:enter\n"];
+b14[label="BlockStmt:enter\nBrkStmt:enter\nBrkStmt:exit\n"];
+b18[label="ExprStmt:enter\nIdent(c)\nExprStmt:exit\nBlockStmt:exit\n"];
+b23[label="IfStmt:exit\nExprStmt:enter\nUpdateExpr(--):enter\nIdent(a)\nUpdateExpr(--):exit\nExprStmt:exit\nBlockStmt:exit\n"];
+b32[label="ForStmt:exit\nProg:exit\n"];
+b4[label="Ident(a)\n"];
+b5[label="BlockStmt:enter\nIfStmt:enter\nBinExpr(>):enter\nIdent(a)\nNumLit(10)\nBinExpr(>):exit\n"];
+b0->b4 [xlabel="",color="black"];
+b14->b18 [xlabel="",color="red"];
+b14->b32 [xlabel="U",color="orange"];
+b18->b23 [xlabel="",color="red"];
+b23:s->b4:ne [xlabel="L",color="orange"];
+b32->final [xlabel="",color="black"];
+b4->b32 [xlabel="F",color="orange"];
+b4->b5 [xlabel="",color="black"];
+b5->b14 [xlabel="",color="black"];
+b5->b23 [xlabel="F",color="orange"];
+initial->b0 [xlabel="",color="black"];
 }
 `, ana.Graph().Dot(), "should be ok")
 }
@@ -1212,7 +1629,7 @@ initial->loc0 [xlabel="",color="black"];
 func TestCtrlflow_BreakLabelWhile(t *testing.T) {
 	ast, symtab, err := compile(`
   LabelA: while(a) {
-    for(;b;) {
+    for( ; b; ) {
       break LabelA
       c
     }
@@ -1229,26 +1646,26 @@ node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsi
 edge[fontname="Consolas",fontsize=10]
 initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
 final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
-loc0[label="Prog:enter\nLabelStmt:enter\nWhileStmt:enter\n"];
-loc2_10_156_1[label="WhileStmt:exit\nLabelStmt:exit\nProg:exit\n"];
-loc2_16_54[label="Ident(a)\n"];
-loc2_19_156_0[label="BlockStmt:enter\nForStmt:enter\n"];
-loc3_13_156_0[label="BlockStmt:enter\nBrkStmt:enter\nIdent(LabelA)\nBrkStmt:exit\n"];
-loc3_4_156_1[label="ForStmt:exit\nBlockStmt:exit\n"];
-loc3_9_54[label="Ident(b)\n"];
-loc5_6_156_0[label="ExprStmt:enter\nIdent(c)\nExprStmt:exit\nBlockStmt:exit\n"];
-loc0->loc2_16_54 [xlabel="",color="black"];
-loc2_10_156_1->final [xlabel="",color="black"];
-loc2_16_54->loc2_10_156_1 [xlabel="F",color="orange"];
-loc2_16_54->loc2_19_156_0 [xlabel="",color="black"];
-loc2_19_156_0->loc3_9_54 [xlabel="",color="black"];
-loc3_13_156_0->loc2_10_156_1 [xlabel="U",color="orange"];
-loc3_13_156_0->loc5_6_156_0 [xlabel="",color="red"];
-loc3_4_156_1:s->loc2_16_54:ne [xlabel="L",color="orange"];
-loc3_9_54->loc3_13_156_0 [xlabel="",color="black"];
-loc3_9_54->loc3_4_156_1 [xlabel="F",color="orange"];
-loc5_6_156_0:s->loc3_9_54:ne [xlabel="L",color="red"];
-initial->loc0 [xlabel="",color="black"];
+b0[label="Prog:enter\nLabelStmt:enter\nIdent(LabelA)\nWhileStmt:enter\n"];
+b10[label="Ident(b)\n"];
+b11[label="BlockStmt:enter\nBrkStmt:enter\nIdent(LabelA)\nBrkStmt:exit\n"];
+b16[label="ExprStmt:enter\nIdent(c)\nExprStmt:exit\nBlockStmt:exit\n"];
+b21[label="ForStmt:exit\nBlockStmt:exit\n"];
+b24[label="WhileStmt:exit\nLabelStmt:exit\nProg:exit\n"];
+b6[label="Ident(a)\n"];
+b7[label="BlockStmt:enter\nForStmt:enter\n"];
+b0->b6 [xlabel="",color="black"];
+b10->b11 [xlabel="",color="black"];
+b10->b21 [xlabel="F",color="orange"];
+b11->b16 [xlabel="",color="red"];
+b11->b24 [xlabel="U",color="orange"];
+b16:s->b10:ne [xlabel="L",color="red"];
+b21:s->b6:ne [xlabel="L",color="orange"];
+b24->final [xlabel="",color="black"];
+b6->b24 [xlabel="F",color="orange"];
+b6->b7 [xlabel="",color="black"];
+b7->b10 [xlabel="",color="black"];
+initial->b0 [xlabel="",color="black"];
 }
 `, ana.Graph().Dot(), "should be ok")
 }
@@ -1273,26 +1690,26 @@ node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsi
 edge[fontname="Consolas",fontsize=10]
 initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
 final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
-loc0[label="Prog:enter\nLabelStmt:enter\nWhileStmt:enter\n"];
-loc2_10_156_1[label="WhileStmt:exit\nLabelStmt:exit\nProg:exit\n"];
-loc2_16_54[label="Ident(a)\n"];
-loc2_19_156_0[label="BlockStmt:enter\nForStmt:enter\n"];
-loc3_13_156_0[label="BlockStmt:enter\nBrkStmt:enter\nBrkStmt:exit\n"];
-loc3_4_156_1[label="ForStmt:exit\nBlockStmt:exit\n"];
-loc3_9_54[label="Ident(b)\n"];
-loc5_6_156_0[label="ExprStmt:enter\nIdent(c)\nExprStmt:exit\nBlockStmt:exit\n"];
-loc0->loc2_16_54 [xlabel="",color="black"];
-loc2_10_156_1->final [xlabel="",color="black"];
-loc2_16_54->loc2_10_156_1 [xlabel="F",color="orange"];
-loc2_16_54->loc2_19_156_0 [xlabel="",color="black"];
-loc2_19_156_0->loc3_9_54 [xlabel="",color="black"];
-loc3_13_156_0->loc3_4_156_1 [xlabel="U",color="orange"];
-loc3_13_156_0->loc5_6_156_0 [xlabel="",color="red"];
-loc3_4_156_1:s->loc2_16_54:ne [xlabel="L",color="orange"];
-loc3_9_54->loc3_13_156_0 [xlabel="",color="black"];
-loc3_9_54->loc3_4_156_1 [xlabel="F",color="orange"];
-loc5_6_156_0:s->loc3_9_54:ne [xlabel="L",color="red"];
-initial->loc0 [xlabel="",color="black"];
+b0[label="Prog:enter\nLabelStmt:enter\nIdent(LabelA)\nWhileStmt:enter\n"];
+b10[label="Ident(b)\n"];
+b11[label="BlockStmt:enter\nBrkStmt:enter\nBrkStmt:exit\n"];
+b15[label="ExprStmt:enter\nIdent(c)\nExprStmt:exit\nBlockStmt:exit\n"];
+b20[label="ForStmt:exit\nBlockStmt:exit\n"];
+b23[label="WhileStmt:exit\nLabelStmt:exit\nProg:exit\n"];
+b6[label="Ident(a)\n"];
+b7[label="BlockStmt:enter\nForStmt:enter\n"];
+b0->b6 [xlabel="",color="black"];
+b10->b11 [xlabel="",color="black"];
+b10->b20 [xlabel="F",color="orange"];
+b11->b15 [xlabel="",color="red"];
+b11->b20 [xlabel="U",color="orange"];
+b15:s->b10:ne [xlabel="L",color="red"];
+b20:s->b6:ne [xlabel="L",color="orange"];
+b23->final [xlabel="",color="black"];
+b6->b23 [xlabel="F",color="orange"];
+b6->b7 [xlabel="",color="black"];
+b7->b10 [xlabel="",color="black"];
+initial->b0 [xlabel="",color="black"];
 }
 `, ana.Graph().Dot(), "should be ok")
 }
@@ -1312,9 +1729,9 @@ node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsi
 edge[fontname="Consolas",fontsize=10]
 initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
 final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
-loc0[label="Prog:enter\nExprStmt:enter\nCallExpr:enter\nIdent(fn)\nCallExpr:exit\nExprStmt:exit\nProg:exit\n"];
-loc0->final [xlabel="",color="black"];
-initial->loc0 [xlabel="",color="black"];
+b0[label="Prog:enter\nExprStmt:enter\nCallExpr:enter\nIdent(fn)\nCallExpr:exit\nExprStmt:exit\nProg:exit\n"];
+b0->final [xlabel="",color="black"];
+initial->b0 [xlabel="",color="black"];
 }
 `, ana.Graph().Dot(), "should be ok")
 }
@@ -1334,14 +1751,14 @@ node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsi
 edge[fontname="Consolas",fontsize=10]
 initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
 final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
-loc0[label="Prog:enter\nExprStmt:enter\nCallExpr:enter\nIdent(fn)\nNumLit(1)\nNumLit(2)\nBinExpr(&&):enter\nIdent(a)\n"];
-loc2_16_54[label="Ident(b)\nBinExpr(&&):exit\n"];
-loc2_2_156_1[label="CallExpr:exit\nExprStmt:exit\nProg:exit\n"];
-loc0->loc2_16_54 [xlabel="",color="black"];
-loc0->loc2_2_156_1 [xlabel="F",color="orange"];
-loc2_16_54->loc2_2_156_1 [xlabel="",color="black"];
-loc2_2_156_1->final [xlabel="",color="black"];
-initial->loc0 [xlabel="",color="black"];
+b0[label="Prog:enter\nExprStmt:enter\nCallExpr:enter\nIdent(fn)\nNumLit(1)\nNumLit(2)\nBinExpr(&&):enter\nIdent(a)\n"];
+b10[label="Ident(b)\nBinExpr(&&):exit\n"];
+b14[label="CallExpr:exit\nExprStmt:exit\nProg:exit\n"];
+b0->b10 [xlabel="",color="black"];
+b0->b14 [xlabel="F",color="orange"];
+b10->b14 [xlabel="",color="black"];
+b14->final [xlabel="",color="black"];
+initial->b0 [xlabel="",color="black"];
 }
 `, ana.Graph().Dot(), "should be ok")
 }
@@ -1361,22 +1778,22 @@ node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsi
 edge[fontname="Consolas",fontsize=10]
 initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
 final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
-loc0[label="Prog:enter\nExprStmt:enter\nCallExpr:enter\nIdent(fn)\nNumLit(1)\nBinExpr(||):enter\nIdent(a)\n"];
-loc2_13_156_0[label="BinExpr(&&):enter\nIdent(b)\n"];
-loc2_18_54[label="Ident(c)\nBinExpr(&&):exit\nBinExpr(||):exit\n"];
-loc2_21_156_0[label="BinExpr(&&):enter\nIdent(d)\n"];
-loc2_26_54[label="Ident(e)\nBinExpr(&&):exit\n"];
-loc2_2_156_1[label="CallExpr:exit\nExprStmt:exit\nProg:exit\n"];
-loc0->loc2_13_156_0 [xlabel="",color="black"];
-loc0->loc2_21_156_0 [xlabel="T",color="orange"];
-loc2_13_156_0->loc2_18_54 [xlabel="",color="black"];
-loc2_13_156_0->loc2_21_156_0 [xlabel="F",color="orange"];
-loc2_18_54->loc2_21_156_0 [xlabel="",color="black"];
-loc2_21_156_0->loc2_26_54 [xlabel="",color="black"];
-loc2_21_156_0->loc2_2_156_1 [xlabel="F",color="orange"];
-loc2_26_54->loc2_2_156_1 [xlabel="",color="black"];
-loc2_2_156_1->final [xlabel="",color="black"];
-initial->loc0 [xlabel="",color="black"];
+b0[label="Prog:enter\nExprStmt:enter\nCallExpr:enter\nIdent(fn)\nNumLit(1)\nBinExpr(||):enter\nIdent(a)\n"];
+b11[label="Ident(c)\nBinExpr(&&):exit\nBinExpr(||):exit\n"];
+b18[label="BinExpr(&&):enter\nIdent(d)\n"];
+b20[label="Ident(e)\nBinExpr(&&):exit\n"];
+b24[label="CallExpr:exit\nExprStmt:exit\nProg:exit\n"];
+b9[label="BinExpr(&&):enter\nIdent(b)\n"];
+b0->b18 [xlabel="T",color="orange"];
+b0->b9 [xlabel="",color="black"];
+b11->b18 [xlabel="",color="black"];
+b18->b20 [xlabel="",color="black"];
+b18->b24 [xlabel="F",color="orange"];
+b20->b24 [xlabel="",color="black"];
+b24->final [xlabel="",color="black"];
+b9->b11 [xlabel="",color="black"];
+b9->b18 [xlabel="F",color="orange"];
+initial->b0 [xlabel="",color="black"];
 }
 `, ana.Graph().Dot(), "should be ok")
 }
@@ -1396,14 +1813,14 @@ node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsi
 edge[fontname="Consolas",fontsize=10]
 initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
 final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
-loc0[label="Prog:enter\nVarDecStmt:enter\nVarDec:enter\nIdent(foo)\nBinExpr(??):enter\nNullLit\n"];
-loc2_22_31[label="StrLit\nBinExpr(??):exit\n"];
-loc2_8_156_1[label="VarDec:exit\nVarDecStmt:exit\nProg:exit\n"];
-loc0->loc2_22_31 [xlabel="",color="black"];
-loc0->loc2_8_156_1 [xlabel="T",color="orange"];
-loc2_22_31->loc2_8_156_1 [xlabel="",color="black"];
-loc2_8_156_1->final [xlabel="",color="black"];
-initial->loc0 [xlabel="",color="black"];
+b0[label="Prog:enter\nVarDecStmt:enter\nVarDec:enter\nIdent(foo)\nBinExpr(??):enter\nNullLit\n"];
+b12[label="VarDec:exit\nVarDecStmt:exit\nProg:exit\n"];
+b8[label="StrLit\nBinExpr(??):exit\n"];
+b0->b12 [xlabel="T",color="orange"];
+b0->b8 [xlabel="",color="black"];
+b12->final [xlabel="",color="black"];
+b8->b12 [xlabel="",color="black"];
+initial->b0 [xlabel="",color="black"];
 }
 `, ana.Graph().Dot(), "should be ok")
 }
@@ -1424,9 +1841,9 @@ node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsi
 edge[fontname="Consolas",fontsize=10]
 initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
 final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
-loc0[label="Prog:enter\nFnDec\nProg:exit\n"];
-loc0->final [xlabel="",color="black"];
-initial->loc0 [xlabel="",color="black"];
+b0[label="Prog:enter\nFnDec\nProg:exit\n"];
+b0->final [xlabel="",color="black"];
+initial->b0 [xlabel="",color="black"];
 }
 `, ana.Graph().Dot(), "should be ok")
 }
@@ -1451,9 +1868,9 @@ node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsi
 edge[fontname="Consolas",fontsize=10]
 initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
 final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
-loc2_0_156_0[label="FnDec:enter\nIdent(f)\nBlockStmt:enter\nExprStmt:enter\nIdent(a)\nExprStmt:exit\nBlockStmt:exit\nFnDec:exit\n"];
-loc2_0_156_0->final [xlabel="",color="black"];
-initial->loc2_0_156_0 [xlabel="",color="black"];
+b9[label="FnDec:enter\nIdent(f)\nBlockStmt:enter\nExprStmt:enter\nIdent(a)\nExprStmt:exit\nBlockStmt:exit\nFnDec:exit\n"];
+b9->final [xlabel="",color="black"];
+initial->b9 [xlabel="",color="black"];
 }
 `, fnGraph.Dot(), "should be ok")
 }
@@ -1480,14 +1897,14 @@ node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsi
 edge[fontname="Consolas",fontsize=10]
 initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
 final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
-loc2_0_156_0[label="FnDec:enter\nIdent(f)\nBlockStmt:enter\nExprStmt:enter\nIdent(a)\nExprStmt:exit\nRetStmt:enter\nRetStmt:exit\n"];
-loc2_0_156_1[label="FnDec:exit\n"];
-loc5_2_156_0[label="ExprStmt:enter\nIdent(b)\nExprStmt:exit\nBlockStmt:exit\n"];
-loc2_0_156_0->loc2_0_156_1 [xlabel="U",color="orange"];
-loc2_0_156_0->loc5_2_156_0 [xlabel="",color="red"];
-loc2_0_156_1->final [xlabel="",color="black"];
-loc5_2_156_0->loc2_0_156_1 [xlabel="",color="red"];
-initial->loc2_0_156_0 [xlabel="",color="black"];
+b10[label="ExprStmt:enter\nIdent(b)\nExprStmt:exit\nBlockStmt:exit\n"];
+b14[label="FnDec:enter\nIdent(f)\nBlockStmt:enter\nExprStmt:enter\nIdent(a)\nExprStmt:exit\nRetStmt:enter\nRetStmt:exit\n"];
+b15[label="FnDec:exit\n"];
+b10->b15 [xlabel="",color="red"];
+b14->b10 [xlabel="",color="red"];
+b14->b15 [xlabel="U",color="orange"];
+b15->final [xlabel="",color="black"];
+initial->b14 [xlabel="",color="black"];
 }
 `, fnGraph.Dot(), "should be ok")
 }
@@ -1514,19 +1931,19 @@ node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsi
 edge[fontname="Consolas",fontsize=10]
 initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
 final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
-loc2_0_156_0[label="FnDec:enter\nIdent(f)\nBlockStmt:enter\nExprStmt:enter\nIdent(a)\nExprStmt:exit\nRetStmt:enter\nBinExpr(??):enter\nIdent(a)\n"];
-loc2_0_156_1[label="FnDec:exit\n"];
-loc4_14_54[label="Ident(b)\nBinExpr(??):exit\n"];
-loc4_2_156_1[label="RetStmt:exit\n"];
-loc5_2_156_0[label="ExprStmt:enter\nIdent(c)\nExprStmt:exit\nBlockStmt:exit\n"];
-loc2_0_156_0->loc4_14_54 [xlabel="",color="black"];
-loc2_0_156_0->loc4_2_156_1 [xlabel="T",color="orange"];
-loc2_0_156_1->final [xlabel="",color="black"];
-loc4_14_54->loc4_2_156_1 [xlabel="",color="black"];
-loc4_2_156_1->loc2_0_156_1 [xlabel="U",color="orange"];
-loc4_2_156_1->loc5_2_156_0 [xlabel="",color="red"];
-loc5_2_156_0->loc2_0_156_1 [xlabel="",color="red"];
-initial->loc2_0_156_0 [xlabel="",color="black"];
+b11[label="Ident(b)\nBinExpr(??):exit\n"];
+b15[label="RetStmt:exit\n"];
+b16[label="ExprStmt:enter\nIdent(c)\nExprStmt:exit\nBlockStmt:exit\n"];
+b20[label="FnDec:enter\nIdent(f)\nBlockStmt:enter\nExprStmt:enter\nIdent(a)\nExprStmt:exit\nRetStmt:enter\nBinExpr(??):enter\nIdent(a)\n"];
+b21[label="FnDec:exit\n"];
+b11->b15 [xlabel="",color="black"];
+b15->b16 [xlabel="",color="red"];
+b15->b21 [xlabel="U",color="orange"];
+b16->b21 [xlabel="",color="red"];
+b20->b11 [xlabel="",color="black"];
+b20->b15 [xlabel="T",color="orange"];
+b21->final [xlabel="",color="black"];
+initial->b20 [xlabel="",color="black"];
 }
 `, fnGraph.Dot(), "should be ok")
 }
@@ -1540,18 +1957,6 @@ function f(a, b) {}
 	ana := NewAnalysis(ast, symtab)
 	ana.Analyze()
 
-	AssertEqualString(t, `
-digraph G {
-node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
-edge[fontname="Consolas",fontsize=10]
-initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
-final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
-loc0[label="Prog:enter\nFnDec\nProg:exit\n"];
-loc0->final [xlabel="",color="black"];
-initial->loc0 [xlabel="",color="black"];
-}
-  `, ana.Graph().Dot(), "global should be ok")
-
 	fn := ast.(*parser.Prog).Body()[0]
 	fnGraph := ana.AnalysisCtx().GraphOf(fn)
 
@@ -1561,11 +1966,11 @@ node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsi
 edge[fontname="Consolas",fontsize=10]
 initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
 final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
-loc2_0_156_0[label="FnDec:enter\nIdent(f)\nIdent(a)\nIdent(b)\nBlockStmt:enter\nBlockStmt:exit\nFnDec:exit\n"];
-loc2_0_156_0->final [xlabel="",color="black"];
-initial->loc2_0_156_0 [xlabel="",color="black"];
+b8[label="FnDec:enter\nIdent(f)\nIdent(a)\nIdent(b)\nBlockStmt:enter\nBlockStmt:exit\nFnDec:exit\n"];
+b8->final [xlabel="",color="black"];
+initial->b8 [xlabel="",color="black"];
 }
-`, fnGraph.Dot(), "fn should be ok")
+`, fnGraph.Dot(), "should be ok")
 }
 
 func TestCtrlflow_FnExpr(t *testing.T) {
@@ -1577,18 +1982,6 @@ fn = function f(a, b) { c }
 	ana := NewAnalysis(ast, symtab)
 	ana.Analyze()
 
-	AssertEqualString(t, `
-digraph G {
-node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
-edge[fontname="Consolas",fontsize=10]
-initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
-final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
-loc0[label="Prog:enter\nExprStmt:enter\nAssignExpr:enter\nIdent(fn)\nFnDec\nAssignExpr:exit\nExprStmt:exit\nProg:exit\n"];
-loc0->final [xlabel="",color="black"];
-initial->loc0 [xlabel="",color="black"];
-}
-    `, ana.Graph().Dot(), "global should be ok")
-
 	fn := ast.(*parser.Prog).Body()[0].(*parser.ExprStmt).Expr().(*parser.AssignExpr).Rhs()
 	fnGraph := ana.AnalysisCtx().GraphOf(fn)
 
@@ -1598,9 +1991,9 @@ node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsi
 edge[fontname="Consolas",fontsize=10]
 initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
 final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
-loc2_5_156_0[label="FnDec:enter\nIdent(f)\nIdent(a)\nIdent(b)\nBlockStmt:enter\nExprStmt:enter\nIdent(c)\nExprStmt:exit\nBlockStmt:exit\nFnDec:exit\n"];
-loc2_5_156_0->final [xlabel="",color="black"];
-initial->loc2_5_156_0 [xlabel="",color="black"];
+b11[label="FnDec:enter\nIdent(f)\nIdent(a)\nIdent(b)\nBlockStmt:enter\nExprStmt:enter\nIdent(c)\nExprStmt:exit\nBlockStmt:exit\nFnDec:exit\n"];
+b11->final [xlabel="",color="black"];
+initial->b11 [xlabel="",color="black"];
 }
 	`, fnGraph.Dot(), "should be ok")
 }
@@ -1620,14 +2013,14 @@ node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsi
 edge[fontname="Consolas",fontsize=10]
 initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
 final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
-loc0[label="Prog:enter\nExprStmt:enter\nAssignExpr:enter\nIdent(a)\nArrLit:enter\nIdent(b)\nIdent(c)\nBinExpr(??):enter\nIdent(d)\n"];
-loc2_16_54[label="Ident(e)\nBinExpr(??):exit\n"];
-loc2_4_156_1[label="ArrLit:exit\nAssignExpr:exit\nExprStmt:exit\nProg:exit\n"];
-loc0->loc2_16_54 [xlabel="",color="black"];
-loc0->loc2_4_156_1 [xlabel="T",color="orange"];
-loc2_16_54->loc2_4_156_1 [xlabel="",color="black"];
-loc2_4_156_1->final [xlabel="",color="black"];
-initial->loc0 [xlabel="",color="black"];
+b0[label="Prog:enter\nExprStmt:enter\nAssignExpr:enter\nIdent(a)\nArrLit:enter\nIdent(b)\nIdent(c)\nBinExpr(??):enter\nIdent(d)\n"];
+b11[label="Ident(e)\nBinExpr(??):exit\n"];
+b15[label="ArrLit:exit\nAssignExpr:exit\nExprStmt:exit\nProg:exit\n"];
+b0->b11 [xlabel="",color="black"];
+b0->b15 [xlabel="T",color="orange"];
+b11->b15 [xlabel="",color="black"];
+b15->final [xlabel="",color="black"];
+initial->b0 [xlabel="",color="black"];
 }
 `, ana.Graph().Dot(), "should be ok")
 }
@@ -1647,9 +2040,9 @@ node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsi
 edge[fontname="Consolas",fontsize=10]
 initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
 final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
-loc0[label="Prog:enter\nExprStmt:enter\nAssignExpr:enter\nIdent(a)\nObjLit:enter\nProp:enter\nIdent(b)\nNumLit(1)\nProp:exit\nProp:enter\nIdent(c)\nIdent(d)\nProp:exit\nObjLit:exit\nAssignExpr:exit\nExprStmt:exit\nProg:exit\n"];
-loc0->final [xlabel="",color="black"];
-initial->loc0 [xlabel="",color="black"];
+b0[label="Prog:enter\nExprStmt:enter\nAssignExpr:enter\nIdent(a)\nObjLit:enter\nProp:enter\nIdent(b)\nNumLit(1)\nProp:exit\nProp:enter\nIdent(c)\nIdent(d)\nProp:exit\nObjLit:exit\nAssignExpr:exit\nExprStmt:exit\nProg:exit\n"];
+b0->final [xlabel="",color="black"];
+initial->b0 [xlabel="",color="black"];
 }
 `, ana.Graph().Dot(), "should be ok")
 }
@@ -1669,9 +2062,9 @@ node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsi
 edge[fontname="Consolas",fontsize=10]
 initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
 final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
-loc0[label="Prog:enter\nExprStmt:enter\nAssignExpr:enter\nIdent(a)\nObjLit:enter\nProp:enter\nIdent(b)\nObjLit:enter\nProp:enter\nIdent(c)\nNumLit(1)\nProp:exit\nObjLit:exit\nProp:exit\nObjLit:exit\nAssignExpr:exit\nExprStmt:exit\nProg:exit\n"];
-loc0->final [xlabel="",color="black"];
-initial->loc0 [xlabel="",color="black"];
+b0[label="Prog:enter\nExprStmt:enter\nAssignExpr:enter\nIdent(a)\nObjLit:enter\nProp:enter\nIdent(b)\nObjLit:enter\nProp:enter\nIdent(c)\nNumLit(1)\nProp:exit\nObjLit:exit\nProp:exit\nObjLit:exit\nAssignExpr:exit\nExprStmt:exit\nProg:exit\n"];
+b0->final [xlabel="",color="black"];
+initial->b0 [xlabel="",color="black"];
 }
 `, ana.Graph().Dot(), "should be ok")
 }
@@ -1685,18 +2078,6 @@ a = { b: function (a, b) {} }
 	ana := NewAnalysis(ast, symtab)
 	ana.Analyze()
 
-	AssertEqualString(t, `
-digraph G {
-node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
-edge[fontname="Consolas",fontsize=10]
-initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
-final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
-loc0[label="Prog:enter\nExprStmt:enter\nAssignExpr:enter\nIdent(a)\nObjLit:enter\nProp:enter\nIdent(b)\nFnDec\nProp:exit\nObjLit:exit\nAssignExpr:exit\nExprStmt:exit\nProg:exit\n"];
-loc0->final [xlabel="",color="black"];
-initial->loc0 [xlabel="",color="black"];
-}
-	`, ana.Graph().Dot(), "global should be ok")
-
 	rhs := ast.(*parser.Prog).Body()[0].(*parser.ExprStmt).Expr().(*parser.AssignExpr).Rhs().(*parser.ObjLit)
 	fn := rhs.Props()[0].(*parser.Prop).Val()
 	fnGraph := ana.AnalysisCtx().GraphOf(fn)
@@ -1707,9 +2088,9 @@ node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsi
 edge[fontname="Consolas",fontsize=10]
 initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
 final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
-loc2_9_156_0[label="FnDec:enter\nIdent(a)\nIdent(b)\nBlockStmt:enter\nBlockStmt:exit\nFnDec:exit\n"];
-loc2_9_156_0->final [xlabel="",color="black"];
-initial->loc2_9_156_0 [xlabel="",color="black"];
+b7[label="FnDec:enter\nIdent(a)\nIdent(b)\nBlockStmt:enter\nBlockStmt:exit\nFnDec:exit\n"];
+b7->final [xlabel="",color="black"];
+initial->b7 [xlabel="",color="black"];
 }
 `, fnGraph.Dot(), "fn should be ok")
 
@@ -1731,9 +2112,9 @@ node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsi
 edge[fontname="Consolas",fontsize=10]
 initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
 final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
-loc0[label="Prog:enter\nExprStmt:enter\nIdent(a)\nExprStmt:exit\nProg:exit\n"];
-loc0->final [xlabel="",color="black"];
-initial->loc0 [xlabel="",color="black"];
+b0[label="Prog:enter\nExprStmt:enter\nIdent(a)\nExprStmt:exit\nProg:exit\n"];
+b0->final [xlabel="",color="black"];
+initial->b0 [xlabel="",color="black"];
 }
 `, ana.Graph().Dot(), "should be ok")
 }
@@ -1754,9 +2135,9 @@ node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsi
 edge[fontname="Consolas",fontsize=10]
 initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
 final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
-loc0[label="Prog:enter\nExprStmt:enter\nIdent(a)\nExprStmt:exit\nDebugStmt\nProg:exit\n"];
-loc0->final [xlabel="",color="black"];
-initial->loc0 [xlabel="",color="black"];
+b0[label="Prog:enter\nExprStmt:enter\nIdent(a)\nExprStmt:exit\nDebugStmt\nProg:exit\n"];
+b0->final [xlabel="",color="black"];
+initial->b0 [xlabel="",color="black"];
 }
 `, ana.Graph().Dot(), "should be ok")
 }
@@ -1777,9 +2158,9 @@ node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsi
 edge[fontname="Consolas",fontsize=10]
 initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
 final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
-loc0[label="Prog:enter\nExprStmt:enter\nAssignExpr:enter\nIdent(a)\nNullLit\nAssignExpr:exit\nExprStmt:exit\nExprStmt:enter\nNullLit\nExprStmt:exit\nProg:exit\n"];
-loc0->final [xlabel="",color="black"];
-initial->loc0 [xlabel="",color="black"];
+b0[label="Prog:enter\nExprStmt:enter\nAssignExpr:enter\nIdent(a)\nNullLit\nAssignExpr:exit\nExprStmt:exit\nExprStmt:enter\nNullLit\nExprStmt:exit\nProg:exit\n"];
+b0->final [xlabel="",color="black"];
+initial->b0 [xlabel="",color="black"];
 }
 `, ana.Graph().Dot(), "should be ok")
 }
@@ -1800,9 +2181,9 @@ node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsi
 edge[fontname="Consolas",fontsize=10]
 initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
 final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
-loc0[label="Prog:enter\nExprStmt:enter\nAssignExpr:enter\nIdent(a)\nBoolLit\nAssignExpr:exit\nExprStmt:exit\nExprStmt:enter\nBoolLit\nExprStmt:exit\nProg:exit\n"];
-loc0->final [xlabel="",color="black"];
-initial->loc0 [xlabel="",color="black"];
+b0[label="Prog:enter\nExprStmt:enter\nAssignExpr:enter\nIdent(a)\nBoolLit\nAssignExpr:exit\nExprStmt:exit\nExprStmt:enter\nBoolLit\nExprStmt:exit\nProg:exit\n"];
+b0->final [xlabel="",color="black"];
+initial->b0 [xlabel="",color="black"];
 }
 `, ana.Graph().Dot(), "should be ok")
 }
@@ -1823,9 +2204,9 @@ node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsi
 edge[fontname="Consolas",fontsize=10]
 initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
 final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
-loc0[label="Prog:enter\nExprStmt:enter\nAssignExpr:enter\nIdent(a)\nNumLit(1)\nAssignExpr:exit\nExprStmt:exit\nExprStmt:enter\nNumLit(1.1)\nExprStmt:exit\nProg:exit\n"];
-loc0->final [xlabel="",color="black"];
-initial->loc0 [xlabel="",color="black"];
+b0[label="Prog:enter\nExprStmt:enter\nAssignExpr:enter\nIdent(a)\nNumLit(1)\nAssignExpr:exit\nExprStmt:exit\nExprStmt:enter\nNumLit(1.1)\nExprStmt:exit\nProg:exit\n"];
+b0->final [xlabel="",color="black"];
+initial->b0 [xlabel="",color="black"];
 }
 `, ana.Graph().Dot(), "should be ok")
 }
@@ -1846,9 +2227,9 @@ node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsi
 edge[fontname="Consolas",fontsize=10]
 initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
 final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
-loc0[label="Prog:enter\nExprStmt:enter\nAssignExpr:enter\nIdent(a)\nStrLit\nAssignExpr:exit\nExprStmt:exit\nExprStmt:enter\nStrLit\nExprStmt:exit\nProg:exit\n"];
-loc0->final [xlabel="",color="black"];
-initial->loc0 [xlabel="",color="black"];
+b0[label="Prog:enter\nExprStmt:enter\nAssignExpr:enter\nIdent(a)\nStrLit\nAssignExpr:exit\nExprStmt:exit\nExprStmt:enter\nStrLit\nExprStmt:exit\nProg:exit\n"];
+b0->final [xlabel="",color="black"];
+initial->b0 [xlabel="",color="black"];
 }
 `, ana.Graph().Dot(), "should be ok")
 }
@@ -1869,9 +2250,9 @@ node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsi
 edge[fontname="Consolas",fontsize=10]
 initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
 final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
-loc0[label="Prog:enter\nExprStmt:enter\nAssignExpr:enter\nIdent(a)\nArrLit:enter\nNumLit(1)\nNumLit(2)\nNumLit(3)\nArrLit:exit\nAssignExpr:exit\nExprStmt:exit\nExprStmt:enter\nArrLit:enter\nNumLit(1)\nNumLit(2)\nNumLit(3)\nArrLit:exit\nExprStmt:exit\nProg:exit\n"];
-loc0->final [xlabel="",color="black"];
-initial->loc0 [xlabel="",color="black"];
+b0[label="Prog:enter\nExprStmt:enter\nAssignExpr:enter\nIdent(a)\nArrLit:enter\nNumLit(1)\nNumLit(2)\nNumLit(3)\nArrLit:exit\nAssignExpr:exit\nExprStmt:exit\nExprStmt:enter\nArrLit:enter\nNumLit(1)\nNumLit(2)\nNumLit(3)\nArrLit:exit\nExprStmt:exit\nProg:exit\n"];
+b0->final [xlabel="",color="black"];
+initial->b0 [xlabel="",color="black"];
 }
 `, ana.Graph().Dot(), "should be ok")
 }
@@ -1891,9 +2272,9 @@ node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsi
 edge[fontname="Consolas",fontsize=10]
 initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
 final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
-loc0[label="Prog:enter\nExprStmt:enter\nAssignExpr:enter\nIdent(a)\nArrLit:enter\nNumLit(1)\nNumLit(2)\nArrLit:enter\nNumLit(4)\nNumLit(5)\nNumLit(6)\nArrLit:exit\nArrLit:exit\nAssignExpr:exit\nExprStmt:exit\nProg:exit\n"];
-loc0->final [xlabel="",color="black"];
-initial->loc0 [xlabel="",color="black"];
+b0[label="Prog:enter\nExprStmt:enter\nAssignExpr:enter\nIdent(a)\nArrLit:enter\nNumLit(1)\nNumLit(2)\nArrLit:enter\nNumLit(4)\nNumLit(5)\nNumLit(6)\nArrLit:exit\nArrLit:exit\nAssignExpr:exit\nExprStmt:exit\nProg:exit\n"];
+b0->final [xlabel="",color="black"];
+initial->b0 [xlabel="",color="black"];
 }
 `, ana.Graph().Dot(), "should be ok")
 }
@@ -1914,9 +2295,9 @@ node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsi
 edge[fontname="Consolas",fontsize=10]
 initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
 final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
-loc0[label="Prog:enter\nExprStmt:enter\nAssignExpr:enter\nIdent(a)\nObjLit:enter\nProp:enter\nIdent(b)\nObjLit:enter\nProp:enter\nIdent(c)\nNumLit(1)\nProp:exit\nObjLit:exit\nProp:exit\nObjLit:exit\nAssignExpr:exit\nExprStmt:exit\nExprStmt:enter\nParenExpr:enter\nObjLit:enter\nProp:enter\nIdent(b)\nObjLit:enter\nProp:enter\nIdent(c)\nNumLit(1)\nProp:exit\nObjLit:exit\nProp:exit\nObjLit:exit\nParenExpr:exit\nExprStmt:exit\nProg:exit\n"];
-loc0->final [xlabel="",color="black"];
-initial->loc0 [xlabel="",color="black"];
+b0[label="Prog:enter\nExprStmt:enter\nAssignExpr:enter\nIdent(a)\nObjLit:enter\nProp:enter\nIdent(b)\nObjLit:enter\nProp:enter\nIdent(c)\nNumLit(1)\nProp:exit\nObjLit:exit\nProp:exit\nObjLit:exit\nAssignExpr:exit\nExprStmt:exit\nExprStmt:enter\nParenExpr:enter\nObjLit:enter\nProp:enter\nIdent(b)\nObjLit:enter\nProp:enter\nIdent(c)\nNumLit(1)\nProp:exit\nObjLit:exit\nProp:exit\nObjLit:exit\nParenExpr:exit\nExprStmt:exit\nProg:exit\n"];
+b0->final [xlabel="",color="black"];
+initial->b0 [xlabel="",color="black"];
 }
 `, ana.Graph().Dot(), "should be ok")
 }
@@ -1936,14 +2317,14 @@ node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsi
 edge[fontname="Consolas",fontsize=10]
 initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
 final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
-loc0[label="Prog:enter\nExprStmt:enter\nAssignExpr:enter\nIdent(a)\nObjLit:enter\nProp:enter\nIdent(b)\nObjLit:enter\nProp:enter\nIdent(c)\nNumLit(1)\nProp:exit\nProp:enter\nIdent(d)\nArrLit:enter\nNumLit(1)\nObjLit:enter\nProp:enter\nIdent(f)\nNumLit(2)\nProp:exit\nObjLit:exit\nArrLit:exit\nProp:exit\nObjLit:exit\nProp:exit\nObjLit:exit\nAssignExpr:exit\nExprStmt:exit\nProg:exit\n"];
-loc0->final [xlabel="",color="black"];
-initial->loc0 [xlabel="",color="black"];
+b0[label="Prog:enter\nExprStmt:enter\nAssignExpr:enter\nIdent(a)\nObjLit:enter\nProp:enter\nIdent(b)\nObjLit:enter\nProp:enter\nIdent(c)\nNumLit(1)\nProp:exit\nProp:enter\nIdent(d)\nArrLit:enter\nNumLit(1)\nObjLit:enter\nProp:enter\nIdent(f)\nNumLit(2)\nProp:exit\nObjLit:exit\nArrLit:exit\nProp:exit\nObjLit:exit\nProp:exit\nObjLit:exit\nAssignExpr:exit\nExprStmt:exit\nProg:exit\n"];
+b0->final [xlabel="",color="black"];
+initial->b0 [xlabel="",color="black"];
 }
 `, ana.Graph().Dot(), "should be ok")
 }
 
-func TestCtrlflow_LitRexexp(t *testing.T) {
+func TestCtrlflow_LitRegexp(t *testing.T) {
 	ast, symtab, err := compile(`
 a = /reg/;
   `, nil)
@@ -1958,9 +2339,9 @@ node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsi
 edge[fontname="Consolas",fontsize=10]
 initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
 final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
-loc0[label="Prog:enter\nExprStmt:enter\nAssignExpr:enter\nIdent(a)\nRegLit\nAssignExpr:exit\nExprStmt:exit\nProg:exit\n"];
-loc0->final [xlabel="",color="black"];
-initial->loc0 [xlabel="",color="black"];
+b0[label="Prog:enter\nExprStmt:enter\nAssignExpr:enter\nIdent(a)\nRegLit\nAssignExpr:exit\nExprStmt:exit\nProg:exit\n"];
+b0->final [xlabel="",color="black"];
+initial->b0 [xlabel="",color="black"];
 }
 `, ana.Graph().Dot(), "should be ok")
 }
@@ -1985,26 +2366,26 @@ node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsi
 edge[fontname="Consolas",fontsize=10]
 initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
 final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
-loc0[label="Prog:enter\nSwitchStmt:enter\nIdent(a)\nSwitchCase:enter\nNumLit(1)\n"];
-loc3_10_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth1)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
-loc4_10_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth2)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
-loc4_2_156_0[label="SwitchCase:enter\nNumLit(2)\n"];
-loc5_10_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth3)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
-loc5_2_156_0[label="SwitchCase:enter\nNumLit(3)\n"];
-loc6_11_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSthDefault)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\nSwitchStmt:exit\nProg:exit\n"];
-loc6_2_156_0[label="SwitchCase:enter\n"];
-loc0->loc3_10_156_0 [xlabel="",color="black"];
-loc0->loc4_2_156_0 [xlabel="F",color="orange"];
-loc3_10_156_0->loc4_10_156_0 [xlabel="",color="black"];
-loc4_10_156_0->loc5_10_156_0 [xlabel="",color="black"];
-loc4_2_156_0->loc4_10_156_0 [xlabel="",color="black"];
-loc4_2_156_0->loc5_2_156_0 [xlabel="F",color="orange"];
-loc5_10_156_0->loc6_11_156_0 [xlabel="",color="black"];
-loc5_2_156_0->loc5_10_156_0 [xlabel="",color="black"];
-loc5_2_156_0->loc6_2_156_0 [xlabel="F",color="orange"];
-loc6_11_156_0->final [xlabel="",color="black"];
-loc6_2_156_0->loc6_11_156_0 [xlabel="",color="black"];
-initial->loc0 [xlabel="",color="black"];
+b0[label="Prog:enter\nSwitchStmt:enter\nIdent(a)\nSwitchCase:enter\nNumLit(1)\n"];
+b19[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth2)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
+b28[label="SwitchCase:enter\nNumLit(2)\n"];
+b32[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth3)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
+b41[label="SwitchCase:enter\nNumLit(3)\n"];
+b45[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSthDefault)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\nSwitchStmt:exit\nProg:exit\n"];
+b53[label="SwitchCase:enter\n"];
+b6[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth1)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
+b0->b28 [xlabel="F",color="orange"];
+b0->b6 [xlabel="",color="black"];
+b19->b32 [xlabel="",color="black"];
+b28->b19 [xlabel="",color="black"];
+b28->b41 [xlabel="F",color="orange"];
+b32->b45 [xlabel="",color="black"];
+b41->b32 [xlabel="",color="black"];
+b41->b53 [xlabel="F",color="orange"];
+b45->final [xlabel="",color="black"];
+b53->b45 [xlabel="",color="black"];
+b6->b19 [xlabel="",color="black"];
+initial->b0 [xlabel="",color="black"];
 }
 `, ana.Graph().Dot(), "should be ok")
 }
@@ -2032,26 +2413,26 @@ node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsi
 edge[fontname="Consolas",fontsize=10]
 initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
 final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
-loc0[label="Prog:enter\nSwitchStmt:enter\nIdent(a)\nSwitchCase:enter\nNumLit(1)\n"];
-loc3_10_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth1)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
-loc4_10_156_0[label="BlockStmt:enter\nExprStmt:enter\nCallExpr:enter\nIdent(doSth21)\nCallExpr:exit\nExprStmt:exit\nExprStmt:enter\nCallExpr:enter\nIdent(doSth22)\nCallExpr:exit\nExprStmt:exit\nBlockStmt:exit\nSwitchCase:exit\n"];
-loc4_2_156_0[label="SwitchCase:enter\nNumLit(2)\n"];
-loc8_10_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth3)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
-loc8_2_156_0[label="SwitchCase:enter\nNumLit(3)\n"];
-loc9_11_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSthDefault)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\nSwitchStmt:exit\nProg:exit\n"];
-loc9_2_156_0[label="SwitchCase:enter\n"];
-loc0->loc3_10_156_0 [xlabel="",color="black"];
-loc0->loc4_2_156_0 [xlabel="F",color="orange"];
-loc3_10_156_0->loc4_10_156_0 [xlabel="",color="black"];
-loc4_10_156_0->loc8_10_156_0 [xlabel="",color="black"];
-loc4_2_156_0->loc4_10_156_0 [xlabel="",color="black"];
-loc4_2_156_0->loc8_2_156_0 [xlabel="F",color="orange"];
-loc8_10_156_0->loc9_11_156_0 [xlabel="",color="black"];
-loc8_2_156_0->loc8_10_156_0 [xlabel="",color="black"];
-loc8_2_156_0->loc9_2_156_0 [xlabel="F",color="orange"];
-loc9_11_156_0->final [xlabel="",color="black"];
-loc9_2_156_0->loc9_11_156_0 [xlabel="",color="black"];
-initial->loc0 [xlabel="",color="black"];
+b0[label="Prog:enter\nSwitchStmt:enter\nIdent(a)\nSwitchCase:enter\nNumLit(1)\n"];
+b19[label="BlockStmt:enter\nExprStmt:enter\nCallExpr:enter\nIdent(doSth21)\nCallExpr:exit\nExprStmt:exit\nExprStmt:enter\nCallExpr:enter\nIdent(doSth22)\nCallExpr:exit\nExprStmt:exit\nBlockStmt:exit\nSwitchCase:exit\n"];
+b36[label="SwitchCase:enter\nNumLit(2)\n"];
+b40[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth3)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
+b49[label="SwitchCase:enter\nNumLit(3)\n"];
+b53[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSthDefault)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\nSwitchStmt:exit\nProg:exit\n"];
+b6[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth1)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
+b61[label="SwitchCase:enter\n"];
+b0->b36 [xlabel="F",color="orange"];
+b0->b6 [xlabel="",color="black"];
+b19->b40 [xlabel="",color="black"];
+b36->b19 [xlabel="",color="black"];
+b36->b49 [xlabel="F",color="orange"];
+b40->b53 [xlabel="",color="black"];
+b49->b40 [xlabel="",color="black"];
+b49->b61 [xlabel="F",color="orange"];
+b53->final [xlabel="",color="black"];
+b61->b53 [xlabel="",color="black"];
+b6->b19 [xlabel="",color="black"];
+initial->b0 [xlabel="",color="black"];
 }
 `, ana.Graph().Dot(), "should be ok")
 }
@@ -2079,26 +2460,26 @@ node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsi
 edge[fontname="Consolas",fontsize=10]
 initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
 final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
-loc0[label="Prog:enter\nSwitchStmt:enter\nIdent(a)\nSwitchCase:enter\nNumLit(1)\n"];
-loc3_2_156_1[label="SwitchCase:exit\n"];
-loc4_10_156_0[label="BlockStmt:enter\nExprStmt:enter\nCallExpr:enter\nIdent(doSth21)\nCallExpr:exit\nExprStmt:exit\nExprStmt:enter\nCallExpr:enter\nIdent(doSth22)\nCallExpr:exit\nExprStmt:exit\nBlockStmt:exit\nSwitchCase:exit\n"];
-loc4_2_156_0[label="SwitchCase:enter\nNumLit(2)\n"];
-loc8_10_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth3)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
-loc8_2_156_0[label="SwitchCase:enter\nNumLit(3)\n"];
-loc9_11_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSthDefault)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\nSwitchStmt:exit\nProg:exit\n"];
-loc9_2_156_0[label="SwitchCase:enter\n"];
-loc0->loc3_2_156_1 [xlabel="",color="black"];
-loc0->loc4_2_156_0 [xlabel="F",color="orange"];
-loc3_2_156_1->loc4_10_156_0 [xlabel="",color="black"];
-loc4_10_156_0->loc8_10_156_0 [xlabel="",color="black"];
-loc4_2_156_0->loc4_10_156_0 [xlabel="",color="black"];
-loc4_2_156_0->loc8_2_156_0 [xlabel="F",color="orange"];
-loc8_10_156_0->loc9_11_156_0 [xlabel="",color="black"];
-loc8_2_156_0->loc8_10_156_0 [xlabel="",color="black"];
-loc8_2_156_0->loc9_2_156_0 [xlabel="F",color="orange"];
-loc9_11_156_0->final [xlabel="",color="black"];
-loc9_2_156_0->loc9_11_156_0 [xlabel="",color="black"];
-initial->loc0 [xlabel="",color="black"];
+b0[label="Prog:enter\nSwitchStmt:enter\nIdent(a)\nSwitchCase:enter\nNumLit(1)\n"];
+b12[label="BlockStmt:enter\nExprStmt:enter\nCallExpr:enter\nIdent(doSth21)\nCallExpr:exit\nExprStmt:exit\nExprStmt:enter\nCallExpr:enter\nIdent(doSth22)\nCallExpr:exit\nExprStmt:exit\nBlockStmt:exit\nSwitchCase:exit\n"];
+b29[label="SwitchCase:enter\nNumLit(2)\n"];
+b33[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth3)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
+b42[label="SwitchCase:enter\nNumLit(3)\n"];
+b46[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSthDefault)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\nSwitchStmt:exit\nProg:exit\n"];
+b54[label="SwitchCase:enter\n"];
+b9[label="SwitchCase:exit\n"];
+b0->b29 [xlabel="F",color="orange"];
+b0->b9 [xlabel="",color="black"];
+b12->b33 [xlabel="",color="black"];
+b29->b12 [xlabel="",color="black"];
+b29->b42 [xlabel="F",color="orange"];
+b33->b46 [xlabel="",color="black"];
+b42->b33 [xlabel="",color="black"];
+b42->b54 [xlabel="F",color="orange"];
+b46->final [xlabel="",color="black"];
+b54->b46 [xlabel="",color="black"];
+b9->b12 [xlabel="",color="black"];
+initial->b0 [xlabel="",color="black"];
 }
 `, ana.Graph().Dot(), "should be ok")
 }
@@ -2122,21 +2503,21 @@ node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsi
 edge[fontname="Consolas",fontsize=10]
 initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
 final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
-loc0[label="Prog:enter\nSwitchStmt:enter\nIdent(a)\nSwitchCase:enter\n"];
-loc3_11_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSthDefault)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
-loc4_10_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth1)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
-loc4_2_156_0[label="SwitchCase:enter\nNumLit(1)\n"];
-loc5_10_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth2)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\nSwitchStmt:exit\nProg:exit\n"];
-loc5_2_156_0[label="SwitchCase:enter\nNumLit(2)\n"];
-loc0->loc4_2_156_0 [xlabel="",color="black"];
-loc3_11_156_0->loc4_10_156_0 [xlabel="",color="black"];
-loc4_10_156_0->loc5_10_156_0 [xlabel="",color="black"];
-loc4_2_156_0->loc4_10_156_0 [xlabel="",color="black"];
-loc4_2_156_0->loc5_2_156_0 [xlabel="F",color="orange"];
-loc5_10_156_0->final [xlabel="",color="black"];
-loc5_2_156_0->loc3_11_156_0 [xlabel="F",color="orange"];
-loc5_2_156_0->loc5_10_156_0 [xlabel="",color="black"];
-initial->loc0 [xlabel="",color="black"];
+b0[label="Prog:enter\nSwitchStmt:enter\nIdent(a)\nSwitchCase:enter\n"];
+b18[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth1)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
+b27[label="SwitchCase:enter\nNumLit(1)\n"];
+b31[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth2)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\nSwitchStmt:exit\nProg:exit\n"];
+b40[label="SwitchCase:enter\nNumLit(2)\n"];
+b6[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSthDefault)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
+b0->b27 [xlabel="",color="black"];
+b18->b31 [xlabel="",color="black"];
+b27->b18 [xlabel="",color="black"];
+b27->b40 [xlabel="F",color="orange"];
+b31->final [xlabel="",color="black"];
+b40->b31 [xlabel="",color="black"];
+b40->b6 [xlabel="F",color="orange"];
+b6->b18 [xlabel="",color="black"];
+initial->b0 [xlabel="",color="black"];
 }
 `, ana.Graph().Dot(), "should be ok")
 }
@@ -2161,26 +2542,26 @@ node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsi
 edge[fontname="Consolas",fontsize=10]
 initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
 final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
-loc0[label="Prog:enter\nSwitchStmt:enter\nIdent(a)\nSwitchCase:enter\nNumLit(1)\n"];
-loc3_10_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth1)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
-loc4_11_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSthDefault)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
-loc4_2_156_0[label="SwitchCase:enter\n"];
-loc5_10_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth2)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
-loc5_2_156_0[label="SwitchCase:enter\nNumLit(2)\n"];
-loc6_10_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth3)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\nSwitchStmt:exit\nProg:exit\n"];
-loc6_2_156_0[label="SwitchCase:enter\nNumLit(3)\n"];
-loc0->loc3_10_156_0 [xlabel="",color="black"];
-loc0->loc4_2_156_0 [xlabel="F",color="orange"];
-loc3_10_156_0->loc4_11_156_0 [xlabel="",color="black"];
-loc4_11_156_0->loc5_10_156_0 [xlabel="",color="black"];
-loc4_2_156_0->loc5_2_156_0 [xlabel="",color="black"];
-loc5_10_156_0->loc6_10_156_0 [xlabel="",color="black"];
-loc5_2_156_0->loc5_10_156_0 [xlabel="",color="black"];
-loc5_2_156_0->loc6_2_156_0 [xlabel="F",color="orange"];
-loc6_10_156_0->final [xlabel="",color="black"];
-loc6_2_156_0->loc4_11_156_0 [xlabel="F",color="orange"];
-loc6_2_156_0->loc6_10_156_0 [xlabel="",color="black"];
-initial->loc0 [xlabel="",color="black"];
+b0[label="Prog:enter\nSwitchStmt:enter\nIdent(a)\nSwitchCase:enter\nNumLit(1)\n"];
+b19[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSthDefault)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
+b27[label="SwitchCase:enter\n"];
+b31[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth2)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
+b40[label="SwitchCase:enter\nNumLit(2)\n"];
+b44[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth3)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\nSwitchStmt:exit\nProg:exit\n"];
+b53[label="SwitchCase:enter\nNumLit(3)\n"];
+b6[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth1)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
+b0->b27 [xlabel="F",color="orange"];
+b0->b6 [xlabel="",color="black"];
+b19->b31 [xlabel="",color="black"];
+b27->b40 [xlabel="",color="black"];
+b31->b44 [xlabel="",color="black"];
+b40->b31 [xlabel="",color="black"];
+b40->b53 [xlabel="F",color="orange"];
+b44->final [xlabel="",color="black"];
+b53->b19 [xlabel="F",color="orange"];
+b53->b44 [xlabel="",color="black"];
+b6->b19 [xlabel="",color="black"];
+initial->b0 [xlabel="",color="black"];
 }
 `, ana.Graph().Dot(), "should be ok")
 }
@@ -2205,26 +2586,26 @@ node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsi
 edge[fontname="Consolas",fontsize=10]
 initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
 final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
-loc0[label="Prog:enter\nSwitchStmt:enter\nIdent(a)\nSwitchCase:enter\nNumLit(1)\n"];
-loc3_2_156_1[label="SwitchCase:exit\n"];
-loc4_11_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSthDefault)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
-loc4_2_156_0[label="SwitchCase:enter\n"];
-loc5_10_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth2)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
-loc5_2_156_0[label="SwitchCase:enter\nNumLit(2)\n"];
-loc6_10_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth3)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\nSwitchStmt:exit\nProg:exit\n"];
-loc6_2_156_0[label="SwitchCase:enter\nNumLit(3)\n"];
-loc0->loc3_2_156_1 [xlabel="",color="black"];
-loc0->loc4_2_156_0 [xlabel="F",color="orange"];
-loc3_2_156_1->loc4_11_156_0 [xlabel="",color="black"];
-loc4_11_156_0->loc5_10_156_0 [xlabel="",color="black"];
-loc4_2_156_0->loc5_2_156_0 [xlabel="",color="black"];
-loc5_10_156_0->loc6_10_156_0 [xlabel="",color="black"];
-loc5_2_156_0->loc5_10_156_0 [xlabel="",color="black"];
-loc5_2_156_0->loc6_2_156_0 [xlabel="F",color="orange"];
-loc6_10_156_0->final [xlabel="",color="black"];
-loc6_2_156_0->loc4_11_156_0 [xlabel="F",color="orange"];
-loc6_2_156_0->loc6_10_156_0 [xlabel="",color="black"];
-initial->loc0 [xlabel="",color="black"];
+b0[label="Prog:enter\nSwitchStmt:enter\nIdent(a)\nSwitchCase:enter\nNumLit(1)\n"];
+b12[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSthDefault)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
+b20[label="SwitchCase:enter\n"];
+b24[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth2)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
+b33[label="SwitchCase:enter\nNumLit(2)\n"];
+b37[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth3)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\nSwitchStmt:exit\nProg:exit\n"];
+b46[label="SwitchCase:enter\nNumLit(3)\n"];
+b9[label="SwitchCase:exit\n"];
+b0->b20 [xlabel="F",color="orange"];
+b0->b9 [xlabel="",color="black"];
+b12->b24 [xlabel="",color="black"];
+b20->b33 [xlabel="",color="black"];
+b24->b37 [xlabel="",color="black"];
+b33->b24 [xlabel="",color="black"];
+b33->b46 [xlabel="F",color="orange"];
+b37->final [xlabel="",color="black"];
+b46->b12 [xlabel="F",color="orange"];
+b46->b37 [xlabel="",color="black"];
+b9->b12 [xlabel="",color="black"];
+initial->b0 [xlabel="",color="black"];
 }
 `, ana.Graph().Dot(), "should be ok")
 }
@@ -2248,27 +2629,29 @@ node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsi
 edge[fontname="Consolas",fontsize=10]
 initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
 final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
-loc0[label="Prog:enter\nSwitchStmt:enter\nIdent(a)\nSwitchCase:enter\nNumLit(1)\n"];
-loc2_0_156_1[label="SwitchStmt:exit\nProg:exit\n"];
-loc3_10_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth1)\nCallExpr:exit\nExprStmt:exit\nBrkStmt:enter\nBrkStmt:exit\n"];
-loc3_2_156_1[label="SwitchCase:exit\n"];
-loc4_10_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth2)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
-loc4_2_156_0[label="SwitchCase:enter\nNumLit(2)\n"];
-loc5_10_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth3)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
-loc5_2_156_0[label="SwitchCase:enter\nNumLit(3)\n"];
-loc0->loc3_10_156_0 [xlabel="",color="black"];
-loc0->loc4_2_156_0 [xlabel="F",color="orange"];
-loc2_0_156_1->final [xlabel="",color="black"];
-loc3_10_156_0->loc2_0_156_1 [xlabel="U",color="orange"];
-loc3_10_156_0->loc3_2_156_1 [xlabel="",color="red"];
-loc3_2_156_1->loc4_10_156_0 [xlabel="",color="red"];
-loc4_10_156_0->loc5_10_156_0 [xlabel="",color="black"];
-loc4_2_156_0->loc4_10_156_0 [xlabel="",color="black"];
-loc4_2_156_0->loc5_2_156_0 [xlabel="F",color="orange"];
-loc5_10_156_0->loc2_0_156_1 [xlabel="",color="black"];
-loc5_2_156_0->final [xlabel="F",color="orange"];
-loc5_2_156_0->loc5_10_156_0 [xlabel="",color="black"];
-initial->loc0 [xlabel="",color="black"];
+b0[label="Prog:enter\nSwitchStmt:enter\nIdent(a)\nSwitchCase:enter\nNumLit(1)\n"];
+b18[label="SwitchCase:exit\n"];
+b21[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth2)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
+b30[label="SwitchCase:enter\nNumLit(2)\n"];
+b34[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth3)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
+b43[label="SwitchCase:enter\nNumLit(3)\n"];
+b46[label="SwitchStmt:exit\n"];
+b47[label="Prog:exit\n"];
+b6[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth1)\nCallExpr:exit\nExprStmt:exit\nBrkStmt:enter\nBrkStmt:exit\n"];
+b0->b30 [xlabel="F",color="orange"];
+b0->b6 [xlabel="",color="black"];
+b18->b21 [xlabel="",color="red"];
+b21->b34 [xlabel="",color="black"];
+b30->b21 [xlabel="",color="black"];
+b30->b43 [xlabel="F",color="orange"];
+b34->b46 [xlabel="",color="black"];
+b43->b34 [xlabel="",color="black"];
+b43->b46 [xlabel="F",color="orange"];
+b46->b47 [xlabel="",color="black"];
+b47->final [xlabel="",color="black"];
+b6->b18 [xlabel="",color="red"];
+b6->b46 [xlabel="U",color="orange"];
+initial->b0 [xlabel="",color="black"];
 }
 `, ana.Graph().Dot(), "should be ok")
 }
@@ -2293,31 +2676,33 @@ node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsi
 edge[fontname="Consolas",fontsize=10]
 initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
 final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
-loc0[label="Prog:enter\nSwitchStmt:enter\nIdent(a)\nSwitchCase:enter\nNumLit(1)\n"];
-loc2_0_156_1[label="SwitchStmt:exit\nProg:exit\n"];
-loc3_10_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth1)\nCallExpr:exit\nExprStmt:exit\nBrkStmt:enter\nBrkStmt:exit\n"];
-loc3_2_156_1[label="SwitchCase:exit\n"];
-loc4_11_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSthDefault)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
-loc4_2_156_0[label="SwitchCase:enter\n"];
-loc5_10_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth2)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
-loc5_2_156_0[label="SwitchCase:enter\nNumLit(2)\n"];
-loc6_10_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth3)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
-loc6_2_156_0[label="SwitchCase:enter\nNumLit(3)\n"];
-loc0->loc3_10_156_0 [xlabel="",color="black"];
-loc0->loc4_2_156_0 [xlabel="F",color="orange"];
-loc2_0_156_1->final [xlabel="",color="black"];
-loc3_10_156_0->loc2_0_156_1 [xlabel="U",color="orange"];
-loc3_10_156_0->loc3_2_156_1 [xlabel="",color="red"];
-loc3_2_156_1->loc4_11_156_0 [xlabel="",color="red"];
-loc4_11_156_0->loc5_10_156_0 [xlabel="",color="black"];
-loc4_2_156_0->loc5_2_156_0 [xlabel="",color="black"];
-loc5_10_156_0->loc6_10_156_0 [xlabel="",color="black"];
-loc5_2_156_0->loc5_10_156_0 [xlabel="",color="black"];
-loc5_2_156_0->loc6_2_156_0 [xlabel="F",color="orange"];
-loc6_10_156_0->loc2_0_156_1 [xlabel="",color="black"];
-loc6_2_156_0->loc4_11_156_0 [xlabel="F",color="orange"];
-loc6_2_156_0->loc6_10_156_0 [xlabel="",color="black"];
-initial->loc0 [xlabel="",color="black"];
+b0[label="Prog:enter\nSwitchStmt:enter\nIdent(a)\nSwitchCase:enter\nNumLit(1)\n"];
+b18[label="SwitchCase:exit\n"];
+b21[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSthDefault)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
+b29[label="SwitchCase:enter\n"];
+b33[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth2)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
+b42[label="SwitchCase:enter\nNumLit(2)\n"];
+b46[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth3)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
+b55[label="SwitchCase:enter\nNumLit(3)\n"];
+b58[label="SwitchStmt:exit\n"];
+b59[label="Prog:exit\n"];
+b6[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth1)\nCallExpr:exit\nExprStmt:exit\nBrkStmt:enter\nBrkStmt:exit\n"];
+b0->b29 [xlabel="F",color="orange"];
+b0->b6 [xlabel="",color="black"];
+b18->b21 [xlabel="",color="red"];
+b21->b33 [xlabel="",color="black"];
+b29->b42 [xlabel="",color="black"];
+b33->b46 [xlabel="",color="black"];
+b42->b33 [xlabel="",color="black"];
+b42->b55 [xlabel="F",color="orange"];
+b46->b58 [xlabel="",color="black"];
+b55->b21 [xlabel="F",color="orange"];
+b55->b46 [xlabel="",color="black"];
+b58->b59 [xlabel="",color="black"];
+b59->final [xlabel="",color="black"];
+b6->b18 [xlabel="",color="red"];
+b6->b58 [xlabel="U",color="orange"];
+initial->b0 [xlabel="",color="black"];
 }
 `, ana.Graph().Dot(), "should be ok")
 }
@@ -2344,31 +2729,33 @@ node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsi
 edge[fontname="Consolas",fontsize=10]
 initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
 final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
-loc0[label="Prog:enter\nSwitchStmt:enter\nIdent(a)\nSwitchCase:enter\nNumLit(1)\n"];
-loc2_0_156_1[label="SwitchStmt:exit\nProg:exit\n"];
-loc3_10_156_0[label="BlockStmt:enter\nExprStmt:enter\nCallExpr:enter\nIdent(doSth1)\nCallExpr:exit\nExprStmt:exit\nBrkStmt:enter\nBrkStmt:exit\n"];
-loc3_10_156_1[label="BlockStmt:exit\nSwitchCase:exit\n"];
-loc6_11_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSthDefault)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
-loc6_2_156_0[label="SwitchCase:enter\n"];
-loc7_10_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth2)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
-loc7_2_156_0[label="SwitchCase:enter\nNumLit(2)\n"];
-loc8_10_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth3)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
-loc8_2_156_0[label="SwitchCase:enter\nNumLit(3)\n"];
-loc0->loc3_10_156_0 [xlabel="",color="black"];
-loc0->loc6_2_156_0 [xlabel="F",color="orange"];
-loc2_0_156_1->final [xlabel="",color="black"];
-loc3_10_156_0->loc2_0_156_1 [xlabel="U",color="orange"];
-loc3_10_156_0->loc3_10_156_1 [xlabel="",color="red"];
-loc3_10_156_1->loc6_11_156_0 [xlabel="",color="red"];
-loc6_11_156_0->loc7_10_156_0 [xlabel="",color="black"];
-loc6_2_156_0->loc7_2_156_0 [xlabel="",color="black"];
-loc7_10_156_0->loc8_10_156_0 [xlabel="",color="black"];
-loc7_2_156_0->loc7_10_156_0 [xlabel="",color="black"];
-loc7_2_156_0->loc8_2_156_0 [xlabel="F",color="orange"];
-loc8_10_156_0->loc2_0_156_1 [xlabel="",color="black"];
-loc8_2_156_0->loc6_11_156_0 [xlabel="F",color="orange"];
-loc8_2_156_0->loc8_10_156_0 [xlabel="",color="black"];
-initial->loc0 [xlabel="",color="black"];
+b0[label="Prog:enter\nSwitchStmt:enter\nIdent(a)\nSwitchCase:enter\nNumLit(1)\n"];
+b18[label="BlockStmt:exit\nSwitchCase:exit\n"];
+b23[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSthDefault)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
+b31[label="SwitchCase:enter\n"];
+b35[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth2)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
+b44[label="SwitchCase:enter\nNumLit(2)\n"];
+b48[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth3)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
+b57[label="SwitchCase:enter\nNumLit(3)\n"];
+b6[label="BlockStmt:enter\nExprStmt:enter\nCallExpr:enter\nIdent(doSth1)\nCallExpr:exit\nExprStmt:exit\nBrkStmt:enter\nBrkStmt:exit\n"];
+b60[label="SwitchStmt:exit\n"];
+b61[label="Prog:exit\n"];
+b0->b31 [xlabel="F",color="orange"];
+b0->b6 [xlabel="",color="black"];
+b18->b23 [xlabel="",color="red"];
+b23->b35 [xlabel="",color="black"];
+b31->b44 [xlabel="",color="black"];
+b35->b48 [xlabel="",color="black"];
+b44->b35 [xlabel="",color="black"];
+b44->b57 [xlabel="F",color="orange"];
+b48->b60 [xlabel="",color="black"];
+b57->b23 [xlabel="F",color="orange"];
+b57->b48 [xlabel="",color="black"];
+b60->b61 [xlabel="",color="black"];
+b61->final [xlabel="",color="black"];
+b6->b18 [xlabel="",color="red"];
+b6->b60 [xlabel="U",color="orange"];
+initial->b0 [xlabel="",color="black"];
 }
 `, ana.Graph().Dot(), "should be ok")
 }
@@ -2396,31 +2783,33 @@ node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsi
 edge[fontname="Consolas",fontsize=10]
 initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
 final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
-loc0[label="Prog:enter\nSwitchStmt:enter\nIdent(a)\nSwitchCase:enter\nNumLit(1)\n"];
-loc2_0_156_1[label="SwitchStmt:exit\nProg:exit\n"];
-loc3_10_156_0[label="BlockStmt:enter\nExprStmt:enter\nCallExpr:enter\nIdent(doSth1)\nCallExpr:exit\nExprStmt:exit\nBlockStmt:exit\nBrkStmt:enter\nBrkStmt:exit\n"];
-loc3_2_156_1[label="SwitchCase:exit\n"];
-loc7_11_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSthDefault)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
-loc7_2_156_0[label="SwitchCase:enter\n"];
-loc8_10_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth2)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
-loc8_2_156_0[label="SwitchCase:enter\nNumLit(2)\n"];
-loc9_10_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth3)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
-loc9_2_156_0[label="SwitchCase:enter\nNumLit(3)\n"];
-loc0->loc3_10_156_0 [xlabel="",color="black"];
-loc0->loc7_2_156_0 [xlabel="F",color="orange"];
-loc2_0_156_1->final [xlabel="",color="black"];
-loc3_10_156_0->loc2_0_156_1 [xlabel="U",color="orange"];
-loc3_10_156_0->loc3_2_156_1 [xlabel="",color="red"];
-loc3_2_156_1->loc7_11_156_0 [xlabel="",color="red"];
-loc7_11_156_0->loc8_10_156_0 [xlabel="",color="black"];
-loc7_2_156_0->loc8_2_156_0 [xlabel="",color="black"];
-loc8_10_156_0->loc9_10_156_0 [xlabel="",color="black"];
-loc8_2_156_0->loc8_10_156_0 [xlabel="",color="black"];
-loc8_2_156_0->loc9_2_156_0 [xlabel="F",color="orange"];
-loc9_10_156_0->loc2_0_156_1 [xlabel="",color="black"];
-loc9_2_156_0->loc7_11_156_0 [xlabel="F",color="orange"];
-loc9_2_156_0->loc9_10_156_0 [xlabel="",color="black"];
-initial->loc0 [xlabel="",color="black"];
+b0[label="Prog:enter\nSwitchStmt:enter\nIdent(a)\nSwitchCase:enter\nNumLit(1)\n"];
+b20[label="SwitchCase:exit\n"];
+b23[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSthDefault)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
+b31[label="SwitchCase:enter\n"];
+b35[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth2)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
+b44[label="SwitchCase:enter\nNumLit(2)\n"];
+b48[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth3)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
+b57[label="SwitchCase:enter\nNumLit(3)\n"];
+b6[label="BlockStmt:enter\nExprStmt:enter\nCallExpr:enter\nIdent(doSth1)\nCallExpr:exit\nExprStmt:exit\nBlockStmt:exit\nBrkStmt:enter\nBrkStmt:exit\n"];
+b60[label="SwitchStmt:exit\n"];
+b61[label="Prog:exit\n"];
+b0->b31 [xlabel="F",color="orange"];
+b0->b6 [xlabel="",color="black"];
+b20->b23 [xlabel="",color="red"];
+b23->b35 [xlabel="",color="black"];
+b31->b44 [xlabel="",color="black"];
+b35->b48 [xlabel="",color="black"];
+b44->b35 [xlabel="",color="black"];
+b44->b57 [xlabel="F",color="orange"];
+b48->b60 [xlabel="",color="black"];
+b57->b23 [xlabel="F",color="orange"];
+b57->b48 [xlabel="",color="black"];
+b60->b61 [xlabel="",color="black"];
+b61->final [xlabel="",color="black"];
+b6->b20 [xlabel="",color="red"];
+b6->b60 [xlabel="U",color="orange"];
+initial->b0 [xlabel="",color="black"];
 }
 `, ana.Graph().Dot(), "should be ok")
 }
@@ -2444,26 +2833,28 @@ node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsi
 edge[fontname="Consolas",fontsize=10]
 initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
 final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
-loc0[label="Prog:enter\nSwitchStmt:enter\nIdent(a)\nSwitchCase:enter\n"];
-loc2_0_156_1[label="SwitchStmt:exit\nProg:exit\n"];
-loc3_11_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSthDefault)\nCallExpr:exit\nExprStmt:exit\nBrkStmt:enter\nBrkStmt:exit\n"];
-loc3_2_156_1[label="SwitchCase:exit\n"];
-loc4_10_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth2)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
-loc4_2_156_0[label="SwitchCase:enter\nNumLit(2)\n"];
-loc5_10_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth3)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
-loc5_2_156_0[label="SwitchCase:enter\nNumLit(3)\n"];
-loc0->loc4_2_156_0 [xlabel="",color="black"];
-loc2_0_156_1->final [xlabel="",color="black"];
-loc3_11_156_0->loc2_0_156_1 [xlabel="U",color="orange"];
-loc3_11_156_0->loc3_2_156_1 [xlabel="",color="red"];
-loc3_2_156_1->loc4_10_156_0 [xlabel="",color="red"];
-loc4_10_156_0->loc5_10_156_0 [xlabel="",color="black"];
-loc4_2_156_0->loc4_10_156_0 [xlabel="",color="black"];
-loc4_2_156_0->loc5_2_156_0 [xlabel="F",color="orange"];
-loc5_10_156_0->loc2_0_156_1 [xlabel="",color="black"];
-loc5_2_156_0->loc3_11_156_0 [xlabel="F",color="orange"];
-loc5_2_156_0->loc5_10_156_0 [xlabel="",color="black"];
-initial->loc0 [xlabel="",color="black"];
+b0[label="Prog:enter\nSwitchStmt:enter\nIdent(a)\nSwitchCase:enter\n"];
+b17[label="SwitchCase:exit\n"];
+b20[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth2)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
+b29[label="SwitchCase:enter\nNumLit(2)\n"];
+b33[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth3)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
+b42[label="SwitchCase:enter\nNumLit(3)\n"];
+b45[label="SwitchStmt:exit\n"];
+b46[label="Prog:exit\n"];
+b6[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSthDefault)\nCallExpr:exit\nExprStmt:exit\nBrkStmt:enter\nBrkStmt:exit\n"];
+b0->b29 [xlabel="",color="black"];
+b17->b20 [xlabel="",color="red"];
+b20->b33 [xlabel="",color="black"];
+b29->b20 [xlabel="",color="black"];
+b29->b42 [xlabel="F",color="orange"];
+b33->b45 [xlabel="",color="black"];
+b42->b33 [xlabel="",color="black"];
+b42->b6 [xlabel="F",color="orange"];
+b45->b46 [xlabel="",color="black"];
+b46->final [xlabel="",color="black"];
+b6->b17 [xlabel="",color="red"];
+b6->b45 [xlabel="U",color="orange"];
+initial->b0 [xlabel="",color="black"];
 }
 `, ana.Graph().Dot(), "should be ok")
 }
@@ -2488,31 +2879,33 @@ node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsi
 edge[fontname="Consolas",fontsize=10]
 initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
 final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
-loc0[label="Prog:enter\nSwitchStmt:enter\nIdent(a)\nSwitchCase:enter\nNumLit(1)\n"];
-loc2_0_156_1[label="SwitchStmt:exit\nProg:exit\n"];
-loc3_10_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth1)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
-loc4_11_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSthDefault)\nCallExpr:exit\nExprStmt:exit\nBrkStmt:enter\nBrkStmt:exit\n"];
-loc4_2_156_0[label="SwitchCase:enter\n"];
-loc4_2_156_1[label="SwitchCase:exit\n"];
-loc5_10_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth2)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
-loc5_2_156_0[label="SwitchCase:enter\nNumLit(2)\n"];
-loc6_10_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth3)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
-loc6_2_156_0[label="SwitchCase:enter\nNumLit(3)\n"];
-loc0->loc3_10_156_0 [xlabel="",color="black"];
-loc0->loc4_2_156_0 [xlabel="F",color="orange"];
-loc2_0_156_1->final [xlabel="",color="black"];
-loc3_10_156_0->loc4_11_156_0 [xlabel="",color="black"];
-loc4_11_156_0->loc2_0_156_1 [xlabel="U",color="orange"];
-loc4_11_156_0->loc4_2_156_1 [xlabel="",color="red"];
-loc4_2_156_0->loc5_2_156_0 [xlabel="",color="black"];
-loc4_2_156_1->loc5_10_156_0 [xlabel="",color="red"];
-loc5_10_156_0->loc6_10_156_0 [xlabel="",color="black"];
-loc5_2_156_0->loc5_10_156_0 [xlabel="",color="black"];
-loc5_2_156_0->loc6_2_156_0 [xlabel="F",color="orange"];
-loc6_10_156_0->loc2_0_156_1 [xlabel="",color="black"];
-loc6_2_156_0->loc4_11_156_0 [xlabel="F",color="orange"];
-loc6_2_156_0->loc6_10_156_0 [xlabel="",color="black"];
-initial->loc0 [xlabel="",color="black"];
+b0[label="Prog:enter\nSwitchStmt:enter\nIdent(a)\nSwitchCase:enter\nNumLit(1)\n"];
+b19[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSthDefault)\nCallExpr:exit\nExprStmt:exit\nBrkStmt:enter\nBrkStmt:exit\n"];
+b29[label="SwitchCase:enter\n"];
+b30[label="SwitchCase:exit\n"];
+b33[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth2)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
+b42[label="SwitchCase:enter\nNumLit(2)\n"];
+b46[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth3)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
+b55[label="SwitchCase:enter\nNumLit(3)\n"];
+b58[label="SwitchStmt:exit\n"];
+b59[label="Prog:exit\n"];
+b6[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth1)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
+b0->b29 [xlabel="F",color="orange"];
+b0->b6 [xlabel="",color="black"];
+b19->b30 [xlabel="",color="red"];
+b19->b58 [xlabel="U",color="orange"];
+b29->b42 [xlabel="",color="black"];
+b30->b33 [xlabel="",color="red"];
+b33->b46 [xlabel="",color="black"];
+b42->b33 [xlabel="",color="black"];
+b42->b55 [xlabel="F",color="orange"];
+b46->b58 [xlabel="",color="black"];
+b55->b19 [xlabel="F",color="orange"];
+b55->b46 [xlabel="",color="black"];
+b58->b59 [xlabel="",color="black"];
+b59->final [xlabel="",color="black"];
+b6->b19 [xlabel="",color="black"];
+initial->b0 [xlabel="",color="black"];
 }
 `, ana.Graph().Dot(), "should be ok")
 }
@@ -2543,24 +2936,47 @@ node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsi
 edge[fontname="Consolas",fontsize=10]
 initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
 final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
-loc2_0_156_0[label="FnDec:enter\nIdent(f)\nBlockStmt:enter\nSwitchStmt:enter\nIdent(a)\nSwitchCase:enter\nNumLit(1)\n"];
-loc4_12_156_0[label="BlockStmt:enter\nExprStmt:enter\nCallExpr:enter\nIdent(doSth1)\nCallExpr:exit\nExprStmt:exit\nRetStmt:enter\nRetStmt:exit\n"];
-loc4_12_156_1[label="BlockStmt:exit\nSwitchCase:exit\n"];
-loc7_13_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSthDefault)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
-loc7_4_156_0[label="SwitchCase:enter\n"];
-loc8_12_156_0[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth2)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\nSwitchStmt:exit\nBlockStmt:exit\nFnDec:exit\n"];
-loc8_4_156_0[label="SwitchCase:enter\nNumLit(2)\n"];
-loc2_0_156_0->loc4_12_156_0 [xlabel="",color="black"];
-loc2_0_156_0->loc7_4_156_0 [xlabel="F",color="orange"];
-loc4_12_156_0->final [xlabel="U",color="orange"];
-loc4_12_156_0->loc4_12_156_1 [xlabel="",color="red"];
-loc4_12_156_1->loc7_13_156_0 [xlabel="",color="red"];
-loc7_13_156_0->loc8_12_156_0 [xlabel="",color="black"];
-loc7_4_156_0->loc8_4_156_0 [xlabel="",color="black"];
-loc8_12_156_0->final [xlabel="",color="black"];
-loc8_4_156_0->loc7_13_156_0 [xlabel="F",color="orange"];
-loc8_4_156_0->loc8_12_156_0 [xlabel="",color="black"];
-initial->loc2_0_156_0 [xlabel="",color="black"];
+b20[label="BlockStmt:exit\nSwitchCase:exit\n"];
+b25[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSthDefault)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
+b33[label="SwitchCase:enter\n"];
+b37[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth2)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\nSwitchStmt:exit\n"];
+b46[label="SwitchCase:enter\nNumLit(2)\n"];
+b50[label="BlockStmt:exit\n"];
+b51[label="FnDec:enter\nIdent(f)\nBlockStmt:enter\nSwitchStmt:enter\nIdent(a)\nSwitchCase:enter\nNumLit(1)\n"];
+b52[label="FnDec:exit\n"];
+b8[label="BlockStmt:enter\nExprStmt:enter\nCallExpr:enter\nIdent(doSth1)\nCallExpr:exit\nExprStmt:exit\nRetStmt:enter\nRetStmt:exit\n"];
+b20->b25 [xlabel="",color="red"];
+b25->b37 [xlabel="",color="black"];
+b33->b46 [xlabel="",color="black"];
+b37->b50 [xlabel="",color="black"];
+b46->b25 [xlabel="F",color="orange"];
+b46->b37 [xlabel="",color="black"];
+b50->b52 [xlabel="",color="black"];
+b51->b33 [xlabel="F",color="orange"];
+b51->b8 [xlabel="",color="black"];
+b52->final [xlabel="",color="black"];
+b8->b20 [xlabel="",color="red"];
+b8->b52 [xlabel="U",color="orange"];
+initial->b51 [xlabel="",color="black"];
 }
 `, fnGraph.Dot(), "should be ok")
 }
+
+// func TestCtrlflow_TryCatchBasic(t *testing.T) {
+// 	ast, symtab, err := compile(`
+// try {
+//   doSth1();
+//   doSth2();
+// } catch (error) {
+//   log(error);
+// }
+//   `, nil)
+// 	AssertEqual(t, nil, err, "should be prog ok")
+
+// 	ana := NewAnalysis(ast, symtab)
+// 	ana.Analyze()
+
+// 	AssertEqualString(t, `
+
+// `, ana.Graph().Dot(), "should be ok")
+// }

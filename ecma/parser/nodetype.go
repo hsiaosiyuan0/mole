@@ -179,3 +179,7 @@ func (nt NodeType) IsExpr() bool {
 func (nt NodeType) IsStmt() bool {
 	return nt > N_STMT_BEGIN && nt < N_STMT_END
 }
+
+func (nt NodeType) IsLit() bool {
+	return nt > N_LIT_BEGIN && nt < N_LIT_END
+}
