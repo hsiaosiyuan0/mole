@@ -253,6 +253,15 @@ func (b *Block) hasEnter(node parser.Node) bool {
 	return false
 }
 
+func (b *Block) allInfoNode() bool {
+	for _, n := range b.Nodes {
+		if n.Type() != N_CFG_DEBUG {
+			return false
+		}
+	}
+	return true
+}
+
 func (b *Block) OnlyInfo() bool {
 	for i := len(b.Nodes) - 1; i >= 0; i-- {
 		if b.Nodes[i].Type() != N_CFG_DEBUG {

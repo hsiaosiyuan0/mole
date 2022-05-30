@@ -200,7 +200,9 @@ func handleBefore(node parser.Node, key string, ctx *walk.VisitorCtx) {
 			ac.pushStmt(blk)
 		} else if astTyp != parser.N_STMT_FN && astTyp != parser.N_EXPR_FN {
 			prev := ac.popStmt()
-			link(ac, prev, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, blk, false, false)
+			scope := ctx.Scope()
+			forceSep := astTyp == parser.N_STMT_TRY && (scope.IsKind(parser.SPK_TRY) || scope.IsKind(parser.SPK_TRY_INDIRECT))
+			link(ac, prev, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, blk, forceSep, false)
 			ac.pushStmt(grpBlock(ac, prev, blk))
 		}
 	} else if !isAtom(astTyp) {
@@ -693,9 +695,13 @@ func handleAfter(node parser.Node, key string, ctx *walk.VisitorCtx) {
 		try := ac.popStmt()
 		enter := ac.popStmt()
 		exit := ac.newExit(node, "")
+		origExit := exit
 
 		eb := []*Edge{}
 		IterBlock(try.unwrapSeqIn(), func(blk *Block) {
+			if edge := blk.FindOutEdge(EK_JMP, ET_JMP_E, false); edge != nil || blk.allInfoNode() {
+				return
+			}
 			edge := blk.newJmpOut(ET_JMP_E)
 			if blk.IsInCut() {
 				edge.Tag |= ET_CUT
@@ -707,13 +713,13 @@ func handleAfter(node parser.Node, key string, ctx *walk.VisitorCtx) {
 		link(ac, enter, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, try, false, false)
 		link(ac, try, EK_JMP, ET_JMP_E, EK_SEQ, ET_NONE, catch, false, false)
 
-		// `ET_JMP_U` inside catch should jump to the fin while skip the stmts after fin
+		// `ET_JMP_U` inside catch should jump to the fin while skipping the stmts after fin
 		if edges := FindEdges(catch.Outlets, EK_JMP, ET_JMP_U); len(edges) > 0 && fin != nil {
-			fin.newJmpOut(ET_JMP_P)
 			link(ac, catch, EK_JMP, ET_JMP_U, EK_JMP, ET_NONE, fin, true, false)
 			for _, edge := range edges {
 				edge.Tag |= ET_JMP_P
 			}
+			fin.newJmpOut(ET_JMP_P)
 		}
 
 		if edges := FindEdges(try.Outlets, EK_JMP, ET_JMP_U); len(edges) > 0 && fin != nil {
@@ -727,6 +733,8 @@ func handleAfter(node parser.Node, key string, ctx *walk.VisitorCtx) {
 		}
 
 		if fin != nil {
+			link(ac, try, EK_JMP, ET_JMP_P, EK_SEQ, ET_NONE, fin, false, false)
+			link(ac, catch, EK_JMP, ET_JMP_P, EK_SEQ, ET_NONE, fin, false, false)
 			link(ac, fin, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, exit, false, false)
 			exit = fin
 		}
@@ -735,9 +743,12 @@ func handleAfter(node parser.Node, key string, ctx *walk.VisitorCtx) {
 		link(ac, catch, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, exit, true, false)
 		link(ac, try, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, exit, false, false)
 
-		vn := grpBlock(ac, enter, exit)
+		vn := grpBlock(ac, enter, origExit)
 		vn.Outlets = append(vn.Outlets, try.xJmpOutEdges()...)
 		vn.Outlets = append(vn.Outlets, catch.xJmpOutEdges()...)
+		if fin != nil {
+			vn.Outlets = append(vn.Outlets, fin.xJmpOutEdges()...)
+		}
 		ac.pushStmt(vn)
 
 	case parser.N_STMT_SWITCH:
