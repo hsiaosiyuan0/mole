@@ -25,34 +25,39 @@ const (
 	ET_JMP_F
 	ET_JMP_E
 	ET_JMP_U
+	ET_JMP_P
 	ET_LOOP
 	ET_CUT
 )
 
 func (t EdgeTag) String() string {
+	ts := []string{}
 	if t&ET_JMP_T != 0 {
-		return "T"
+		ts = append(ts, "T")
 	}
 	if t&ET_JMP_F != 0 {
-		return "F"
+		ts = append(ts, "F")
 	}
 	if t&ET_LOOP != 0 {
-		return "L"
+		ts = append(ts, "L")
 	}
 	if t&ET_JMP_U != 0 {
-		return "U"
+		ts = append(ts, "U")
 	}
 	if t&ET_JMP_E != 0 {
-		return "E"
+		ts = append(ts, "E")
 	}
-	return ""
+	if t&ET_JMP_P != 0 {
+		ts = append(ts, "P")
+	}
+	return strings.Join(ts, ",")
 }
 
 func (t EdgeTag) DotColor() string {
 	if t&ET_CUT != 0 {
 		return "red"
 	}
-	if t&ET_JMP_T != 0 || t&ET_JMP_F != 0 || t&ET_LOOP != 0 || t&ET_JMP_U != 0 || t&ET_JMP_E != 0 {
+	if t&ET_JMP_T != 0 || t&ET_JMP_F != 0 || t&ET_LOOP != 0 || t&ET_JMP_U != 0 || t&ET_JMP_E != 0 || t&ET_JMP_P != 0 {
 		return "orange"
 	}
 	return "black"
@@ -106,8 +111,7 @@ const (
 )
 
 type Block struct {
-	id uint
-
+	id      uint
 	Kind    BlockKind
 	Nodes   []parser.Node
 	Inlets  []*Edge
@@ -236,11 +240,17 @@ func (b *Block) onlySeqOut() bool {
 	if len(b.Outlets) != 1 || b.Outlets[0].Kind != EK_SEQ {
 		return false
 	}
-	if b.Outlets[0].Tag == ET_NONE {
-		return true
-	}
 	blk := b.Outlets[0].Src
 	return len(blk.Outlets) == 1 && blk.Outlets[0].Kind == EK_SEQ
+}
+
+func (b *Block) hasEnter(node parser.Node) bool {
+	for _, n := range b.Nodes {
+		if n == node {
+			return true
+		}
+	}
+	return false
 }
 
 func (b *Block) OnlyInfo() bool {
@@ -343,6 +353,10 @@ func (b *Block) newJmpOut(k EdgeTag) *Edge {
 	edge := &Edge{EK_JMP, k, seq.Src, nil}
 	seq.Src.Outlets = append(seq.Src.Outlets, edge)
 
+	if seq.Src.IsInCut() {
+		edge.Tag |= ET_CUT
+	}
+
 	// if b is groupBlock, the new added jmp-edge should also be added
 	// into `b` otherwise it can not be linked in future process
 	if seq.Src != b {
@@ -372,8 +386,13 @@ func (b *Block) newLoopIn() {
 }
 
 func (b *Block) newJmpIn(t EdgeTag) {
+	b.newIn(EK_JMP, t)
+}
+
+// stmt after try-catch has tow seq-in edges
+func (b *Block) newIn(k EdgeKind, t EdgeTag) {
 	seq := b.seqInEdge()
-	edge := &Edge{EK_JMP, t, nil, seq.Dst}
+	edge := &Edge{k, t, nil, seq.Dst}
 	seq.Dst.Inlets = append(seq.Dst.Inlets, edge)
 
 	if seq.Dst != b {
@@ -412,7 +431,7 @@ func (b *Block) mrkSeqOutAsCut() {
 
 func (b *Block) IsInCut() bool {
 	edge := b.InSeqEdge()
-	return edge != nil && edge.Tag&ET_CUT != 0
+	return edge != nil && len(edge.Dst.Inlets) == 1 && edge.Tag&ET_CUT != 0
 }
 
 func (b *Block) HasOutCut() bool {
@@ -684,7 +703,7 @@ func link(a *AnalysisCtx, from *Block, fromKind EdgeKind, fromTag EdgeTag, toKin
 			fromSeq = edge.Src
 		}
 		if fromSeq != nil && fromSeq.Kind == BK_BASIC && fromSeq.onlySeqOut() &&
-			toKind == EK_SEQ && to.Kind == BK_BASIC && (forceJoin || fromSeq.IsInCut()) {
+			toKind == EK_SEQ && to.Kind == BK_BASIC && (forceJoin || fromSeq.Kind == BK_BASIC || fromSeq.IsInCut()) {
 			fromSeq.join(to)
 			return
 		}
@@ -709,6 +728,26 @@ func linkEdges(fromEdges []*Edge, fromKind EdgeKind, fromTag EdgeTag, toKind Edg
 			toEdge := to.FindInEdge(edge.Kind, edge.Tag, true)
 			toEdge.Src = edge.Src
 		}
+	}
+}
+
+type BlockCb = func(blk *Block)
+
+func IterBlock(blk *Block, cb BlockCb) {
+	cb(blk)
+	doneMap := map[*Block]bool{blk: true}
+	edges := blk.Outlets
+	for {
+		if len(edges) == 0 {
+			break
+		}
+		first, rest := edges[0], edges[1:]
+		if _, done := doneMap[first.Dst]; !done && first.Dst != nil {
+			cb(first.Dst)
+			doneMap[first.Dst] = true
+			rest = append(rest, first.Dst.Outlets...)
+		}
+		edges = rest
 	}
 }
 

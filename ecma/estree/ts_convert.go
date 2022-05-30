@@ -268,8 +268,8 @@ func ConvertTsTyp(node parser.Node, ctx *ConvertCtx) Node {
 			Loc:   loc(node.Loc()),
 			Types: elems(n.Elems(), ctx),
 		}
-	case parser.N_TS_INTERSEC_TYP:
-		n := node.(*parser.TsIntersecTyp)
+	case parser.N_TS_INTERSECT_TYP:
+		n := node.(*parser.TsIntersectTyp)
 		return &TSIntersectionType{
 			Type:  "TSIntersectionType",
 			Start: start(node.Loc()),
@@ -333,7 +333,7 @@ func ConvertTsTyp(node parser.Node, ctx *ConvertCtx) Node {
 		}
 	case parser.N_TS_DEC_INTERFACE:
 		n := node.(*parser.TsDec)
-		itf := n.Inner().(*parser.TsInferface)
+		itf := n.Inner().(*parser.TsInterface)
 		return &TSInterfaceDeclaration{
 			Type:           "TSInterfaceDeclaration",
 			Start:          start(n.Loc()),
@@ -346,7 +346,7 @@ func ConvertTsTyp(node parser.Node, ctx *ConvertCtx) Node {
 			Declare:        true,
 		}
 	case parser.N_TS_INTERFACE_BODY:
-		n := node.(*parser.TsInferfaceBody)
+		n := node.(*parser.TsInterfaceBody)
 		scope := ctx.enter()
 		defer ctx.leave()
 		scope.Flag = scope.Flag.On(CSF_INTERFACE)
@@ -359,7 +359,7 @@ func ConvertTsTyp(node parser.Node, ctx *ConvertCtx) Node {
 			Body:  elems(n.Body(), ctx),
 		}
 	case parser.N_TS_INTERFACE:
-		n := node.(*parser.TsInferface)
+		n := node.(*parser.TsInterface)
 		return &TSInterfaceDeclaration{
 			Type:           "TSInterfaceDeclaration",
 			Start:          start(n.Loc()),

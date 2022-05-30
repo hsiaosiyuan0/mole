@@ -63,12 +63,12 @@ edge[fontname="Consolas",fontsize=10]
 initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
 final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
 b0[label="Prog:enter\nExprStmt:enter\nBinExpr(&&):enter\nIdent(a)\n"];
-b10[label="ExprStmt:exit\nProg:exit\n"];
-b6[label="Ident(b)\nBinExpr(&&):exit\n"];
-b0->b10 [xlabel="F",color="orange"];
+b6[label="Ident(b)\n"];
+b9[label="BinExpr(&&):exit\nExprStmt:exit\nProg:exit\n"];
 b0->b6 [xlabel="",color="black"];
-b10->final [xlabel="",color="black"];
-b6->b10 [xlabel="",color="black"];
+b0->b9 [xlabel="F",color="orange"];
+b6->b9 [xlabel="",color="black"];
+b9->final [xlabel="",color="black"];
 initial->b0 [xlabel="",color="black"];
 }
 `, ana.Graph().Dot(), "should be ok")
@@ -843,7 +843,7 @@ b12->b17 [xlabel="F",color="orange"];
 b12:s->b4:ne [xlabel="L",color="orange"];
 b17->final [xlabel="",color="black"];
 b4->b12 [xlabel="",color="black"];
-b4:s->b4:ne [xlabel="T",color="orange"];
+b4:s->b4:ne [xlabel="T,L",color="orange"];
 initial->b0 [xlabel="",color="black"];
 }
 `, ana.Graph().Dot(), "should be ok")
@@ -2635,8 +2635,7 @@ b21[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth2)\nCallExpr:exit\nExprStm
 b30[label="SwitchCase:enter\nNumLit(2)\n"];
 b34[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth3)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
 b43[label="SwitchCase:enter\nNumLit(3)\n"];
-b46[label="SwitchStmt:exit\n"];
-b47[label="Prog:exit\n"];
+b46[label="SwitchStmt:exit\nProg:exit\n"];
 b6[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth1)\nCallExpr:exit\nExprStmt:exit\nBrkStmt:enter\nBrkStmt:exit\n"];
 b0->b30 [xlabel="F",color="orange"];
 b0->b6 [xlabel="",color="black"];
@@ -2647,8 +2646,7 @@ b30->b43 [xlabel="F",color="orange"];
 b34->b46 [xlabel="",color="black"];
 b43->b34 [xlabel="",color="black"];
 b43->b46 [xlabel="F",color="orange"];
-b46->b47 [xlabel="",color="black"];
-b47->final [xlabel="",color="black"];
+b46->final [xlabel="",color="black"];
 b6->b18 [xlabel="",color="red"];
 b6->b46 [xlabel="U",color="orange"];
 initial->b0 [xlabel="",color="black"];
@@ -2684,8 +2682,7 @@ b33[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth2)\nCallExpr:exit\nExprStm
 b42[label="SwitchCase:enter\nNumLit(2)\n"];
 b46[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth3)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
 b55[label="SwitchCase:enter\nNumLit(3)\n"];
-b58[label="SwitchStmt:exit\n"];
-b59[label="Prog:exit\n"];
+b58[label="SwitchStmt:exit\nProg:exit\n"];
 b6[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth1)\nCallExpr:exit\nExprStmt:exit\nBrkStmt:enter\nBrkStmt:exit\n"];
 b0->b29 [xlabel="F",color="orange"];
 b0->b6 [xlabel="",color="black"];
@@ -2698,8 +2695,7 @@ b42->b55 [xlabel="F",color="orange"];
 b46->b58 [xlabel="",color="black"];
 b55->b21 [xlabel="F",color="orange"];
 b55->b46 [xlabel="",color="black"];
-b58->b59 [xlabel="",color="black"];
-b59->final [xlabel="",color="black"];
+b58->final [xlabel="",color="black"];
 b6->b18 [xlabel="",color="red"];
 b6->b58 [xlabel="U",color="orange"];
 initial->b0 [xlabel="",color="black"];
@@ -2738,8 +2734,7 @@ b44[label="SwitchCase:enter\nNumLit(2)\n"];
 b48[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth3)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
 b57[label="SwitchCase:enter\nNumLit(3)\n"];
 b6[label="BlockStmt:enter\nExprStmt:enter\nCallExpr:enter\nIdent(doSth1)\nCallExpr:exit\nExprStmt:exit\nBrkStmt:enter\nBrkStmt:exit\n"];
-b60[label="SwitchStmt:exit\n"];
-b61[label="Prog:exit\n"];
+b60[label="SwitchStmt:exit\nProg:exit\n"];
 b0->b31 [xlabel="F",color="orange"];
 b0->b6 [xlabel="",color="black"];
 b18->b23 [xlabel="",color="red"];
@@ -2751,8 +2746,7 @@ b44->b57 [xlabel="F",color="orange"];
 b48->b60 [xlabel="",color="black"];
 b57->b23 [xlabel="F",color="orange"];
 b57->b48 [xlabel="",color="black"];
-b60->b61 [xlabel="",color="black"];
-b61->final [xlabel="",color="black"];
+b60->final [xlabel="",color="black"];
 b6->b18 [xlabel="",color="red"];
 b6->b60 [xlabel="U",color="orange"];
 initial->b0 [xlabel="",color="black"];
@@ -2792,8 +2786,7 @@ b44[label="SwitchCase:enter\nNumLit(2)\n"];
 b48[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth3)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
 b57[label="SwitchCase:enter\nNumLit(3)\n"];
 b6[label="BlockStmt:enter\nExprStmt:enter\nCallExpr:enter\nIdent(doSth1)\nCallExpr:exit\nExprStmt:exit\nBlockStmt:exit\nBrkStmt:enter\nBrkStmt:exit\n"];
-b60[label="SwitchStmt:exit\n"];
-b61[label="Prog:exit\n"];
+b60[label="SwitchStmt:exit\nProg:exit\n"];
 b0->b31 [xlabel="F",color="orange"];
 b0->b6 [xlabel="",color="black"];
 b20->b23 [xlabel="",color="red"];
@@ -2805,8 +2798,7 @@ b44->b57 [xlabel="F",color="orange"];
 b48->b60 [xlabel="",color="black"];
 b57->b23 [xlabel="F",color="orange"];
 b57->b48 [xlabel="",color="black"];
-b60->b61 [xlabel="",color="black"];
-b61->final [xlabel="",color="black"];
+b60->final [xlabel="",color="black"];
 b6->b20 [xlabel="",color="red"];
 b6->b60 [xlabel="U",color="orange"];
 initial->b0 [xlabel="",color="black"];
@@ -2839,8 +2831,7 @@ b20[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth2)\nCallExpr:exit\nExprStm
 b29[label="SwitchCase:enter\nNumLit(2)\n"];
 b33[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth3)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
 b42[label="SwitchCase:enter\nNumLit(3)\n"];
-b45[label="SwitchStmt:exit\n"];
-b46[label="Prog:exit\n"];
+b45[label="SwitchStmt:exit\nProg:exit\n"];
 b6[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSthDefault)\nCallExpr:exit\nExprStmt:exit\nBrkStmt:enter\nBrkStmt:exit\n"];
 b0->b29 [xlabel="",color="black"];
 b17->b20 [xlabel="",color="red"];
@@ -2850,8 +2841,7 @@ b29->b42 [xlabel="F",color="orange"];
 b33->b45 [xlabel="",color="black"];
 b42->b33 [xlabel="",color="black"];
 b42->b6 [xlabel="F",color="orange"];
-b45->b46 [xlabel="",color="black"];
-b46->final [xlabel="",color="black"];
+b45->final [xlabel="",color="black"];
 b6->b17 [xlabel="",color="red"];
 b6->b45 [xlabel="U",color="orange"];
 initial->b0 [xlabel="",color="black"];
@@ -2887,8 +2877,7 @@ b33[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth2)\nCallExpr:exit\nExprStm
 b42[label="SwitchCase:enter\nNumLit(2)\n"];
 b46[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth3)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
 b55[label="SwitchCase:enter\nNumLit(3)\n"];
-b58[label="SwitchStmt:exit\n"];
-b59[label="Prog:exit\n"];
+b58[label="SwitchStmt:exit\nProg:exit\n"];
 b6[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth1)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
 b0->b29 [xlabel="F",color="orange"];
 b0->b6 [xlabel="",color="black"];
@@ -2902,8 +2891,7 @@ b42->b55 [xlabel="F",color="orange"];
 b46->b58 [xlabel="",color="black"];
 b55->b19 [xlabel="F",color="orange"];
 b55->b46 [xlabel="",color="black"];
-b58->b59 [xlabel="",color="black"];
-b59->final [xlabel="",color="black"];
+b58->final [xlabel="",color="black"];
 b6->b19 [xlabel="",color="black"];
 initial->b0 [xlabel="",color="black"];
 }
@@ -2939,19 +2927,17 @@ final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height
 b20[label="BlockStmt:exit\nSwitchCase:exit\n"];
 b25[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSthDefault)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
 b33[label="SwitchCase:enter\n"];
-b37[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth2)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\nSwitchStmt:exit\n"];
+b37[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth2)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\nSwitchStmt:exit\nBlockStmt:exit\n"];
 b46[label="SwitchCase:enter\nNumLit(2)\n"];
-b50[label="BlockStmt:exit\n"];
 b51[label="FnDec:enter\nIdent(f)\nBlockStmt:enter\nSwitchStmt:enter\nIdent(a)\nSwitchCase:enter\nNumLit(1)\n"];
 b52[label="FnDec:exit\n"];
 b8[label="BlockStmt:enter\nExprStmt:enter\nCallExpr:enter\nIdent(doSth1)\nCallExpr:exit\nExprStmt:exit\nRetStmt:enter\nRetStmt:exit\n"];
 b20->b25 [xlabel="",color="red"];
 b25->b37 [xlabel="",color="black"];
 b33->b46 [xlabel="",color="black"];
-b37->b50 [xlabel="",color="black"];
+b37->b52 [xlabel="",color="black"];
 b46->b25 [xlabel="F",color="orange"];
 b46->b37 [xlabel="",color="black"];
-b50->b52 [xlabel="",color="black"];
 b51->b33 [xlabel="F",color="orange"];
 b51->b8 [xlabel="",color="black"];
 b52->final [xlabel="",color="black"];
@@ -2962,21 +2948,408 @@ initial->b51 [xlabel="",color="black"];
 `, fnGraph.Dot(), "should be ok")
 }
 
-// func TestCtrlflow_TryCatchBasic(t *testing.T) {
-// 	ast, symtab, err := compile(`
-// try {
-//   doSth1();
-//   doSth2();
-// } catch (error) {
-//   log(error);
-// }
-//   `, nil)
-// 	AssertEqual(t, nil, err, "should be prog ok")
+func TestCtrlflow_TryCatchBasic(t *testing.T) {
+	ast, symtab, err := compile(`
+try {
+  doSth1();
+  doSth2();
+} catch (error) {
+  log(error);
+}
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
 
-// 	ana := NewAnalysis(ast, symtab)
-// 	ana.Analyze()
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
 
-// 	AssertEqualString(t, `
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b0[label="Prog:enter\nTryStmt:enter\nBlockStmt:enter\nExprStmt:enter\nCallExpr:enter\nIdent(doSth1)\nCallExpr:exit\nExprStmt:exit\nExprStmt:enter\nCallExpr:enter\nIdent(doSth2)\nCallExpr:exit\nExprStmt:exit\nBlockStmt:exit\n"];
+b19[label="Catch:enter\nIdent(error)\nBlockStmt:enter\nExprStmt:enter\nCallExpr:enter\nIdent(log)\nIdent(error)\nCallExpr:exit\nExprStmt:exit\nBlockStmt:exit\nCatch:exit\n"];
+b33[label="TryStmt:exit\nProg:exit\n"];
+b0->b19 [xlabel="E",color="orange"];
+b0->b33 [xlabel="",color="black"];
+b19->b33 [xlabel="",color="black"];
+b33->final [xlabel="",color="black"];
+initial->b0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
+}
 
-// `, ana.Graph().Dot(), "should be ok")
-// }
+func TestCtrlflow_TryCatchIf(t *testing.T) {
+	ast, symtab, err := compile(`
+try {
+  if (a) {
+    doSth1();
+  }
+  doSth2();
+} catch (error) {
+  log(error);
+}
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b0[label="Prog:enter\nTryStmt:enter\nBlockStmt:enter\nIfStmt:enter\nIdent(a)\n"];
+b18[label="IfStmt:exit\nExprStmt:enter\nCallExpr:enter\nIdent(doSth2)\nCallExpr:exit\nExprStmt:exit\nBlockStmt:exit\n"];
+b26[label="Catch:enter\nIdent(error)\nBlockStmt:enter\nExprStmt:enter\nCallExpr:enter\nIdent(log)\nIdent(error)\nCallExpr:exit\nExprStmt:exit\nBlockStmt:exit\nCatch:exit\n"];
+b40[label="TryStmt:exit\nProg:exit\n"];
+b8[label="BlockStmt:enter\nExprStmt:enter\nCallExpr:enter\nIdent(doSth1)\nCallExpr:exit\nExprStmt:exit\nBlockStmt:exit\n"];
+b0->b18 [xlabel="F",color="orange"];
+b0->b26 [xlabel="E",color="orange"];
+b0->b8 [xlabel="",color="black"];
+b18->b26 [xlabel="E",color="orange"];
+b18->b40 [xlabel="",color="black"];
+b26->b40 [xlabel="",color="black"];
+b40->final [xlabel="",color="black"];
+b8->b18 [xlabel="",color="black"];
+b8->b26 [xlabel="E",color="orange"];
+initial->b0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
+}
+
+func TestCtrlflow_TryCatchFin(t *testing.T) {
+	ast, symtab, err := compile(`
+try {
+  doSth1();
+  doSth2();
+} catch (error) {
+  log(error);
+} finally {
+  fin();
+}
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b0[label="Prog:enter\nTryStmt:enter\nBlockStmt:enter\nExprStmt:enter\nCallExpr:enter\nIdent(doSth1)\nCallExpr:exit\nExprStmt:exit\nExprStmt:enter\nCallExpr:enter\nIdent(doSth2)\nCallExpr:exit\nExprStmt:exit\nBlockStmt:exit\n"];
+b19[label="Catch:enter\nIdent(error)\nBlockStmt:enter\nExprStmt:enter\nCallExpr:enter\nIdent(log)\nIdent(error)\nCallExpr:exit\nExprStmt:exit\nBlockStmt:exit\nCatch:exit\n"];
+b33[label="BlockStmt:enter\nExprStmt:enter\nCallExpr:enter\nIdent(fin)\nCallExpr:exit\nExprStmt:exit\nBlockStmt:exit\nTryStmt:exit\nProg:exit\n"];
+b0->b19 [xlabel="E",color="orange"];
+b0->b33 [xlabel="",color="black"];
+b19->b33 [xlabel="",color="black"];
+b33->final [xlabel="",color="black"];
+initial->b0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
+}
+
+func TestCtrlflow_TryReturn(t *testing.T) {
+	ast, symtab, err := compile(`
+function f() {
+  try {
+    doSth1();
+    return;
+    doSth2();
+  } catch (error) {
+    log(error);
+  }
+  afterFin()
+}
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	fn := ast.(*parser.Prog).Body()[0]
+	fnGraph := ana.AnalysisCtx().GraphOf(fn)
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b16[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth2)\nCallExpr:exit\nExprStmt:exit\nBlockStmt:exit\n"];
+b23[label="Catch:enter\nIdent(error)\nBlockStmt:enter\nExprStmt:enter\nCallExpr:enter\nIdent(log)\nIdent(error)\nCallExpr:exit\nExprStmt:exit\nBlockStmt:exit\nCatch:exit\n"];
+b37[label="TryStmt:exit\nExprStmt:enter\nCallExpr:enter\nIdent(afterFin)\nCallExpr:exit\nExprStmt:exit\nBlockStmt:exit\n"];
+b45[label="FnDec:enter\nIdent(f)\nBlockStmt:enter\nTryStmt:enter\nBlockStmt:enter\nExprStmt:enter\nCallExpr:enter\nIdent(doSth1)\nCallExpr:exit\nExprStmt:exit\nRetStmt:enter\nRetStmt:exit\n"];
+b46[label="FnDec:exit\n"];
+b16->b23 [xlabel="E",color="red"];
+b16->b37 [xlabel="",color="red"];
+b23->b37 [xlabel="",color="black"];
+b37->b46 [xlabel="",color="black"];
+b45->b16 [xlabel="",color="red"];
+b45->b23 [xlabel="E",color="orange"];
+b45->b46 [xlabel="U",color="orange"];
+b46->final [xlabel="",color="black"];
+initial->b45 [xlabel="",color="black"];
+}
+`, fnGraph.Dot(), "should be ok")
+}
+
+func TestCtrlflow_TryReturnFin(t *testing.T) {
+	ast, symtab, err := compile(`
+function f() {
+  try {
+    doSth1();
+    return;
+    doSth2();
+  } catch (error) {
+    log(error);
+  } finally {
+    fin()
+  }
+  afterFin()
+}
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	fn := ast.(*parser.Prog).Body()[0]
+	fnGraph := ana.AnalysisCtx().GraphOf(fn)
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b16[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth2)\nCallExpr:exit\nExprStmt:exit\nBlockStmt:exit\n"];
+b23[label="Catch:enter\nIdent(error)\nBlockStmt:enter\nExprStmt:enter\nCallExpr:enter\nIdent(log)\nIdent(error)\nCallExpr:exit\nExprStmt:exit\nBlockStmt:exit\nCatch:exit\n"];
+b37[label="BlockStmt:enter\nExprStmt:enter\nCallExpr:enter\nIdent(fin)\nCallExpr:exit\nExprStmt:exit\nBlockStmt:exit\n"];
+b47[label="ExprStmt:enter\nCallExpr:enter\nIdent(afterFin)\nCallExpr:exit\nExprStmt:exit\nBlockStmt:exit\n"];
+b54[label="FnDec:enter\nIdent(f)\nBlockStmt:enter\nTryStmt:enter\nBlockStmt:enter\nExprStmt:enter\nCallExpr:enter\nIdent(doSth1)\nCallExpr:exit\nExprStmt:exit\nRetStmt:enter\nRetStmt:exit\n"];
+b55[label="FnDec:exit\n"];
+b16->b23 [xlabel="E",color="red"];
+b16->b37 [xlabel="",color="red"];
+b23->b37 [xlabel="",color="black"];
+b37->b47 [xlabel="",color="black"];
+b37->b55 [xlabel="P",color="orange"];
+b47->b55 [xlabel="",color="black"];
+b54->b16 [xlabel="",color="red"];
+b54->b23 [xlabel="E",color="orange"];
+b54->b37 [xlabel="U,P",color="orange"];
+b55->final [xlabel="",color="black"];
+initial->b54 [xlabel="",color="black"];
+}
+`, fnGraph.Dot(), "should be ok")
+}
+
+func TestCtrlflow_TryReturnFinIf(t *testing.T) {
+	ast, symtab, err := compile(`
+function f() {
+  try {
+    doSth1();
+    return;
+    doSth2();
+  } catch (error) {
+    log(error);
+  } finally {
+    if (a) {
+      fin1()
+    }
+    fin2()
+  }
+  afterFin()
+}
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	fn := ast.(*parser.Prog).Body()[0]
+	fnGraph := ana.AnalysisCtx().GraphOf(fn)
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b16[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth2)\nCallExpr:exit\nExprStmt:exit\nBlockStmt:exit\n"];
+b23[label="Catch:enter\nIdent(error)\nBlockStmt:enter\nExprStmt:enter\nCallExpr:enter\nIdent(log)\nIdent(error)\nCallExpr:exit\nExprStmt:exit\nBlockStmt:exit\nCatch:exit\n"];
+b37[label="BlockStmt:enter\nIfStmt:enter\nIdent(a)\n"];
+b41[label="BlockStmt:enter\nExprStmt:enter\nCallExpr:enter\nIdent(fin1)\nCallExpr:exit\nExprStmt:exit\nBlockStmt:exit\n"];
+b51[label="IfStmt:exit\nExprStmt:enter\nCallExpr:enter\nIdent(fin2)\nCallExpr:exit\nExprStmt:exit\nBlockStmt:exit\n"];
+b60[label="ExprStmt:enter\nCallExpr:enter\nIdent(afterFin)\nCallExpr:exit\nExprStmt:exit\nBlockStmt:exit\n"];
+b67[label="FnDec:enter\nIdent(f)\nBlockStmt:enter\nTryStmt:enter\nBlockStmt:enter\nExprStmt:enter\nCallExpr:enter\nIdent(doSth1)\nCallExpr:exit\nExprStmt:exit\nRetStmt:enter\nRetStmt:exit\n"];
+b68[label="FnDec:exit\n"];
+b16->b23 [xlabel="E",color="red"];
+b16->b37 [xlabel="",color="red"];
+b23->b37 [xlabel="",color="black"];
+b37->b41 [xlabel="",color="black"];
+b37->b51 [xlabel="F",color="orange"];
+b41->b51 [xlabel="",color="black"];
+b51->b60 [xlabel="",color="black"];
+b51->b68 [xlabel="P",color="orange"];
+b60->b68 [xlabel="",color="black"];
+b67->b16 [xlabel="",color="red"];
+b67->b23 [xlabel="E",color="orange"];
+b67->b37 [xlabel="U,P",color="orange"];
+b68->final [xlabel="",color="black"];
+initial->b67 [xlabel="",color="black"];
+}
+`, fnGraph.Dot(), "should be ok")
+}
+
+func TestCtrlflow_TryCatchReturn(t *testing.T) {
+	ast, symtab, err := compile(`
+function f() {
+  try {
+    doSth1();
+    doSth2();
+  } catch (error) {
+    return
+    log(error);
+  }
+  afterFin()
+}
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	fn := ast.(*parser.Prog).Body()[0]
+	fnGraph := ana.AnalysisCtx().GraphOf(fn)
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b21[label="Catch:enter\nIdent(error)\nBlockStmt:enter\nRetStmt:enter\nRetStmt:exit\n"];
+b27[label="ExprStmt:enter\nCallExpr:enter\nIdent(log)\nIdent(error)\nCallExpr:exit\nExprStmt:exit\nBlockStmt:exit\nCatch:exit\n"];
+b37[label="TryStmt:exit\nExprStmt:enter\nCallExpr:enter\nIdent(afterFin)\nCallExpr:exit\nExprStmt:exit\nBlockStmt:exit\n"];
+b45[label="FnDec:enter\nIdent(f)\nBlockStmt:enter\nTryStmt:enter\nBlockStmt:enter\nExprStmt:enter\nCallExpr:enter\nIdent(doSth1)\nCallExpr:exit\nExprStmt:exit\nExprStmt:enter\nCallExpr:enter\nIdent(doSth2)\nCallExpr:exit\nExprStmt:exit\nBlockStmt:exit\n"];
+b46[label="FnDec:exit\n"];
+b21->b27 [xlabel="",color="red"];
+b21->b46 [xlabel="U",color="orange"];
+b27->b37 [xlabel="",color="red"];
+b37->b46 [xlabel="",color="black"];
+b45->b21 [xlabel="E",color="orange"];
+b45->b37 [xlabel="",color="black"];
+b46->final [xlabel="",color="black"];
+initial->b45 [xlabel="",color="black"];
+}
+`, fnGraph.Dot(), "should be ok")
+}
+
+func TestCtrlflow_TryCatchReturnFin(t *testing.T) {
+	ast, symtab, err := compile(`
+function f() {
+  try {
+    doSth1();
+    doSth2();
+  } catch (error) {
+    return
+    log(error);
+  } finally {
+    fin()
+  }
+  afterFin()
+}
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	fn := ast.(*parser.Prog).Body()[0]
+	fnGraph := ana.AnalysisCtx().GraphOf(fn)
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b21[label="Catch:enter\nIdent(error)\nBlockStmt:enter\nRetStmt:enter\nRetStmt:exit\n"];
+b27[label="ExprStmt:enter\nCallExpr:enter\nIdent(log)\nIdent(error)\nCallExpr:exit\nExprStmt:exit\nBlockStmt:exit\nCatch:exit\n"];
+b37[label="BlockStmt:enter\nExprStmt:enter\nCallExpr:enter\nIdent(fin)\nCallExpr:exit\nExprStmt:exit\nBlockStmt:exit\n"];
+b47[label="ExprStmt:enter\nCallExpr:enter\nIdent(afterFin)\nCallExpr:exit\nExprStmt:exit\nBlockStmt:exit\n"];
+b54[label="FnDec:enter\nIdent(f)\nBlockStmt:enter\nTryStmt:enter\nBlockStmt:enter\nExprStmt:enter\nCallExpr:enter\nIdent(doSth1)\nCallExpr:exit\nExprStmt:exit\nExprStmt:enter\nCallExpr:enter\nIdent(doSth2)\nCallExpr:exit\nExprStmt:exit\nBlockStmt:exit\n"];
+b55[label="FnDec:exit\n"];
+b21->b27 [xlabel="",color="red"];
+b21->b37 [xlabel="U,P",color="orange"];
+b27->b37 [xlabel="",color="red"];
+b37->b47 [xlabel="",color="black"];
+b37->b55 [xlabel="P",color="orange"];
+b47->b55 [xlabel="",color="black"];
+b54->b21 [xlabel="E",color="orange"];
+b54->b37 [xlabel="",color="black"];
+b55->final [xlabel="",color="black"];
+initial->b54 [xlabel="",color="black"];
+}
+`, fnGraph.Dot(), "should be ok")
+}
+
+func TestCtrlflow_TryFinReturn(t *testing.T) {
+	ast, symtab, err := compile(`
+function f() {
+  try {
+    doSth1();
+    doSth2();
+  } catch (error) {
+    return
+    log(error);
+  } finally {
+    fin()
+    return
+  }
+  afterFin()
+}
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	fn := ast.(*parser.Prog).Body()[0]
+	fnGraph := ana.AnalysisCtx().GraphOf(fn)
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b21[label="Catch:enter\nIdent(error)\nBlockStmt:enter\nRetStmt:enter\nRetStmt:exit\n"];
+b27[label="ExprStmt:enter\nCallExpr:enter\nIdent(log)\nIdent(error)\nCallExpr:exit\nExprStmt:exit\nBlockStmt:exit\nCatch:exit\n"];
+b37[label="BlockStmt:enter\nExprStmt:enter\nCallExpr:enter\nIdent(fin)\nCallExpr:exit\nExprStmt:exit\nRetStmt:enter\nRetStmt:exit\n"];
+b47[label="BlockStmt:exit\n"];
+b49[label="ExprStmt:enter\nCallExpr:enter\nIdent(afterFin)\nCallExpr:exit\nExprStmt:exit\nBlockStmt:exit\n"];
+b56[label="FnDec:enter\nIdent(f)\nBlockStmt:enter\nTryStmt:enter\nBlockStmt:enter\nExprStmt:enter\nCallExpr:enter\nIdent(doSth1)\nCallExpr:exit\nExprStmt:exit\nExprStmt:enter\nCallExpr:enter\nIdent(doSth2)\nCallExpr:exit\nExprStmt:exit\nBlockStmt:exit\n"];
+b57[label="FnDec:exit\n"];
+b21->b27 [xlabel="",color="red"];
+b21->b37 [xlabel="U,P",color="orange"];
+b27->b37 [xlabel="",color="red"];
+b37->b47 [xlabel="",color="red"];
+b37->b57 [xlabel="U",color="orange"];
+b47->b49 [xlabel="",color="red"];
+b47->b57 [xlabel="P",color="red"];
+b49->b57 [xlabel="",color="red"];
+b56->b21 [xlabel="E",color="orange"];
+b56->b37 [xlabel="",color="black"];
+b57->final [xlabel="",color="black"];
+initial->b56 [xlabel="",color="black"];
+}
+`, fnGraph.Dot(), "should be ok")
+}

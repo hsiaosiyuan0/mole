@@ -717,7 +717,7 @@ func (n *TsUnionTyp) Elems() []Node {
 }
 
 // #[visitor(Elems)]
-type TsIntersecTyp struct {
+type TsIntersectTyp struct {
 	typ        NodeType
 	loc        *Loc
 	op         *Loc
@@ -725,23 +725,23 @@ type TsIntersecTyp struct {
 	outerParen *Loc
 }
 
-func (n *TsIntersecTyp) OuterParen() *Loc {
+func (n *TsIntersectTyp) OuterParen() *Loc {
 	return n.outerParen
 }
 
-func (n *TsIntersecTyp) SetOuterParen(loc *Loc) {
+func (n *TsIntersectTyp) SetOuterParen(loc *Loc) {
 	n.outerParen = loc
 }
 
-func (n *TsIntersecTyp) Type() NodeType {
+func (n *TsIntersectTyp) Type() NodeType {
 	return n.typ
 }
 
-func (n *TsIntersecTyp) Loc() *Loc {
+func (n *TsIntersectTyp) Loc() *Loc {
 	return n.loc
 }
 
-func (n *TsIntersecTyp) Elems() []Node {
+func (n *TsIntersectTyp) Elems() []Node {
 	return n.elems
 }
 
@@ -807,7 +807,7 @@ func (n *TsTypDec) Loc() *Loc {
 }
 
 // #[visitor(Id,TypParams,Supers,Body)]
-type TsInferface struct {
+type TsInterface struct {
 	typ    NodeType
 	loc    *Loc
 	name   Node
@@ -816,46 +816,46 @@ type TsInferface struct {
 	body   Node
 }
 
-func (n *TsInferface) Id() Node {
+func (n *TsInterface) Id() Node {
 	return n.name
 }
 
-func (n *TsInferface) TypParams() Node {
+func (n *TsInterface) TypParams() Node {
 	return n.params
 }
 
-func (n *TsInferface) Supers() []Node {
+func (n *TsInterface) Supers() []Node {
 	return n.supers
 }
 
-func (n *TsInferface) Body() Node {
+func (n *TsInterface) Body() Node {
 	return n.body
 }
 
-func (n *TsInferface) Type() NodeType {
+func (n *TsInterface) Type() NodeType {
 	return n.typ
 }
 
-func (n *TsInferface) Loc() *Loc {
+func (n *TsInterface) Loc() *Loc {
 	return n.loc
 }
 
 // #[visitor(Body)]
-type TsInferfaceBody struct {
+type TsInterfaceBody struct {
 	typ  NodeType
 	loc  *Loc
 	body []Node
 }
 
-func (n *TsInferfaceBody) Body() []Node {
+func (n *TsInterfaceBody) Body() []Node {
 	return n.body
 }
 
-func (n *TsInferfaceBody) Type() NodeType {
+func (n *TsInterfaceBody) Type() NodeType {
 	return n.typ
 }
 
-func (n *TsInferfaceBody) Loc() *Loc {
+func (n *TsInterfaceBody) Loc() *Loc {
 	return n.loc
 }
 

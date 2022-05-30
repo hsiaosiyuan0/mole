@@ -270,7 +270,7 @@ func TestTs22(t *testing.T) {
 
 	param1 := fn.params[1].(*Ident)
 	ti = param1.ti
-	AssertEqual(t, N_TS_INTERSEC_TYP, ti.TypAnnot().tsTyp.Type(), "should be ok")
+	AssertEqual(t, N_TS_INTERSECT_TYP, ti.TypAnnot().tsTyp.Type(), "should be ok")
 }
 
 func TestTs23(t *testing.T) {
@@ -825,9 +825,9 @@ func TestTs55(t *testing.T) {
 	AssertEqual(t, nil, err, "should be prog ok")
 
 	prog := ast.(*Prog)
-	itf := prog.stmts[0].(*TsInferface)
+	itf := prog.stmts[0].(*TsInterface)
 	AssertEqual(t, 2, len(itf.supers), "should be ok")
-	AssertEqual(t, "b", itf.body.(*TsInferfaceBody).body[0].(*TsProp).key.(*Ident).Text(), "should be ok")
+	AssertEqual(t, "b", itf.body.(*TsInterfaceBody).body[0].(*TsProp).key.(*Ident).Text(), "should be ok")
 }
 
 func TestTs56(t *testing.T) {
@@ -943,9 +943,9 @@ func TestTs63(t *testing.T) {
 
 	prog := ast.(*Prog)
 	ep := prog.stmts[0].(*ExportDec)
-	itf := ep.dec.(*TsInferface)
+	itf := ep.dec.(*TsInterface)
 	AssertEqual(t, 2, len(itf.supers), "should be ok")
-	AssertEqual(t, "b", itf.body.(*TsInferfaceBody).body[0].(*TsProp).key.(*Ident).Text(), "should be ok")
+	AssertEqual(t, "b", itf.body.(*TsInterfaceBody).body[0].(*TsProp).key.(*Ident).Text(), "should be ok")
 }
 
 func TestTs64(t *testing.T) {
@@ -1109,7 +1109,7 @@ func TestTs74(t *testing.T) {
 }
 
 func TestTs75(t *testing.T) {
-	// AmbientClassDeclaration Constructorignature
+	// AmbientClassDeclaration ConstructorSignature
 	ast, err := compileTs(`declare class a {
     constructor()
 }`, nil)
