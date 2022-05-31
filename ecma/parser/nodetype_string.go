@@ -10,7 +10,7 @@ func init() {
 	nodetypeStrings[N_CATCH] = "Catch"
 	nodetypeStrings[N_CLASS_BODY] = "ClassBody"
 	nodetypeStrings[N_DECORATOR] = "Decorator"
-	nodetypeStrings[N_EXPORT_SPEC] = "ExportDec"
+	nodetypeStrings[N_EXPORT_SPEC] = "ExportSpec"
 	nodetypeStrings[N_EXPR_ARROW] = "ArrowFn"
 	nodetypeStrings[N_EXPR_ASSIGN] = "AssignExpr"
 	nodetypeStrings[N_EXPR_BIN] = "BinExpr"

@@ -193,7 +193,9 @@ func handleBefore(node parser.Node, key string, ctx *walk.VisitorCtx) {
 			enterFnGraph(node, ctx, true)
 		}
 
-		if pAstTyp == parser.N_STMT_IF || isLoop(pAstTyp) || pAstTyp == parser.N_STMT_LABEL || pAstTyp == parser.N_STMT_TRY || pAstTyp == parser.N_CATCH {
+		if pAstTyp == parser.N_STMT_IF || isLoop(pAstTyp) || pAstTyp == parser.N_STMT_LABEL ||
+			pAstTyp == parser.N_STMT_TRY || pAstTyp == parser.N_CATCH || pAstTyp == parser.N_STMT_WITH ||
+			pAstTyp == parser.N_STMT_EXPORT {
 			// just pushing `enter` into stack without linking to the `prevStmt` to imitate a new branch
 			// the forked branch will be linked to its source branch point in the post-process listener
 			// of its astNode
@@ -299,6 +301,52 @@ func handleAfter(node parser.Node, key string, ctx *walk.VisitorCtx) {
 		link(ac, vn, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, exit, false, false)
 
 		ac.pushExpr(grpBlock(ac, vn, exit))
+
+	case parser.N_EXPR_UNARY:
+		expr := ac.popExpr()
+		enter := ac.popExpr()
+		exit := ac.newExit(node, "")
+
+		link(ac, enter, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, expr, false, false)
+
+		prev := grpBlock(ac, enter, expr)
+		link(ac, prev, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, exit, false, false)
+
+		ac.pushExpr(grpBlock(ac, enter, exit))
+
+	case parser.N_EXPR_COND:
+		alt := ac.popExpr()
+		cons := ac.popExpr()
+		test := ac.popExpr()
+		enter := ac.popExpr()
+		exit := ac.newExit(node, "")
+
+		test.newJmpOut(ET_JMP_F)
+		link(ac, enter, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, test, false, false)
+
+		prev := grpBlock(ac, enter, test)
+		link(ac, prev, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, cons, false, false)
+		link(ac, prev, EK_JMP, ET_JMP_T, EK_SEQ, ET_NONE, cons, false, false)
+		link(ac, prev, EK_JMP, ET_JMP_F, EK_SEQ, ET_NONE, alt, false, false)
+
+		vn := grpBlock(ac, prev, cons)
+		vn.Outlets = append(vn.Outlets, alt.xOutEdges()...)
+
+		// to `EK_NONE` can prevent the to-blk being joined into the from-blk
+		link(ac, vn, EK_NONE, ET_NONE, EK_NONE, ET_NONE, exit, false, false)
+		ac.pushExpr(grpBlock(ac, vn, exit))
+
+	case parser.N_IMPORT_CALL:
+		expr := ac.popExpr()
+		enter := ac.popExpr()
+		exit := ac.newExit(node, "")
+
+		link(ac, enter, EK_NONE, ET_NONE, EK_NONE, ET_NONE, expr, false, false)
+
+		prev := grpBlock(ac, enter, expr)
+		link(ac, prev, EK_NONE, ET_NONE, EK_NONE, ET_NONE, exit, false, false)
+
+		ac.pushExpr(grpBlock(ac, enter, exit))
 
 	case parser.N_EXPR_UPDATE, parser.N_EXPR_PAREN:
 		expr := ac.popExpr()
@@ -459,16 +507,16 @@ func handleAfter(node parser.Node, key string, ctx *walk.VisitorCtx) {
 
 	case parser.N_STMT_EXPR:
 		expr := ac.popExpr()
-		prev := ac.popStmt()
-		link(ac, prev, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, expr, false, true)
+		enter := ac.popStmt()
+		link(ac, enter, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, expr, false, true)
 
-		prev = grpBlock(ac, prev, expr)
+		prev := grpBlock(ac, enter, expr)
 		exit := ac.newExit(node, "")
 
 		link(ac, prev, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, exit, false, false)
 		link(ac, prev, EK_JMP, ET_JMP_T|ET_JMP_F, EK_NONE, ET_NONE, exit, false, false)
 
-		ac.pushStmt(grpBlock(ac, prev, exit))
+		ac.pushStmt(grpBlock(ac, enter, exit))
 
 	case parser.N_VAR_DEC:
 		n := node.(*parser.VarDec)
@@ -500,7 +548,8 @@ func handleAfter(node parser.Node, key string, ctx *walk.VisitorCtx) {
 		ac.pushStmt(grpBlock(ac, prev, exit))
 
 		if pAstTyp == parser.N_STMT_FOR && key == "Init" ||
-			pAstTyp == parser.N_STMT_FOR_IN_OF && key == "Left" {
+			pAstTyp == parser.N_STMT_FOR_IN_OF && key == "Left" ||
+			pAstTyp == parser.N_STMT_EXPORT {
 			ac.pushExpr(ac.popStmt())
 		}
 
@@ -1092,6 +1141,136 @@ func handleAfter(node parser.Node, key string, ctx *walk.VisitorCtx) {
 		exit.mrkSeqOutAsCut()
 
 		vn := grpBlock(ac, origPrev, exit)
+		ac.pushStmt(vn)
+
+	case parser.N_IMPORT_SPEC:
+		n := node.(*parser.ImportSpec)
+
+		exit := ac.newExit(node, "")
+
+		var id *Block
+		if n.Default() {
+			ac.popExpr() // discard id
+		} else if !n.NameSpace() {
+			id = ac.popExpr()
+		}
+
+		local := ac.popExpr()
+		enter := ac.popExpr()
+
+		prev := enter
+		if id != nil {
+			link(ac, enter, EK_NONE, ET_NONE, EK_NONE, ET_NONE, id, false, false)
+			prev = grpBlock(ac, enter, id)
+		}
+
+		link(ac, enter, EK_NONE, ET_NONE, EK_NONE, ET_NONE, local, false, false)
+		prev = grpBlock(ac, prev, local)
+
+		link(ac, prev, EK_NONE, ET_NONE, EK_NONE, ET_NONE, exit, false, false)
+
+		ac.pushExpr(grpBlock(ac, enter, exit))
+
+	case parser.N_STMT_IMPORT:
+		n := node.(*parser.ImportDec)
+
+		enter := ac.popStmt()
+		exit := ac.newExit(node, "")
+
+		src := ac.popExpr()
+		head, tail := ac.popExprsAndLink(len(n.Specs()))
+
+		if head != nil {
+			link(ac, enter, EK_NONE, ET_NONE, EK_NONE, ET_NONE, head, false, false)
+			link(ac, tail, EK_NONE, ET_NONE, EK_NONE, ET_NONE, src, false, false)
+			link(ac, src, EK_NONE, ET_NONE, EK_NONE, ET_NONE, exit, false, false)
+		} else {
+			link(ac, enter, EK_NONE, ET_NONE, EK_NONE, ET_NONE, src, false, false)
+			link(ac, src, EK_NONE, ET_NONE, EK_NONE, ET_NONE, exit, false, false)
+		}
+
+		ac.pushStmt(grpBlock(ac, enter, exit))
+
+	case parser.N_EXPORT_SPEC:
+		n := node.(*parser.ExportSpec)
+
+		exit := ac.newExit(node, "")
+
+		var id *Block
+		if !n.NameSpace() {
+			id = ac.popExpr()
+		}
+
+		local := ac.popExpr()
+		enter := ac.popExpr()
+
+		prev := enter
+		if id != nil {
+			link(ac, enter, EK_NONE, ET_NONE, EK_NONE, ET_NONE, id, false, false)
+			prev = grpBlock(ac, enter, id)
+		}
+
+		link(ac, enter, EK_NONE, ET_NONE, EK_NONE, ET_NONE, local, false, false)
+		prev = grpBlock(ac, prev, local)
+
+		link(ac, prev, EK_NONE, ET_NONE, EK_NONE, ET_NONE, exit, false, false)
+
+		ac.pushExpr(grpBlock(ac, enter, exit))
+
+	case parser.N_STMT_EXPORT:
+		n := node.(*parser.ExportDec)
+
+		enter := ac.popStmt()
+		exit := ac.newExit(node, "")
+
+		var src *Block
+		if n.Src() != nil {
+			src = ac.popExpr()
+		}
+
+		var head, tail *Block
+		if len(n.Specs()) > 0 {
+			head, tail = ac.popExprsAndLink(len(n.Specs()))
+		} else if n.Dec() != nil {
+			head = ac.popExpr()
+			if head == nil {
+				head = enter
+				enter = ac.popStmt()
+			}
+			tail = head
+		}
+
+		if head != nil {
+			link(ac, enter, EK_NONE, ET_NONE, EK_NONE, ET_NONE, head, false, false)
+
+			if src != nil {
+				link(ac, tail, EK_NONE, ET_NONE, EK_NONE, ET_NONE, src, false, false)
+				link(ac, src, EK_NONE, ET_NONE, EK_NONE, ET_NONE, exit, false, false)
+			} else {
+				link(ac, tail, EK_NONE, ET_NONE, EK_NONE, ET_NONE, exit, false, false)
+			}
+		} else {
+			link(ac, enter, EK_NONE, ET_NONE, EK_NONE, ET_NONE, src, false, false)
+			link(ac, src, EK_NONE, ET_NONE, EK_NONE, ET_NONE, exit, false, false)
+		}
+
+		ac.pushStmt(grpBlock(ac, enter, exit))
+
+	case parser.N_STMT_WITH:
+		obj := ac.popExpr()
+		body := ac.popStmt()
+		enter := ac.popStmt()
+		exit := ac.newExit(node, "")
+
+		link(ac, enter, EK_NONE, ET_NONE, EK_NONE, ET_NONE, obj, false, false)
+
+		prev := grpBlock(ac, enter, obj)
+		link(ac, prev, EK_NONE, ET_NONE, EK_NONE, ET_NONE, body, false, false)
+
+		prev = grpBlock(ac, prev, body)
+		link(ac, prev, EK_NONE, ET_NONE, EK_NONE, ET_NONE, exit, false, false)
+
+		vn := grpBlock(ac, prev, exit)
 		ac.pushStmt(vn)
 
 	default:

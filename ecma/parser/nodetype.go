@@ -83,7 +83,7 @@ const (
 	N_FIELD        // #[visitor(Field)]
 	N_SUPER        // #[visitor(Super)]
 	N_IMPORT_SPEC  // #[visitor(ImportSpec)]
-	N_EXPORT_SPEC  // #[visitor(ExportDec)]
+	N_EXPORT_SPEC  // #[visitor(ExportSpec)]
 
 	N_JSX_BEGIN
 	N_JSX_ID           // #[visitor(JsxIdent)]

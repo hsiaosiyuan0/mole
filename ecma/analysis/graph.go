@@ -719,6 +719,27 @@ func (n *InfoNode) String() string {
 		return fmt.Sprintf("%s(%s):%s", typ.String(), n.astNode.(*parser.UpdateExpr).OpText(), enter)
 	case parser.N_EXPR_UNARY:
 		return fmt.Sprintf("%s(%s):%s", typ.String(), n.astNode.(*parser.UnaryExpr).OpText(), enter)
+	case parser.N_IMPORT_SPEC:
+		node := n.astNode.(*parser.ImportSpec)
+		if node.Default() {
+			return fmt.Sprintf("%s(%s):%s", typ.String(), "Default", enter)
+		}
+		if node.NameSpace() {
+			return fmt.Sprintf("%s(%s):%s", typ.String(), "Namespace", enter)
+		}
+	case parser.N_STMT_EXPORT:
+		node := n.astNode.(*parser.ExportDec)
+		if node.All() {
+			return fmt.Sprintf("%s(%s):%s", typ.String(), "All", enter)
+		}
+		if node.Default() {
+			return fmt.Sprintf("%s(%s):%s", typ.String(), "Default", enter)
+		}
+	case parser.N_EXPORT_SPEC:
+		node := n.astNode.(*parser.ExportSpec)
+		if node.NameSpace() {
+			return fmt.Sprintf("%s(%s):%s", typ.String(), "Namespace", enter)
+		}
 	}
 	return fmt.Sprintf("%s:%s", typ.String(), enter)
 }

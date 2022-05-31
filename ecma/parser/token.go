@@ -440,7 +440,7 @@ var TokenKinds = [T_TOKEN_DEF_END + 1]*TokenKind{
 	{T_FOR, "for", 0, false, false, false},
 	{T_FUNC, "function", 0, false, false, true},
 	{T_IF, "if", 0, false, false, false},
-	{T_IMPORT, "import", 0, false, false, false},
+	{T_IMPORT, "import", 0, false, false, true},
 	{T_NEW, "new", 0, true, true, true},
 	{T_RETURN, "return", 0, false, true, false},
 	{T_SUPER, "super", 0, false, false, true},

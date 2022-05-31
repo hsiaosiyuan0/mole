@@ -11,8 +11,8 @@ import (
 )
 
 // AST nodes are referred to [ESTree](https://github.com/estree/estree/blob/master/es5.md) with some variants:
-// - flatterned struct is used instead of inheritance
-// - fields are not fully described as they are claimmed in ESTree, eg. the field names in this file are shorter then
+// - flattened struct is used instead of inheritance
+// - fields are not fully described as they are claimed in ESTree, eg. the field names in this file are shorter then
 //   their equivalent of ESTree. for the requirement what the ESTree compatible output is needed, use the `estree` package
 //   to do the transformation
 type Node interface {
@@ -1157,11 +1157,11 @@ func (n *ParenExpr) SetOuterParen(loc *Loc) {
 	n.outerParen = loc
 }
 
-// there is no information kept to describe the program order of the quasis and expresions
-// according to below link descries how the quasis and expresion are being walk over:
+// there is no information kept to describe the program order of the quasis and expressions
+// according to below link descries how the quasis and expression are being walk over:
 // https://opensource.apple.com/source/WebInspectorUI/WebInspectorUI-7602.2.14.0.5/UserInterface/Workers/Formatter/ESTreeWalker.js.auto.html
 // some meaningless output should be taken into its estree result, such as put first quasis as
-// a emptry string if the first element in `elems` is a expression
+// a empty string if the first element in `elems` is a expression
 //
 // #[visitor(Tag,Elems)]
 type TplExpr struct {
