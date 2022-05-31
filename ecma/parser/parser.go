@@ -47,6 +47,10 @@ type Parser struct {
 
 	// for resolve `FnDec.rets`
 	retsStk [][]Node
+
+	// keep tryStmts in their lexical order
+	tryStk []Node
+	prog   Node
 }
 
 type ParserOpts struct {
@@ -119,6 +123,7 @@ func (p *Parser) Setup(src *span.Source, opts *ParserOpts) {
 	p.symtab = NewSymTab(opts.Externals)
 	p.loopStk = []Node{}
 	p.retsStk = [][]Node{}
+	p.tryStk = []Node{}
 
 	p.lexer = NewLexer(src)
 	p.lexer.ver = opts.Version
@@ -136,6 +141,21 @@ func (p *Parser) pushLoopStk(loopNode Node) {
 
 func (p *Parser) popLoopStk() {
 	p.loopStk = p.loopStk[0 : len(p.loopStk)-1]
+}
+
+func (p *Parser) pushTryStk(try Node) {
+	p.tryStk = append(p.tryStk, try)
+}
+
+func (p *Parser) popTryStk() {
+	p.tryStk = p.tryStk[0 : len(p.tryStk)-1]
+}
+
+func (p *Parser) lastTry() Node {
+	if len(p.tryStk) == 0 {
+		return nil
+	}
+	return p.tryStk[len(p.tryStk)-1]
 }
 
 func (p *Parser) incRetsStk() {
@@ -161,6 +181,7 @@ func (p *Parser) Symtab() *SymTab {
 func (p *Parser) Prog() (Node, error) {
 	loc := p.loc()
 	pg := NewProg()
+	p.prog = pg
 
 	scope := p.scope()
 	scope.AddKind(SPK_GLOBAL)
@@ -1695,6 +1716,9 @@ func (p *Parser) tryStmt() (Node, error) {
 	loc := p.loc()
 	p.lexer.Next()
 
+	tryStmt := &TryStmt{N_STMT_TRY, nil, nil, nil, nil}
+	p.pushTryStk(tryStmt)
+
 	try, err := p.blockStmt(true, SPK_TRY)
 	if err != nil {
 		return nil, err
@@ -1705,6 +1729,7 @@ func (p *Parser) tryStmt() (Node, error) {
 		return nil, p.errorTok(tok)
 	}
 
+	p.popTryStk()
 	var catch Node
 	if tok.value == T_CATCH {
 		loc := p.loc()
@@ -1772,7 +1797,11 @@ func (p *Parser) tryStmt() (Node, error) {
 		}
 	}
 
-	return &TryStmt{N_STMT_TRY, p.finLoc(loc), try, catch, fin}, nil
+	tryStmt.loc = p.finLoc(loc)
+	tryStmt.try = try
+	tryStmt.catch = catch
+	tryStmt.fin = fin
+	return tryStmt, nil
 }
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-statements-and-declarations.html#prod-ThrowStatement
@@ -1799,7 +1828,11 @@ func (p *Parser) throwStmt() (Node, error) {
 		return nil, err
 	}
 
-	return &ThrowStmt{N_STMT_THROW, p.finLoc(loc), arg}, nil
+	try := p.lastTry()
+	if try == nil {
+		try = p.prog
+	}
+	return &ThrowStmt{N_STMT_THROW, p.finLoc(loc), arg, try}, nil
 }
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-statements-and-declarations.html#prod-ReturnStatement

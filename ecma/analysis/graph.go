@@ -19,6 +19,14 @@ const (
 
 type EdgeTag uint8
 
+func (f EdgeTag) On(flag EdgeTag) EdgeTag {
+	return f | flag
+}
+
+func (f EdgeTag) Off(flag EdgeTag) EdgeTag {
+	return f & ^flag
+}
+
 const (
 	ET_NONE  EdgeTag = 0
 	ET_JMP_T EdgeTag = 1 << iota
@@ -177,7 +185,6 @@ func FindEdge(edges []*Edge, k EdgeKind, t EdgeTag) (*Edge, int) {
 	for i, edge := range edges {
 		if edge.Kind == k && (edge.Tag == ET_NONE || edge.Tag&t != 0) {
 			e = edge
-			e.Tag = t
 			idx = i
 			break
 		}
@@ -208,14 +215,16 @@ func SwitchCase(clauseBlk *Block) (*Block, *Block, bool) {
 	return test, body, len(test.Nodes) == 1
 }
 
-func (b *Block) FindInEdge(k EdgeKind, t EdgeTag, create bool) *Edge {
+func (b *Block) FindInEdge(k EdgeKind, t EdgeTag, create bool) (*Edge, bool) {
 	e, _ := FindEdge(b.Inlets, k, t)
 
+	new := false
 	if e == nil && create {
 		e = &Edge{k, t, nil, b}
 		b.Inlets = append(b.Inlets, e)
+		new = true
 	}
-	return e
+	return e, new
 }
 
 func (b *Block) FindOutEdge(k EdgeKind, t EdgeTag, create bool) *Edge {
@@ -260,6 +269,15 @@ func (b *Block) allInfoNode() bool {
 		}
 	}
 	return true
+}
+
+func (b *Block) throwLit() bool {
+	if len(b.Nodes) < 2 {
+		return false
+	}
+	c := len(b.Nodes)
+	last := b.Nodes[c-1]
+	return last.Type() == N_CFG_DEBUG && last.(*InfoNode).astNode.Type() == parser.N_STMT_THROW && b.Nodes[c-2].Type().IsLit()
 }
 
 func (b *Block) OnlyInfo() bool {
@@ -409,10 +427,14 @@ func (b *Block) newIn(k EdgeKind, t EdgeTag) {
 	}
 }
 
-func (b *Block) mrkSeqOutAsLoop() {
+func (b *Block) mrkSeqOutAsJmp(t EdgeTag) {
 	edge := b.seqOutEdge()
 	edge.Kind = EK_JMP
-	edge.Tag |= ET_LOOP
+	edge.Tag |= t
+}
+
+func (b *Block) mrkSeqOutAsLoop() {
+	b.mrkSeqOutAsJmp(ET_LOOP)
 }
 
 func (b *Block) addCutOutEdge() {
@@ -439,8 +461,12 @@ func (b *Block) mrkSeqOutAsCut() {
 }
 
 func (b *Block) IsInCut() bool {
-	edge := b.InSeqEdge()
-	return edge != nil && len(edge.Dst.Inlets) == 1 && edge.Tag&ET_CUT != 0
+	for _, e := range b.Inlets {
+		if e.Tag&ET_CUT == 0 {
+			return false
+		}
+	}
+	return true
 }
 
 func (b *Block) HasOutCut() bool {
@@ -509,17 +535,30 @@ type Graph struct {
 	// key of below map is the loop which has unresolved cont-stmts
 	hangingCont map[parser.Node][]*Block
 
+	// map tryStmts to their unresolved throw-block
+	hangingThrow    map[parser.Node][]*Block
+	hasHangingThrow bool
+
 	blkSeed uint
 }
 
 func newGraph() *Graph {
 	g := &Graph{
-		labelLoop:   map[parser.Node]int{},
-		hangingBrk:  map[int][]*Block{},
-		hangingCont: map[parser.Node][]*Block{},
+		labelLoop:    map[parser.Node]int{},
+		hangingBrk:   map[int][]*Block{},
+		hangingCont:  map[parser.Node][]*Block{},
+		hangingThrow: map[parser.Node][]*Block{},
 	}
 	g.Head = g.newStartBlk()
 	return g
+}
+
+func (g *Graph) addHangingThrow(try parser.Node, blk *Block) {
+	list := g.hangingThrow[try]
+	if list == nil {
+		list = make([]*Block, 0)
+	}
+	g.hangingThrow[try] = append(list, blk)
 }
 
 func (g *Graph) addHangingBrk(id int, blk *Block) {
@@ -530,16 +569,16 @@ func (g *Graph) addHangingBrk(id int, blk *Block) {
 	g.hangingBrk[id] = append(list, blk)
 }
 
-func (g *Graph) addHangingCont(loopNode parser.Node, blk *Block) {
-	list := g.hangingCont[loopNode]
+func (g *Graph) addHangingCont(loop parser.Node, blk *Block) {
+	list := g.hangingCont[loop]
 	if list == nil {
 		list = make([]*Block, 0)
 	}
-	g.hangingCont[loopNode] = append(list, blk)
+	g.hangingCont[loop] = append(list, blk)
 }
 
-func (g *Graph) isLoopHasCont(loopNode parser.Node) bool {
-	return len(g.hangingCont[loopNode]) > 0
+func (g *Graph) isLoopHasCont(loop parser.Node) bool {
+	return len(g.hangingCont[loop]) > 0
 }
 
 func (g *Graph) newBasicBlk() *Block {
@@ -697,6 +736,11 @@ func link(a *AnalysisCtx, from *Block, fromKind EdgeKind, fromTag EdgeTag, toKin
 		return
 	}
 
+	var fromSeq *Block
+	if edge := from.OutSeqEdge(); edge != nil {
+		fromSeq = edge.Src
+	}
+
 	// if `from` has only one outlet then that outlet must be seq, merge the first node of `to` into `from`
 	if (fromKind == EK_SEQ || fromKind == EK_NONE) && !forceSep && to.onlySeqIn() {
 
@@ -707,10 +751,6 @@ func link(a *AnalysisCtx, from *Block, fromKind EdgeKind, fromTag EdgeTag, toKin
 		}
 
 		// `to` is basic blk, try to merge it into `from`
-		var fromSeq *Block
-		if edge := from.OutSeqEdge(); edge != nil {
-			fromSeq = edge.Src
-		}
 		if fromSeq != nil && fromSeq.Kind == BK_BASIC && fromSeq.onlySeqOut() &&
 			toKind == EK_SEQ && to.Kind == BK_BASIC && (forceJoin || fromSeq.Kind == BK_BASIC || fromSeq.IsInCut()) {
 			fromSeq.join(to)
@@ -723,9 +763,16 @@ func link(a *AnalysisCtx, from *Block, fromKind EdgeKind, fromTag EdgeTag, toKin
 	// process reaches here means the `from` maybe group block or basic block which has multiple outlets
 	linkEdges(from.Outlets, fromKind, fromTag, toKind, toTag, to)
 
-	if from.IsOutCut(to) && len(to.Inlets) == 1 {
-		for _, edge := range to.Outlets {
-			edge.Tag |= ET_CUT
+	if from.IsOutCut(to) {
+		for _, edge := range to.Inlets {
+			if edge.Src == fromSeq {
+				edge.Tag |= ET_CUT
+			}
+		}
+		if to.IsInCut() {
+			for _, edge := range to.Outlets {
+				edge.Tag |= ET_CUT
+			}
 		}
 	}
 }
@@ -734,7 +781,7 @@ func linkEdges(fromEdges []*Edge, fromKind EdgeKind, fromTag EdgeTag, toKind Edg
 	for _, edge := range fromEdges {
 		if (fromKind == EK_NONE && edge.Dst == nil) || (edge.Kind == fromKind && (fromTag == ET_NONE || edge.Tag&fromTag != 0)) {
 			edge.Dst = to
-			toEdge := to.FindInEdge(edge.Kind, edge.Tag, true)
+			toEdge, _ := to.FindInEdge(toKind, toTag, true)
 			toEdge.Src = edge.Src
 		}
 	}

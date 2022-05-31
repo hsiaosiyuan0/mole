@@ -293,10 +293,8 @@ func handleAfter(node parser.Node, key string, ctx *walk.VisitorCtx) {
 		}
 
 		exit := ac.newExit(node, "")
-		// joinExit := logic && (n.Lhs().Type() != parser.N_EXPR_BIN && n.Rhs().Type() != parser.N_EXPR_BIN || pAstTyp != parser.N_STMT_EXPR)
-
 		if logic && pAstTyp == parser.N_STMT_EXPR {
-			link(ac, vn, EK_JMP, ET_JMP_T|ET_JMP_F, EK_SEQ, ET_NONE, exit, false, false)
+			link(ac, vn, EK_JMP, ET_JMP_T|ET_JMP_F, EK_JMP, ET_NONE, exit, false, false)
 		}
 		link(ac, vn, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, exit, false, false)
 
@@ -403,14 +401,13 @@ func handleAfter(node parser.Node, key string, ctx *walk.VisitorCtx) {
 		prev := ac.popStmt()
 		link(ac, prev, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, expr, false, true)
 
+		prev = grpBlock(ac, prev, expr)
 		exit := ac.newExit(node, "")
 
-		link(ac, expr, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, exit, false, false)
-		link(ac, expr, EK_JMP, ET_JMP_T|ET_JMP_F, EK_NONE, ET_NONE, exit, false, false)
+		link(ac, prev, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, exit, false, false)
+		link(ac, prev, EK_JMP, ET_JMP_T|ET_JMP_F, EK_NONE, ET_NONE, exit, false, false)
 
-		vn := grpBlock(ac, prev, exit)
-		vn.Outlets = append(vn.Outlets, expr.xJmpOutEdges()...)
-		ac.pushStmt(vn)
+		ac.pushStmt(grpBlock(ac, prev, exit))
 
 	case parser.N_VAR_DEC:
 		n := node.(*parser.VarDec)
@@ -446,7 +443,14 @@ func handleAfter(node parser.Node, key string, ctx *walk.VisitorCtx) {
 			ac.pushExpr(ac.popStmt())
 		}
 
-	case parser.N_PROG, parser.N_STMT_BLOCK:
+	case parser.N_PROG:
+		prev := ac.popStmt()
+		exit := ac.newExit(node, "")
+		forceSep := astTyp == parser.N_PROG && ac.graph.hasHangingThrow
+		link(ac, prev, EK_NONE, ET_NONE, EK_SEQ, ET_NONE, exit, forceSep, false)
+		ac.pushStmt(grpBlock(ac, prev, exit))
+
+	case parser.N_STMT_BLOCK:
 		prev := ac.popStmt()
 		exit := ac.newExit(node, "")
 		link(ac, prev, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, exit, false, false)
@@ -562,7 +566,8 @@ func handleAfter(node parser.Node, key string, ctx *walk.VisitorCtx) {
 		vn.Outlets = append(vn.Outlets, body.xOutEdges()...)
 
 		exit := ac.newExit(node, "")
-		link(ac, vn, EK_NONE, ET_NONE, EK_NONE, ET_NONE, exit, false, false)
+		link(ac, vn, EK_JMP, ET_NONE, EK_JMP, ET_NONE, exit, false, false)
+		link(ac, vn, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, exit, false, false)
 
 		if tn := n.Test(); tn != nil && tn.Type().IsLit() {
 			j := test.FindOutEdge(EK_JMP, ET_JMP_F, false)
@@ -604,7 +609,7 @@ func handleAfter(node parser.Node, key string, ctx *walk.VisitorCtx) {
 		vn.Outlets = append(vn.Outlets, body.xOutEdges()...)
 
 		exit := ac.newExit(node, "")
-		link(ac, vn, EK_NONE, ET_NONE, EK_NONE, ET_NONE, exit, false, false)
+		link(ac, vn, EK_NONE, ET_NONE, EK_SEQ, ET_NONE, exit, false, false)
 		ac.pushStmt(grpBlock(ac, vn, exit))
 
 	case parser.N_STMT_DO_WHILE:
@@ -699,19 +704,24 @@ func handleAfter(node parser.Node, key string, ctx *walk.VisitorCtx) {
 
 		eb := []*Edge{}
 		IterBlock(try.unwrapSeqIn(), func(blk *Block) {
-			if edge := blk.FindOutEdge(EK_JMP, ET_JMP_E, false); edge != nil || blk.allInfoNode() {
+			if edge := blk.FindOutEdge(EK_JMP, ET_JMP_E, false); edge != nil || blk.allInfoNode() || blk.throwLit() {
 				return
 			}
 			edge := blk.newJmpOut(ET_JMP_E)
-			if blk.IsInCut() {
-				edge.Tag |= ET_CUT
-			}
 			eb = append(eb, edge)
 		})
 		try.Outlets = append(try.Outlets, eb...)
 
 		link(ac, enter, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, try, false, false)
 		link(ac, try, EK_JMP, ET_JMP_E, EK_SEQ, ET_NONE, catch, false, false)
+
+		throws := ac.graph.hangingThrow[n]
+		if len(throws) > 0 {
+			catch.newJmpIn(ET_JMP_U)
+		}
+		for _, blk := range throws {
+			link(ac, blk, EK_JMP, ET_JMP_U, EK_JMP, ET_JMP_U, catch, false, false)
+		}
 
 		// `ET_JMP_U` inside catch should jump to the fin while skipping the stmts after fin
 		if edges := FindEdges(catch.Outlets, EK_JMP, ET_JMP_U); len(edges) > 0 && fin != nil {
@@ -739,8 +749,8 @@ func handleAfter(node parser.Node, key string, ctx *walk.VisitorCtx) {
 			exit = fin
 		}
 
-		exit.newIn(EK_SEQ, ET_NONE)
-		link(ac, catch, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, exit, true, false)
+		exit.newJmpIn(ET_JMP_U)
+		link(ac, catch, EK_SEQ, ET_NONE, EK_JMP, ET_JMP_U, exit, true, false)
 		link(ac, try, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, exit, false, false)
 
 		vn := grpBlock(ac, enter, origExit)
@@ -749,6 +759,37 @@ func handleAfter(node parser.Node, key string, ctx *walk.VisitorCtx) {
 		if fin != nil {
 			vn.Outlets = append(vn.Outlets, fin.xJmpOutEdges()...)
 		}
+		ac.pushStmt(vn)
+
+	case parser.N_STMT_THROW:
+		n := node.(*parser.ThrowStmt)
+		prev := ac.popStmt()
+		expr := ac.popExpr()
+		exit := ac.newExit(node, "")
+
+		link(ac, prev, EK_NONE, ET_NONE, EK_NONE, ET_NONE, expr, false, false)
+
+		prev = grpBlock(ac, prev, expr)
+		if edge := prev.FindOutEdge(EK_JMP, ET_JMP_E, false); edge == nil && !n.Arg().Type().IsLit() {
+			prev.newJmpOut(ET_JMP_E)
+		}
+
+		exit.newJmpOut(ET_JMP_U)
+		link(ac, prev, EK_SEQ, ET_NONE, EK_NONE, ET_NONE, exit, false, false)
+		link(ac, prev, EK_JMP, ET_JMP_T|ET_JMP_F, EK_NONE, ET_NONE, exit, false, false)
+		exit.mrkSeqOutAsCut()
+
+		vn := grpBlock(ac, prev, exit)
+		vn.Outlets = append(vn.Outlets, expr.xJmpOutEdges()...)
+
+		if n.Target() != nil {
+			if n.Target().Type() == parser.N_PROG {
+				ac.graph.hasHangingThrow = true
+			} else {
+				ac.root.addHangingThrow(n.Target(), vn)
+			}
+		}
+
 		ac.pushStmt(vn)
 
 	case parser.N_STMT_SWITCH:
@@ -975,6 +1016,8 @@ func handleAfter(node parser.Node, key string, ctx *walk.VisitorCtx) {
 
 	case parser.N_STMT_RET:
 		prev := ac.popStmt()
+		origPrev := prev
+
 		exit := ac.newExit(node, "")
 		exit.newJmpOut(ET_JMP_U)
 
@@ -987,7 +1030,7 @@ func handleAfter(node parser.Node, key string, ctx *walk.VisitorCtx) {
 		link(ac, prev, EK_NONE, ET_NONE, EK_NONE, ET_NONE, exit, false, false)
 		exit.mrkSeqOutAsCut()
 
-		vn := grpBlock(ac, prev, exit)
+		vn := grpBlock(ac, origPrev, exit)
 		ac.pushStmt(vn)
 
 	default:
@@ -1014,7 +1057,8 @@ func handleAfter(node parser.Node, key string, ctx *walk.VisitorCtx) {
 func resolveCont(a *AnalysisCtx, loopNode parser.Node, loopTailBlk *Block) {
 	for _, cont := range a.graph.hangingCont[loopNode] {
 		// cont is a placeholder, so we need to find the source blk, then it to loopTailBlk
-		jmp := cont.FindInEdge(EK_JMP, ET_LOOP, false).Src
+		edge, _ := cont.FindInEdge(EK_JMP, ET_LOOP, false)
+		jmp := edge.Src
 		link(a, jmp, EK_JMP, ET_LOOP, EK_JMP, ET_LOOP, loopTailBlk, false, false)
 	}
 }

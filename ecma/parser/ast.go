@@ -2036,13 +2036,18 @@ func (n *RetStmt) Loc() *Loc {
 
 // #[visitor(Arg)]
 type ThrowStmt struct {
-	typ NodeType
-	loc *Loc
-	arg Node
+	typ    NodeType
+	loc    *Loc
+	arg    Node
+	target Node
 }
 
 func (n *ThrowStmt) Arg() Node {
 	return n.arg
+}
+
+func (n *ThrowStmt) Target() Node {
+	return n.target
 }
 
 func (n *ThrowStmt) Type() NodeType {
