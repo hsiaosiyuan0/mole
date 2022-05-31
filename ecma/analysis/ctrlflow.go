@@ -396,6 +396,67 @@ func handleAfter(node parser.Node, key string, ctx *walk.VisitorCtx) {
 		vn := grpBlock(ac, enter, exit)
 		ac.pushExpr(vn)
 
+	case parser.N_EXPR_NEW:
+		n := node.(*parser.NewExpr)
+
+		head, tail := ac.popExprsAndLink(len(n.Args()))
+
+		fn := ac.popExpr()
+		enter := ac.popExpr()
+		exit := ac.newExit(node, "")
+
+		if head != nil {
+			link(ac, enter, EK_NONE, ET_NONE, EK_NONE, ET_NONE, fn, false, false)
+
+			prev := grpBlock(ac, enter, fn)
+			link(ac, prev, EK_NONE, ET_NONE, EK_NONE, ET_NONE, head, false, false)
+
+			link(ac, tail, EK_NONE, ET_NONE, EK_NONE, ET_NONE, exit, false, false)
+		} else {
+			link(ac, enter, EK_NONE, ET_NONE, EK_NONE, ET_NONE, fn, false, false)
+
+			prev := grpBlock(ac, enter, fn)
+			link(ac, prev, EK_NONE, ET_NONE, EK_NONE, ET_NONE, exit, false, false)
+		}
+
+		vn := grpBlock(ac, enter, exit)
+		ac.pushExpr(vn)
+
+	case parser.N_EXPR_MEMBER:
+		prop := ac.popExpr()
+		obj := ac.popExpr()
+		enter := ac.popExpr()
+		exit := ac.newExit(node, "")
+
+		link(ac, enter, EK_NONE, ET_NONE, EK_NONE, ET_NONE, obj, false, false)
+
+		prev := grpBlock(ac, enter, obj)
+		link(ac, prev, EK_NONE, ET_NONE, EK_NONE, ET_NONE, prop, false, false)
+
+		prev = grpBlock(ac, prev, prop)
+		link(ac, prev, EK_NONE, ET_NONE, EK_NONE, ET_NONE, exit, false, false)
+
+		vn := grpBlock(ac, enter, exit)
+		ac.pushExpr(vn)
+
+	case parser.N_EXPR_SEQ:
+		n := node.(*parser.SeqExpr)
+
+		head, tail := ac.popExprsAndLink(len(n.Elems()))
+
+		enter := ac.popExpr()
+		exit := ac.newExit(node, "")
+
+		if head != nil {
+			link(ac, enter, EK_NONE, ET_NONE, EK_NONE, ET_NONE, head, false, false)
+			link(ac, tail, EK_NONE, ET_NONE, EK_NONE, ET_NONE, exit, false, false)
+		} else {
+			link(ac, enter, EK_NONE, ET_NONE, EK_NONE, ET_NONE, exit, false, false)
+		}
+
+		vn := grpBlock(ac, enter, exit)
+		ac.pushExpr(vn)
+
 	case parser.N_STMT_EXPR:
 		expr := ac.popExpr()
 		prev := ac.popStmt()
