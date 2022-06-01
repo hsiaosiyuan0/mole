@@ -599,6 +599,40 @@ func handleAfter(node parser.Node, key string, ctx *walk.VisitorCtx) {
 
 		ac.pushExpr(grpBlock(ac, enter, exit))
 
+	case parser.N_EXPR_TPL:
+		n := node.(*parser.TplExpr)
+
+		cnt := len(n.Elems())
+		if n.Tag() != nil {
+			cnt += 1
+		}
+		head, tail := ac.popExprsAndLink(cnt)
+
+		enter := ac.popExpr()
+		exit := ac.newExit(node, "")
+		if head != nil {
+			link(ac, enter, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, head, LF_NONE)
+
+			link(ac, tail, EK_JMP, ET_NONE, EK_JMP, ET_NONE, exit, LF_NONE)
+			link(ac, tail, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, exit, LF_NONE)
+		} else {
+			link(ac, enter, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, exit, LF_NONE)
+		}
+
+		ac.pushExpr(grpBlock(ac, enter, exit))
+
+	case parser.N_META_PROP:
+		prop := ac.popExpr()
+		meta := ac.popExpr()
+		enter := ac.popExpr()
+		exit := ac.newExit(node, "")
+
+		link(ac, enter, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, meta, LF_NONE)
+		link(ac, meta, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, prop, LF_NONE)
+		link(ac, prop, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, exit, LF_NONE)
+
+		ac.pushExpr(grpBlock(ac, enter, exit))
+
 	case parser.N_STMT_EXPR:
 		expr := ac.popExpr()
 		enter := ac.popStmt()
@@ -652,8 +686,6 @@ func handleAfter(node parser.Node, key string, ctx *walk.VisitorCtx) {
 	case parser.N_PROG:
 		prev := ac.popStmt()
 		exit := ac.newExit(node, "")
-		// TODO:
-		// forceSep := astTyp == parser.N_PROG && ac.graph.hasHangingThrow
 
 		link(ac, prev, EK_JMP, ET_NONE, EK_JMP, ET_NONE, exit, LF_NONE)
 		link(ac, prev, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, exit, LF_NONE)

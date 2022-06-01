@@ -5898,3 +5898,120 @@ initial->b0 [xlabel="",color="black"];
 }
 `, ana.Graph().Dot(), "should be ok")
 }
+
+func TestCtrlflow_TplStr(t *testing.T) {
+	ast, symtab, err := compile("`string text`", nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b0[label="Prog:enter\nExprStmt:enter\nTplExpr:enter\nStrLit\nTplExpr:exit\nExprStmt:exit\nProg:exit\n"];
+b0->final [xlabel="",color="black"];
+initial->b0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
+}
+
+func TestCtrlflow_TplStrExpr(t *testing.T) {
+	ast, symtab, err := compile("`string text ${a && b} string ${c} text`", nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b0[label="Prog:enter\nExprStmt:enter\nTplExpr:enter\nStrLit\nBinExpr(&&):enter\nIdent(a)\n"];
+b12[label="StrLit\nIdent(c)\nStrLit\nTplExpr:exit\nExprStmt:exit\nProg:exit\n"];
+b8[label="Ident(b)\nBinExpr(&&):exit\n"];
+b0->b12 [xlabel="F",color="orange"];
+b0->b8 [xlabel="",color="black"];
+b12->final [xlabel="",color="black"];
+b8->b12 [xlabel="",color="black"];
+initial->b0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
+}
+
+func TestCtrlflow_TplStrExprLast(t *testing.T) {
+	ast, symtab, err := compile("`string text ${a} string ${b} text ${c && d}`", nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b0[label="Prog:enter\nExprStmt:enter\nTplExpr:enter\nStrLit\nIdent(a)\nStrLit\nIdent(b)\nStrLit\nBinExpr(&&):enter\nIdent(c)\n"];
+b12[label="Ident(d)\nBinExpr(&&):exit\n"];
+b16[label="StrLit\nTplExpr:exit\nExprStmt:exit\nProg:exit\n"];
+b0->b12 [xlabel="",color="black"];
+b0->b16 [xlabel="F",color="orange"];
+b12->b16 [xlabel="",color="black"];
+b16->final [xlabel="",color="black"];
+initial->b0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
+}
+
+func TestCtrlflow_TplStrFn(t *testing.T) {
+	ast, symtab, err := compile("tagFn`string text ${a} string text`", nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b0[label="Prog:enter\nExprStmt:enter\nTplExpr:enter\nIdent(tagFn)\nStrLit\nIdent(a)\nStrLit\nTplExpr:exit\nExprStmt:exit\nProg:exit\n"];
+b0->final [xlabel="",color="black"];
+initial->b0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
+}
+
+func TestCtrlflow_MetaProp(t *testing.T) {
+	ast, symtab, err := compile(`
+  function f() {
+    new.target
+  }
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	fn := ast.(*parser.Prog).Body()[0]
+	fnGraph := ana.AnalysisCtx().GraphOf(fn)
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b13[label="FnDec:enter\nIdent(f)\nBlockStmt:enter\nExprStmt:enter\nMetaProp:enter\nIdent(new)\nIdent(target)\nMetaProp:exit\nExprStmt:exit\nBlockStmt:exit\nFnDec:exit\n"];
+b13->final [xlabel="",color="black"];
+initial->b13 [xlabel="",color="black"];
+}
+`, fnGraph.Dot(), "should be ok")
+}
