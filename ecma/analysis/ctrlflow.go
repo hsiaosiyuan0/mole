@@ -1126,11 +1126,23 @@ func handleAfter(node parser.Node, key string, ctx *walk.VisitorCtx) {
 		vn := grpBlock(ac, prev, exit)
 		ac.pushStmt(vn)
 
-	case parser.N_STMT_FN, parser.N_EXPR_FN:
-		n := node.(*parser.FnDec)
+	case parser.N_STMT_FN, parser.N_EXPR_FN, parser.N_EXPR_ARROW:
+		var params []parser.Node
+		var id parser.Node
+		expRet := false
+
+		if astTyp == parser.N_EXPR_ARROW {
+			n := node.(*parser.ArrowFn)
+			params = n.Params()
+			expRet = n.ExpRet()
+		} else {
+			n := node.(*parser.FnDec)
+			id = n.Id()
+			expRet = n.ExpRet()
+		}
 
 		var head, tail, th, tt *Block
-		paramsLen := len(n.Params())
+		paramsLen := len(params)
 		if paramsLen == 1 {
 			head = ac.popExpr()
 			tail = head
@@ -1146,7 +1158,7 @@ func handleAfter(node parser.Node, key string, ctx *walk.VisitorCtx) {
 		}
 
 		var fnName *Block
-		if n.Id() != nil {
+		if id != nil {
 			fnName = ac.popExpr()
 		}
 		body := ac.graph.Head
@@ -1176,7 +1188,7 @@ func handleAfter(node parser.Node, key string, ctx *walk.VisitorCtx) {
 		// connect the tail of body to the exit node
 		enter := ac.popStmt()
 		exit := ac.newExit(node, "")
-		if n.ExpRet() {
+		if expRet {
 			exit.newJmpIn(ET_JMP_U)
 		}
 		link(ac, enter, EK_NONE, ET_NONE, EK_NONE, ET_NONE, exit, false, false)

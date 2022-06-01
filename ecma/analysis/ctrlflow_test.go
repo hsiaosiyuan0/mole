@@ -5546,3 +5546,87 @@ initial->b0 [xlabel="",color="black"];
 }
 `, ana.Graph().Dot(), "should be ok")
 }
+
+func TestCtrlflow_ArrowFn(t *testing.T) {
+	ast, symtab, err := compile(`
+  let f = () => {}
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b0[label="Prog:enter\nVarDecStmt:enter\nVarDec:enter\nIdent(f)\nArrowFn\nVarDec:exit\nVarDecStmt:exit\nProg:exit\n"];
+b0->final [xlabel="",color="black"];
+initial->b0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
+}
+
+func TestCtrlflow_ArrowFnArgs(t *testing.T) {
+	ast, symtab, err := compile(`
+  let f = (a, b) => {
+    c
+  }
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	varDec := ast.(*parser.Prog).Body()[0].(*parser.VarDecStmt)
+	fn := varDec.DecList()[0].(*parser.VarDec).Init()
+	fnGraph := ana.AnalysisCtx().GraphOf(fn)
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b10[label="ArrowFn:enter\nIdent(a)\nIdent(b)\nBlockStmt:enter\nExprStmt:enter\nIdent(c)\nExprStmt:exit\nBlockStmt:exit\nArrowFn:exit\n"];
+b10->final [xlabel="",color="black"];
+initial->b10 [xlabel="",color="black"];
+}
+`, fnGraph.Dot(), "should be ok")
+}
+
+func TestCtrlflow_ArrowFnRet(t *testing.T) {
+	ast, symtab, err := compile(`
+  let f = (a, b) => {
+    return
+    c
+  }
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	varDec := ast.(*parser.Prog).Body()[0].(*parser.VarDecStmt)
+	fn := varDec.DecList()[0].(*parser.VarDec).Init()
+	fnGraph := ana.AnalysisCtx().GraphOf(fn)
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b12[label="ArrowFn:enter\nIdent(a)\nIdent(b)\nBlockStmt:enter\nRetStmt:enter\nRetStmt:exit\n"];
+b13[label="ArrowFn:exit\n"];
+b8[label="ExprStmt:enter\nIdent(c)\nExprStmt:exit\nBlockStmt:exit\n"];
+b12->b13 [xlabel="U",color="orange"];
+b12->b8 [xlabel="",color="red"];
+b13->final [xlabel="",color="black"];
+b8->b13 [xlabel="",color="red"];
+initial->b12 [xlabel="",color="black"];
+}
+`, fnGraph.Dot(), "should be ok")
+}
