@@ -188,6 +188,10 @@ func (n *JsxAttr) Name() Node {
 	return n.name
 }
 
+func (n *JsxAttr) NameStr() string {
+	return n.nameStr
+}
+
 func (n *JsxAttr) Val() Node {
 	return n.val
 }

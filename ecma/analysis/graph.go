@@ -482,6 +482,9 @@ func nodeToString(node parser.Node) string {
 	switch node.Type() {
 	case parser.N_NAME, parser.N_LIT_NUM:
 		return fmt.Sprintf("%s(%s)", node.Type().String(), node.Loc().Text())
+	case parser.N_JSX_ID:
+		n := node.(*parser.JsxIdent)
+		return fmt.Sprintf("%s(%s)", node.Type().String(), n.Text())
 	case N_CFG_DEBUG:
 		return node.(*InfoNode).String()
 	}
@@ -739,6 +742,11 @@ func (n *InfoNode) String() string {
 		node := n.astNode.(*parser.ExportSpec)
 		if node.NameSpace() {
 			return fmt.Sprintf("%s(%s):%s", typ.String(), "Namespace", enter)
+		}
+	case parser.N_JSX_OPEN:
+		node := n.astNode.(*parser.JsxOpen)
+		if node.Closed() {
+			return fmt.Sprintf("%s(%s):%s", typ.String(), "Closed", enter)
 		}
 	}
 	return fmt.Sprintf("%s:%s", typ.String(), enter)

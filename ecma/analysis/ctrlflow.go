@@ -633,6 +633,112 @@ func handleAfter(node parser.Node, key string, ctx *walk.VisitorCtx) {
 
 		ac.pushExpr(grpBlock(ac, enter, exit))
 
+	case parser.N_JSX_EXPR_SPAN, parser.N_JSX_CHILD_SPREAD, parser.N_JSX_ATTR_SPREAD:
+		expr := ac.popExpr()
+		enter := ac.popExpr()
+		exit := ac.newExit(node, "")
+
+		link(ac, enter, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, expr, LF_NONE)
+		link(ac, expr, EK_JMP, ET_NONE, EK_JMP, ET_NONE, exit, LF_NONE)
+		link(ac, expr, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, exit, LF_NONE)
+
+		ac.pushExpr(grpBlock(ac, enter, exit))
+
+	case parser.N_JSX_ATTR:
+		n := node.(*parser.JsxAttr)
+
+		var name, val *Block
+		if n.Val() != nil {
+			val = ac.popExpr()
+		}
+		name = ac.popExpr()
+		enter := ac.popExpr()
+		exit := ac.newExit(node, "")
+
+		link(ac, enter, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, name, LF_NONE)
+
+		if val != nil {
+			link(ac, name, EK_JMP, ET_NONE, EK_JMP, ET_NONE, val, LF_NONE)
+			link(ac, name, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, val, LF_NONE)
+			link(ac, val, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, exit, LF_NONE)
+		} else {
+			link(ac, name, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, exit, LF_NONE)
+		}
+
+		ac.pushExpr(grpBlock(ac, enter, exit))
+
+	case parser.N_JSX_MEMBER:
+		prop := ac.popExpr()
+		obj := ac.popExpr()
+		enter := ac.popExpr()
+		exit := ac.newExit(node, "")
+
+		link(ac, enter, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, obj, LF_NONE)
+		link(ac, obj, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, prop, LF_NONE)
+		link(ac, prop, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, exit, LF_NONE)
+
+		ac.pushExpr(grpBlock(ac, enter, exit))
+
+	case parser.N_JSX_OPEN:
+		n := node.(*parser.JsxOpen)
+
+		head, tail := ac.popExprsAndLink(len(n.Attrs()))
+		name := ac.popExpr()
+		enter := ac.popExpr()
+		exit := ac.newExit(node, "")
+
+		link(ac, enter, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, name, LF_NONE)
+		if head != nil {
+			link(ac, name, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, head, LF_NONE)
+			link(ac, tail, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, exit, LF_NONE)
+		} else {
+			link(ac, name, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, exit, LF_NONE)
+		}
+
+		ac.pushExpr(grpBlock(ac, enter, exit))
+
+	case parser.N_JSX_CLOSE:
+		name := ac.popExpr()
+		enter := ac.popExpr()
+		exit := ac.newExit(node, "")
+
+		link(ac, enter, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, name, LF_NONE)
+		link(ac, name, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, exit, LF_NONE)
+
+		ac.pushExpr(grpBlock(ac, enter, exit))
+
+	case parser.N_JSX_ELEM:
+		n := node.(*parser.JsxElem)
+
+		var open, close *Block
+		if !n.Open().(*parser.JsxOpen).Closed() {
+			close = ac.popExpr()
+		}
+
+		head, tail := ac.popExprsAndLink(len(n.Children()))
+		open = ac.popExpr()
+		enter := ac.popExpr()
+		exit := ac.newExit(node, "")
+
+		link(ac, enter, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, open, LF_NONE)
+		if head != nil {
+			link(ac, open, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, head, LF_NONE)
+
+			if close != nil {
+				link(ac, tail, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, close, LF_NONE)
+				link(ac, close, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, exit, LF_NONE)
+			} else {
+				link(ac, tail, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, exit, LF_NONE)
+			}
+		} else {
+			if close != nil {
+				link(ac, open, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, close, LF_NONE)
+			}
+			link(ac, open, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, exit, LF_NONE)
+		}
+
+		ac.pushExpr(grpBlock(ac, enter, exit))
+
 	case parser.N_STMT_EXPR:
 		expr := ac.popExpr()
 		enter := ac.popStmt()
@@ -1213,8 +1319,7 @@ func handleAfter(node parser.Node, key string, ctx *walk.VisitorCtx) {
 			ac.graph.addHangingBrk(id, exit)
 		}
 
-		vn := grpBlock(ac, prev, exit)
-		ac.pushStmt(vn)
+		ac.pushStmt(grpBlock(ac, prev, exit))
 
 	case parser.N_STMT_FN, parser.N_EXPR_FN, parser.N_EXPR_ARROW:
 		var params []parser.Node

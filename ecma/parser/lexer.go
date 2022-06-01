@@ -379,6 +379,9 @@ func (l *Lexer) readTokWithComment() *Token {
 		case ':':
 			l.src.Read()
 			return l.finToken(tok, T_COLON)
+		case '.':
+			l.src.Read()
+			return l.finToken(tok, T_DOT)
 		case '/':
 			l.src.Read()
 			return l.finToken(tok, T_DIV)

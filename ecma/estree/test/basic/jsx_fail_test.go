@@ -15,7 +15,7 @@ func TestJSXFail1(t *testing.T) {
 func TestJSXFail2(t *testing.T) {
 	opts := parser.NewParserOpts()
 	opts.Feature = opts.Feature.On(parser.FEAT_JSX_NS)
-	TestFail(t, "<a:b.c />", "Unexpected token at (1:4)", opts)
+	TestFail(t, "<a:b.c />", "Unexpected token `.` at (1:4)", opts)
 }
 
 func TestJSXFail3(t *testing.T) {

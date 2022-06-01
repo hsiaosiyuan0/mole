@@ -6015,3 +6015,304 @@ initial->b13 [xlabel="",color="black"];
 }
 `, fnGraph.Dot(), "should be ok")
 }
+
+func TestCtrlflow_JsxBasic(t *testing.T) {
+	ast, symtab, err := compile(`
+  let a = <div></div>
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b0[label="Prog:enter\nVarDecStmt:enter\nVarDec:enter\nIdent(a)\nJsxElem:enter\nJsxOpen:enter\nJsxIdent(div)\nJsxOpen:exit\nJsxClose:enter\nJsxIdent(div)\nJsxClose:exit\nJsxElem:exit\nVarDec:exit\nVarDecStmt:exit\nProg:exit\n"];
+b0->final [xlabel="",color="black"];
+initial->b0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
+}
+
+func TestCtrlflow_JsxSelfClosed(t *testing.T) {
+	ast, symtab, err := compile(`
+  let a = <div/>
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b0[label="Prog:enter\nVarDecStmt:enter\nVarDec:enter\nIdent(a)\nJsxElem:enter\nJsxOpen(Closed):enter\nJsxIdent(div)\nJsxOpen(Closed):exit\nJsxElem:exit\nVarDec:exit\nVarDecStmt:exit\nProg:exit\n"];
+b0->final [xlabel="",color="black"];
+initial->b0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
+}
+
+func TestCtrlflow_JsxExpr(t *testing.T) {
+	ast, symtab, err := compile(`
+  let a = <div>a {b && c} d</div>
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b0[label="Prog:enter\nVarDecStmt:enter\nVarDec:enter\nIdent(a)\nJsxElem:enter\nJsxOpen:enter\nJsxIdent(div)\nJsxOpen:exit\nJsxText\nJsxExprSpan:enter\nBinExpr(&&):enter\nIdent(b)\n"];
+b15[label="Ident(c)\nBinExpr(&&):exit\n"];
+b19[label="JsxExprSpan:exit\nJsxText\nJsxClose:enter\nJsxIdent(div)\nJsxClose:exit\nJsxElem:exit\nVarDec:exit\nVarDecStmt:exit\nProg:exit\n"];
+b0->b15 [xlabel="",color="black"];
+b0->b19 [xlabel="F",color="orange"];
+b15->b19 [xlabel="",color="black"];
+b19->final [xlabel="",color="black"];
+initial->b0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
+}
+
+func TestCtrlflow_JsxEmpty(t *testing.T) {
+	ast, symtab, err := compile(`
+  let a = <div>{/* empty */}</div>
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b0[label="Prog:enter\nVarDecStmt:enter\nVarDec:enter\nIdent(a)\nJsxElem:enter\nJsxOpen:enter\nJsxIdent(div)\nJsxOpen:exit\nJsxExprSpan:enter\nJsxEmpty\nJsxExprSpan:exit\nJsxClose:enter\nJsxIdent(div)\nJsxClose:exit\nJsxElem:exit\nVarDec:exit\nVarDecStmt:exit\nProg:exit\n"];
+b0->final [xlabel="",color="black"];
+initial->b0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
+}
+
+func TestCtrlflow_JsxMember(t *testing.T) {
+	ast, symtab, err := compile(`
+  let a = <A.b/>
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b0[label="Prog:enter\nVarDecStmt:enter\nVarDec:enter\nIdent(a)\nJsxElem:enter\nJsxOpen(Closed):enter\nJsxMember:enter\nJsxIdent(A)\nIdent(b)\nJsxMember:exit\nJsxOpen(Closed):exit\nJsxElem:exit\nVarDec:exit\nVarDecStmt:exit\nProg:exit\n"];
+b0->final [xlabel="",color="black"];
+initial->b0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
+}
+
+func TestCtrlflow_JsxNs(t *testing.T) {
+	opts := parser.NewParserOpts()
+	opts.Feature = opts.Feature.On(parser.FEAT_JSX_NS)
+
+	ast, symtab, err := compile(`
+  let a = <div:a>text</div:a>
+  `, opts)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b0[label="Prog:enter\nVarDecStmt:enter\nVarDec:enter\nIdent(a)\nJsxElem:enter\nJsxOpen:enter\nJsxNsName\nJsxOpen:exit\nJsxText\nJsxClose:enter\nJsxNsName\nJsxClose:exit\nJsxElem:exit\nVarDec:exit\nVarDecStmt:exit\nProg:exit\n"];
+b0->final [xlabel="",color="black"];
+initial->b0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
+}
+
+func TestCtrlflow_JsxSpread(t *testing.T) {
+	ast, symtab, err := compile(`
+  let a = <div>
+    {...e}
+  </div>
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b0[label="Prog:enter\nVarDecStmt:enter\nVarDec:enter\nIdent(a)\nJsxElem:enter\nJsxOpen:enter\nJsxIdent(div)\nJsxOpen:exit\nJsxText\nJsxSpreadChild:enter\nIdent(e)\nJsxSpreadChild:exit\nJsxText\nJsxClose:enter\nJsxIdent(div)\nJsxClose:exit\nJsxElem:exit\nVarDec:exit\nVarDecStmt:exit\nProg:exit\n"];
+b0->final [xlabel="",color="black"];
+initial->b0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
+}
+
+func TestCtrlflow_JsxAttr(t *testing.T) {
+	ast, symtab, err := compile(`
+  let a = <div attr="str">text</div>
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b0[label="Prog:enter\nVarDecStmt:enter\nVarDec:enter\nIdent(a)\nJsxElem:enter\nJsxOpen:enter\nJsxIdent(div)\nJsxAttr:enter\nJsxIdent(attr)\nStrLit\nJsxAttr:exit\nJsxOpen:exit\nJsxText\nJsxClose:enter\nJsxIdent(div)\nJsxClose:exit\nJsxElem:exit\nVarDec:exit\nVarDecStmt:exit\nProg:exit\n"];
+b0->final [xlabel="",color="black"];
+initial->b0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
+}
+
+func TestCtrlflow_JsxAttrExpr(t *testing.T) {
+	ast, symtab, err := compile(`
+  let a = <div attr={1}>text</div>
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b0[label="Prog:enter\nVarDecStmt:enter\nVarDec:enter\nIdent(a)\nJsxElem:enter\nJsxOpen:enter\nJsxIdent(div)\nJsxAttr:enter\nJsxIdent(attr)\nJsxExprSpan:enter\nNumLit(1)\nJsxExprSpan:exit\nJsxAttr:exit\nJsxOpen:exit\nJsxText\nJsxClose:enter\nJsxIdent(div)\nJsxClose:exit\nJsxElem:exit\nVarDec:exit\nVarDecStmt:exit\nProg:exit\n"];
+b0->final [xlabel="",color="black"];
+initial->b0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
+}
+
+func TestCtrlflow_JsxAttrExprBin(t *testing.T) {
+	ast, symtab, err := compile(`
+  let a = <div attr={a && b}>text</div>
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b0[label="Prog:enter\nVarDecStmt:enter\nVarDec:enter\nIdent(a)\nJsxElem:enter\nJsxOpen:enter\nJsxIdent(div)\nJsxAttr:enter\nJsxIdent(attr)\nJsxExprSpan:enter\nBinExpr(&&):enter\nIdent(a)\n"];
+b14[label="Ident(b)\nBinExpr(&&):exit\n"];
+b18[label="JsxExprSpan:exit\nJsxAttr:exit\nJsxOpen:exit\nJsxText\nJsxClose:enter\nJsxIdent(div)\nJsxClose:exit\nJsxElem:exit\nVarDec:exit\nVarDecStmt:exit\nProg:exit\n"];
+b0->b14 [xlabel="",color="black"];
+b0->b18 [xlabel="F",color="orange"];
+b14->b18 [xlabel="",color="black"];
+b18->final [xlabel="",color="black"];
+initial->b0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
+}
+
+func TestCtrlflow_JsxAttrFlag(t *testing.T) {
+	ast, symtab, err := compile(`
+  let a = <div attr>text</div>
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b0[label="Prog:enter\nVarDecStmt:enter\nVarDec:enter\nIdent(a)\nJsxElem:enter\nJsxOpen:enter\nJsxIdent(div)\nJsxAttr:enter\nJsxIdent(attr)\nJsxAttr:exit\nJsxOpen:exit\nJsxText\nJsxClose:enter\nJsxIdent(div)\nJsxClose:exit\nJsxElem:exit\nVarDec:exit\nVarDecStmt:exit\nProg:exit\n"];
+b0->final [xlabel="",color="black"];
+initial->b0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
+}
+
+func TestCtrlflow_JsxAttrSpread(t *testing.T) {
+	ast, symtab, err := compile(`
+  let a = <div {...props}>text</div>
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b0[label="Prog:enter\nVarDecStmt:enter\nVarDec:enter\nIdent(a)\nJsxElem:enter\nJsxOpen:enter\nJsxIdent(div)\nJsxSpreadAttr:enter\nSpread:enter\nIdent(props)\nSpread:exit\nJsxSpreadAttr:exit\nJsxOpen:exit\nJsxText\nJsxClose:enter\nJsxIdent(div)\nJsxClose:exit\nJsxElem:exit\nVarDec:exit\nVarDecStmt:exit\nProg:exit\n"];
+b0->final [xlabel="",color="black"];
+initial->b0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
+}
+
+func TestCtrlflow_JsxAttrMixed(t *testing.T) {
+	ast, symtab, err := compile(`
+  let a = <div attr0 attr1={true} attr2="a" {...b}>text</div>
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b0[label="Prog:enter\nVarDecStmt:enter\nVarDec:enter\nIdent(a)\nJsxElem:enter\nJsxOpen:enter\nJsxIdent(div)\nJsxAttr:enter\nJsxIdent(attr0)\nJsxAttr:exit\nJsxAttr:enter\nJsxIdent(attr1)\nJsxExprSpan:enter\nBoolLit\nJsxExprSpan:exit\nJsxAttr:exit\nJsxAttr:enter\nJsxIdent(attr2)\nStrLit\nJsxAttr:exit\nJsxSpreadAttr:enter\nSpread:enter\nIdent(b)\nSpread:exit\nJsxSpreadAttr:exit\nJsxOpen:exit\nJsxText\nJsxClose:enter\nJsxIdent(div)\nJsxClose:exit\nJsxElem:exit\nVarDec:exit\nVarDecStmt:exit\nProg:exit\n"];
+b0->final [xlabel="",color="black"];
+initial->b0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
+}
