@@ -1131,7 +1131,7 @@ b12->b18 [xlabel="",color="red"];
 b12:s->b26:ne [xlabel="L",color="orange"];
 b18:s->b12:ne [xlabel="L",color="red"];
 b18->b24 [xlabel="F",color="red"];
-b24->b26 [xlabel="",color="black"];
+b24->b26 [xlabel="",color="red"];
 b26->b28 [xlabel="F",color="orange"];
 b26:s->b6:ne [xlabel="L",color="orange"];
 b28->final [xlabel="",color="black"];
@@ -2592,16 +2592,18 @@ final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height
 b0[label="Prog:enter\nSwitchStmt:enter\nIdent(a)\nSwitchCase:enter\n"];
 b18[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth1)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
 b27[label="SwitchCase:enter\nNumLit(1)\n"];
-b31[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth2)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\nSwitchStmt:exit\nProg:exit\n"];
+b31[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth2)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
 b40[label="SwitchCase:enter\nNumLit(2)\n"];
+b43[label="SwitchStmt:exit\nProg:exit\n"];
 b6[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSthDefault)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
 b0->b27 [xlabel="",color="black"];
 b18->b31 [xlabel="",color="black"];
 b27->b18 [xlabel="",color="black"];
 b27->b40 [xlabel="F",color="orange"];
-b31->final [xlabel="",color="black"];
+b31->b43 [xlabel="",color="black"];
 b40->b31 [xlabel="",color="black"];
 b40->b6 [xlabel="F",color="orange"];
+b43->final [xlabel="",color="black"];
 b6->b18 [xlabel="",color="black"];
 initial->b0 [xlabel="",color="black"];
 }
@@ -2633,8 +2635,9 @@ b19[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSthDefault)\nCallExpr:exit\nE
 b27[label="SwitchCase:enter\n"];
 b31[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth2)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
 b40[label="SwitchCase:enter\nNumLit(2)\n"];
-b44[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth3)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\nSwitchStmt:exit\nProg:exit\n"];
+b44[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth3)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
 b53[label="SwitchCase:enter\nNumLit(3)\n"];
+b56[label="SwitchStmt:exit\nProg:exit\n"];
 b6[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth1)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
 b0->b27 [xlabel="F",color="orange"];
 b0->b6 [xlabel="",color="black"];
@@ -2643,9 +2646,10 @@ b27->b40 [xlabel="",color="black"];
 b31->b44 [xlabel="",color="black"];
 b40->b31 [xlabel="",color="black"];
 b40->b53 [xlabel="F",color="orange"];
-b44->final [xlabel="",color="black"];
+b44->b56 [xlabel="",color="black"];
 b53->b19 [xlabel="F",color="orange"];
 b53->b44 [xlabel="",color="black"];
+b56->final [xlabel="",color="black"];
 b6->b19 [xlabel="",color="black"];
 initial->b0 [xlabel="",color="black"];
 }
@@ -2677,8 +2681,9 @@ b12[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSthDefault)\nCallExpr:exit\nE
 b20[label="SwitchCase:enter\n"];
 b24[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth2)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
 b33[label="SwitchCase:enter\nNumLit(2)\n"];
-b37[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth3)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\nSwitchStmt:exit\nProg:exit\n"];
+b37[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth3)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
 b46[label="SwitchCase:enter\nNumLit(3)\n"];
+b49[label="SwitchStmt:exit\nProg:exit\n"];
 b9[label="SwitchCase:exit\n"];
 b0->b20 [xlabel="F",color="orange"];
 b0->b9 [xlabel="",color="black"];
@@ -2687,9 +2692,10 @@ b20->b33 [xlabel="",color="black"];
 b24->b37 [xlabel="",color="black"];
 b33->b24 [xlabel="",color="black"];
 b33->b46 [xlabel="F",color="orange"];
-b37->final [xlabel="",color="black"];
+b37->b49 [xlabel="",color="black"];
 b46->b12 [xlabel="F",color="orange"];
 b46->b37 [xlabel="",color="black"];
+b49->final [xlabel="",color="black"];
 b9->b12 [xlabel="",color="black"];
 initial->b0 [xlabel="",color="black"];
 }
@@ -2721,7 +2727,8 @@ b21[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth2)\nCallExpr:exit\nExprStm
 b30[label="SwitchCase:enter\nNumLit(2)\n"];
 b34[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth3)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
 b43[label="SwitchCase:enter\nNumLit(3)\n"];
-b46[label="SwitchStmt:exit\nProg:exit\n"];
+b46[label="SwitchStmt:exit\n"];
+b47[label="Prog:exit\n"];
 b6[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth1)\nCallExpr:exit\nExprStmt:exit\nBrkStmt:enter\nBrkStmt:exit\n"];
 b0->b30 [xlabel="F",color="orange"];
 b0->b6 [xlabel="",color="black"];
@@ -2732,7 +2739,8 @@ b30->b43 [xlabel="F",color="orange"];
 b34->b46 [xlabel="",color="black"];
 b43->b34 [xlabel="",color="black"];
 b43->b46 [xlabel="F",color="orange"];
-b46->final [xlabel="",color="black"];
+b46->b47 [xlabel="",color="black"];
+b47->final [xlabel="",color="black"];
 b6->b18 [xlabel="",color="red"];
 b6->b46 [xlabel="U",color="orange"];
 initial->b0 [xlabel="",color="black"];
@@ -2768,7 +2776,8 @@ b33[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth2)\nCallExpr:exit\nExprStm
 b42[label="SwitchCase:enter\nNumLit(2)\n"];
 b46[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth3)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
 b55[label="SwitchCase:enter\nNumLit(3)\n"];
-b58[label="SwitchStmt:exit\nProg:exit\n"];
+b58[label="SwitchStmt:exit\n"];
+b59[label="Prog:exit\n"];
 b6[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth1)\nCallExpr:exit\nExprStmt:exit\nBrkStmt:enter\nBrkStmt:exit\n"];
 b0->b29 [xlabel="F",color="orange"];
 b0->b6 [xlabel="",color="black"];
@@ -2781,7 +2790,8 @@ b42->b55 [xlabel="F",color="orange"];
 b46->b58 [xlabel="",color="black"];
 b55->b21 [xlabel="F",color="orange"];
 b55->b46 [xlabel="",color="black"];
-b58->final [xlabel="",color="black"];
+b58->b59 [xlabel="",color="black"];
+b59->final [xlabel="",color="black"];
 b6->b18 [xlabel="",color="red"];
 b6->b58 [xlabel="U",color="orange"];
 initial->b0 [xlabel="",color="black"];
@@ -2820,7 +2830,8 @@ b44[label="SwitchCase:enter\nNumLit(2)\n"];
 b48[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth3)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
 b57[label="SwitchCase:enter\nNumLit(3)\n"];
 b6[label="BlockStmt:enter\nExprStmt:enter\nCallExpr:enter\nIdent(doSth1)\nCallExpr:exit\nExprStmt:exit\nBrkStmt:enter\nBrkStmt:exit\n"];
-b60[label="SwitchStmt:exit\nProg:exit\n"];
+b60[label="SwitchStmt:exit\n"];
+b61[label="Prog:exit\n"];
 b0->b31 [xlabel="F",color="orange"];
 b0->b6 [xlabel="",color="black"];
 b18->b23 [xlabel="",color="red"];
@@ -2832,7 +2843,8 @@ b44->b57 [xlabel="F",color="orange"];
 b48->b60 [xlabel="",color="black"];
 b57->b23 [xlabel="F",color="orange"];
 b57->b48 [xlabel="",color="black"];
-b60->final [xlabel="",color="black"];
+b60->b61 [xlabel="",color="black"];
+b61->final [xlabel="",color="black"];
 b6->b18 [xlabel="",color="red"];
 b6->b60 [xlabel="U",color="orange"];
 initial->b0 [xlabel="",color="black"];
@@ -2872,7 +2884,8 @@ b44[label="SwitchCase:enter\nNumLit(2)\n"];
 b48[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth3)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
 b57[label="SwitchCase:enter\nNumLit(3)\n"];
 b6[label="BlockStmt:enter\nExprStmt:enter\nCallExpr:enter\nIdent(doSth1)\nCallExpr:exit\nExprStmt:exit\nBlockStmt:exit\nBrkStmt:enter\nBrkStmt:exit\n"];
-b60[label="SwitchStmt:exit\nProg:exit\n"];
+b60[label="SwitchStmt:exit\n"];
+b61[label="Prog:exit\n"];
 b0->b31 [xlabel="F",color="orange"];
 b0->b6 [xlabel="",color="black"];
 b20->b23 [xlabel="",color="red"];
@@ -2884,7 +2897,8 @@ b44->b57 [xlabel="F",color="orange"];
 b48->b60 [xlabel="",color="black"];
 b57->b23 [xlabel="F",color="orange"];
 b57->b48 [xlabel="",color="black"];
-b60->final [xlabel="",color="black"];
+b60->b61 [xlabel="",color="black"];
+b61->final [xlabel="",color="black"];
 b6->b20 [xlabel="",color="red"];
 b6->b60 [xlabel="U",color="orange"];
 initial->b0 [xlabel="",color="black"];
@@ -2917,7 +2931,8 @@ b20[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth2)\nCallExpr:exit\nExprStm
 b29[label="SwitchCase:enter\nNumLit(2)\n"];
 b33[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth3)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
 b42[label="SwitchCase:enter\nNumLit(3)\n"];
-b45[label="SwitchStmt:exit\nProg:exit\n"];
+b45[label="SwitchStmt:exit\n"];
+b46[label="Prog:exit\n"];
 b6[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSthDefault)\nCallExpr:exit\nExprStmt:exit\nBrkStmt:enter\nBrkStmt:exit\n"];
 b0->b29 [xlabel="",color="black"];
 b17->b20 [xlabel="",color="red"];
@@ -2927,7 +2942,8 @@ b29->b42 [xlabel="F",color="orange"];
 b33->b45 [xlabel="",color="black"];
 b42->b33 [xlabel="",color="black"];
 b42->b6 [xlabel="F",color="orange"];
-b45->final [xlabel="",color="black"];
+b45->b46 [xlabel="",color="black"];
+b46->final [xlabel="",color="black"];
 b6->b17 [xlabel="",color="red"];
 b6->b45 [xlabel="U",color="orange"];
 initial->b0 [xlabel="",color="black"];
@@ -2963,7 +2979,8 @@ b33[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth2)\nCallExpr:exit\nExprStm
 b42[label="SwitchCase:enter\nNumLit(2)\n"];
 b46[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth3)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
 b55[label="SwitchCase:enter\nNumLit(3)\n"];
-b58[label="SwitchStmt:exit\nProg:exit\n"];
+b58[label="SwitchStmt:exit\n"];
+b59[label="Prog:exit\n"];
 b6[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth1)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
 b0->b29 [xlabel="F",color="orange"];
 b0->b6 [xlabel="",color="black"];
@@ -2977,7 +2994,8 @@ b42->b55 [xlabel="F",color="orange"];
 b46->b58 [xlabel="",color="black"];
 b55->b19 [xlabel="F",color="orange"];
 b55->b46 [xlabel="",color="black"];
-b58->final [xlabel="",color="black"];
+b58->b59 [xlabel="",color="black"];
+b59->final [xlabel="",color="black"];
 b6->b19 [xlabel="",color="black"];
 initial->b0 [xlabel="",color="black"];
 }
@@ -3013,17 +3031,19 @@ final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height
 b20[label="BlockStmt:exit\nSwitchCase:exit\n"];
 b25[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSthDefault)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
 b33[label="SwitchCase:enter\n"];
-b37[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth2)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\nSwitchStmt:exit\nBlockStmt:exit\n"];
+b37[label="ExprStmt:enter\nCallExpr:enter\nIdent(doSth2)\nCallExpr:exit\nExprStmt:exit\nSwitchCase:exit\n"];
 b46[label="SwitchCase:enter\nNumLit(2)\n"];
+b49[label="SwitchStmt:exit\nBlockStmt:exit\n"];
 b51[label="FnDec:enter\nIdent(f)\nBlockStmt:enter\nSwitchStmt:enter\nIdent(a)\nSwitchCase:enter\nNumLit(1)\n"];
 b52[label="FnDec:exit\n"];
 b8[label="BlockStmt:enter\nExprStmt:enter\nCallExpr:enter\nIdent(doSth1)\nCallExpr:exit\nExprStmt:exit\nRetStmt:enter\nRetStmt:exit\n"];
 b20->b25 [xlabel="",color="red"];
 b25->b37 [xlabel="",color="black"];
 b33->b46 [xlabel="",color="black"];
-b37->b52 [xlabel="",color="black"];
+b37->b49 [xlabel="",color="black"];
 b46->b25 [xlabel="F",color="orange"];
 b46->b37 [xlabel="",color="black"];
+b49->b52 [xlabel="",color="black"];
 b51->b33 [xlabel="F",color="orange"];
 b51->b8 [xlabel="",color="black"];
 b52->final [xlabel="",color="black"];
@@ -4095,6 +4115,33 @@ initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.2
 final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
 b0[label="Prog:enter\nExprStmt:enter\nMemberExpr:enter\nMemberExpr:enter\nIdent(a)\nIdent(b)\nMemberExpr:exit\nIdent(c)\nMemberExpr:exit\nExprStmt:exit\nProg:exit\n"];
 b0->final [xlabel="",color="black"];
+initial->b0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
+}
+
+func TestCtrlflow_MemberExprCompute(t *testing.T) {
+	ast, symtab, err := compile(`
+  (a && b).c
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b0[label="Prog:enter\nExprStmt:enter\nMemberExpr:enter\nParenExpr:enter\nBinExpr(&&):enter\nIdent(a)\n"];
+b12[label="ParenExpr:exit\nIdent(c)\nMemberExpr:exit\nExprStmt:exit\nProg:exit\n"];
+b8[label="Ident(b)\nBinExpr(&&):exit\n"];
+b0->b12 [xlabel="F",color="orange"];
+b0->b8 [xlabel="",color="black"];
+b12->final [xlabel="",color="black"];
+b8->b12 [xlabel="",color="black"];
 initial->b0 [xlabel="",color="black"];
 }
 `, ana.Graph().Dot(), "should be ok")
@@ -5683,4 +5730,171 @@ b16->final [xlabel="",color="black"];
 initial->b16 [xlabel="",color="black"];
 }
 `, fnGraph.Dot(), "should be ok")
+}
+
+func TestCtrlflow_OptChain(t *testing.T) {
+	ast, symtab, err := compile(`
+  obj?.prop
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b0[label="Prog:enter\nExprStmt:enter\nChainExpr:enter\nMemberExpr:enter\nIdent(obj)\n"];
+b7[label="Ident(prop)\n"];
+b8[label="MemberExpr:exit\nChainExpr:exit\nExprStmt:exit\nProg:exit\n"];
+b0->b7 [xlabel="",color="black"];
+b0->b8 [xlabel="F",color="orange"];
+b7->b8 [xlabel="",color="black"];
+b8->final [xlabel="",color="black"];
+initial->b0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
+}
+
+func TestCtrlflow_OptChainCompute(t *testing.T) {
+	ast, symtab, err := compile(`
+  (a || b)?.prop
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b0[label="Prog:enter\nExprStmt:enter\nChainExpr:enter\nMemberExpr:enter\nParenExpr:enter\nBinExpr(||):enter\nIdent(a)\n"];
+b13[label="ParenExpr:exit\n"];
+b15[label="Ident(prop)\n"];
+b16[label="MemberExpr:exit\nChainExpr:exit\nExprStmt:exit\nProg:exit\n"];
+b9[label="Ident(b)\nBinExpr(||):exit\n"];
+b0->b13 [xlabel="T",color="orange"];
+b0->b9 [xlabel="",color="black"];
+b13->b15 [xlabel="",color="black"];
+b13->b16 [xlabel="F",color="orange"];
+b15->b16 [xlabel="",color="black"];
+b16->final [xlabel="",color="black"];
+b9->b13 [xlabel="",color="black"];
+initial->b0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
+}
+
+func TestCtrlflow_OptChainMember(t *testing.T) {
+	ast, symtab, err := compile(`
+  obj.val?.prop
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b0[label="Prog:enter\nExprStmt:enter\nChainExpr:enter\nMemberExpr:enter\nMemberExpr:enter\nIdent(obj)\nIdent(val)\nMemberExpr:exit\n"];
+b12[label="Ident(prop)\n"];
+b13[label="MemberExpr:exit\nChainExpr:exit\nExprStmt:exit\nProg:exit\n"];
+b0->b12 [xlabel="",color="black"];
+b0->b13 [xlabel="F",color="orange"];
+b12->b13 [xlabel="",color="black"];
+b13->final [xlabel="",color="black"];
+initial->b0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
+}
+
+func TestCtrlflow_OptChainCallee(t *testing.T) {
+	ast, symtab, err := compile(`
+  obj.func?.()
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b0[label="Prog:enter\nExprStmt:enter\nChainExpr:enter\nCallExpr:enter\nMemberExpr:enter\nIdent(obj)\nIdent(func)\nMemberExpr:exit\n"];
+b12[label="CallExpr:exit\n"];
+b14[label="ChainExpr:exit\nExprStmt:exit\nProg:exit\n"];
+b0->b12 [xlabel="",color="black"];
+b0->b14 [xlabel="F",color="orange"];
+b12->b14 [xlabel="",color="black"];
+b14->final [xlabel="",color="black"];
+initial->b0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
+}
+
+func TestCtrlflow_OptChainCalleeArgs(t *testing.T) {
+	ast, symtab, err := compile(`
+  obj.func?.(args)
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b0[label="Prog:enter\nExprStmt:enter\nChainExpr:enter\nCallExpr:enter\nMemberExpr:enter\nIdent(obj)\nIdent(func)\nMemberExpr:exit\n"];
+b12[label="Ident(args)\nCallExpr:exit\n"];
+b15[label="ChainExpr:exit\nExprStmt:exit\nProg:exit\n"];
+b0->b12 [xlabel="",color="black"];
+b0->b15 [xlabel="F",color="orange"];
+b12->b15 [xlabel="",color="black"];
+b15->final [xlabel="",color="black"];
+initial->b0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
+}
+
+func TestCtrlflow_OptChainIdx(t *testing.T) {
+	ast, symtab, err := compile(`
+  obj.arr?.[index]
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b0[label="Prog:enter\nExprStmt:enter\nChainExpr:enter\nMemberExpr:enter\nMemberExpr:enter\nIdent(obj)\nIdent(arr)\nMemberExpr:exit\n"];
+b12[label="Ident(index)\n"];
+b13[label="MemberExpr:exit\nChainExpr:exit\nExprStmt:exit\nProg:exit\n"];
+b0->b12 [xlabel="",color="black"];
+b0->b13 [xlabel="F",color="orange"];
+b12->b13 [xlabel="",color="black"];
+b13->final [xlabel="",color="black"];
+initial->b0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
 }

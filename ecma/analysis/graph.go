@@ -17,7 +17,7 @@ const (
 	EK_JMP
 )
 
-type EdgeTag uint8
+type EdgeTag uint16
 
 func (f EdgeTag) On(flag EdgeTag) EdgeTag {
 	return f | flag
@@ -752,7 +752,19 @@ func (n *InfoNode) Loc() *parser.Loc {
 	return n.astNode.Loc()
 }
 
-func link(a *AnalysisCtx, from *Block, fromKind EdgeKind, fromTag EdgeTag, toKind EdgeKind, toTag EdgeTag, to *Block, forceSep bool, forceJoin bool) {
+type LinkFlag uint16
+
+const (
+	LF_NONE      LinkFlag = 0
+	LF_FORCE_SEP LinkFlag = 1 << iota
+	LF_FORCE_JOIN
+	LF_OVERWRITE
+)
+
+func link(a *AnalysisCtx, from *Block, fromKind EdgeKind, fromTag EdgeTag, toKind EdgeKind, toTag EdgeTag, to *Block, flag LinkFlag) {
+	forceSep := flag&LF_FORCE_SEP != 0
+	forceJoin := flag&LF_FORCE_JOIN != 0
+
 	if from == nil || to == nil {
 		return
 	}
@@ -763,7 +775,7 @@ func link(a *AnalysisCtx, from *Block, fromKind EdgeKind, fromTag EdgeTag, toKin
 	}
 
 	// if `from` has only one outlet then that outlet must be seq, merge the first node of `to` into `from`
-	if (fromKind == EK_SEQ || fromKind == EK_NONE) && !forceSep && to.onlySeqIn() {
+	if forceJoin || fromKind == EK_SEQ && !forceSep && to.onlySeqIn() {
 
 		// process `from` which maybe group blk
 		if from.onlySeqOut() || forceJoin {
@@ -782,7 +794,7 @@ func link(a *AnalysisCtx, from *Block, fromKind EdgeKind, fromTag EdgeTag, toKin
 	to = to.unwrapSeqIn()
 
 	// process reaches here means the `from` maybe group block or basic block which has multiple outlets
-	linkEdges(from.Outlets, fromKind, fromTag, toKind, toTag, to)
+	linkEdges(from.Outlets, fromKind, fromTag, toKind, toTag, to, flag)
 
 	if from.IsOutCut(to) {
 		for _, edge := range to.Inlets {
@@ -798,10 +810,12 @@ func link(a *AnalysisCtx, from *Block, fromKind EdgeKind, fromTag EdgeTag, toKin
 	}
 }
 
-func linkEdges(fromEdges []*Edge, fromKind EdgeKind, fromTag EdgeTag, toKind EdgeKind, toTag EdgeTag, to *Block) {
+func linkEdges(fromEdges []*Edge, fromKind EdgeKind, fromTag EdgeTag, toKind EdgeKind, toTag EdgeTag, to *Block, flag LinkFlag) {
 	for _, edge := range fromEdges {
-		if (fromKind == EK_NONE && edge.Dst == nil) || (edge.Kind == fromKind && (fromTag == ET_NONE || edge.Tag&fromTag != 0)) {
-			edge.Dst = to
+		if edge.Kind == fromKind && (fromTag == ET_NONE || edge.Tag&fromTag != 0) {
+			if edge.Dst == nil || flag&LF_OVERWRITE != 0 {
+				edge.Dst = to
+			}
 			toEdge, _ := to.FindInEdge(toKind, toTag, true)
 			toEdge.Src = edge.Src
 		}
