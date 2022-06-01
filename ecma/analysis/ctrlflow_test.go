@@ -3909,6 +3909,67 @@ initial->b0 [xlabel="",color="black"];
 `, ana.Graph().Dot(), "should be ok")
 }
 
+func TestCtrlflow_ThrowNestedReturn(t *testing.T) {
+	ast, symtab, err := compile(`
+function f() {
+  try {
+    if (a) {
+      return a;
+    } else {
+      throw b;
+    }
+  } catch (err) {
+    // do nothing.
+  }
+
+  foo();
+}
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	fn := ast.(*parser.Prog).Body()[0]
+	fnGraph := ana.AnalysisCtx().GraphOf(fn)
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b10[label="BlockStmt:enter\nRetStmt:enter\nIdent(a)\nRetStmt:exit\n"];
+b15[label="BlockStmt:exit\n"];
+b16[label="BlockStmt:enter\nThrowStmt:enter\nIdent(b)\n"];
+b20[label="ThrowStmt:exit\n"];
+b21[label="BlockStmt:exit\n"];
+b23[label="IfStmt:exit\nBlockStmt:exit\n"];
+b25[label="Catch:enter\nIdent(err)\nBlockStmt:enter\nBlockStmt:exit\nCatch:exit\n"];
+b32[label="TryStmt:exit\nExprStmt:enter\nCallExpr:enter\nIdent(foo)\nCallExpr:exit\nExprStmt:exit\nBlockStmt:exit\n"];
+b40[label="FnDec:enter\nIdent(f)\nBlockStmt:enter\nTryStmt:enter\nBlockStmt:enter\nIfStmt:enter\nIdent(a)\n"];
+b41[label="FnDec:exit\n"];
+b10->b15 [xlabel="",color="red"];
+b10->b25 [xlabel="E",color="orange"];
+b10->b41 [xlabel="U",color="orange"];
+b15->b23 [xlabel="",color="red"];
+b16->b20 [xlabel="",color="black"];
+b16->b25 [xlabel="E",color="orange"];
+b20->b21 [xlabel="",color="red"];
+b20->b25 [xlabel="U",color="orange"];
+b21->b23 [xlabel="",color="red"];
+b23->b32 [xlabel="",color="black"];
+b25->b32 [xlabel="",color="black"];
+b32->b41 [xlabel="",color="black"];
+b40->b10 [xlabel="",color="black"];
+b40->b16 [xlabel="F",color="orange"];
+b40->b25 [xlabel="E",color="orange"];
+b41->final [xlabel="",color="black"];
+initial->b40 [xlabel="",color="black"];
+}
+`, fnGraph.Dot(), "should be ok")
+}
+
 func TestCtrlflow_ThrowCatch(t *testing.T) {
 	ast, symtab, err := compile(`
 try {
@@ -6316,3 +6377,17 @@ initial->b0 [xlabel="",color="black"];
 }
 `, ana.Graph().Dot(), "should be ok")
 }
+
+// func TestCtrlflow_ClassStmt(t *testing.T) {
+// 	ast, symtab, err := compile(`
+// class A {}
+//   `, nil)
+// 	AssertEqual(t, nil, err, "should be prog ok")
+
+// 	ana := NewAnalysis(ast, symtab)
+// 	ana.Analyze()
+
+// 	AssertEqualString(t, `
+
+// `, ana.Graph().Dot(), "should be ok")
+// }

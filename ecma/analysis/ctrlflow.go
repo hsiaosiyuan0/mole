@@ -1143,7 +1143,7 @@ func handleAfter(node parser.Node, key string, ctx *walk.VisitorCtx) {
 			if n.Target().Type() == parser.N_PROG {
 				ac.graph.hasHangingThrow = true
 			} else {
-				ac.root.addHangingThrow(n.Target(), vn)
+				ac.graph.addHangingThrow(n.Target(), vn)
 			}
 		}
 
