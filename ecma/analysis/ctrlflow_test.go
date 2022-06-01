@@ -5630,3 +5630,57 @@ initial->b12 [xlabel="",color="black"];
 }
 `, fnGraph.Dot(), "should be ok")
 }
+
+func TestCtrlflow_Yield(t *testing.T) {
+	ast, symtab, err := compile(`
+  function* f() {
+    yield 1
+  }
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	fn := ast.(*parser.Prog).Body()[0]
+	fnGraph := ana.AnalysisCtx().GraphOf(fn)
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b13[label="FnDec:enter\nIdent(f)\nBlockStmt:enter\nExprStmt:enter\nYieldExpr:enter\nNumLit(1)\nYieldExpr:exit\nExprStmt:exit\nBlockStmt:exit\nFnDec:exit\n"];
+b13->final [xlabel="",color="black"];
+initial->b13 [xlabel="",color="black"];
+}
+`, fnGraph.Dot(), "should be ok")
+}
+
+func TestCtrlflow_YieldStar(t *testing.T) {
+	ast, symtab, err := compile(`
+  function* f() {
+    yield* ff()
+  }
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab)
+	ana.Analyze()
+
+	fn := ast.(*parser.Prog).Body()[0]
+	fnGraph := ana.AnalysisCtx().GraphOf(fn)
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b16[label="FnDec:enter\nIdent(f)\nBlockStmt:enter\nExprStmt:enter\nYieldExpr:enter\nCallExpr:enter\nIdent(ff)\nCallExpr:exit\nYieldExpr:exit\nExprStmt:exit\nBlockStmt:exit\nFnDec:exit\n"];
+b16->final [xlabel="",color="black"];
+initial->b16 [xlabel="",color="black"];
+}
+`, fnGraph.Dot(), "should be ok")
+}

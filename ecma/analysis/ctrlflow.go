@@ -552,7 +552,7 @@ func handleAfter(node parser.Node, key string, ctx *walk.VisitorCtx) {
 
 		ac.pushExpr(grpBlock(ac, enter, exit))
 
-	case parser.N_PAT_REST, parser.N_SPREAD:
+	case parser.N_PAT_REST, parser.N_SPREAD, parser.N_EXPR_YIELD:
 		id := ac.popExpr()
 		enter := ac.popExpr()
 		exit := ac.newExit(node, "")
