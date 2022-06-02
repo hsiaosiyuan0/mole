@@ -7,6 +7,10 @@ import (
 	"github.com/hsiaosiyuan0/mole/ecma/parser"
 )
 
+func TestFixture_core(t *testing.T) {
+	RunFixtures(t, "core", parser.NewParserOpts())
+}
+
 func TestFixture_es2015(t *testing.T) {
 	RunFixtures(t, "es2015", parser.NewParserOpts())
 }
@@ -22,5 +26,5 @@ func TestFixture_tsManually(t *testing.T) {
 	opts := parser.NewParserOpts()
 	opts.Feature = opts.Feature.On(parser.FEAT_TS)
 	opts.Feature = opts.Feature.Off(parser.FEAT_JSX)
-	RunFixtures(t, "typescript/class/parameter-properties-with-decorators", opts)
+	RunFixtures(t, "core/switch/break-nested-block", opts)
 }

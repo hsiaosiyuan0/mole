@@ -5,7 +5,7 @@ import (
 
 	. "github.com/hsiaosiyuan0/mole/ecma/estree/test"
 	"github.com/hsiaosiyuan0/mole/ecma/parser"
-	. "github.com/hsiaosiyuan0/mole/fuzz"
+	. "github.com/hsiaosiyuan0/mole/util"
 )
 
 // below are tests referred from:
@@ -4290,12 +4290,39 @@ func TestAsyncAwait67(t *testing.T) {
 }
 
 func TestAsyncAwait68(t *testing.T) {
-	// 	ast, err := Compile("async function f() { for await (x of xs); }")
-	// 	AssertEqual(t, nil, err, "should be prog ok")
+	ast, err := Compile("await import('a')")
+	AssertEqual(t, nil, err, "should be prog ok")
 
-	// 	AssertEqualJson(t, `
-
-	// `, ast)
+	AssertEqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 17,
+  "body": [
+    {
+      "type": "ExpressionStatement",
+      "start": 0,
+      "end": 17,
+      "expression": {
+        "type": "AwaitExpression",
+        "start": 0,
+        "end": 17,
+        "argument": {
+          "type": "ImportExpression",
+          "start": 6,
+          "end": 17,
+          "source": {
+            "type": "Literal",
+            "start": 13,
+            "end": 16,
+            "value": "a"
+          }
+        }
+      }
+    }
+  ]
+}
+	`, ast)
 }
 
 func TestAsyncAwait69(t *testing.T) {

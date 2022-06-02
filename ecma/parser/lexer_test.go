@@ -3,8 +3,8 @@ package parser
 import (
 	"testing"
 
-	. "github.com/hsiaosiyuan0/mole/fuzz"
 	span "github.com/hsiaosiyuan0/mole/span"
+	. "github.com/hsiaosiyuan0/mole/util"
 )
 
 func TestReadName(t *testing.T) {

@@ -5,7 +5,7 @@ import (
 
 	. "github.com/hsiaosiyuan0/mole/ecma/estree/test"
 	"github.com/hsiaosiyuan0/mole/ecma/parser"
-	. "github.com/hsiaosiyuan0/mole/fuzz"
+	. "github.com/hsiaosiyuan0/mole/util"
 )
 
 // below tests follow the copyright declaration in the head of file:
@@ -30728,31 +30728,4 @@ func TestHarmony317(t *testing.T) {
   ]
 }
 	`, ast)
-}
-
-func TestHarmony318(t *testing.T) {
-	// ast, err := Compile("x = { false: 42 }")
-	// AssertEqual(t, nil, err, "should be prog ok")
-
-	// AssertEqualJson(t, `
-
-	// `, ast)
-}
-
-func TestHarmony319(t *testing.T) {
-	// ast, err := Compile("x = { false: 42 }")
-	// AssertEqual(t, nil, err, "should be prog ok")
-
-	// AssertEqualJson(t, `
-
-	// `, ast)
-}
-
-func TestHarmony320(t *testing.T) {
-	// ast, err := Compile("x = { false: 42 }")
-	// AssertEqual(t, nil, err, "should be prog ok")
-
-	// AssertEqualJson(t, `
-
-	// `, ast)
 }

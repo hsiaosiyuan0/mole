@@ -1,7 +1,8 @@
-package fuzz
+package util
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -18,6 +19,14 @@ func AssertEqual(t *testing.T, except, actual interface{}, msg string) {
 		return
 	}
 	if !reflect.DeepEqual(except, actual) {
+		t.Fatalf("%s Except: \n%v\nActual: \n%v", msg, except, actual)
+	}
+}
+
+func AssertEqualString(t *testing.T, except, actual, msg string) {
+	except = strings.TrimSpace(except)
+	actual = strings.TrimSpace(actual)
+	if except != actual {
 		t.Fatalf("%s Except: \n%v\nActual: \n%v", msg, except, actual)
 	}
 }

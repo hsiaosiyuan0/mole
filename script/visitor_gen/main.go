@@ -13,8 +13,8 @@ import (
 	"path"
 	"strings"
 
-	"github.com/hsiaosiyuan0/mole/fuzz"
 	"github.com/hsiaosiyuan0/mole/script/macro"
+	"github.com/hsiaosiyuan0/mole/util"
 )
 
 type MethodInfo struct {
@@ -24,9 +24,10 @@ type MethodInfo struct {
 }
 
 type StructInfo struct {
-	Name    string
-	TypName string
-	Methods []*MethodInfo
+	Name      string
+	TypName   string
+	PushScope bool
+	Methods   []*MethodInfo
 }
 
 func genVisitor(output io.Writer, s *StructInfo) error {
@@ -36,46 +37,45 @@ func genVisitor(output io.Writer, s *StructInfo) error {
 		"UnPrefix": unPrefix,
 	}
 	tpl, err := template.New(name).Funcs(fnMap).Parse(`
-func Visit{{ .Name }}(node parser.Node, key string, ctx *WalkCtx) {
+func Visit{{ .Name }}(node parser.Node, key string, ctx *VisitorCtx) {
   {{- if ge (len .Methods) 1 }}
     n := node.(*parser.{{ .Name }})
-    ctx.PushVisitorCtx(n, key)
-    defer ctx.PopVisitorCtx()
 
     {{- range $key, $value := .Methods }}
       {{ if eq $value.Name "PUSH_SCOPE" }}
-        ctx.PushScope()
-        defer ctx.PopScope()
+        ctx.WalkCtx.PushScope()
+        defer ctx.WalkCtx.PopScope()
+      {{- end }}
 
-        CallVisitor(VK_{{ $.TypName | UnPrefix }}_BEFORE, n, key, ctx)
-        defer CallVisitor(VK_{{ $.TypName | UnPrefix }}_AFTER, n, key, ctx)
-      {{- else }}
-        {{ if eq $key 0 }}
-          CallVisitor(VK_{{ $.TypName | UnPrefix }}_BEFORE, n, key, ctx)
-          defer CallVisitor(VK_{{ $.TypName | UnPrefix }}_AFTER, n, key, ctx)
-        {{- end }}
+      {{ if eq $key 0 }}
+        CallVisitor(N_{{ $.TypName | UnPrefix }}_BEFORE, n, key, ctx)
+        defer CallVisitor(N_{{ $.TypName | UnPrefix }}_AFTER, n, key, ctx)
+      {{- end }}
+
+      {{ if ne $value.Name "PUSH_SCOPE" }}
         {{ if .Nodes }}
           VisitNodes(n, n.{{ $value.Name }}(), "{{ $value.Name }}", ctx)
         {{- else }}
           VisitNode(n.{{ $value.Name }}(), "{{ $value.Name }}", ctx)
         {{- end }}
-        if ctx.stop {
+        if ctx.WalkCtx.Stopped() {
           return
         }
       {{- end }}
     {{- end }}
   {{- else}}
-    CallListener(LK_{{ $.TypName | UnPrefix }}, node, key, ctx)
+    CallListener(N_{{ $.TypName | UnPrefix }}_BEFORE, node, key, ctx)
+    CallListener(N_{{ $.TypName | UnPrefix }}_AFTER, node, key, ctx)
   {{- end }}
 }
 
 {{ if ge (len .Methods) 1 }}
-func Visit{{ .Name }}Before(node parser.Node, key string, ctx *WalkCtx) {
-  CallListener(LK_{{ $.TypName | UnPrefix }}_BEFORE, node, key, ctx)
+func Visit{{ .Name }}Before(node parser.Node, key string, ctx *VisitorCtx) {
+  CallListener(N_{{ $.TypName | UnPrefix }}_BEFORE, node, key, ctx)
 }
 
-func Visit{{ .Name }}After(node parser.Node, key string, ctx *WalkCtx) {
-  CallListener(LK_{{ $.TypName | UnPrefix }}_AFTER, node, key, ctx)
+func Visit{{ .Name }}After(node parser.Node, key string, ctx *VisitorCtx) {
+  CallListener(N_{{ $.TypName | UnPrefix }}_AFTER, node, key, ctx)
 }
 {{- end}}
   `)
@@ -87,19 +87,54 @@ func Visit{{ .Name }}After(node parser.Node, key string, ctx *WalkCtx) {
 
 func genVisitors(output io.Writer, nodeTypStruct map[string]string, structColl map[string]*StructInfo) {
 	output.Write([]byte(`
-type Visitor = func(node parser.Node, key string, ctx *WalkCtx)
-type Visitors = [VK_DEF_END]Visitor
+type Visitor = func(node parser.Node, key string, ctx *VisitorCtx)
+type Visitors = [N_BEFORE_AFTER_DEF_END]Visitor
 
 // replace the default visitor with the specified one
-func SetVisitor(vs *Visitors, vk VisitorKind, impl Visitor) {
-  vs[vk] = impl
+func SetVisitor(vs *Visitors, t parser.NodeType, impl Visitor) {
+  vs[t] = impl
 }
 
-type Listener = func(node parser.Node, key string, ctx *WalkCtx)
-type Listeners = [LK_DEF_END][]Listener
+type Listener = func(node parser.Node, key string, ctx *VisitorCtx)
+type Listeners = [N_BEFORE_AFTER_DEF_END][]Listener
 
-func AddListener(ls *Listeners, lk ListenerKind, impl Listener) {
-	ls[lk] = append(ls[lk], impl)
+func AddListener(ls *Listeners, t parser.NodeType, impl Listener) {
+	ls[t] = append(ls[t], impl)
+}
+
+func NodeBeforeEvent(t parser.NodeType) parser.NodeType  {
+  return N_BEFORE_AFTER_DEF_BEGIN + (parser.N_NODE_DEF_END - t) * 2 - 1
+}
+
+func NodeAfterEvent(t parser.NodeType) parser.NodeType  {
+  return N_BEFORE_AFTER_DEF_BEGIN + (parser.N_NODE_DEF_END - t) * 2
+}
+
+func AddNodeBeforeListener(ls *Listeners, t parser.NodeType, impl Listener) {
+	AddListener(ls, NodeBeforeEvent(t),impl)
+}
+
+func AddNodeAfterListener(ls *Listeners, t parser.NodeType, impl Listener) {
+	AddListener(ls, NodeAfterEvent(t),impl)
+}
+
+
+func AddBeforeListener(ls *Listeners, impl Listener) {
+	for t := range NodeTypes {
+		AddNodeBeforeListener(ls, t, impl)
+	}
+}
+
+func AddAfterListener(ls *Listeners, impl Listener) {
+	for t := range NodeTypes {
+		AddNodeAfterListener(ls, t, impl)
+	}
+}
+
+func AddAtomListener(ls *Listeners, impl Listener) {
+	for t := range AtomNodeTypes {
+		ls[t] = append(ls[t], impl)
+	}
 }
   `))
 
@@ -132,61 +167,48 @@ func genVisitorKinds(output io.Writer, nodeTypStruct map[string]string, structCo
 		"UnPrefix": unPrefix,
 	}
 	tpl, err := template.New("visitor types").Funcs(fnMap).Parse(`
-type VisitorKind uint16
-
 const (
-  VK_ILLEGAL VisitorKind = 0
-
   {{- range $key, $value := .NodeTypStruct }}
-    VK_{{- $key | UnPrefix | ToUpper }} = VisitorKind(parser.{{ $key }})
+    N_{{- $key | UnPrefix | ToUpper }} = parser.{{ $key }}
   {{- end }}
 )
 
 const (
-  VK_BEFORE_AFTER = VisitorKind(parser.N_NODE_DEF_END + iota)
+  N_BEFORE_AFTER_DEF_BEGIN = parser.NodeType(parser.N_NODE_DEF_END + iota)
+
   {{- range $key, $value := .NodeTypStruct }}
-    {{- if ge (len (index $.StructColl $value).Methods) 1  }}
-      VK_{{ $key | UnPrefix | ToUpper }}_BEFORE
-      VK_{{ $key | UnPrefix | ToUpper }}_AFTER
+    N_{{ $key | UnPrefix | ToUpper }}_BEFORE = N_BEFORE_AFTER_DEF_BEGIN + (parser.N_NODE_DEF_END - N_{{ $key | UnPrefix | ToUpper }}) * 2 - 1
+    N_{{ $key | UnPrefix | ToUpper }}_AFTER =  N_BEFORE_AFTER_DEF_BEGIN + (parser.N_NODE_DEF_END - N_{{ $key | UnPrefix | ToUpper }}) * 2
+  {{- end }}
+
+  N_BEFORE_AFTER_DEF_END = N_BEFORE_AFTER_DEF_BEGIN + parser.N_NODE_DEF_END * 2
+)
+
+var AtomNodeTypes = map[parser.NodeType]bool{
+  {{- range $key, $value := .NodeTypStruct }}
+    {{- if eq (len (index $.StructColl $value).Methods) 0  }}
+      N_{{ $key | UnPrefix | ToUpper }}: true,
     {{- end }}
   {{- end }}
-
-  VK_DEF_END
-)
-  `)
-	if err != nil {
-		return err
-	}
-	return tpl.Execute(output, &TplParamsGenVisitorKinds{nodeTypStruct, structColl})
 }
 
-func genListenerKinds(output io.Writer, nodeTypStruct map[string]string, structColl map[string]*StructInfo) error {
-	fnMap := template.FuncMap{
-		"ToUpper":  strings.ToUpper,
-		"UnPrefix": unPrefix,
-	}
-	tpl, err := template.New("visitor types").Funcs(fnMap).Parse(`
-type ListenerKind uint16
-
-const (
-  LK_ILLEGAL ListenerKind = 0
-
+var NodeTypes = map[parser.NodeType]bool{
   {{- range $key, $value := .NodeTypStruct }}
-  LK_{{- $key | UnPrefix | ToUpper }} = ListenerKind(parser.{{ $key }})
+    N_{{ $key | UnPrefix | ToUpper }}: true,
   {{- end }}
-)
+}
 
-const (
-  LK_BEFORE_AFTER = ListenerKind(parser.N_NODE_DEF_END + iota)
+var NodeBeforeEvents = map[parser.NodeType]bool {
   {{- range $key, $value := .NodeTypStruct }}
-    {{- if ge (len (index $.StructColl $value).Methods) 1  }}
-      LK_{{ $key | UnPrefix | ToUpper }}_BEFORE
-      LK_{{ $key | UnPrefix | ToUpper }}_AFTER
-    {{- end }}
+    N_BEFORE_AFTER_DEF_BEGIN + (parser.N_NODE_DEF_END - N_{{ $key | UnPrefix | ToUpper }}) * 2 - 1: true,
   {{- end }}
+}
 
-  LK_DEF_END
-)
+var NodeAfterEvents = map[parser.NodeType]bool {
+  {{- range $key, $value := .NodeTypStruct }}
+    N_BEFORE_AFTER_DEF_BEGIN + (parser.N_NODE_DEF_END - N_{{ $key | UnPrefix | ToUpper }}) * 2: true,
+  {{- end }}
+}
   `)
 	if err != nil {
 		return err
@@ -200,20 +222,20 @@ func genDefaultVisitors(output io.Writer, nodeTypStruct map[string]string, struc
 		"UnPrefix": unPrefix,
 	}
 	tpl, err := template.New("visitor types").Funcs(fnMap).Parse(`
-var DefaultVisitors Visitors = [VK_DEF_END]Visitor{}
-var DefaultListeners Listeners = [LK_DEF_END][]Listener{}
+var DefaultVisitors Visitors = [N_BEFORE_AFTER_DEF_END]Visitor{}
+var DefaultListeners Listeners = [N_BEFORE_AFTER_DEF_END][]Listener{}
 
 func init() {
   {{- range $key, $value := .NodeTypStruct }}
-    DefaultVisitors[VK_{{ $key | UnPrefix | ToUpper }}] = Visit{{ $value }}
+    DefaultVisitors[N_{{ $key | UnPrefix | ToUpper }}] = Visit{{ $value }}
     {{- if ge (len (index $.StructColl $value).Methods) 1  }}
-      DefaultVisitors[VK_{{ $key | UnPrefix | ToUpper }}_BEFORE] = Visit{{ $value }}Before
-      DefaultVisitors[VK_{{ $key | UnPrefix | ToUpper }}_AFTER] = Visit{{ $value }}After
+      DefaultVisitors[N_{{ $key | UnPrefix | ToUpper }}_BEFORE] = Visit{{ $value }}Before
+      DefaultVisitors[N_{{ $key | UnPrefix | ToUpper }}_AFTER] = Visit{{ $value }}After
     {{- end }}
   {{- end }}
 
   {{ range $key, $value := .NodeTypStruct }}
-    DefaultListeners[LK_{{ $key | UnPrefix | ToUpper }}] = []Listener{}
+    DefaultListeners[N_{{ $key | UnPrefix | ToUpper }}] = []Listener{}
   {{- end }}
 }
   `)
@@ -269,7 +291,7 @@ func main() {
 		if ok {
 			return s
 		}
-		structColl[name] = &StructInfo{name, "", []*MethodInfo{}}
+		structColl[name] = &StructInfo{name, "", false, []*MethodInfo{}}
 		return structColl[name]
 	}
 
@@ -288,6 +310,9 @@ func main() {
 		} else if name, _, ok := macro.IsStructDec(ctx.Node); ok {
 			s := getStruct(name)
 			for _, n := range ctx.Args {
+				if n == "PUSH_SCOPE" {
+					s.PushScope = true
+				}
 				s.Methods = append(s.Methods, &MethodInfo{Name: n.(string), Dec: nil})
 			}
 		}
@@ -338,12 +363,6 @@ import "github.com/hsiaosiyuan0/mole/ecma/parser"
 		log.Fatal(err)
 	}
 
-	// generate listener kinds
-	err = genListenerKinds(&buf, nodeTypStruct, structColl)
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	// generate visitors
 	genVisitors(&buf, nodeTypStruct, structColl)
 
@@ -354,5 +373,5 @@ import "github.com/hsiaosiyuan0/mole/ecma/parser"
 	}
 
 	ioutil.WriteFile(distFile, buf.Bytes(), 0644)
-	fuzz.Shell("gofmt", "-w", distFile)
+	util.Shell("gofmt", "-w", distFile)
 }

@@ -1,0 +1,155 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 117,
+  "body": [
+    {
+      "type": "SwitchStatement",
+      "start": 0,
+      "end": 117,
+      "discriminant": {
+        "type": "Identifier",
+        "start": 7,
+        "end": 8,
+        "name": "a"
+      },
+      "cases": [
+        {
+          "type": "SwitchCase",
+          "start": 14,
+          "end": 48,
+          "consequent": [
+            {
+              "type": "BlockStatement",
+              "start": 22,
+              "end": 48,
+              "body": [
+                {
+                  "type": "ExpressionStatement",
+                  "start": 28,
+                  "end": 37,
+                  "expression": {
+                    "type": "CallExpression",
+                    "start": 28,
+                    "end": 36,
+                    "callee": {
+                      "type": "Identifier",
+                      "start": 28,
+                      "end": 34,
+                      "name": "doSth1"
+                    },
+                    "arguments": [],
+                    "optional": false
+                  }
+                },
+                {
+                  "type": "BreakStatement",
+                  "start": 38,
+                  "end": 44,
+                  "label": null
+                }
+              ]
+            }
+          ],
+          "test": {
+            "type": "Literal",
+            "start": 19,
+            "end": 20,
+            "value": 1,
+            "raw": "1"
+          }
+        },
+        {
+          "type": "SwitchCase",
+          "start": 51,
+          "end": 75,
+          "consequent": [
+            {
+              "type": "ExpressionStatement",
+              "start": 60,
+              "end": 75,
+              "expression": {
+                "type": "CallExpression",
+                "start": 60,
+                "end": 74,
+                "callee": {
+                  "type": "Identifier",
+                  "start": 60,
+                  "end": 72,
+                  "name": "doSthDefault"
+                },
+                "arguments": [],
+                "optional": false
+              }
+            }
+          ],
+          "test": null
+        },
+        {
+          "type": "SwitchCase",
+          "start": 78,
+          "end": 95,
+          "consequent": [
+            {
+              "type": "ExpressionStatement",
+              "start": 86,
+              "end": 95,
+              "expression": {
+                "type": "CallExpression",
+                "start": 86,
+                "end": 94,
+                "callee": {
+                  "type": "Identifier",
+                  "start": 86,
+                  "end": 92,
+                  "name": "doSth2"
+                },
+                "arguments": [],
+                "optional": false
+              }
+            }
+          ],
+          "test": {
+            "type": "Literal",
+            "start": 83,
+            "end": 84,
+            "value": 2,
+            "raw": "2"
+          }
+        },
+        {
+          "type": "SwitchCase",
+          "start": 98,
+          "end": 115,
+          "consequent": [
+            {
+              "type": "ExpressionStatement",
+              "start": 106,
+              "end": 115,
+              "expression": {
+                "type": "CallExpression",
+                "start": 106,
+                "end": 114,
+                "callee": {
+                  "type": "Identifier",
+                  "start": 106,
+                  "end": 112,
+                  "name": "doSth3"
+                },
+                "arguments": [],
+                "optional": false
+              }
+            }
+          ],
+          "test": {
+            "type": "Literal",
+            "start": 103,
+            "end": 104,
+            "value": 3,
+            "raw": "3"
+          }
+        }
+      ]
+    }
+  ]
+}

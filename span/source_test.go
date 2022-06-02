@@ -3,7 +3,7 @@ package span
 import (
 	"testing"
 
-	. "github.com/hsiaosiyuan0/mole/fuzz"
+	. "github.com/hsiaosiyuan0/mole/util"
 )
 
 func TestEOL(t *testing.T) {

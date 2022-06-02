@@ -6,13 +6,13 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/hsiaosiyuan0/mole/fuzz"
 	span "github.com/hsiaosiyuan0/mole/span"
+	"github.com/hsiaosiyuan0/mole/util"
 )
 
 // AST nodes are referred to [ESTree](https://github.com/estree/estree/blob/master/es5.md) with some variants:
-// - flatterned struct is used instead of inheritance
-// - fields are not fully described as they are claimmed in ESTree, eg. the field names in this file are shorter then
+// - flattened struct is used instead of inheritance
+// - fields are not fully described as they are claimed in ESTree, eg. the field names in this file are shorter then
 //   their equivalent of ESTree. for the requirement what the ESTree compatible output is needed, use the `estree` package
 //   to do the transformation
 type Node interface {
@@ -596,7 +596,7 @@ type NodeWithTypInfo interface {
 }
 
 func locOfNode(node Node) *Loc {
-	if fuzz.IsNilPtr(node) {
+	if util.IsNilPtr(node) {
 		return nil
 	}
 	return node.Loc()
@@ -674,7 +674,7 @@ type Ident struct {
 	// `export { if } from "a"` is legal
 	// `export { if } ` is illegal
 	// for reporting `if` is a keyword, firstly produce a
-	// Ident with conent `if` and flag it's a keyword by
+	// Ident with content `if` and flag it's a keyword by
 	// setting this field to true, later report the `unexpected token`
 	// error if the coming token is not `from`
 	kw bool
@@ -1157,11 +1157,11 @@ func (n *ParenExpr) SetOuterParen(loc *Loc) {
 	n.outerParen = loc
 }
 
-// there is no information kept to describe the program order of the quasis and expresions
-// according to below link descries how the quasis and expresion are being walk over:
+// there is no information kept to describe the program order of the quasis and expressions
+// according to below link descries how the quasis and expression are being walk over:
 // https://opensource.apple.com/source/WebInspectorUI/WebInspectorUI-7602.2.14.0.5/UserInterface/Workers/Formatter/ESTreeWalker.js.auto.html
 // some meaningless output should be taken into its estree result, such as put first quasis as
-// a emptry string if the first element in `elems` is a expression
+// a empty string if the first element in `elems` is a expression
 //
 // #[visitor(Tag,Elems)]
 type TplExpr struct {
@@ -1548,6 +1548,7 @@ type FnDec struct {
 	async      bool
 	params     []Node
 	body       Node
+	rets       []Node
 	outerParen *Loc
 	ti         *TypInfo
 }
@@ -1570,6 +1571,10 @@ func (n *FnDec) Params() []Node {
 
 func (n *FnDec) Body() Node {
 	return n.body
+}
+
+func (n *FnDec) ExpRet() bool {
+	return len(n.rets) > 0
 }
 
 func (n *FnDec) Type() NodeType {
@@ -1609,6 +1614,7 @@ type ArrowFn struct {
 	params     []Node
 	body       Node
 	expr       bool
+	rets       []Node
 	outerParen *Loc
 	ti         *TypInfo
 }
@@ -1619,6 +1625,10 @@ func (n *ArrowFn) Async() bool {
 
 func (n *ArrowFn) Params() []Node {
 	return n.params
+}
+
+func (n *ArrowFn) ExpRet() bool {
+	return len(n.rets) > 0
 }
 
 func (n *ArrowFn) Body() Node {
@@ -1730,7 +1740,7 @@ func (n *BlockStmt) NewScope() bool {
 	return n.newScope
 }
 
-// #[visitor(Test,Body)]
+// #[visitor(PUSH_SCOPE,Body,Test)]
 type DoWhileStmt struct {
 	typ  NodeType
 	loc  *Loc
@@ -1754,7 +1764,7 @@ func (n *DoWhileStmt) Loc() *Loc {
 	return n.loc
 }
 
-// #[visitor(Test,Body)]
+// #[visitor(PUSH_SCOPE,Test,Body)]
 type WhileStmt struct {
 	typ  NodeType
 	loc  *Loc
@@ -1930,13 +1940,18 @@ func (n *SwitchCase) Loc() *Loc {
 
 // #[visitor(Label)]
 type BrkStmt struct {
-	typ   NodeType
-	loc   *Loc
-	label Node
+	typ    NodeType
+	loc    *Loc
+	label  Node
+	target Node
 }
 
 func (n *BrkStmt) Label() Node {
 	return n.label
+}
+
+func (n *BrkStmt) Target() Node {
+	return n.target
 }
 
 func (n *BrkStmt) Type() NodeType {
@@ -1949,13 +1964,18 @@ func (n *BrkStmt) Loc() *Loc {
 
 // #[visitor(Label)]
 type ContStmt struct {
-	typ   NodeType
-	loc   *Loc
-	label Node
+	typ    NodeType
+	loc    *Loc
+	label  Node
+	target Node
 }
 
 func (n *ContStmt) Label() Node {
 	return n.label
+}
+
+func (n *ContStmt) Target() Node {
+	return n.target
 }
 
 func (n *ContStmt) Type() NodeType {
@@ -1972,6 +1992,7 @@ type LabelStmt struct {
 	loc   *Loc
 	label Node
 	body  Node
+	used  bool
 }
 
 func (n *LabelStmt) Label() Node {
@@ -1980,6 +2001,10 @@ func (n *LabelStmt) Label() Node {
 
 func (n *LabelStmt) Body() Node {
 	return n.body
+}
+
+func (n *LabelStmt) Used() bool {
+	return n.used
 }
 
 func (n *LabelStmt) Type() NodeType {
@@ -2011,13 +2036,18 @@ func (n *RetStmt) Loc() *Loc {
 
 // #[visitor(Arg)]
 type ThrowStmt struct {
-	typ NodeType
-	loc *Loc
-	arg Node
+	typ    NodeType
+	loc    *Loc
+	arg    Node
+	target Node
 }
 
 func (n *ThrowStmt) Arg() Node {
 	return n.arg
+}
+
+func (n *ThrowStmt) Target() Node {
+	return n.target
 }
 
 func (n *ThrowStmt) Type() NodeType {

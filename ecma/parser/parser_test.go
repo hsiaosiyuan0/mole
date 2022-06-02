@@ -3,8 +3,8 @@ package parser
 import (
 	"testing"
 
-	. "github.com/hsiaosiyuan0/mole/fuzz"
 	span "github.com/hsiaosiyuan0/mole/span"
+	. "github.com/hsiaosiyuan0/mole/util"
 )
 
 func newParser(code string, opts *ParserOpts) *Parser {
@@ -947,7 +947,64 @@ func TestMetaProp(t *testing.T) {
 func TestScopeBalance(t *testing.T) {
 	parser := newParser("function a () {}", nil)
 	parser.Prog()
-	AssertEqual(t, uint(0), parser.symtab.Cur.Id, "scope should be balanced")
+	AssertEqual(t, 0, parser.symtab.Cur.Id, "scope should be balanced")
+}
+
+func TestLabelledUsage(t *testing.T) {
+	ast, err := compile(`
+LabelA: for (;;) {
+  break LabelA;
+}
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+	AssertEqual(t, true, ast.(*Prog).stmts[0].(*LabelStmt).Used(), "should be meta")
+}
+
+func TestLabelledUsageCont(t *testing.T) {
+	ast, err := compile(`
+LabelA: for (;;) {
+  for (;;) {
+    continue LabelA;
+  }
+}
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+	AssertEqual(t, true, ast.(*Prog).stmts[0].(*LabelStmt).Used(), "should be meta")
+}
+
+func TestLabelledUsageContNested(t *testing.T) {
+	ast, err := compile(`
+LabelA: for (;;) {
+  LabelB: for (;;) {
+    continue LabelB;
+  }
+}
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+	AssertEqual(t, false, ast.(*Prog).stmts[0].(*LabelStmt).Used(), "should be meta")
+	AssertEqual(t, true, ast.(*Prog).stmts[0].(*LabelStmt).body.(*ForStmt).Body().(*BlockStmt).body[0].(*LabelStmt).Used(), "should be meta")
+}
+
+func TestLabelledUsageNoUse(t *testing.T) {
+	ast, err := compile(`
+LabelA: for (;;) {
+  break;
+}
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+	AssertEqual(t, false, ast.(*Prog).stmts[0].(*LabelStmt).Used(), "should be meta")
+}
+
+func TestLabelledUsageContNoUse(t *testing.T) {
+	ast, err := compile(`
+LabelA: for (;;) {
+  LabelB: for (;;) {
+    continue LabelB;
+  }
+}
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+	AssertEqual(t, false, ast.(*Prog).stmts[0].(*LabelStmt).Used(), "should be meta")
 }
 
 func TestFail1(t *testing.T) {
@@ -2373,4 +2430,45 @@ func TestFail306(t *testing.T) {
 	opts := NewParserOpts()
 	opts.Feature = opts.Feature.Off(FEAT_BAD_ESCAPE_IN_TAGGED_TPL)
 	testFail(t, "foo`\\xylophone`", "Bad character escape sequence at (1:4)", opts)
+}
+
+// cover some labeled statements
+func TestFail307(t *testing.T) {
+	opts := NewParserOpts()
+	opts.Feature = opts.Feature.Off(FEAT_BAD_ESCAPE_IN_TAGGED_TPL)
+	testFail(t, "LabelA: let a = 0", "Unexpected token `let` at (1:8)", opts)
+}
+
+func TestFail308(t *testing.T) {
+	opts := NewParserOpts()
+	opts.Feature = opts.Feature.Off(FEAT_BAD_ESCAPE_IN_TAGGED_TPL)
+	testFail(t, `
+LabelA: a = 1
+
+for (;;) {
+  continue LabelA;
+}
+`, "Undefined label `LabelA` at (5:11)", opts)
+}
+
+func TestFail309(t *testing.T) {
+	opts := NewParserOpts()
+	opts.Feature = opts.Feature.Off(FEAT_BAD_ESCAPE_IN_TAGGED_TPL)
+	testFail(t, `
+LabelA: LabelB: for (;;) {
+  LabelA: b = 1;
+  break LabelA;
+}
+`, "Label `LabelA` already declared at (3:2)", opts)
+}
+
+func TestFail310(t *testing.T) {
+	opts := NewParserOpts()
+	opts.Feature = opts.Feature.Off(FEAT_BAD_ESCAPE_IN_TAGGED_TPL)
+	testFail(t, `
+LabelA: LabelB: for (;;) {
+  LabelB: b = 1;
+  break LabelA;
+}
+`, "Label `LabelB` already declared at (3:2)", opts)
 }

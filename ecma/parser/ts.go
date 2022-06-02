@@ -23,16 +23,16 @@ var builtinTyp = map[string]NodeType{
 
 // indicates the closing `>` is missing, so the processed `<` should be considered
 // as the LessThan operator. produced in `tsTypArgs`
-type ErrTypArgMssingGT struct {
+type ErrTypArgMissingGT struct {
 	line uint32
 	col  uint32
 }
 
-func (e *ErrTypArgMssingGT) Error() string {
+func (e *ErrTypArgMissingGT) Error() string {
 	return "missing the closing `>`"
 }
 
-var errTypArgMissingGT = &ErrTypArgMssingGT{}
+var errTypArgMissingGT = &ErrTypArgMissingGT{}
 
 // indicates the current position should be re-entered as `jsx`. produced in `tsTypArgs`
 var errTypArgMaybeJsx = errors.New("maybe jsx")
@@ -78,10 +78,10 @@ func (p *Parser) tsTyp(rough bool, canConst bool, canCond bool) (Node, error) {
 	if p.lexer.Peek().value == T_NEW {
 		return p.tsConstructTyp(nil, false)
 	}
-	return p.tsUnionOrIntersecType(nil, 0, rough, canConst, canCond)
+	return p.tsUnionOrIntersectType(nil, 0, rough, canConst, canCond)
 }
 
-func (p *Parser) tsUnionOrIntersecType(lhs Node, minPcd int, rough bool, canConst bool, canCond bool) (Node, error) {
+func (p *Parser) tsUnionOrIntersectType(lhs Node, minPcd int, rough bool, canConst bool, canCond bool) (Node, error) {
 	var err error
 	if lhs == nil {
 		ahead := p.lexer.Peek()
@@ -131,7 +131,7 @@ func (p *Parser) tsUnionOrIntersecType(lhs Node, minPcd int, rough bool, canCons
 			if av == T_BIT_OR {
 				nt = N_TS_UNION_TYP
 			} else {
-				nt = N_TS_INTERSEC_TYP
+				nt = N_TS_INTERSECT_TYP
 			}
 			elems = make([]Node, 0, 1)
 			if lhs != nil {
@@ -149,7 +149,7 @@ func (p *Parser) tsUnionOrIntersecType(lhs Node, minPcd int, rough bool, canCons
 		kind = TokenKinds[av]
 		for (av == T_BIT_OR || av == T_BIT_AND) && kind.Pcd > pcd {
 			pcd = kind.Pcd
-			rhs, err = p.tsUnionOrIntersecType(rhs, pcd, rough, canConst, canCond)
+			rhs, err = p.tsUnionOrIntersectType(rhs, pcd, rough, canConst, canCond)
 			if err != nil {
 				return nil, err
 			}
@@ -163,7 +163,7 @@ func (p *Parser) tsUnionOrIntersecType(lhs Node, minPcd int, rough bool, canCons
 			if nt == N_TS_UNION_TYP {
 				lhs = &TsUnionTyp{N_TS_UNION_TYP, p.finLoc(lhs.Loc().Clone()), firstOp, elems, nil}
 			} else {
-				lhs = &TsIntersecTyp{N_TS_INTERSEC_TYP, p.finLoc(lhs.Loc().Clone()), firstOp, elems, nil}
+				lhs = &TsIntersectTyp{N_TS_INTERSECT_TYP, p.finLoc(lhs.Loc().Clone()), firstOp, elems, nil}
 			}
 			nt = N_ILLEGAL
 		}
@@ -368,8 +368,8 @@ func (p *Parser) tsRoughParamToParam(node Node) (Node, error) {
 	case N_TS_UNION_TYP:
 		u := n.(*TsUnionTyp)
 		return nil, p.errorAtLoc(u.op, ERR_UNEXPECTED_TOKEN)
-	case N_TS_INTERSEC_TYP:
-		i := n.(*TsIntersecTyp)
+	case N_TS_INTERSECT_TYP:
+		i := n.(*TsIntersectTyp)
 		return nil, p.errorAtLoc(i.op, ERR_UNEXPECTED_TOKEN)
 	case N_TS_REST:
 		n := n.(*TsRest)
@@ -1618,7 +1618,7 @@ func (p *Parser) tsTryTypArgs(asyncLoc *Loc, noJsx bool) (Node, error) {
 // ```
 //
 // for avoiding lookbehind the process should accept the input as seqExpr then try to
-// tansform the subtree of seqExpr to typArgs if its followed by `>`
+// transform the subtree of seqExpr to typArgs if its followed by `>`
 func (p *Parser) tsTryTypArgsAfterAsync(asyncLoc *Loc) (Node, error) {
 	name := &Ident{N_NAME, asyncLoc, asyncLoc.Text(), false, false, nil, true, p.newTypInfo()}
 	binExpr, err := p.binExpr(name, 0, false, false, true, false)
@@ -1972,12 +1972,12 @@ func (p *Parser) tsItf() (Node, error) {
 	}
 	p.symtab.LeaveScope()
 
-	itfBody := &TsInferfaceBody{
+	itfBody := &TsInterfaceBody{
 		typ:  N_TS_INTERFACE_BODY,
 		loc:  body.(*TsObj).loc,
 		body: body.(*TsObj).props,
 	}
-	return &TsInferface{N_TS_INTERFACE, p.finLoc(loc), name, params, supers, itfBody}, nil
+	return &TsInterface{N_TS_INTERFACE, p.finLoc(loc), name, params, supers, itfBody}, nil
 }
 
 func (p *Parser) tsEnumBody() ([]Node, error) {
@@ -2158,7 +2158,7 @@ func (p *Parser) tsNS() (Node, error) {
 		p.advanceIfSemi(false)
 	}
 
-	// for namespace with qualified name, it will be splitted to
+	// for namespace with qualified name, it will be split to
 	// multiple modules and those modules will be constructed to
 	// a tree structure whose children keep the order in that
 	// qualified name

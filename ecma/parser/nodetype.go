@@ -1,3 +1,5 @@
+//go:generate go run github.com/hsiaosiyuan0/mole/script/nodetype_gen -d=../parser
+
 package parser
 
 type NodeType uint16
@@ -81,7 +83,7 @@ const (
 	N_FIELD        // #[visitor(Field)]
 	N_SUPER        // #[visitor(Super)]
 	N_IMPORT_SPEC  // #[visitor(ImportSpec)]
-	N_EXPORT_SPEC  // #[visitor(ExportDec)]
+	N_EXPORT_SPEC  // #[visitor(ExportSpec)]
 
 	N_JSX_BEGIN
 	N_JSX_ID           // #[visitor(JsxIdent)]
@@ -139,12 +141,12 @@ const (
 	N_TS_FN_TYP             // #[visitor(TsFnTyp)]
 	N_TS_NEW                // #[visitor(TsNewSig)]
 	N_TS_UNION_TYP          // #[visitor(TsUnionTyp)]
-	N_TS_INTERSEC_TYP       // #[visitor(TsIntersecTyp)]
+	N_TS_INTERSECT_TYP      // #[visitor(TsIntersectTyp)]
 	N_TS_ROUGH_PARAM        // #[visitor(TsRoughParam)]
 	N_TS_TYP_ASSERT         // #[visitor(TsTypAssert)]
 	N_TS_TYP_DEC            // #[visitor(TsTypDec)]
-	N_TS_INTERFACE          // #[visitor(TsInferface)]
-	N_TS_INTERFACE_BODY     // #[visitor(TsInferfaceBody)]
+	N_TS_INTERFACE          // #[visitor(TsInterface)]
+	N_TS_INTERFACE_BODY     // #[visitor(TsInterfaceBody)]
 	N_TS_ENUM               // #[visitor(TsEnum)]
 	N_TS_ENUM_MEMBER        // #[visitor(TsEnumMember)]
 	N_TS_IMPORT_ALIAS       // #[visitor(TsImportAlias)]
@@ -169,3 +171,15 @@ const (
 
 	N_NODE_DEF_END
 )
+
+func (nt NodeType) IsExpr() bool {
+	return nt > N_EXPR_BEGIN && nt < N_EXPR_END
+}
+
+func (nt NodeType) IsStmt() bool {
+	return nt > N_STMT_BEGIN && nt < N_STMT_END
+}
+
+func (nt NodeType) IsLit() bool {
+	return nt > N_LIT_BEGIN && nt < N_LIT_END
+}

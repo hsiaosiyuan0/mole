@@ -13,8 +13,8 @@ import (
 
 	"github.com/hsiaosiyuan0/mole/ecma/estree"
 	"github.com/hsiaosiyuan0/mole/ecma/parser"
-	internal "github.com/hsiaosiyuan0/mole/fuzz"
 	"github.com/hsiaosiyuan0/mole/span"
+	internal "github.com/hsiaosiyuan0/mole/util"
 )
 
 func NewParser(code string, opts *parser.ParserOpts) *parser.Parser {
