@@ -22,3 +22,20 @@ func Shell(command string, args ...string) {
 	}
 	fmt.Println(stdout.String())
 }
+
+func ShellInDir(dir, command string, args ...string) {
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	cmd := exec.Command(command, args...)
+	cmd.Dir = dir
+	fmt.Print(cmd.String())
+
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	err := cmd.Run()
+
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(stdout.String())
+}
