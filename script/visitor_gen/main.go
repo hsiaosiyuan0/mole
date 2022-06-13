@@ -95,45 +95,60 @@ func SetVisitor(vs *Visitors, t parser.NodeType, impl Visitor) {
   vs[t] = impl
 }
 
-type Listener = func(node parser.Node, key string, ctx *VisitorCtx)
-type Listeners = [N_BEFORE_AFTER_DEF_END][]Listener
+type ListenFn = func(node parser.Node, key string, ctx *VisitorCtx)
 
-func AddListener(ls *Listeners, t parser.NodeType, impl Listener) {
-	ls[t] = append(ls[t], impl)
+type Listener struct {
+	Id     string
+	Handle ListenFn
+}
+type Listeners = [N_BEFORE_AFTER_DEF_END]map[string]*Listener
+
+func AddListener(ls *Listeners, t parser.NodeType, impl *Listener) error {
+	if _, ok := ls[t][impl.Id]; ok {
+		return errors.New("duplicate listener with same id: " + impl.Id)
+	}
+	if ls[t] == nil {
+		ls[t] = map[string]*Listener{}
+	}
+	ls[t][impl.Id] = impl
+	return nil
 }
 
-func NodeBeforeEvent(t parser.NodeType) parser.NodeType  {
-  return N_BEFORE_AFTER_DEF_BEGIN + (parser.N_NODE_DEF_END - t) * 2 - 1
+func RemoveListener(ls *Listeners, t parser.NodeType, impl Listener) {
+	delete(ls[t], impl.Id)
 }
 
-func NodeAfterEvent(t parser.NodeType) parser.NodeType  {
-  return N_BEFORE_AFTER_DEF_BEGIN + (parser.N_NODE_DEF_END - t) * 2
+func NodeBeforeEvent(t parser.NodeType) parser.NodeType {
+	return N_BEFORE_AFTER_DEF_BEGIN + (parser.N_NODE_DEF_END-t)*2 - 1
 }
 
-func AddNodeBeforeListener(ls *Listeners, t parser.NodeType, impl Listener) {
-	AddListener(ls, NodeBeforeEvent(t),impl)
+func NodeAfterEvent(t parser.NodeType) parser.NodeType {
+	return N_BEFORE_AFTER_DEF_BEGIN + (parser.N_NODE_DEF_END-t)*2
 }
 
-func AddNodeAfterListener(ls *Listeners, t parser.NodeType, impl Listener) {
-	AddListener(ls, NodeAfterEvent(t),impl)
+func AddNodeBeforeListener(ls *Listeners, t parser.NodeType, impl *Listener) {
+	AddListener(ls, NodeBeforeEvent(t), impl)
 }
 
+func AddNodeAfterListener(ls *Listeners, t parser.NodeType, impl *Listener) {
+	AddListener(ls, NodeAfterEvent(t), impl)
+}
 
-func AddBeforeListener(ls *Listeners, impl Listener) {
+func AddBeforeListener(ls *Listeners, impl *Listener) {
 	for t := range NodeTypes {
 		AddNodeBeforeListener(ls, t, impl)
 	}
 }
 
-func AddAfterListener(ls *Listeners, impl Listener) {
+func AddAfterListener(ls *Listeners, impl *Listener) {
 	for t := range NodeTypes {
 		AddNodeAfterListener(ls, t, impl)
 	}
 }
 
-func AddAtomListener(ls *Listeners, impl Listener) {
+func AddAtomListener(ls *Listeners, impl *Listener) {
 	for t := range AtomNodeTypes {
-		ls[t] = append(ls[t], impl)
+		AddListener(ls, t, impl)
 	}
 }
   `))
@@ -163,8 +178,9 @@ type TplParamsGenVisitorKinds struct {
 
 func genVisitorKinds(output io.Writer, nodeTypStruct map[string]string, structColl map[string]*StructInfo) error {
 	fnMap := template.FuncMap{
-		"ToUpper":  strings.ToUpper,
-		"UnPrefix": unPrefix,
+		"ToUpper":    strings.ToUpper,
+		"UnPrefix":   unPrefix,
+		"StartsWith": strings.HasPrefix,
 	}
 	tpl, err := template.New("visitor types").Funcs(fnMap).Parse(`
 const (
@@ -198,6 +214,14 @@ var NodeTypes = map[parser.NodeType]bool{
   {{- end }}
 }
 
+var StmtNodeTypes = map[parser.NodeType]bool{
+  {{- range $key, $value := .NodeTypStruct }}
+  {{- if StartsWith (index $.StructColl $value).TypName "N_STMT_"  }}
+      N_{{ $key | UnPrefix | ToUpper }}: true,
+    {{- end }}
+  {{- end }}
+}
+
 var NodeBeforeEvents = map[parser.NodeType]bool {
   {{- range $key, $value := .NodeTypStruct }}
     N_BEFORE_AFTER_DEF_BEGIN + (parser.N_NODE_DEF_END - N_{{ $key | UnPrefix | ToUpper }}) * 2 - 1: true,
@@ -223,7 +247,7 @@ func genDefaultVisitors(output io.Writer, nodeTypStruct map[string]string, struc
 	}
 	tpl, err := template.New("visitor types").Funcs(fnMap).Parse(`
 var DefaultVisitors Visitors = [N_BEFORE_AFTER_DEF_END]Visitor{}
-var DefaultListeners Listeners = [N_BEFORE_AFTER_DEF_END][]Listener{}
+var DefaultListeners Listeners = [N_BEFORE_AFTER_DEF_END]map[string]*Listener{}
 
 func init() {
   {{- range $key, $value := .NodeTypStruct }}
@@ -235,7 +259,7 @@ func init() {
   {{- end }}
 
   {{ range $key, $value := .NodeTypStruct }}
-    DefaultListeners[N_{{ $key | UnPrefix | ToUpper }}] = []Listener{}
+    DefaultListeners[N_{{ $key | UnPrefix | ToUpper }}] = map[string]*Listener{}
   {{- end }}
 }
   `)
@@ -245,7 +269,7 @@ func init() {
 	return tpl.Execute(output, &TplParamsGenVisitorKinds{nodeTypStruct, structColl})
 }
 
-func IfNodesReurned(f *ast.FuncType, name string) bool {
+func IfNodesReturned(f *ast.FuncType, name string) bool {
 	if f.Results == nil || len(f.Results.List) != 1 {
 		log.Fatalf("%s should return only one value", name)
 	}
@@ -295,7 +319,7 @@ func main() {
 		return structColl[name]
 	}
 
-	// fullfill `nodeTypStruct` and `structColl`
+	// fulfill `nodeTypStruct` and `structColl`
 	for _, ctx := range ctxs {
 		if ctx.Name != "visitor" {
 			continue
@@ -336,7 +360,7 @@ func main() {
 					for _, m := range sm {
 						if m.Name == name {
 							m.Dec = fnTyp
-							m.Nodes = IfNodesReurned(fnTyp, name)
+							m.Nodes = IfNodesReturned(fnTyp, name)
 							break
 						}
 					}
@@ -353,11 +377,15 @@ func main() {
 
 package walk
 
-import "github.com/hsiaosiyuan0/mole/ecma/parser"
+import (
+	"errors"
+
+	"github.com/hsiaosiyuan0/mole/ecma/parser"
+)
 
   `)
 
-	// genereate visitor kinds
+	// generate visitor kinds
 	err = genVisitorKinds(&buf, nodeTypStruct, structColl)
 	if err != nil {
 		log.Fatal(err)
@@ -366,7 +394,7 @@ import "github.com/hsiaosiyuan0/mole/ecma/parser"
 	// generate visitors
 	genVisitors(&buf, nodeTypStruct, structColl)
 
-	// generate defalt visitors
+	// generate default visitors
 	err = genDefaultVisitors(&buf, nodeTypStruct, structColl)
 	if err != nil {
 		log.Fatal(err)

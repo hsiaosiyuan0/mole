@@ -45,12 +45,17 @@ type Parser struct {
 	// a temporary stack which holds the loop nodes in their lexical order
 	loopStk []Node
 
-	// for resolve `FnDec.rets`
+	// for resolving the `FnDec.rets`
 	retsStk [][]Node
 
 	// keep tryStmts in their lexical order
 	tryStk []Node
-	prog   Node
+
+	// the root node after process is finished
+	prog Node
+
+	// stmt node => the comments before to that stmt
+	prevStmtCmts map[Node][]*span.Range
 }
 
 type ParserOpts struct {
@@ -124,6 +129,7 @@ func (p *Parser) Setup(src *span.Source, opts *ParserOpts) {
 	p.loopStk = []Node{}
 	p.retsStk = [][]Node{}
 	p.tryStk = []Node{}
+	p.prevStmtCmts = map[Node][]*span.Range{}
 
 	p.lexer = NewLexer(src)
 	p.lexer.ver = opts.Version
@@ -176,6 +182,14 @@ func (p *Parser) pushRetsStk(ret Node) Node {
 
 func (p *Parser) Symtab() *SymTab {
 	return p.symtab
+}
+
+func (p *Parser) PrevStmtCmts(stmt Node) []*span.Range {
+	return p.prevStmtCmts[stmt]
+}
+
+func (p *Parser) BtmStmtCmts() []*span.Range {
+	return p.lexer.takePrevCmts()
 }
 
 func (p *Parser) Prog() (Node, error) {
@@ -1849,7 +1863,6 @@ func (p *Parser) retStmt() (Node, error) {
 		tok.value != T_BRACE_R &&
 		tok.value != T_PAREN_R &&
 		tok.value != T_BRACKET_R &&
-		// tok.value != T_COMMENT &&
 		tok.value != T_EOF && !tok.afterLineTerm {
 		arg, err = p.expr()
 		if err != nil {
@@ -2926,6 +2939,7 @@ func (p *Parser) stmts(terminal TokenValue) ([]Node, error) {
 		} else if tok.value == T_EOF {
 			break
 		}
+		cmts := p.lexer.takePrevCmts()
 		stmt, err := p.stmt()
 		if err != nil {
 			return nil, err
@@ -2968,6 +2982,7 @@ func (p *Parser) stmts(terminal TokenValue) ([]Node, error) {
 					prologue += 1
 				}
 			}
+			p.prevStmtCmts[stmt] = cmts
 			stmts = append(stmts, stmt)
 		}
 	}

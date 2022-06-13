@@ -1647,8 +1647,14 @@ func resolveCont(a *AnalysisCtx, loopNode parser.Node, loopTailBlk *Block) {
 func (a *Analysis) init() {
 	a.WalkCtx.Extra = newAnalysisCtx()
 
-	walk.AddBeforeListener(&a.WalkCtx.Listeners, handleBefore)
-	walk.AddAfterListener(&a.WalkCtx.Listeners, handleAfter)
+	walk.AddBeforeListener(&a.WalkCtx.Listeners, &walk.Listener{
+		Id:     "handleBefore",
+		Handle: handleBefore,
+	})
+	walk.AddAfterListener(&a.WalkCtx.Listeners, &walk.Listener{
+		Id:     "handleAfter",
+		Handle: handleAfter,
+	})
 }
 
 func analysisCtx(ctx *walk.VisitorCtx) *AnalysisCtx {

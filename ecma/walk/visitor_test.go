@@ -16,17 +16,17 @@ func newParser(code string, opts *parser.ParserOpts) *parser.Parser {
 	return parser.NewParser(s, opts)
 }
 
-func compile(code string, opts *parser.ParserOpts) (parser.Node, *parser.SymTab, error) {
+func compile(code string, opts *parser.ParserOpts) (*parser.Parser, parser.Node, *parser.SymTab, error) {
 	p := newParser(code, opts)
 	ast, err := p.Prog()
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
-	return ast, p.Symtab(), nil
+	return p, ast, p.Symtab(), nil
 }
 
 func TestVisitor(t *testing.T) {
-	ast, symtab, err := compile("a + b - c", nil)
+	_, ast, symtab, err := compile("a + b - c", nil)
 	AssertEqual(t, nil, err, "should pass")
 
 	names := make([]string, 0)
@@ -42,7 +42,7 @@ func TestVisitor(t *testing.T) {
 }
 
 func TestVisitorFnScope(t *testing.T) {
-	ast, symtab, err := compile(`
+	_, ast, symtab, err := compile(`
 function a() {
 }
   `, nil)
@@ -60,7 +60,7 @@ function a() {
 }
 
 func TestVisitorFnNestedScope(t *testing.T) {
-	ast, symtab, err := compile(`
+	_, ast, symtab, err := compile(`
 function a() {
   function b() {
   }
@@ -82,7 +82,7 @@ function a() {
 }
 
 func TestVisitorScopeBlock(t *testing.T) {
-	ast, symtab, err := compile(`
+	_, ast, symtab, err := compile(`
 {
   {
   }
@@ -104,7 +104,7 @@ func TestVisitorScopeBlock(t *testing.T) {
 }
 
 func TestVisitorScopeWhile(t *testing.T) {
-	ast, symtab, err := compile(`
+	_, ast, symtab, err := compile(`
 while(1) {
   let a = 1
 }
@@ -125,7 +125,7 @@ while(1) {
 }
 
 func TestVisitorScopeArrowFn(t *testing.T) {
-	ast, symtab, err := compile(`
+	_, ast, symtab, err := compile(`
 let a = () => {
   let b = 1
 }
@@ -148,7 +148,7 @@ let a = () => {
 }
 
 func TestVisitorScopeFnSymbol(t *testing.T) {
-	ast, symtab, err := compile(`
+	_, ast, symtab, err := compile(`
 function a() {
   let c = 1
   function b() {
@@ -177,7 +177,7 @@ function a() {
 }
 
 func TestVisitorScopeFor(t *testing.T) {
-	ast, symtab, err := compile(`
+	_, ast, symtab, err := compile(`
 for(let a = 1;;){}
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
@@ -198,7 +198,7 @@ for(let a = 1;;){}
 }
 
 func TestVisitorScopeSwitch(t *testing.T) {
-	ast, symtab, err := compile(`
+	_, ast, symtab, err := compile(`
 switch(1) {
   case 1: let a = 1
   case 2: console.log(a)
@@ -222,7 +222,7 @@ switch(1) {
 }
 
 func TestVisitorScopeSwitchCase(t *testing.T) {
-	ast, symtab, err := compile(`
+	_, ast, symtab, err := compile(`
 switch(1) {
   case 1: { let a = 1 }
   case 2: console.log(a)
@@ -247,7 +247,7 @@ switch(1) {
 }
 
 func TestVisitorDoWhile(t *testing.T) {
-	ast, symtab, err := compile(`
+	_, ast, symtab, err := compile(`
 do {
   let a = 1
 } while(1)
@@ -270,7 +270,7 @@ do {
 }
 
 func TestVisitorScopeTry(t *testing.T) {
-	ast, symtab, err := compile(`
+	_, ast, symtab, err := compile(`
 try {
   let a = 1
 } catch(e) {
@@ -299,7 +299,7 @@ try {
 }
 
 func TestVisitorScopeClass(t *testing.T) {
-	ast, symtab, err := compile(`
+	_, ast, symtab, err := compile(`
 class A {}
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
@@ -318,7 +318,7 @@ class A {}
 }
 
 func TestVisitorScopeMethod(t *testing.T) {
-	ast, symtab, err := compile(`
+	_, ast, symtab, err := compile(`
 class A {
   f(a){
     let b
@@ -343,7 +343,7 @@ class A {
 }
 
 func TestListenerDoWhile(t *testing.T) {
-	ast, symtab, err := compile(`
+	_, ast, symtab, err := compile(`
 do {
   let a = 1
 } while(1)
@@ -354,15 +354,21 @@ do {
 
 	scopeId := 0
 	// also test `AddBeforeListener`
-	AddBeforeListener(&ctx.Listeners, func(node parser.Node, key string, ctx *VisitorCtx) {
-		if ctx.ScopeId() > scopeId {
-			scopeId = ctx.ScopeId()
-		}
+	AddBeforeListener(&ctx.Listeners, &Listener{
+		Id: "BeforeListener",
+		Handle: func(node parser.Node, key string, ctx *VisitorCtx) {
+			if ctx.ScopeId() > scopeId {
+				scopeId = ctx.ScopeId()
+			}
+		},
 	})
 
 	idName := ""
-	AddListener(&ctx.Listeners, N_NAME_AFTER, func(node parser.Node, key string, ctx *VisitorCtx) {
-		idName = node.(*parser.Ident).Text()
+	AddListener(&ctx.Listeners, N_NAME_AFTER, &Listener{
+		Id: "N_NAME_AFTER",
+		Handle: func(node parser.Node, key string, ctx *VisitorCtx) {
+			idName = node.(*parser.Ident).Text()
+		},
 	})
 
 	VisitNode(ast, "", ctx.VisitorCtx())
@@ -370,4 +376,45 @@ do {
 
 	AssertEqual(t, true, symtab.Scopes[2].HasName("a"), "should pass")
 	AssertEqual(t, "a", idName, "should pass")
+}
+
+func TestVisitComments(t *testing.T) {
+	p, ast, symtab, err := compile(`
+/* 1 */
+let a, b;
+
+/* 2 */
+console.log(a == b); /* 3 */
+
+/* 4 */ /* 5 */
+
+console.log(a == b); /* 6 */
+/* 7 */
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ctx := NewWalkCtx(ast, symtab)
+
+	cmts := []*span.Range{}
+	for nt := range StmtNodeTypes {
+		AddNodeBeforeListener(&ctx.Listeners, nt, &Listener{
+			Id: "BeforeListener",
+			Handle: func(node parser.Node, key string, ctx *VisitorCtx) {
+				if cs := p.PrevStmtCmts(node); cs != nil {
+					cmts = append(cmts, cs...)
+				}
+			},
+		})
+	}
+
+	VisitNode(ast, "", ctx.VisitorCtx())
+
+	cmts = append(cmts, p.BtmStmtCmts()...)
+	AssertEqual(t, "/* 1 */", cmts[0].Text(), "should pass")
+	AssertEqual(t, "/* 2 */", cmts[1].Text(), "should pass")
+	AssertEqual(t, "/* 3 */", cmts[2].Text(), "should pass")
+	AssertEqual(t, "/* 4 */", cmts[3].Text(), "should pass")
+	AssertEqual(t, "/* 5 */", cmts[4].Text(), "should pass")
+	AssertEqual(t, "/* 6 */", cmts[5].Text(), "should pass")
+	AssertEqual(t, "/* 7 */", cmts[6].Text(), "should pass")
 }

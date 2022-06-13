@@ -139,7 +139,13 @@ type Lexer struct {
 
 	lastCmtLine uint32
 	lastCmtCol  uint32
-	comments    map[uint32]map[uint32]*span.Range
+	comments    map[uint32]map[uint32]*span.Range // line => col => range
+
+	// aggregate all the comments met by the lexer process,
+	// caller can take this content to use as the prev comments
+	// of the stmt then reset the slice, the later comments will
+	// be collected again
+	prevCmts []*span.Range
 
 	state LexerState
 	ss    []LexerState // state stack
@@ -182,7 +188,7 @@ func (l *Lexer) Next() *Token {
 // as names and then switched to keywords by the parser
 // according to its context, so it's necessary to revise
 // the `prtVal` of lexer to the corresponding of that
-// keywords for satisfying the further lookheads
+// keywords for satisfying the further lookahead
 func (l *Lexer) NextRevise(v TokenValue) *Token {
 	tok := l.readTok()
 	l.state.prtVal = v
@@ -320,6 +326,12 @@ func (l *Lexer) IsMode(mode LexerModeKind) bool {
 	return l.CurMode().kind&mode > 0
 }
 
+func (l *Lexer) takePrevCmts() []*span.Range {
+	cmts := l.prevCmts
+	l.prevCmts = []*span.Range{}
+	return cmts
+}
+
 func (l *Lexer) skipSpace() *span.Source {
 	if l.feat&FEAT_JSX == 0 {
 		l.src.SkipSpace()
@@ -439,9 +451,10 @@ func (l *Lexer) lexTok() *Token {
 			}
 			return tok
 		}
+		l.prevCmts = append(l.prevCmts, tok.raw.Clone())
 		l.appendCmt(tok)
 		prt = tok.value
-		prtExt = tok.ext
+		prtExt = tok.ext // indicates whether the comment is multiline or not
 	}
 }
 
@@ -553,7 +566,7 @@ func (l *Lexer) readTplChs() (text []rune, fin bool, line, col, ofst, pos uint32
 
 			// LineContinuation
 			if span.IsLineTerminator(nc) {
-				l.readLineTermin()
+				l.readLineTerm()
 				continue
 			}
 
@@ -1086,7 +1099,7 @@ func (l *Lexer) readStr() *Token {
 		} else if c == '\\' {
 			nc := l.src.Peek()
 			if span.IsLineTerminator(nc) {
-				l.readLineTermin() // LineContinuation
+				l.readLineTerm() // LineContinuation
 			} else {
 				line := l.src.Line()
 				col := l.src.Col()
@@ -1196,7 +1209,7 @@ func (l *Lexer) readHexEscapeSeq() (rune, string) {
 	return rune(r), ""
 }
 
-func (l *Lexer) readLineTermin() {
+func (l *Lexer) readLineTerm() {
 	c := l.src.Read()
 	if c == '\r' {
 		l.src.AdvanceIf('\n')

@@ -178,8 +178,8 @@ func CallVisitor(t parser.NodeType, n parser.Node, key string, ctx *VisitorCtx) 
 
 func CallListener(t parser.NodeType, n parser.Node, key string, ctx *VisitorCtx) {
 	fns := ctx.WalkCtx.Listeners[t]
-	for _, fn := range fns {
-		fn(n, key, ctx)
+	for _, l := range fns {
+		l.Handle(n, key, ctx)
 		if ctx.WalkCtx.stop {
 			break
 		}

@@ -68,6 +68,14 @@ func FileExist(file string) bool {
 	return err == nil
 }
 
+func IsDir(file string) (bool, error) {
+	s, err := os.Stat(file)
+	if err != nil {
+		return false, err
+	}
+	return s.IsDir(), nil
+}
+
 func UnTarGz(tarball, dist string) error {
 	reader, err := os.Open(tarball)
 	if err != nil {

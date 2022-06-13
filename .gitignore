@@ -7,3 +7,4 @@ lint.exe
 /mole.wasm
 /test.mjs
 .env
+*.so
