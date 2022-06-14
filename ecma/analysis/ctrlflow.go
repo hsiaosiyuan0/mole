@@ -17,23 +17,23 @@ type AnalysisCtx struct {
 
 	stmtStack []*Block
 	exprStack []*Block
-
-	// map astNode to its basic block
-	astNodeToBlock map[uint64]Block
 }
 
 func newAnalysisCtx() *AnalysisCtx {
 	root := newGraph()
 	a := &AnalysisCtx{
-		graphMap:       map[parser.Node]*Graph{},
-		root:           root,
-		graph:          root,
-		stmtStack:      make([]*Block, 0),
-		exprStack:      make([]*Block, 0),
-		astNodeToBlock: map[uint64]Block{},
+		graphMap:  map[parser.Node]*Graph{},
+		root:      root,
+		graph:     root,
+		stmtStack: make([]*Block, 0),
+		exprStack: make([]*Block, 0),
 	}
 	a.stmtStack = append(a.stmtStack, a.graph.Head)
 	return a
+}
+
+func (a *AnalysisCtx) Graph() *Graph {
+	return a.graph
 }
 
 func (a *AnalysisCtx) GraphOf(node parser.Node) *Graph {
@@ -66,13 +66,13 @@ func (a *AnalysisCtx) lastStmt() *Block {
 
 func (a *AnalysisCtx) newEnter(astNode parser.Node, info string) *Block {
 	b := a.graph.newBasicBlk()
-	b.Nodes = append(b.Nodes, newInfoNode(astNode, true, info))
+	b.addNode(newInfoNode(astNode, true, info))
 	return b
 }
 
 func (a *AnalysisCtx) newExit(astNode parser.Node, info string) *Block {
 	b := a.graph.newBasicBlk()
-	b.Nodes = append(b.Nodes, newInfoNode(astNode, false, info))
+	b.addNode(newInfoNode(astNode, false, info))
 	return b
 }
 
@@ -159,7 +159,7 @@ func isFn(t parser.NodeType) bool {
 func pushAtomNode(node parser.Node, key string, ctx *walk.VisitorCtx) *Block {
 	ac := analysisCtx(ctx)
 	b := ac.graph.newBasicBlk()
-	b.Nodes = append(b.Nodes, node)
+	b.addNode(node)
 	ac.pushExpr(b)
 	return b
 }
@@ -234,7 +234,7 @@ func enterFnGraph(node parser.Node, ctx *walk.VisitorCtx, stmt bool) {
 	// the entry node to represent that there is a sub-graph fork from
 	// that place
 	b := ac.graph.newBasicBlk()
-	b.Nodes = append(b.Nodes, newInfoNode(node, true, node.Type().String()))
+	b.addNode(newInfoNode(node, true, node.Type().String()))
 
 	if stmt {
 		// the info node should be connected to previous block if its origin is fnStmt
@@ -1009,7 +1009,7 @@ func handleAfter(node parser.Node, key string, ctx *walk.VisitorCtx) {
 		vn.addOutlets(body.xOutEdges())
 
 		exit := ac.newExit(node, "")
-		link(ac, vn, EK_JMP, ET_NONE, EK_JMP, ET_NONE, exit, LF_NONE)
+		link(ac, test, EK_JMP, ET_NONE, EK_JMP, ET_NONE, exit, LF_NONE)
 		link(ac, vn, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, exit, LF_NONE)
 
 		if n.Test().Type().IsLit() {
@@ -1125,12 +1125,14 @@ func handleAfter(node parser.Node, key string, ctx *walk.VisitorCtx) {
 	case parser.N_STMT_TRY:
 		n := node.(*parser.TryStmt)
 
-		var fin *Block
+		var fin, catch *Block
 		if n.Fin() != nil {
 			fin = ac.popStmt()
 		}
+		if n.Catch() != nil {
+			catch = ac.popStmt()
+		}
 
-		catch := ac.popStmt()
 		try := ac.popStmt()
 		enter := ac.popStmt()
 		exit := ac.newExit(node, "")
@@ -1146,23 +1148,26 @@ func handleAfter(node parser.Node, key string, ctx *walk.VisitorCtx) {
 		try.addOutlets(eb)
 
 		link(ac, enter, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, try, LF_NONE)
-		link(ac, try, EK_JMP, ET_JMP_E, EK_JMP, ET_JMP_E, catch, LF_NONE)
 
-		throws := ac.graph.hangingThrow[n]
-		if len(throws) > 0 {
-			catch.newJmpIn(ET_JMP_U)
-		}
-		for _, blk := range throws {
-			link(ac, blk, EK_JMP, ET_JMP_U, EK_JMP, ET_JMP_U, catch, LF_NONE)
-		}
+		if catch != nil {
+			link(ac, try, EK_JMP, ET_JMP_E, EK_JMP, ET_JMP_E, catch, LF_NONE)
 
-		// `ET_JMP_U` inside catch should jump to the fin while skipping the stmts after fin
-		if edges := FindEdges(catch.Outlets, EK_JMP, ET_JMP_U); len(edges) > 0 && fin != nil {
-			link(ac, catch, EK_JMP, ET_JMP_U, EK_JMP, ET_NONE, fin, LF_FORCE_SEP)
-			for _, edge := range edges {
-				edge.Tag |= ET_JMP_P
+			throws := ac.graph.hangingThrow[n]
+			if len(throws) > 0 {
+				catch.newJmpIn(ET_JMP_U)
 			}
-			fin.newJmpOut(ET_JMP_P)
+			for _, blk := range throws {
+				link(ac, blk, EK_JMP, ET_JMP_U, EK_JMP, ET_JMP_U, catch, LF_NONE)
+			}
+
+			// `ET_JMP_U` inside catch should jump to the fin while skipping the stmts after fin
+			if edges := FindEdges(catch.Outlets, EK_JMP, ET_JMP_U); len(edges) > 0 && fin != nil {
+				link(ac, catch, EK_JMP, ET_JMP_U, EK_JMP, ET_NONE, fin, LF_FORCE_SEP)
+				for _, edge := range edges {
+					edge.Tag |= ET_JMP_P
+				}
+				fin.newJmpOut(ET_JMP_P)
+			}
 		}
 
 		if edges := FindEdges(try.Outlets, EK_JMP, ET_JMP_U); len(edges) > 0 && fin != nil {
@@ -1176,21 +1181,28 @@ func handleAfter(node parser.Node, key string, ctx *walk.VisitorCtx) {
 		}
 
 		if fin != nil {
-			link(ac, try, EK_JMP, ET_JMP_P, EK_SEQ, ET_NONE, fin, LF_NONE)
-			link(ac, catch, EK_JMP, ET_JMP_P, EK_SEQ, ET_NONE, fin, LF_NONE)
-			link(ac, fin, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, exit, LF_NONE)
-
-			fin.newJmpIn(ET_JMP_U)
-			link(ac, catch, EK_SEQ, ET_NONE, EK_JMP, ET_JMP_U, fin, LF_FORCE_SEP)
+			link(ac, try, EK_JMP, ET_JMP_P, EK_JMP, ET_NONE, fin, LF_NONE)
+			if catch != nil {
+				link(ac, catch, EK_JMP, ET_JMP_P, EK_SEQ, ET_NONE, fin, LF_NONE)
+			}
+			if catch != nil {
+				fin.newJmpIn(ET_JMP_U)
+				link(ac, catch, EK_SEQ, ET_NONE, EK_JMP, ET_JMP_U, fin, LF_FORCE_SEP)
+			}
 			link(ac, try, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, fin, LF_NONE)
+			link(ac, fin, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, exit, LF_NONE)
 		} else {
+			// here `fin` is nil so the `catch` can not be nil
 			exit.newJmpIn(ET_JMP_U)
 			link(ac, catch, EK_SEQ, ET_NONE, EK_JMP, ET_JMP_U, exit, LF_FORCE_SEP)
 			link(ac, try, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, exit, LF_NONE)
 		}
 
 		vn := grpBlock(ac, enter, exit)
-		vn.addOutlets(try.xJmpOutEdges()).addOutlets(catch.xJmpOutEdges())
+		vn.addOutlets(try.xJmpOutEdges())
+		if catch != nil {
+			vn.addOutlets(catch.xJmpOutEdges())
+		}
 		if fin != nil {
 			vn.addOutlets(fin.xJmpOutEdges())
 		}
@@ -1648,16 +1660,20 @@ func (a *Analysis) init() {
 	a.WalkCtx.Extra = newAnalysisCtx()
 
 	walk.AddBeforeListener(&a.WalkCtx.Listeners, &walk.Listener{
-		Id:     "handleBefore",
+		Id:     "ctrlflow_handleBefore",
 		Handle: handleBefore,
 	})
 	walk.AddAfterListener(&a.WalkCtx.Listeners, &walk.Listener{
-		Id:     "handleAfter",
+		Id:     "ctrlflow_handleAfter",
 		Handle: handleAfter,
 	})
 }
 
 func analysisCtx(ctx *walk.VisitorCtx) *AnalysisCtx {
+	return ctx.WalkCtx.Extra.(*AnalysisCtx)
+}
+
+func AsAnalysisCtx(ctx *walk.VisitorCtx) *AnalysisCtx {
 	return ctx.WalkCtx.Extra.(*AnalysisCtx)
 }
 

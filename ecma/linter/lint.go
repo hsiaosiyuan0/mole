@@ -32,7 +32,8 @@ func (u *RuleCtx) Config() *Config {
 
 func (u *RuleCtx) Report(node parser.Node, msg string, level DiagLevel) {
 	lang := u.unit.Lang()
-	lvl := u.Config().LevelOfRule(lang, u.ruleFact.Name())
+	rule := u.ruleFact.Name()
+	lvl := u.Config().LevelOfRule(lang, rule)
 	if lvl == DL_NONE {
 		lvl = level
 	}
@@ -40,6 +41,7 @@ func (u *RuleCtx) Report(node parser.Node, msg string, level DiagLevel) {
 	dig := &Diagnosis{
 		Loc:   node.Loc().Clone(),
 		Lang:  lang,
+		Rule:  rule,
 		Msg:   msg,
 		Level: lvl,
 	}
@@ -50,19 +52,18 @@ type JsUnit struct {
 	linter *Linter
 	cfg    *Config
 
-	file    string
-	lang    string
-	ast     parser.Node
-	symTab  *parser.SymTab
-	walkCtx *walk.WalkCtx
-	ana     *analysis.Analysis
+	file   string
+	lang   string
+	ast    parser.Node
+	symTab *parser.SymTab
+	ana    *analysis.Analysis
 
 	rules      map[string]*Rule
 	skipped    map[string]*Rule
 	ephSkipped map[string]*Rule
 }
 
-func NewJsUnit(file string, cfg *Config) (*JsUnit, error) {
+func NewJsUnit(file string, code string, cfg *Config) (*JsUnit, error) {
 	u := &JsUnit{
 		cfg:        cfg,
 		file:       file,
@@ -72,21 +73,17 @@ func NewJsUnit(file string, cfg *Config) (*JsUnit, error) {
 		ephSkipped: map[string]*Rule{},
 	}
 
-	code, err := ioutil.ReadFile(file)
-	if err != nil {
-		return nil, err
-	}
 	s := span.NewSource(file, string(code))
 
 	p := parser.NewParser(s, cfg.ParserOpts())
 	ast, err := p.Prog()
 	if err != nil {
-		return u, nil
+		return nil, err
 	}
 
 	u.ast = ast
 	u.symTab = p.Symtab()
-	u.walkCtx = walk.NewWalkCtx(ast, u.symTab)
+	u.ana = analysis.NewAnalysis(ast, u.symTab)
 
 	return u, nil
 }
@@ -128,8 +125,8 @@ func (u *JsUnit) initRules() *JsUnit {
 	lang := path.Ext(u.file)
 	for _, rf := range u.cfg.ruleFacts[lang] {
 		ctx := &RuleCtx{u, rf}
+		rule := &Rule{rf, map[parser.NodeType]*walk.Listener{}}
 		for nt, fn := range rf.Create(ctx) {
-			rule := &Rule{rf, map[parser.NodeType]*walk.Listener{}}
 			id := fmt.Sprintf("%s_%s_%d", lang, rf.Name(), nt)
 			rule.Listeners[nt] = &walk.Listener{Id: id, Handle: fn}
 			u.skipped[rf.Name()] = rule
@@ -141,7 +138,7 @@ func (u *JsUnit) initRules() *JsUnit {
 func (u *JsUnit) enableAllRules() *JsUnit {
 	for rn, rule := range u.skipped {
 		for nt, listener := range rule.Listeners {
-			walk.AddListener(&u.walkCtx.Listeners, nt, listener)
+			walk.AddListener(&u.ana.WalkCtx.Listeners, nt, listener)
 		}
 		u.rules[rn] = rule
 		delete(u.skipped, rn)
@@ -162,16 +159,20 @@ type Linter struct {
 	diagsLock sync.Mutex
 }
 
-func NewLinter(dir string, skipBuiltin bool) (*Linter, error) {
-	cfg, err := LoadCfgInDir(dir, nil)
-	if err != nil {
-		return nil, err
-	}
+func NewLinter(dir string, cfg *Config, skipBuiltin bool) (*Linter, error) {
+	var err error
+
 	if cfg == nil {
-		return nil, &LoadConfigErr{"no config file detected", nil}
-	}
-	if err = cfg.Init(); err != nil {
-		return nil, err
+		cfg, err = LoadCfgInDir(dir, nil)
+		if err != nil {
+			return nil, err
+		}
+		if cfg == nil {
+			return nil, &LoadConfigErr{"no config file detected", nil}
+		}
+		if err = cfg.Init(); err != nil {
+			return nil, err
+		}
 	}
 
 	if !skipBuiltin {
@@ -268,22 +269,32 @@ func (l *Linter) Process() *Reports {
 
 		if isJsFile(f) {
 			cfg := l.outerCfg(f)
-			u, err := NewJsUnit(f, cfg)
+
+			code, err := ioutil.ReadFile(f)
+			if err != nil {
+				dw.Stop(err)
+			}
+
+			u, err := NewJsUnit(f, string(code), cfg)
 			if err != nil {
 				dw.Stop(err)
 			}
 
 			u.linter = l
 			u.initRules().enableAllRules()
-			walk.VisitNode(u.ast, "", u.walkCtx.VisitorCtx())
+			u.ana.Analyze()
 		}
 	})
 
 	w.Walk()
 
+	return l.genReports(w.Err())
+}
+
+func (l *Linter) genReports(internalErr error) *Reports {
 	r := &Reports{
-		Err:       w.Err(),
-		Diagnoses: []*Diagnosis{},
+		InternalError: internalErr,
+		Diagnoses:     []*Diagnosis{},
 	}
 
 	for _, line := range l.diags {
@@ -330,6 +341,6 @@ func (d *Diagnosis) MarshalJSON() ([]byte, error) {
 }
 
 type Reports struct {
-	Err       error        `json:"error"`
-	Diagnoses []*Diagnosis `json:"diagnoses"`
+	InternalError error        `json:"internalError"`
+	Diagnoses     []*Diagnosis `json:"diagnoses"`
 }

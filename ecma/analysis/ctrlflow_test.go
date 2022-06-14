@@ -6774,3 +6774,20 @@ initial->b0 [xlabel="",color="black"];
 }
 `, ana.Graph().Dot(), "should be ok")
 }
+
+// func TestCtrlflow_Demo(t *testing.T) {
+// 	ast, symtab, err := compile(`
+//   function foo() { var x = 1; try { return; } finally {} x = 2; }
+//   `, nil)
+// 	AssertEqual(t, nil, err, "should be prog ok")
+
+// 	ana := NewAnalysis(ast, symtab)
+// 	ana.Analyze()
+
+// 	fn := ast.(*parser.Prog).Body()[0]
+// 	fnGraph := ana.AnalysisCtx().GraphOf(fn)
+
+// 	AssertEqualString(t, `
+
+// `, fnGraph.Dot(), "should be ok")
+// }

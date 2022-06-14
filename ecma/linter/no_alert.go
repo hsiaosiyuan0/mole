@@ -23,13 +23,13 @@ func (n *NoAlert) Meta() *Meta {
 	}
 }
 
-var forbids = []string{"alert", "confirm", "prompt"}
+var alertForbids = []string{"alert", "confirm", "prompt"}
 
 func (n *NoAlert) Create(rc *RuleCtx) map[parser.NodeType]walk.ListenFn {
 	return map[parser.NodeType]walk.ListenFn{
 		walk.NodeBeforeEvent(parser.N_EXPR_CALL): func(node parser.Node, key string, ctx *walk.VisitorCtx) {
 			callee := node.(*parser.CallExpr).Callee()
-			if callee.Type() == parser.N_NAME && util.Includes(forbids, callee.Loc().Text()) {
+			if callee.Type() == parser.N_NAME && util.Includes(alertForbids, callee.Loc().Text()) {
 				rc.Report(node, "disallow the use of `alert`, `confirm`, and `prompt`", DL_ERROR)
 			}
 		},

@@ -1857,8 +1857,11 @@ func (p *Parser) retStmt() (Node, error) {
 	tok := p.lexer.Peek()
 	var arg Node
 	var err error
+
+	closed := false
 	if tok.value == T_SEMI {
 		p.lexer.Next()
+		closed = true
 	} else if tok.value != T_ILLEGAL &&
 		tok.value != T_BRACE_R &&
 		tok.value != T_PAREN_R &&
@@ -1870,7 +1873,7 @@ func (p *Parser) retStmt() (Node, error) {
 		}
 	}
 
-	if err := p.advanceIfSemi(true); err != nil {
+	if err := p.advanceIfSemi(!closed); err != nil {
 		return nil, err
 	}
 

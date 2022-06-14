@@ -33,8 +33,8 @@ const (
 	ET_JMP_F
 	ET_JMP_E
 	ET_JMP_U
-	ET_JMP_P
-	ET_JMP_N
+	ET_JMP_P // jumps with the pair outlet
+	ET_JMP_N // jumps if nil
 	ET_LOOP
 	ET_CUT
 )
@@ -129,6 +129,33 @@ type Block struct {
 	Nodes   []parser.Node
 	Inlets  map[*Edge]*Edge
 	Outlets map[*Edge]*Edge
+
+	graph *Graph
+}
+
+func assocAstNode(node parser.Node, b *Block) {
+	if node.Type() == N_CFG_DEBUG {
+		n := node.(*InfoNode)
+		if n.enter {
+			b.graph.astNodeToEntry[n.astNode] = b
+		} else {
+			b.graph.astNodeToExit[n.astNode] = b
+		}
+	} else {
+		b.graph.astNodeToBlock[node] = b
+	}
+}
+
+func (b *Block) addNode(node parser.Node) {
+	assocAstNode(node, b)
+	b.Nodes = append(b.Nodes, node)
+}
+
+func (b *Block) addNodes(nodes []parser.Node) {
+	for _, node := range nodes {
+		assocAstNode(node, b)
+	}
+	b.Nodes = append(b.Nodes, nodes...)
 }
 
 func (b *Block) Id() uint {
@@ -192,7 +219,7 @@ func (b *Block) InJmpEdge(ET EdgeTag) *Edge {
 func FindEdge(edges map[*Edge]*Edge, k EdgeKind, t EdgeTag) *Edge {
 	var e *Edge
 	for _, edge := range edges {
-		if edge.Kind == k && (edge.Tag == ET_NONE || edge.Tag&t != 0) {
+		if edge.Kind == k && (edge.Tag == ET_NONE || t == ET_NONE || edge.Tag&t != 0) {
 			e = edge
 			break
 		}
@@ -228,6 +255,18 @@ func (b *Block) FindInEdge(k EdgeKind, t EdgeTag, create bool) (*Edge, bool) {
 
 	new := false
 	if e == nil && create {
+		e = &Edge{k, t, nil, b}
+		b.Inlets[e] = e
+		new = true
+	}
+	return e, new
+}
+
+func (b *Block) FindHangingInEdge(src *Block, k EdgeKind, t EdgeTag, create bool) (*Edge, bool) {
+	e := FindEdge(b.Inlets, k, t)
+
+	new := false
+	if (e == nil || e.Src != nil && e.Src != src) && create {
 		e = &Edge{k, t, nil, b}
 		b.Inlets[e] = e
 		new = true
@@ -333,7 +372,7 @@ func (b *Block) unwrapSeqOut() *Block {
 func (b *Block) join(blk *Block) {
 	to := blk.unwrapSeqIn()
 	from := b.unwrapSeqOut()
-	from.Nodes = append(from.Nodes, to.Nodes...)
+	from.addNodes(to.Nodes)
 
 	from.Outlets = to.Outlets
 	isCut := from.IsInCut()
@@ -478,8 +517,33 @@ func (b *Block) IsInCut() bool {
 	return true
 }
 
+func (b *Block) IsInCutPair() (bool, bool) {
+	p := 0
+	for _, e := range b.Inlets {
+		if e.Tag&ET_CUT == 0 {
+			if e.Tag&ET_JMP_P != 0 {
+				p += 1
+				continue
+			}
+			return false, false
+		}
+	}
+	if p == 0 {
+		return true, false
+	}
+	if p > 0 {
+		for _, e := range b.Outlets {
+			if e.Tag&ET_JMP_P != 0 {
+				p -= 1
+			}
+		}
+	}
+	return p == 0, true
+}
+
 func (b *Block) IsCut() bool {
-	if b.IsInCut() {
+	cut := b.IsInCut()
+	if cut {
 		return true
 	}
 	n := 0
@@ -570,6 +634,11 @@ type Graph struct {
 	hasHangingThrow bool
 
 	blkSeed uint
+
+	// map astNode to its basic block
+	astNodeToBlock map[parser.Node]*Block
+	astNodeToEntry map[parser.Node]*Block
+	astNodeToExit  map[parser.Node]*Block
 }
 
 func newGraph() *Graph {
@@ -578,9 +647,25 @@ func newGraph() *Graph {
 		hangingBrk:   map[int][]*Block{},
 		hangingCont:  map[parser.Node][]*Block{},
 		hangingThrow: map[parser.Node][]*Block{},
+
+		astNodeToBlock: map[parser.Node]*Block{},
+		astNodeToEntry: map[parser.Node]*Block{},
+		astNodeToExit:  map[parser.Node]*Block{},
 	}
 	g.Head = g.newStartBlk()
 	return g
+}
+
+func (g *Graph) BlkOfNode(node parser.Node) *Block {
+	return g.astNodeToBlock[node]
+}
+
+func (g *Graph) EntryOfNode(node parser.Node) *Block {
+	return g.astNodeToEntry[node]
+}
+
+func (g *Graph) ExitOfNode(node parser.Node) *Block {
+	return g.astNodeToExit[node]
 }
 
 func (g *Graph) addHangingThrow(try parser.Node, blk *Block) {
@@ -618,6 +703,7 @@ func (g *Graph) newBasicBlk() *Block {
 		Nodes:   []parser.Node{},
 		Inlets:  map[*Edge]*Edge{},
 		Outlets: map[*Edge]*Edge{},
+		graph:   g,
 	}
 	g.blkSeed += 1
 	in := &Edge{Kind: EK_SEQ, Src: nil, Dst: b}
@@ -634,6 +720,7 @@ func (g *Graph) newStartBlk() *Block {
 		Kind:    BK_START,
 		Inlets:  map[*Edge]*Edge{},
 		Outlets: map[*Edge]*Edge{},
+		graph:   g,
 	}
 	g.blkSeed += 1
 
@@ -651,6 +738,7 @@ func (g *Graph) newGroupBlk() *Block {
 		Kind:    BK_GROUP,
 		Inlets:  nil,
 		Outlets: map[*Edge]*Edge{},
+		graph:   g,
 	}
 	g.blkSeed += 1
 	return b
@@ -844,9 +932,16 @@ func link(a *AnalysisCtx, from *Block, fromKind EdgeKind, fromTag EdgeTag, toKin
 				edge.Tag |= ET_CUT
 			}
 		}
-		if to.IsInCut() {
+		cut, pair := to.IsInCutPair()
+		if cut {
 			for _, edge := range to.Outlets {
-				edge.Tag |= ET_CUT
+				if pair {
+					if edge.Kind == EK_SEQ {
+						edge.Tag |= ET_CUT
+					}
+				} else {
+					edge.Tag |= ET_CUT
+				}
 			}
 		}
 	}
@@ -858,11 +953,9 @@ func linkEdges(fromEdges map[*Edge]*Edge, fromKind EdgeKind, fromTag EdgeTag, to
 			if edge.Dst == nil || flag&LF_OVERWRITE != 0 {
 				edge.Dst = to
 			}
-			toEdge, _ := to.FindInEdge(toKind, toTag, true)
+			toEdge, _ := to.FindHangingInEdge(edge.Src, toKind, toTag, true)
 			toEdge.Src = edge.Src
-			if edge.Tag&ET_CUT != 0 {
-				toEdge.Tag |= ET_CUT
-			}
+			toEdge.Tag = edge.Tag
 		}
 	}
 }

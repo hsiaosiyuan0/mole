@@ -30729,3 +30729,67 @@ func TestHarmony317(t *testing.T) {
 }
 	`, ast)
 }
+
+func TestHarmony318(t *testing.T) {
+	ast, err := Compile("function foo() { return; x = 1; }")
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	AssertEqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 33,
+  "body": [
+    {
+      "type": "FunctionDeclaration",
+      "start": 0,
+      "end": 33,
+      "id": {
+        "type": "Identifier",
+        "start": 9,
+        "end": 12,
+        "name": "foo"
+      },
+      "params": [],
+      "body": {
+        "type": "BlockStatement",
+        "start": 15,
+        "end": 33,
+        "body": [
+          {
+            "type": "ReturnStatement",
+            "start": 17,
+            "end": 24,
+            "argument": null
+          },
+          {
+            "type": "ExpressionStatement",
+            "start": 25,
+            "end": 31,
+            "expression": {
+              "type": "AssignmentExpression",
+              "start": 25,
+              "end": 30,
+              "operator": "=",
+              "left": {
+                "type": "Identifier",
+                "start": 25,
+                "end": 26,
+                "name": "x"
+              },
+              "right": {
+                "type": "Literal",
+                "start": 29,
+                "end": 30,
+                "value": 1,
+                "raw": "1"
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
+	`, ast)
+}

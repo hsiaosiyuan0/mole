@@ -32,6 +32,7 @@ func registerBuiltin(r RuleFact) {
 
 func init() {
 	registerBuiltin(&NoAlert{})
+	registerBuiltin(&NoUnreachable{})
 }
 
 type Config struct {

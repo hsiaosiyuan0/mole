@@ -110,30 +110,41 @@ func TestProcess(t *testing.T) {
 	dir := path.Join(basepath, "asset", "register_plugin")
 	util.ShellInDir(dir, "go", "build", "-buildmode=plugin", fmt.Sprintf("-o=node_modules/go-cross-ci-demo/build/go-cross-ci-demo-%s-%s", runtime.GOOS, runtime.GOARCH))
 
-	linter, err := linter.NewLinter(dir, true)
+	linter, err := linter.NewLinter(dir, nil, true)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	r := linter.Process()
-	util.AssertEqual(t, true, r.Err == nil, "should be ok")
+	util.AssertEqual(t, true, r.InternalError == nil, "should be ok")
 	util.AssertEqual(t, 1, len(r.Diagnoses), "should be ok")
 	util.AssertEqual(t, "disallow the use of `alert`, `confirm`, and `prompt`", r.Diagnoses[0].Msg, "should be ok")
 }
 
-func TestBuiltin(t *testing.T) {
+func lint(t *testing.T, rule string) *linter.Reports {
 	_, b, _, _ := runtime.Caller(0)
 	basepath := filepath.Dir(b)
 
-	dir := path.Join(basepath, "asset", "builtin_rules")
+	dir := path.Join(basepath, "asset", rule)
 
-	linter, err := linter.NewLinter(dir, false)
+	linter, err := linter.NewLinter(dir, nil, false)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	r := linter.Process()
-	util.AssertEqual(t, true, r.Err == nil, "should be ok")
+	return linter.Process()
+}
+
+func TestNoAlert(t *testing.T) {
+	r := lint(t, "no_alert")
+	util.AssertEqual(t, true, r.InternalError == nil, "should be ok")
 	util.AssertEqual(t, 1, len(r.Diagnoses), "should be ok")
 	util.AssertEqual(t, "disallow the use of `alert`, `confirm`, and `prompt`", r.Diagnoses[0].Msg, "should be ok")
+}
+
+func TestNoUnreachable(t *testing.T) {
+	r := lint(t, "no_unreachable")
+	util.AssertEqual(t, true, r.InternalError == nil, "should be ok")
+	util.AssertEqual(t, 1, len(r.Diagnoses), "should be ok")
+	util.AssertEqual(t, "disallow unreachable code", r.Diagnoses[0].Msg, "should be ok")
 }
