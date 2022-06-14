@@ -110,11 +110,30 @@ func TestProcess(t *testing.T) {
 	dir := path.Join(basepath, "asset", "register_plugin")
 	util.ShellInDir(dir, "go", "build", "-buildmode=plugin", fmt.Sprintf("-o=node_modules/go-cross-ci-demo/build/go-cross-ci-demo-%s-%s", runtime.GOOS, runtime.GOARCH))
 
-	linter, err := linter.NewLinter(dir)
+	linter, err := linter.NewLinter(dir, true)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	linter.Process()
-	util.AssertEqual(t, false, linter == nil, "should be ok")
+	r := linter.Process()
+	util.AssertEqual(t, true, r.Err == nil, "should be ok")
+	util.AssertEqual(t, 1, len(r.Diagnoses), "should be ok")
+	util.AssertEqual(t, "disallow the use of `alert`, `confirm`, and `prompt`", r.Diagnoses[0].Msg, "should be ok")
+}
+
+func TestBuiltin(t *testing.T) {
+	_, b, _, _ := runtime.Caller(0)
+	basepath := filepath.Dir(b)
+
+	dir := path.Join(basepath, "asset", "builtin_rules")
+
+	linter, err := linter.NewLinter(dir, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	r := linter.Process()
+	util.AssertEqual(t, true, r.Err == nil, "should be ok")
+	util.AssertEqual(t, 1, len(r.Diagnoses), "should be ok")
+	util.AssertEqual(t, "disallow the use of `alert`, `confirm`, and `prompt`", r.Diagnoses[0].Msg, "should be ok")
 }

@@ -37,7 +37,7 @@ type Meta struct {
 type RuleFact interface {
 	Name() string
 	Meta() *Meta
-	Create(Unit) map[parser.NodeType]walk.ListenFn
+	Create(*RuleCtx) map[parser.NodeType]walk.ListenFn
 }
 
 type Rule struct {

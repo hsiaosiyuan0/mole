@@ -11,3 +11,12 @@ func RemoveAt[T any](arr *[]T, i int) {
 	Swap(*arr, i, len(*arr)-1)
 	*arr = (*arr)[0 : len(*arr)-1]
 }
+
+func Includes[T comparable](arr []T, v T) bool {
+	for _, vv := range arr {
+		if vv == v {
+			return true
+		}
+	}
+	return false
+}

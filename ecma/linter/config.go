@@ -3,6 +3,7 @@ package linter
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os/exec"
@@ -18,6 +19,21 @@ import (
 	"github.com/hsiaosiyuan0/mole/util"
 )
 
+var builtinRuleFacts = map[string]map[string]RuleFact{}
+
+func registerBuiltin(r RuleFact) {
+	for _, la := range r.Meta().Lang {
+		if builtinRuleFacts[la] == nil {
+			builtinRuleFacts[la] = map[string]RuleFact{}
+		}
+		builtinRuleFacts[la][r.Name()] = r
+	}
+}
+
+func init() {
+	registerBuiltin(&NoAlert{})
+}
+
 type Config struct {
 	Plugins        []string                 `json:"plugins"`
 	Rules          map[string][]interface{} `json:"rules"`
@@ -26,10 +42,12 @@ type Config struct {
 
 	cwd       string
 	plugins   map[string]*plugin.Plugin
-	ruleFacts map[string]map[string]RuleFact
+	ruleFacts map[string]map[string]RuleFact // lang => rules
 
 	igPatterns []gitignore.Pattern
 	matcher    gitignore.Matcher
+
+	ruleLevels map[string]map[string]DiagLevel
 
 	outer *Config
 }
@@ -56,7 +74,21 @@ func NewConfig(cf string, outer *Config) (*Config, error) {
 	cfg.plugins = map[string]*plugin.Plugin{}
 	cfg.ruleFacts = map[string]map[string]RuleFact{}
 	cfg.IgnorePatterns = append(cfg.IgnorePatterns, "node_modules/")
-	cfg.outer = outer
+	cfg.ruleLevels = map[string]map[string]DiagLevel{}
+
+	// inherits plugins and ruleFacts from outer config
+	if outer != nil {
+		for key, roleFacts := range outer.ruleFacts {
+			if cfg.ruleFacts[key] == nil {
+				cfg.ruleFacts[key] = map[string]RuleFact{}
+			}
+			for name, roleFact := range roleFacts {
+				cfg.ruleFacts[key][name] = roleFact
+			}
+		}
+
+		cfg.outer = outer
+	}
 
 	if cfg.ParserOptions == nil && cfg.outer != nil {
 		cfg.ParserOptions = cfg.outer.ParserOptions
@@ -118,15 +150,20 @@ func (c *Config) Init() error {
 	return nil
 }
 
-func (c *Config) addRuleFact(rfs []RuleFact) {
+func (c *Config) addRuleFact(rfs []RuleFact) error {
 	for _, rf := range rfs {
 		for _, la := range rf.Meta().Lang {
 			if c.ruleFacts[la] == nil {
 				c.ruleFacts[la] = map[string]RuleFact{}
 			}
-			c.ruleFacts[la][rf.Name()] = rf
+			name := rf.Name()
+			if _, ok := c.ruleFacts[la][name]; ok {
+				return errors.New(fmt.Sprintf("duplicated rule `%s` for lang `%s`", name, la))
+			}
+			c.ruleFacts[la][name] = rf
 		}
 	}
+	return nil
 }
 
 func (c *Config) RuleFact() map[string]map[string]RuleFact {
@@ -144,7 +181,9 @@ func (c *Config) InitPlugins() error {
 		if err != nil {
 			return err
 		}
-		c.addRuleFact(rfs)
+		if err = c.addRuleFact(rfs); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -190,6 +229,18 @@ func (c *Config) ParserOpts() *parser.ParserOpts {
 	return opts
 }
 
+func (c *Config) LevelOfRule(lang string, name string) DiagLevel {
+	rules := c.ruleLevels[lang]
+	if rules == nil {
+		return DL_NONE
+	}
+	lvl, ok := rules[name]
+	if !ok {
+		return DL_NONE
+	}
+	return lvl
+}
+
 func selCfgFile(dir string) string {
 	cfs := []string{
 		".eslintrc",
@@ -204,10 +255,6 @@ func selCfgFile(dir string) string {
 		}
 	}
 	return ""
-}
-
-func (c *Config) Walk() {
-
 }
 
 // all the plugins should impl this function

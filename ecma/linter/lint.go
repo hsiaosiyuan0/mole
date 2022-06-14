@@ -1,6 +1,7 @@
 package linter
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"path"
@@ -15,13 +16,42 @@ import (
 )
 
 type Unit interface {
+	Lang() string
 	Config() *Config
+	Report(*Diagnosis)
+}
+
+type RuleCtx struct {
+	unit     Unit
+	ruleFact RuleFact
+}
+
+func (u *RuleCtx) Config() *Config {
+	return u.unit.Config()
+}
+
+func (u *RuleCtx) Report(node parser.Node, msg string, level DiagLevel) {
+	lang := u.unit.Lang()
+	lvl := u.Config().LevelOfRule(lang, u.ruleFact.Name())
+	if lvl == DL_NONE {
+		lvl = level
+	}
+
+	dig := &Diagnosis{
+		Loc:   node.Loc().Clone(),
+		Lang:  lang,
+		Msg:   msg,
+		Level: lvl,
+	}
+	u.unit.Report(dig)
 }
 
 type JsUnit struct {
-	cfg *Config
+	linter *Linter
+	cfg    *Config
 
 	file    string
+	lang    string
 	ast     parser.Node
 	symTab  *parser.SymTab
 	walkCtx *walk.WalkCtx
@@ -36,6 +66,7 @@ func NewJsUnit(file string, cfg *Config) (*JsUnit, error) {
 	u := &JsUnit{
 		cfg:        cfg,
 		file:       file,
+		lang:       filepath.Ext(file),
 		rules:      map[string]*Rule{},
 		skipped:    map[string]*Rule{},
 		ephSkipped: map[string]*Rule{},
@@ -60,13 +91,21 @@ func NewJsUnit(file string, cfg *Config) (*JsUnit, error) {
 	return u, nil
 }
 
+func (u *JsUnit) Config() *Config {
+	return u.cfg
+}
+
+func (u *JsUnit) Lang() string {
+	return u.lang
+}
+
+func (u *JsUnit) Report(dig *Diagnosis) {
+	u.linter.report(dig)
+}
+
 func isJsFile(f string) bool {
 	ext := filepath.Ext(f)
 	return ext == ".js" || ext == ".jsx"
-}
-
-func (u *JsUnit) Config() *Config {
-	return u.cfg
 }
 
 func (u *JsUnit) File() string {
@@ -88,7 +127,8 @@ func (u *JsUnit) Analysis() *analysis.Analysis {
 func (u *JsUnit) initRules() *JsUnit {
 	lang := path.Ext(u.file)
 	for _, rf := range u.cfg.ruleFacts[lang] {
-		for nt, fn := range rf.Create(u) {
+		ctx := &RuleCtx{u, rf}
+		for nt, fn := range rf.Create(ctx) {
 			rule := &Rule{rf, map[parser.NodeType]*walk.Listener{}}
 			id := fmt.Sprintf("%s_%s_%d", lang, rf.Name(), nt)
 			rule.Listeners[nt] = &walk.Listener{Id: id, Handle: fn}
@@ -117,11 +157,12 @@ type Linter struct {
 	cfgMap       map[string]*Config
 	cfgMapRwLock sync.RWMutex
 
-	// lang => line => diagnoses
-	results map[string]map[int][]*Diagnosis
+	// file => line => diagnoses
+	diags     map[string]map[uint32][]*Diagnosis
+	diagsLock sync.Mutex
 }
 
-func NewLinter(dir string) (*Linter, error) {
+func NewLinter(dir string, skipBuiltin bool) (*Linter, error) {
 	cfg, err := LoadCfgInDir(dir, nil)
 	if err != nil {
 		return nil, err
@@ -133,11 +174,22 @@ func NewLinter(dir string) (*Linter, error) {
 		return nil, err
 	}
 
+	if !skipBuiltin {
+		// inherits ruleFacts from builtin
+		for key, roleFacts := range builtinRuleFacts {
+			cfg.ruleFacts[key] = map[string]RuleFact{}
+			for name, roleFact := range roleFacts {
+				cfg.ruleFacts[key][name] = roleFact
+			}
+		}
+	}
+
 	l := &Linter{
-		dir:     dir,
-		cfg:     cfg,
-		cfgMap:  map[string]*Config{},
-		results: map[string]map[int][]*Diagnosis{},
+		dir:       dir,
+		cfg:       cfg,
+		cfgMap:    map[string]*Config{},
+		diags:     map[string]map[uint32][]*Diagnosis{},
+		diagsLock: sync.Mutex{},
 	}
 	l.setCfgMap(dir, cfg)
 	return l, nil
@@ -168,9 +220,35 @@ func (l *Linter) outerCfg(file string) *Config {
 	return l.cfg
 }
 
-func (l *Linter) Process() {
+func (l *Linter) report(dig *Diagnosis) {
+	l.diagsLock.Lock()
+	defer l.diagsLock.Unlock()
+
+	file := dig.Loc.Source()
+	line := dig.Loc.Begin().Line()
+
+	list := l.diags[file]
+	if list == nil {
+		list = map[uint32][]*Diagnosis{}
+		l.diags[file] = list
+	}
+
+	diags := list[line]
+	if diags == nil {
+		diags = []*Diagnosis{}
+		list[line] = diags
+	}
+
+	list[line] = append(diags, dig)
+}
+
+func (l *Linter) Process() *Reports {
 	w := util.NewDirWalker(l.dir, 0, func(f string, dir bool, dw *util.DirWalker) {
 		if dir {
+			if _, ok := l.cfgMap[f]; ok {
+				return
+			}
+
 			pc := l.outerCfg(f)
 			cfg, err := LoadCfgInDir(f, pc)
 			if err != nil {
@@ -195,28 +273,63 @@ func (l *Linter) Process() {
 				dw.Stop(err)
 			}
 
+			u.linter = l
 			u.initRules().enableAllRules()
 			walk.VisitNode(u.ast, "", u.walkCtx.VisitorCtx())
-
-			fmt.Println(f)
 		}
-
 	})
 
 	w.Walk()
+
+	r := &Reports{
+		Err:       w.Err(),
+		Diagnoses: []*Diagnosis{},
+	}
+
+	for _, line := range l.diags {
+		for _, dig := range line {
+			r.Diagnoses = append(r.Diagnoses, dig...)
+		}
+	}
+	return r
 }
 
-type Severity uint16
+type DiagLevel uint16
 
 const (
-	STY_UNKNOWN Severity = iota
-	STY_WARNING
-	STY_ERROR
-
-	STY_INTERNAL_ERROR
+	DL_NONE DiagLevel = iota
+	DL_WARNING
+	DL_ERROR
 )
 
 type Diagnosis struct {
-	Severity Severity
-	Msg      string
+	Lang string
+	Rule string
+
+	Loc   *parser.Loc
+	Level DiagLevel
+	Msg   string
+}
+
+func (d *Diagnosis) MarshalJSON() ([]byte, error) {
+	return json.Marshal(&struct {
+		Line  uint32 `json:"line"`
+		Col   uint32 `json:"col"`
+		Lang  string `json:"lang"`
+		Rule  string `json:"rule"`
+		Level uint16 `json:"level"`
+		Msg   string `json:"Msg"`
+	}{
+		Line:  d.Loc.Begin().Line(),
+		Col:   d.Loc.Begin().Column(),
+		Lang:  d.Lang,
+		Rule:  d.Rule,
+		Level: uint16(d.Level),
+		Msg:   d.Msg,
+	})
+}
+
+type Reports struct {
+	Err       error        `json:"error"`
+	Diagnoses []*Diagnosis `json:"diagnoses"`
 }

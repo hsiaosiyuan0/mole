@@ -8,3 +8,4 @@ lint.exe
 /test.mjs
 .env
 *.so
+/test.go

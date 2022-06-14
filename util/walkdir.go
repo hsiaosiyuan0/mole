@@ -1,6 +1,7 @@
 package util
 
 import (
+	"container/list"
 	"os"
 	"path"
 	"runtime"
@@ -15,10 +16,13 @@ type DirWalker struct {
 
 	handle DirWalkerHandle
 
-	dirs   chan string
-	files  chan string
+	dirs     *list.List
+	dirsLock sync.Mutex
+
+	newJob chan bool
+
 	wg     sync.WaitGroup
-	wgChan chan bool
+	wgDone chan bool
 
 	stop chan error
 	err  error
@@ -34,10 +38,13 @@ func NewDirWalker(dir string, concurrent int, handle DirWalkerHandle) *DirWalker
 		Concurrent: concurrent,
 		handle:     handle,
 
-		dirs:   make(chan string, concurrent),
-		files:  make(chan string, concurrent),
+		dirs:     list.New(),
+		dirsLock: sync.Mutex{},
+
+		newJob: make(chan bool),
+
 		wg:     sync.WaitGroup{},
-		wgChan: make(chan bool),
+		wgDone: make(chan bool),
 
 		stop: make(chan error),
 	}
@@ -45,8 +52,32 @@ func NewDirWalker(dir string, concurrent int, handle DirWalkerHandle) *DirWalker
 	return w.initWorkers()
 }
 
+func (w *DirWalker) shift() string {
+	if w.dirs.Len() == 0 {
+		return ""
+	}
+	w.dirsLock.Lock()
+	defer w.dirsLock.Unlock()
+
+	d := w.dirs.Front()
+	w.dirs.Remove(d)
+	return d.Value.(string)
+}
+
+func (w *DirWalker) push(file string) {
+	w.dirsLock.Lock()
+	defer w.dirsLock.Unlock()
+
+	w.dirs.PushBack(file)
+}
+
 func (w *DirWalker) walk() {
-	for dir := range w.dirs {
+	for range w.newJob {
+		dir := w.shift()
+		if dir == "" {
+			continue
+		}
+
 		files, err := os.ReadDir(dir)
 		if err != nil {
 			w.stop <- err
@@ -59,28 +90,15 @@ func (w *DirWalker) walk() {
 
 		for _, file := range files {
 			pth := path.Join(dir, file.Name())
-			w.addFile(pth, file.IsDir())
+			if file.IsDir() {
+				w.wg.Add(1)
+				w.push(pth)
+				go func() { w.newJob <- true }()
+			} else {
+				w.handle(pth, false, w)
+			}
 		}
 
-		w.wg.Done()
-	}
-}
-
-func (w *DirWalker) addFile(file string, isDir bool) {
-	w.wg.Add(1)
-
-	go func(dir bool) {
-		if dir {
-			w.dirs <- file
-		} else {
-			w.files <- file
-		}
-	}(isDir)
-}
-
-func (w *DirWalker) doHandle() {
-	for file := range w.files {
-		w.handle(file, false, w)
 		w.wg.Done()
 	}
 }
@@ -88,7 +106,7 @@ func (w *DirWalker) doHandle() {
 func (w *DirWalker) initWorkers() *DirWalker {
 	for i := 0; i < w.Concurrent; i++ {
 		go w.walk()
-		go w.doHandle()
+
 	}
 	return w
 }
@@ -104,15 +122,17 @@ func (w *DirWalker) Err() error {
 func (w *DirWalker) Walk() {
 	go func() {
 		w.wg.Wait()
-		w.wgChan <- true
+		w.wgDone <- true
 	}()
 
-	w.addFile(w.Dir, true)
+	w.wg.Add(1)
+	w.push(w.Dir)
+	w.newJob <- true
 
 loop:
 	for {
 		select {
-		case <-w.wgChan:
+		case <-w.wgDone:
 			break loop
 		case err := <-w.stop:
 			w.err = err

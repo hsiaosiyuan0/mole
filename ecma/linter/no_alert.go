@@ -1,17 +1,10 @@
-package main
+package linter
 
 import (
-	"github.com/hsiaosiyuan0/mole/ecma/linter"
 	"github.com/hsiaosiyuan0/mole/ecma/parser"
 	"github.com/hsiaosiyuan0/mole/ecma/walk"
 	"github.com/hsiaosiyuan0/mole/util"
 )
-
-func Register() []linter.RuleFact {
-	return []linter.RuleFact{
-		&NoAlert{},
-	}
-}
 
 type NoAlert struct{}
 
@@ -19,25 +12,25 @@ func (n *NoAlert) Name() string {
 	return "no-alert"
 }
 
-func (n *NoAlert) Meta() *linter.Meta {
-	return &linter.Meta{
-		Lang: []string{linter.RL_JS},
-		Kind: linter.RK_LINT_SEMANTIC,
-		Docs: linter.Docs{
-			Desc: "",
-			Url:  "",
+func (n *NoAlert) Meta() *Meta {
+	return &Meta{
+		Lang: []string{RL_JS},
+		Kind: RK_LINT_SEMANTIC,
+		Docs: Docs{
+			Desc: "disallow the use of `alert`, `confirm`, and `prompt`",
+			Url:  "https://eslint.org/docs/rules/no-alert",
 		},
 	}
 }
 
 var forbids = []string{"alert", "confirm", "prompt"}
 
-func (n *NoAlert) Create(rc *linter.RuleCtx) map[parser.NodeType]walk.ListenFn {
+func (n *NoAlert) Create(rc *RuleCtx) map[parser.NodeType]walk.ListenFn {
 	return map[parser.NodeType]walk.ListenFn{
 		walk.NodeBeforeEvent(parser.N_EXPR_CALL): func(node parser.Node, key string, ctx *walk.VisitorCtx) {
 			callee := node.(*parser.CallExpr).Callee()
 			if callee.Type() == parser.N_NAME && util.Includes(forbids, callee.Loc().Text()) {
-				rc.Report(node, "disallow the use of `alert`, `confirm`, and `prompt`", linter.DL_ERROR)
+				rc.Report(node, "disallow the use of `alert`, `confirm`, and `prompt`", DL_ERROR)
 			}
 		},
 	}
