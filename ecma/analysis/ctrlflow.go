@@ -1299,7 +1299,7 @@ func handleAfter(node parser.Node, key string, ctx *walk.VisitorCtx) {
 			link(ac, test, EK_JMP, ET_NONE, EK_JMP, ET_NONE, head, LF_NONE)
 			link(ac, test, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, head, LF_NONE)
 
-			link(ac, tail, EK_JMP, ET_NONE, EK_JMP, ET_NONE, exit, flag)
+			link(ac, tail, EK_JMP, ET_JMP_T|ET_JMP_F, EK_JMP, ET_NONE, exit, flag)
 			link(ac, tail, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, exit, flag)
 		} else {
 			link(ac, test, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, exit, flag)

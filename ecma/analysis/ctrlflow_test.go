@@ -6777,14 +6777,14 @@ initial->b0 [xlabel="",color="black"];
 
 // func TestCtrlflow_Demo(t *testing.T) {
 // 	ast, symtab, err := compile(`
-//   function foo() { var x = 1; try { return; } finally {} x = 2; }
+//   const arrow_direction = arrow => {  switch (arrow) { default: throw new Error();  }; g() }
 //   `, nil)
 // 	AssertEqual(t, nil, err, "should be prog ok")
 
 // 	ana := NewAnalysis(ast, symtab)
 // 	ana.Analyze()
 
-// 	fn := ast.(*parser.Prog).Body()[0]
+// 	fn := ast.(*parser.Prog).Body()[0].(*parser.VarDecStmt).DecList()[0].(*parser.VarDec).Init()
 // 	fnGraph := ana.AnalysisCtx().GraphOf(fn)
 
 // 	AssertEqualString(t, `

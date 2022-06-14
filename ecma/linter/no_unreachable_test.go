@@ -165,117 +165,87 @@ func TestUnreachable19(t *testing.T) {
 	util.AssertEqual(t, "disallow unreachable code", r.Diagnoses[0].Msg, "should be ok")
 }
 
-// func TestUnreachable21(t *testing.T) {
-// 	r := lint(t, `const arrow_direction = arrow => {  switch (arrow) { default: throw new Error();  }; g() }`)
-// 	util.AssertEqual(t, true, r.InternalError == nil, "should be ok")
-// 	util.AssertEqual(t, 1, len(r.Diagnoses), "should be ok")
-// 	util.AssertEqual(t, "disallow unreachable code", r.Diagnoses[0].Msg, "should be ok")
-// }
+func TestUnreachable21(t *testing.T) {
+	r := lint(t, `const arrow_direction = arrow => {  switch (arrow) { default: throw new Error();  }; g() }`)
+	util.AssertEqual(t, true, r.InternalError == nil, "should be ok")
+	util.AssertEqual(t, 1, len(r.Diagnoses), "should be ok")
+	util.AssertEqual(t, "disallow unreachable code", r.Diagnoses[0].Msg, "should be ok")
+}
 
-// func TestUnreachable22(t *testing.T) {
-// 	r := lint(t, `
-// function foo() {
-//   return;
+func TestUnreachable22(t *testing.T) {
+	r := lint(t, `
+function foo() {
+  return;
 
-//   a();  // ← ERROR: Unreachable code. (no-unreachable)
+  a();  // ← ERROR: Unreachable code. (no-unreachable)
 
-//   b()   // ↑ ';' token is included in the unreachable code, so this statement will be merged.
-//   // comment
-//   c();  // ↑ ')' token is included in the unreachable code, so this statement will be merged.
-// }
-//   `)
-// 	util.AssertEqual(t, true, r.InternalError == nil, "should be ok")
-// 	util.AssertEqual(t, 1, len(r.Diagnoses), "should be ok")
-// 	util.AssertEqual(t, "disallow unreachable code", r.Diagnoses[0].Msg, "should be ok")
-// }
+  b()   // ↑ ';' token is included in the unreachable code, so this statement will be merged.
+  // comment
+  c();  // ↑ ')' token is included in the unreachable code, so this statement will be merged.
+}
+  `)
+	util.AssertEqual(t, true, r.InternalError == nil, "should be ok")
+	util.AssertEqual(t, 1, len(r.Diagnoses), "should be ok")
+	util.AssertEqual(t, "disallow unreachable code", r.Diagnoses[0].Msg, "should be ok")
+}
 
-// func TestUnreachable23(t *testing.T) {
-// 	r := lint(t, `
-// function foo() {
-//   return;
+func TestUnreachable23(t *testing.T) {
+	r := lint(t, `
+function foo() {
+  return;
 
-//   a();
+  a();
 
-//   if (b()) {
-//       c()
-//   } else {
-//       d()
-//   }
-// }
-//   `)
-// 	util.AssertEqual(t, true, r.InternalError == nil, "should be ok")
-// 	util.AssertEqual(t, 1, len(r.Diagnoses), "should be ok")
-// 	util.AssertEqual(t, "disallow unreachable code", r.Diagnoses[0].Msg, "should be ok")
-// }
+  if (b()) {
+      c()
+  } else {
+      d()
+  }
+}
+  `)
+	util.AssertEqual(t, true, r.InternalError == nil, "should be ok")
+	util.AssertEqual(t, 1, len(r.Diagnoses), "should be ok")
+	util.AssertEqual(t, "disallow unreachable code", r.Diagnoses[0].Msg, "should be ok")
+}
 
-// func TestUnreachable24(t *testing.T) {
-// 	r := lint(t, `
-// function foo() {
-//   if (a) {
-//       return
-//       b();
-//       c();
-//   } else {
-//       throw err
-//       d();
-//   }
-// }
-//   `)
-// 	util.AssertEqual(t, true, r.InternalError == nil, "should be ok")
-// 	util.AssertEqual(t, 1, len(r.Diagnoses), "should be ok")
-// 	util.AssertEqual(t, "disallow unreachable code", r.Diagnoses[0].Msg, "should be ok")
-// }
+func TestUnreachable24(t *testing.T) {
+	r := lint(t, `
+function foo() {
+  if (a) {
+      return
+      b();
+      c();
+  } else {
+      throw err
+      d();
+  }
+}
+  `)
+	util.AssertEqual(t, true, r.InternalError == nil, "should be ok")
+	util.AssertEqual(t, 2, len(r.Diagnoses), "should be ok")
+	util.AssertEqual(t, "disallow unreachable code", r.Diagnoses[0].Msg, "should be ok")
+}
 
-// func TestUnreachable25(t *testing.T) {
-// 	r := lint(t, `
-// function foo() {
-//   if (a) {
-//       return
-//       b();
-//       c();
-//   } else {
-//       throw err
-//       d();
-//   }
-//   e();
-// }
-//   `)
-// 	util.AssertEqual(t, true, r.InternalError == nil, "should be ok")
-// 	util.AssertEqual(t, 1, len(r.Diagnoses), "should be ok")
-// 	util.AssertEqual(t, "disallow unreachable code", r.Diagnoses[0].Msg, "should be ok")
-// }
+func TestUnreachable25(t *testing.T) {
+	r := lint(t, `
+function foo() {
+  if (a) {
+      return
+      b();
+      c();
+  } else {
+      throw err
+      d();
+  }
+  e();
+}
+  `)
+	util.AssertEqual(t, true, r.InternalError == nil, "should be ok")
+	util.AssertEqual(t, 3, len(r.Diagnoses), "should be ok")
+	util.AssertEqual(t, "disallow unreachable code", r.Diagnoses[0].Msg, "should be ok")
+}
 
-// func TestUnreachable26(t *testing.T) {
-// 	r := lint(t, `
-// function* foo() {
-//   try {
-//       return;
-//   } catch (err) {
-//       return err;
-//   }
-// }
-//   `)
-// 	util.AssertEqual(t, true, r.InternalError == nil, "should be ok")
-// 	util.AssertEqual(t, 1, len(r.Diagnoses), "should be ok")
-// 	util.AssertEqual(t, "disallow unreachable code", r.Diagnoses[0].Msg, "should be ok")
-// }
-
-// func TestUnreachable27(t *testing.T) {
-// 	r := lint(t, `
-// function foo() {
-//   try {
-//       return;
-//   } catch (err) {
-//       return err;
-//   }
-// }
-//   `)
-// 	util.AssertEqual(t, true, r.InternalError == nil, "should be ok")
-// 	util.AssertEqual(t, 1, len(r.Diagnoses), "should be ok")
-// 	util.AssertEqual(t, "disallow unreachable code", r.Diagnoses[0].Msg, "should be ok")
-// }
-
-func TestUnreachable28(t *testing.T) {
+func TestUnreachable26(t *testing.T) {
 	r := lint(t, `
 function foo() {
   try {

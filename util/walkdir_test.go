@@ -28,7 +28,7 @@ func TestWalkDir(t *testing.T) {
 
 	w.Walk()
 
-	AssertEqual(t, 23, len(files), "should be ok")
+	AssertEqual(t, 24, len(files), "should be ok")
 }
 
 func TestWalkDirStop(t *testing.T) {
