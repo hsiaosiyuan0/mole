@@ -260,3 +260,13 @@ function foo() {
 	util.AssertEqual(t, 1, len(r.Diagnoses), "should be ok")
 	util.AssertEqual(t, "disallow unreachable code", r.Diagnoses[0].Msg, "should be ok")
 }
+
+func TestUnreachable27(t *testing.T) {
+	r := lint(t, `
+  while (true) { }
+  x = 1;
+  `)
+	util.AssertEqual(t, true, r.InternalError == nil, "should be ok")
+	util.AssertEqual(t, 1, len(r.Diagnoses), "should be ok")
+	util.AssertEqual(t, "disallow unreachable code", r.Diagnoses[0].Msg, "should be ok")
+}
