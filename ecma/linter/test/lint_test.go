@@ -5,6 +5,7 @@ import (
 	"path"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/hsiaosiyuan0/mole/ecma/linter"
@@ -147,4 +148,33 @@ func TestNoUnreachable(t *testing.T) {
 	util.AssertEqual(t, true, r.InternalError == nil, "should be ok")
 	util.AssertEqual(t, 1, len(r.Diagnoses), "should be ok")
 	util.AssertEqual(t, "disallow unreachable code", r.Diagnoses[0].Msg, "should be ok")
+}
+
+func TestIgnore(t *testing.T) {
+	r := lint(t, "ignore")
+	util.AssertEqual(t, true, r.InternalError == nil, "should be ok")
+	util.AssertEqual(t, 1, len(r.Diagnoses), "should be ok")
+	util.AssertEqual(t, true, strings.HasSuffix(r.Diagnoses[0].Loc.Source(), "test1.js"), "should be ok")
+}
+
+func TestIgnoreFile(t *testing.T) {
+	r := lint(t, "ignore_file")
+	util.AssertEqual(t, true, r.InternalError == nil, "should be ok")
+	util.AssertEqual(t, 1, len(r.Diagnoses), "should be ok")
+	util.AssertEqual(t, true, strings.HasSuffix(r.Diagnoses[0].Loc.Source(), "test1.js"), "should be ok")
+}
+
+func TestIgnoreRoot(t *testing.T) {
+	r := lint(t, "ignore_root")
+	util.AssertEqual(t, true, r.InternalError == nil, "should be ok")
+	util.AssertEqual(t, 1, len(r.Diagnoses), "should be ok")
+	util.AssertEqual(t, true, strings.HasSuffix(r.Diagnoses[0].Loc.Source(), "a/test.js"), "should be ok")
+}
+
+func TestIgnoreNestOverride(t *testing.T) {
+	// the nested `.eslintignore` needs a `.eslintrc.js` to active the nested config resolution
+	r := lint(t, "ignore_nested")
+	util.AssertEqual(t, true, r.InternalError == nil, "should be ok")
+	util.AssertEqual(t, 1, len(r.Diagnoses), "should be ok")
+	util.AssertEqual(t, true, strings.HasSuffix(r.Diagnoses[0].Loc.Source(), "a/test.js"), "should be ok")
 }

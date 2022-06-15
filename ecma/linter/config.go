@@ -208,9 +208,7 @@ func (c *Config) InitIgPatterns() error {
 		c.igPatterns = append(c.igPatterns, pattern)
 	}
 
-	if len(c.igPatterns) > 0 {
-		c.matcher = gitignore.NewMatcher(c.igPatterns)
-	}
+	c.matcher = gitignore.NewMatcher(c.igPatterns)
 	return nil
 }
 

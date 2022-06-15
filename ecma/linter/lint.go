@@ -267,9 +267,12 @@ func (l *Linter) Process() *Reports {
 			return
 		}
 
-		if isJsFile(f) {
-			cfg := l.outerCfg(f)
+		cfg := l.outerCfg(f)
+		if cfg.IsIgnored(f) {
+			return
+		}
 
+		if isJsFile(f) {
 			code, err := ioutil.ReadFile(f)
 			if err != nil {
 				dw.Stop(err)
