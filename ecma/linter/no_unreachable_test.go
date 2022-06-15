@@ -26,7 +26,7 @@ func lint(t *testing.T, code string) *Reports {
 	}
 
 	u.linter = linter
-	u.initRules().enableAllRules()
+	u.initRules().enableAllRules(false)
 	u.ana.Analyze()
 
 	return linter.genReports(nil)

@@ -173,9 +173,9 @@ func (u *JsUnit) parseCmt(cs *span.Range) *CmtCmd {
 
 	switch cmt {
 	case "eslint-disable":
-		return &CmtCmd{enableRule: []string{}}
-	case "eslint-enable":
 		return &CmtCmd{disableRule: []string{}}
+	case "eslint-enable":
+		return &CmtCmd{enableRule: []string{}}
 	case "eslint-disable-next-line":
 		return &CmtCmd{disableNextLine: []string{}}
 	}
@@ -187,9 +187,9 @@ func (u *JsUnit) parseCmt(cs *span.Range) *CmtCmd {
 
 	switch p {
 	case "eslint-disable":
-		return &CmtCmd{enableRule: rules}
-	case "eslint-enable":
 		return &CmtCmd{disableRule: rules}
+	case "eslint-enable":
+		return &CmtCmd{enableRule: rules}
 	case "eslint-disable-next-line":
 		return &CmtCmd{disableNextLine: rules}
 	}
