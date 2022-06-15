@@ -26,23 +26,24 @@ func (n *NoUnreachable) Meta() *Meta {
 func (n *NoUnreachable) Create(rc *RuleCtx) map[parser.NodeType]walk.ListenFn {
 	fns := map[parser.NodeType]walk.ListenFn{}
 
-	// scopeId => has unreachable error, which means only one unreachable-error
-	// in one scope
+	// `dup` holds this relation [scopeId => has unreachable error], which means only one unreachable-error
+	// can be reported in one scope
 	dup := map[int]bool{}
 
 	for nt := range walk.StmtNodeTypes {
 		fns[walk.NodeAfterEvent(nt)] = func(node parser.Node, key string, ctx *walk.VisitorCtx) {
-			ac := analysis.AsAnalysisCtx(ctx)
-			blk := ac.Graph().EntryOfNode(node)
 			si := ctx.ScopeId()
-
-			if blk != nil && blk.IsInCut() {
-				if _, ok := dup[si]; !ok {
-					rc.Report(node, "disallow unreachable code", DL_ERROR)
-					dup[si] = true
-				}
+			if _, ok := dup[si]; ok {
+				return
 			}
 
+			ac := analysis.AsAnalysisCtx(ctx)
+			blk := ac.Graph().EntryOfNode(node)
+
+			if blk != nil && blk.IsInCut() {
+				rc.Report(node, "disallow unreachable code", DL_ERROR)
+				dup[si] = true
+			}
 		}
 	}
 
