@@ -15,8 +15,9 @@ import (
 	"github.com/hsiaosiyuan0/mole/util"
 )
 
+var sep = string(filepath.Separator)
+
 func Resolve(cwd, name string) (*plugin.Plugin, error) {
-	sep := string(filepath.Separator)
 	if !strings.HasPrefix(cwd, sep) {
 		return nil, errors.New(fmt.Sprintf("absolute path is required: %s", cwd))
 	}
@@ -24,12 +25,17 @@ func Resolve(cwd, name string) (*plugin.Plugin, error) {
 	p := path.Join(cwd, "node_modules", name, "build")
 
 	if !util.FileExist(p) {
-		if p == sep {
+		if cwd == sep { // already the root, stop the resolving
 			return nil, os.ErrNotExist
 		}
 
-		sp := strings.Split(cwd, string(filepath.Separator))
-		return Resolve(strings.Join(sp[:len(sp)-1], sep), name)
+		// pop the last part and then continue resolve the rest parts
+		parts := strings.Split(cwd, sep)
+		cwd := strings.Join(parts[:len(parts)-1], sep)
+		if cwd == "" { // normalize the root
+			cwd = sep
+		}
+		return Resolve(cwd, name)
 	}
 
 	goos := runtime.GOOS
