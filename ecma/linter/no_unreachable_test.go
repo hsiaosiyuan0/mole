@@ -7,14 +7,46 @@ import (
 	"github.com/hsiaosiyuan0/mole/util"
 )
 
-func lint(t *testing.T, code string) *Reports {
-	cfg := &Config{}
+func newCfg() *Config {
+	cfg := &Config{
+		Rules: map[string]interface{}{},
+	}
+
 	cfg.cwd = ""
 	cfg.plugins = map[string]*plugin.Plugin{}
-	cfg.ruleFacts = map[string]map[string]RuleFact{}
-	cfg.IgnorePatterns = []string{}
-	cfg.ruleLevels = map[string]map[string]DiagLevel{}
 
+	cfg.ruleFacts = map[string]RuleFact{}
+	cfg.rulesCfg = map[string]*RuleCfg{}
+	cfg.ruleFactsLang = map[string]map[string]RuleFact{}
+
+	cfg.IgnorePatterns = []string{}
+	return cfg
+}
+
+func lintCb(t *testing.T, code string, cb func(*Config)) *Reports {
+	cfg := newCfg()
+
+	cb(cfg)
+
+	linter, err := NewLinter("", cfg, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	u, err := NewJsUnit("test.js", code, linter.cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	u.linter = linter
+	u.initRules().enableAllRules(false)
+	u.ana.Analyze()
+
+	return linter.mrkReports()
+}
+
+func lint(t *testing.T, code string) *Reports {
+	cfg := newCfg()
 	linter, err := NewLinter("", cfg, false)
 	if err != nil {
 		t.Fatal(err)

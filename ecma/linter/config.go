@@ -19,36 +19,39 @@ import (
 	"github.com/hsiaosiyuan0/mole/util"
 )
 
-var builtinRuleFacts = map[string]map[string]RuleFact{}
+var builtinRuleFacts = map[string]RuleFact{}
 
 func registerBuiltin(r RuleFact) {
-	for _, la := range r.Meta().Lang {
-		if builtinRuleFacts[la] == nil {
-			builtinRuleFacts[la] = map[string]RuleFact{}
-		}
-		builtinRuleFacts[la][r.Name()] = r
-	}
+	builtinRuleFacts[r.Name()] = r
 }
 
 func init() {
-	registerBuiltin(&NoAlert{})
-	registerBuiltin(&NoUnreachable{})
+	rules := []RuleFact{
+		&NoAlert{},
+		&NoUnreachable{},
+		&GetterReturn{},
+	}
+
+	for _, rule := range rules {
+		registerBuiltin(rule)
+	}
 }
 
 type Config struct {
-	Plugins        []string                 `json:"plugins"`
-	Rules          map[string][]interface{} `json:"rules"`
-	IgnorePatterns []string                 `json:"ignorePatterns"`
-	ParserOptions  map[string]interface{}   `json:"parserOptions"`
+	Plugins        []string               `json:"plugins"`
+	Rules          map[string]interface{} `json:"rules"`
+	IgnorePatterns []string               `json:"ignorePatterns"`
+	ParserOptions  map[string]interface{} `json:"parserOptions"`
 
-	cwd       string
-	plugins   map[string]*plugin.Plugin
-	ruleFacts map[string]map[string]RuleFact // lang => rules
+	cwd     string
+	plugins map[string]*plugin.Plugin
+
+	ruleFacts     map[string]RuleFact
+	rulesCfg      map[string]*RuleCfg
+	ruleFactsLang map[string]map[string]RuleFact // lang => rules
 
 	igPatterns []gitignore.Pattern
 	matcher    gitignore.Matcher
-
-	ruleLevels map[string]map[string]DiagLevel
 
 	outer *Config
 }
@@ -73,21 +76,19 @@ func NewConfig(cf string, outer *Config) (*Config, error) {
 
 	cfg.cwd = path.Dir(cf)
 	cfg.plugins = map[string]*plugin.Plugin{}
-	cfg.ruleFacts = map[string]map[string]RuleFact{}
+
+	cfg.ruleFacts = map[string]RuleFact{}
+	cfg.rulesCfg = map[string]*RuleCfg{}
+	cfg.ruleFactsLang = map[string]map[string]RuleFact{}
+
 	cfg.IgnorePatterns = append(cfg.IgnorePatterns, "node_modules/")
-	cfg.ruleLevels = map[string]map[string]DiagLevel{}
+	cfg.rulesCfg = map[string]*RuleCfg{}
 
 	// inherits plugins and ruleFacts from outer config
 	if outer != nil {
-		for key, roleFacts := range outer.ruleFacts {
-			if cfg.ruleFacts[key] == nil {
-				cfg.ruleFacts[key] = map[string]RuleFact{}
-			}
-			for name, roleFact := range roleFacts {
-				cfg.ruleFacts[key][name] = roleFact
-			}
+		for _, rf := range outer.ruleFacts {
+			cfg.AddRuleFact(rf)
 		}
-
 		cfg.outer = outer
 	}
 
@@ -148,27 +149,40 @@ func (c *Config) Init() error {
 	if err := c.InitPlugins(); err != nil {
 		return err
 	}
+	if err := c.InitRulesCfg(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *Config) AddRuleFact(rf RuleFact) error {
+	name := rf.Name()
+	if _, dup := c.ruleFacts[name]; dup {
+		return errors.New(fmt.Sprintf("duplicated rule `%s`", name))
+	}
+
+	c.ruleFacts[name] = rf
+	for _, la := range rf.Meta().Lang {
+		if c.ruleFactsLang[la] == nil {
+			c.ruleFactsLang[la] = map[string]RuleFact{}
+		}
+		c.ruleFactsLang[la][name] = rf
+	}
 	return nil
 }
 
 func (c *Config) AddRuleFacts(rfs []RuleFact) error {
 	for _, rf := range rfs {
-		for _, la := range rf.Meta().Lang {
-			if c.ruleFacts[la] == nil {
-				c.ruleFacts[la] = map[string]RuleFact{}
-			}
-			name := rf.Name()
-			if _, ok := c.ruleFacts[la][name]; ok {
-				return errors.New(fmt.Sprintf("duplicated rule `%s` for lang `%s`", name, la))
-			}
-			c.ruleFacts[la][name] = rf
+		if err := c.AddRuleFact(rf); err != nil {
+			return err
 		}
 	}
 	return nil
 }
 
-func (c *Config) RuleFact() map[string]map[string]RuleFact {
-	return c.ruleFacts
+// the ruleFacts aggregated by their effect langs
+func (c *Config) RuleFactsLang() map[string]map[string]RuleFact {
+	return c.ruleFactsLang
 }
 
 func (c *Config) InitPlugins() error {
@@ -212,6 +226,80 @@ func (c *Config) InitIgPatterns() error {
 	return nil
 }
 
+type RuleCfg struct {
+	Name  string
+	Level DiagLevel
+	Opts  []interface{}
+}
+
+func parseDiagLevel(lvl interface{}) DiagLevel {
+	switch lvl.(type) {
+	case int:
+		switch lvl.(int) {
+		case 0:
+			return DL_OFF
+		case 1:
+			return DL_WARN
+		case 2:
+			return DL_ERROR
+		}
+	case string:
+		switch lvl.(string) {
+		case "off":
+			return DL_OFF
+		case "warn":
+			return DL_WARN
+		case "error":
+			return DL_ERROR
+		}
+	}
+	return DL_ERROR
+}
+
+func newRuleCfg(name string, raw interface{}, rf RuleFact) (*RuleCfg, error) {
+	c := &RuleCfg{Name: name}
+
+	switch v := raw.(type) {
+	case int, string:
+		c.Level = parseDiagLevel(raw)
+
+	case []interface{}:
+		if len(v) >= 1 {
+			c.Level = parseDiagLevel(v[0])
+
+			if len(v) > 1 {
+				os := rf.Options()
+				if os != nil {
+					js, err := json.Marshal(v[1:])
+					if err != nil {
+						return nil, err
+					}
+					c.Opts, err = os.ParseOpts(string(js), rf.Validate(), rf.Validates())
+					if err != nil {
+						return nil, err
+					}
+				}
+			}
+		}
+	}
+	return c, nil
+}
+
+func (c *Config) InitRulesCfg() error {
+	for name, raw := range c.Rules {
+		rf := c.ruleFacts[name]
+		if rf == nil {
+			continue
+		}
+		cfg, err := newRuleCfg(name, raw, rf)
+		if err != nil {
+			return err
+		}
+		c.rulesCfg[name] = cfg
+	}
+	return nil
+}
+
 func (c *Config) IsIgnored(f string) bool {
 	if c.matcher == nil {
 		return false
@@ -228,16 +316,16 @@ func (c *Config) ParserOpts() *parser.ParserOpts {
 	return opts
 }
 
-func (c *Config) LevelOfRule(lang string, name string) DiagLevel {
-	rules := c.ruleLevels[lang]
-	if rules == nil {
-		return DL_NONE
+func (c *Config) CfgOfRule(name string) *RuleCfg {
+	return c.rulesCfg[name]
+}
+
+func (c *Config) LevelOfRule(name string) DiagLevel {
+	rc := c.rulesCfg[name]
+	if rc == nil {
+		return DL_ERROR
 	}
-	lvl, ok := rules[name]
-	if !ok {
-		return DL_NONE
-	}
-	return lvl
+	return rc.Level
 }
 
 func selCfgFile(dir string) string {

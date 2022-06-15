@@ -33,13 +33,18 @@ func (u *RuleCtx) Config() *Config {
 	return u.unit.Config()
 }
 
+func (u *RuleCtx) Opts() []interface{} {
+	c := u.Config().CfgOfRule(u.ruleFact.Name())
+	if c == nil {
+		return nil
+	}
+	return c.Opts
+}
+
 func (u *RuleCtx) Report(node parser.Node, msg string, level DiagLevel) {
 	lang := u.unit.Lang()
 	rule := u.ruleFact.Name()
-	lvl := u.Config().LevelOfRule(lang, rule)
-	if lvl == DL_NONE {
-		lvl = level
-	}
+	lvl := u.Config().LevelOfRule(rule)
 
 	dig := &Diagnosis{
 		Loc:   node.Loc().Clone(),
@@ -125,7 +130,7 @@ func (u *JsUnit) Analysis() *analysis.Analysis {
 
 func (u *JsUnit) initRules() *JsUnit {
 	lang := path.Ext(u.file)
-	for _, rf := range u.cfg.ruleFacts[lang] {
+	for _, rf := range u.cfg.ruleFactsLang[lang] {
 		ctx := &RuleCtx{u, rf}
 		rule := &Rule{rf, map[parser.NodeType]*walk.Listener{}}
 		for nt, fn := range rf.Create(ctx) {
@@ -346,19 +351,17 @@ func NewLinter(dir string, cfg *Config, skipBuiltin bool) (*Linter, error) {
 		if cfg == nil {
 			return nil, &LoadConfigErr{"no config file detected", nil}
 		}
-		if err = cfg.Init(); err != nil {
-			return nil, err
-		}
 	}
 
 	if !skipBuiltin {
 		// inherits ruleFacts from builtin
-		for key, roleFacts := range builtinRuleFacts {
-			cfg.ruleFacts[key] = map[string]RuleFact{}
-			for name, roleFact := range roleFacts {
-				cfg.ruleFacts[key][name] = roleFact
-			}
+		for _, rf := range builtinRuleFacts {
+			cfg.AddRuleFact(rf)
 		}
+	}
+
+	if err = cfg.Init(); err != nil {
+		return nil, err
 	}
 
 	l := &Linter{
@@ -501,8 +504,8 @@ func (l *Linter) mrkReports() *Reports {
 type DiagLevel uint16
 
 const (
-	DL_NONE DiagLevel = iota
-	DL_WARNING
+	DL_OFF DiagLevel = iota
+	DL_WARN
 	DL_ERROR
 )
 

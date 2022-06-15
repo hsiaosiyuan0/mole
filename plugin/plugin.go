@@ -2,6 +2,8 @@ package plugin
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"reflect"
 
 	"github.com/go-playground/validator/v10"
@@ -22,17 +24,28 @@ type Validate = func(in interface{}) error
 // of the target option in the options list, for any target option has its index as key in `validates`,
 // the value of that key will be used as the option's validator
 func (o *Options) ParseOpts(jsonStr string, validate *validator.Validate, validates map[int]Validate) ([]interface{}, error) {
-	opts := []interface{}{}
-	for _, typ := range o.Typ {
-		opt := reflect.New(typ)
-		opts = append(opts, opt)
-	}
 
-	if err := json.Unmarshal([]byte(jsonStr), &opts); err != nil {
+	rawOpts := []interface{}{}
+	if err := json.Unmarshal([]byte(jsonStr), &rawOpts); err != nil {
 		return nil, err
 	}
 
-	for i, opt := range opts {
+	opts := make([]interface{}, len(o.Typ))
+	for i := range opts {
+		if rawOpts[i] == nil {
+			return nil, errors.New(fmt.Sprintf("missing option for %v\n", o.Typ[i]))
+		}
+
+		raw, err := json.Marshal(rawOpts[i])
+		if err != nil {
+			return nil, err
+		}
+
+		opt := reflect.New(o.Typ[i]).Interface()
+		if err := json.Unmarshal(raw, &opt); err != nil {
+			return nil, err
+		}
+
 		if validates != nil {
 			if v, ok := validates[i]; ok {
 				if err := v(opt); err != nil {
@@ -42,12 +55,24 @@ func (o *Options) ParseOpts(jsonStr string, validate *validator.Validate, valida
 			}
 		}
 
-		if reflect.ValueOf(opt).Kind() == reflect.Struct {
+		if validate != nil && reflect.ValueOf(opt).Kind() == reflect.Struct {
 			if err := validate.Struct(opt); err != nil {
 				return nil, err
 			}
 		}
+
+		opts[i] = opt
 	}
 
 	return opts, nil
+}
+
+func DefineOptions(opts ...interface{}) *Options {
+	o := &Options{
+		Typ: []reflect.Type{},
+	}
+	for _, opt := range opts {
+		o.Typ = append(o.Typ, reflect.TypeOf(opt))
+	}
+	return o
 }

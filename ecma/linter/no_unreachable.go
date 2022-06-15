@@ -1,9 +1,11 @@
 package linter
 
 import (
+	"github.com/go-playground/validator/v10"
 	"github.com/hsiaosiyuan0/mole/ecma/analysis"
 	"github.com/hsiaosiyuan0/mole/ecma/parser"
 	"github.com/hsiaosiyuan0/mole/ecma/walk"
+	"github.com/hsiaosiyuan0/mole/plugin"
 )
 
 type NoUnreachable struct{}
@@ -21,6 +23,18 @@ func (n *NoUnreachable) Meta() *Meta {
 			Url:  "https://eslint.org/docs/rules/no-unreachable",
 		},
 	}
+}
+
+func (n *NoUnreachable) Options() *plugin.Options {
+	return nil
+}
+
+func (n *NoUnreachable) Validate() *validator.Validate {
+	return nil
+}
+
+func (n *NoUnreachable) Validates() map[int]plugin.Validate {
+	return nil
 }
 
 func (n *NoUnreachable) Create(rc *RuleCtx) map[parser.NodeType]walk.ListenFn {

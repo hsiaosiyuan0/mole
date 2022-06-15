@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/hsiaosiyuan0/mole/ecma/linter"
 	"github.com/hsiaosiyuan0/mole/ecma/parser"
 	"github.com/hsiaosiyuan0/mole/ecma/walk"
@@ -103,7 +104,7 @@ func TestRegisterPlugin(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	util.AssertEqual(t, 1, len(cfg.RuleFact()[linter.RL_JS]), "should be ok")
+	util.AssertEqual(t, 1, len(cfg.RuleFactsLang()[linter.RL_JS]), "should be ok")
 }
 
 func TestProcess(t *testing.T) {
@@ -220,6 +221,18 @@ func (n *PanicByNum) Meta() *linter.Meta {
 			Url:  "",
 		},
 	}
+}
+
+func (n *PanicByNum) Options() *plugin.Options {
+	return nil
+}
+
+func (n *PanicByNum) Validate() *validator.Validate {
+	return nil
+}
+
+func (n *PanicByNum) Validates() map[int]plugin.Validate {
+	return nil
 }
 
 func (n *PanicByNum) Create(rc *linter.RuleCtx) map[parser.NodeType]walk.ListenFn {

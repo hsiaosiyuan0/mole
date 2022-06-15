@@ -1507,6 +1507,10 @@ type Prop struct {
 	accMode ACC_MOD
 }
 
+func (n *Prop) PropKind() PropKind {
+	return n.kind
+}
+
 func (n *Prop) Kind() string {
 	return n.kind.ToString()
 }
@@ -1573,6 +1577,10 @@ func (n *FnDec) Body() Node {
 	return n.body
 }
 
+func (n *FnDec) Rets() []Node {
+	return n.rets
+}
+
 func (n *FnDec) ExpRet() bool {
 	return len(n.rets) > 0
 }
@@ -1625,6 +1633,10 @@ func (n *ArrowFn) Async() bool {
 
 func (n *ArrowFn) Params() []Node {
 	return n.params
+}
+
+func (n *ArrowFn) Rets() []Node {
+	return n.rets
 }
 
 func (n *ArrowFn) ExpRet() bool {
@@ -2220,6 +2232,10 @@ type Method struct {
 	kind     PropKind
 	val      Node
 	ti       *TypInfo
+}
+
+func (n *Method) PropKind() PropKind {
+	return n.kind
 }
 
 func (n *Method) Kind() string {

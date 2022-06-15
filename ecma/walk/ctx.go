@@ -5,6 +5,7 @@ import (
 	"log"
 
 	"github.com/hsiaosiyuan0/mole/ecma/parser"
+	"github.com/hsiaosiyuan0/mole/util"
 )
 
 type WalkCtx struct {
@@ -178,10 +179,16 @@ func CallVisitor(t parser.NodeType, n parser.Node, key string, ctx *VisitorCtx) 
 
 func CallListener(t parser.NodeType, n parser.Node, key string, ctx *VisitorCtx) {
 	fns := ctx.WalkCtx.Listeners[t]
-	for _, l := range fns {
-		l.Handle(n, key, ctx)
+	if fns == nil {
+		return
+	}
+
+	elem := fns.Front()
+	for elem != nil {
+		elem.Value.(*util.KvPair[string, *Listener]).Val.Handle(n, key, ctx)
 		if ctx.WalkCtx.stop {
 			break
 		}
+		elem = elem.Next()
 	}
 }

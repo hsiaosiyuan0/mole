@@ -1,6 +1,7 @@
 package linter
 
 import (
+	"github.com/go-playground/validator/v10"
 	"github.com/hsiaosiyuan0/mole/ecma/parser"
 	"github.com/hsiaosiyuan0/mole/ecma/walk"
 	"github.com/hsiaosiyuan0/mole/plugin"
@@ -26,17 +27,20 @@ type Docs struct {
 }
 
 type Meta struct {
-	Lang []string
-	Kind Kind
-
-	Docs Docs
-
-	Options plugin.Options
+	Lang      []string
+	Kind      Kind
+	DiagLevel DiagLevel
+	Docs      Docs
 }
 
 type RuleFact interface {
 	Name() string
 	Meta() *Meta
+
+	Options() *plugin.Options
+	Validate() *validator.Validate
+	Validates() map[int]plugin.Validate
+
 	Create(*RuleCtx) map[parser.NodeType]walk.ListenFn
 }
 

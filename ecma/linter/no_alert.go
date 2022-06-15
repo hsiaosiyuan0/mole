@@ -1,8 +1,10 @@
 package linter
 
 import (
+	"github.com/go-playground/validator/v10"
 	"github.com/hsiaosiyuan0/mole/ecma/parser"
 	"github.com/hsiaosiyuan0/mole/ecma/walk"
+	"github.com/hsiaosiyuan0/mole/plugin"
 	"github.com/hsiaosiyuan0/mole/util"
 )
 
@@ -21,6 +23,18 @@ func (n *NoAlert) Meta() *Meta {
 			Url:  "https://eslint.org/docs/rules/no-alert",
 		},
 	}
+}
+
+func (n *NoAlert) Options() *plugin.Options {
+	return nil
+}
+
+func (n *NoAlert) Validate() *validator.Validate {
+	return nil
+}
+
+func (n *NoAlert) Validates() map[int]plugin.Validate {
+	return nil
 }
 
 var alertForbids = []string{"alert", "confirm", "prompt"}

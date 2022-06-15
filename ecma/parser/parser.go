@@ -2775,6 +2775,15 @@ func (p *Parser) fnDec(expr bool, async *Token, canNameOmitted bool) (Node, erro
 
 	fnDec := &FnDec{typ, p.finLoc(loc), id, generator, async != nil, params, body, p.decRetsStk(), nil, ti}
 	s.Node = fnDec
+
+	if expr && p.lexer.Peek().value == T_PAREN_L {
+		node, _, err := p.callExpr(fnDec, true, false, nil, false)
+		if err != nil {
+			return nil, err
+		}
+		return node, nil
+	}
+
 	if !expr && p.ts {
 		if body == nil {
 			p.lastTsFnSig = fnDec
@@ -4456,7 +4465,7 @@ func (p *Parser) newExpr() (Node, error) {
 func (p *Parser) checkCallee(callee Node, nextLoc *Loc) error {
 	scope := p.scope()
 	switch callee.Type() {
-	case N_EXPR_FN, N_EXPR_ARROW:
+	case N_EXPR_ARROW:
 		if !scope.IsKind(SPK_PAREN) {
 			return p.errorAtLoc(nextLoc, ERR_UNEXPECTED_TOKEN)
 		}
@@ -5027,7 +5036,7 @@ func (p *Parser) argToParam(arg Node, depth int, prop bool, destruct bool, inPar
 			n.arg = arg
 		} else {
 			if !prop && p.feat&FEAT_BINDING_REST_ELEM_NESTED == 0 {
-				nested := p.UnParen(n.arg)
+				nested := UnParen(n.arg)
 				if nested.Type() != N_NAME {
 					return nil, p.errorAtLoc(nested.Loc(), ERR_REST_ARG_NOT_BINDING_PATTERN)
 				}
@@ -5431,7 +5440,7 @@ func (p *Parser) binExpr(lhs Node, minPcd int, logic bool, nullish bool, notGT b
 		// deal with expr like: `console.log( -2 ** 4 )`
 		if lhs.Type() == N_EXPR_UNARY && op == T_POW {
 			n := lhs.(*UnaryExpr)
-			return nil, p.errorAtLoc(p.UnParen(lhs.(*UnaryExpr).arg).Loc(), fmt.Sprintf(ERR_TPL_UNARY_IMMEDIATELY_BEFORE_POW, n.OpText()))
+			return nil, p.errorAtLoc(UnParen(lhs.(*UnaryExpr).arg).Loc(), fmt.Sprintf(ERR_TPL_UNARY_IMMEDIATELY_BEFORE_POW, n.OpText()))
 		}
 
 		// deal with expr like: `4 + async() => 2`
@@ -5862,7 +5871,7 @@ func (p *Parser) parenExpr(typArgs Node, notColon bool) (Node, error) {
 	return node, nil
 }
 
-func (p *Parser) UnParen(expr Node) Node {
+func UnParen(expr Node) Node {
 	if expr.Type() == N_EXPR_PAREN {
 		loc := expr.Loc().Clone()
 		sub := expr.(*ParenExpr).Expr()

@@ -30793,3 +30793,253 @@ func TestHarmony318(t *testing.T) {
 }
 	`, ast)
 }
+
+func TestHarmony319(t *testing.T) {
+	ast, err := Compile("class foo { get bar(){ ~function () { return true; }()}}")
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	AssertEqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 56,
+  "loc": {
+    "start": {
+      "line": 1,
+      "column": 0
+    },
+    "end": {
+      "line": 1,
+      "column": 56
+    }
+  },
+  "body": [
+    {
+      "type": "ClassDeclaration",
+      "start": 0,
+      "end": 56,
+      "loc": {
+        "start": {
+          "line": 1,
+          "column": 0
+        },
+        "end": {
+          "line": 1,
+          "column": 56
+        }
+      },
+      "id": {
+        "type": "Identifier",
+        "start": 6,
+        "end": 9,
+        "loc": {
+          "start": {
+            "line": 1,
+            "column": 6
+          },
+          "end": {
+            "line": 1,
+            "column": 9
+          }
+        },
+        "name": "foo"
+      },
+      "superClass": null,
+      "body": {
+        "type": "ClassBody",
+        "start": 10,
+        "end": 56,
+        "loc": {
+          "start": {
+            "line": 1,
+            "column": 10
+          },
+          "end": {
+            "line": 1,
+            "column": 56
+          }
+        },
+        "body": [
+          {
+            "type": "MethodDefinition",
+            "start": 12,
+            "end": 55,
+            "loc": {
+              "start": {
+                "line": 1,
+                "column": 12
+              },
+              "end": {
+                "line": 1,
+                "column": 55
+              }
+            },
+            "static": false,
+            "key": {
+              "type": "Identifier",
+              "start": 16,
+              "end": 19,
+              "loc": {
+                "start": {
+                  "line": 1,
+                  "column": 16
+                },
+                "end": {
+                  "line": 1,
+                  "column": 19
+                }
+              },
+              "name": "bar"
+            },
+            "computed": false,
+            "kind": "get",
+            "id": null,
+            "value": {
+              "type": "FunctionExpression",
+              "params": [],
+              "body": {
+                "type": "BlockStatement",
+                "start": 21,
+                "end": 55,
+                "loc": {
+                  "start": {
+                    "line": 1,
+                    "column": 21
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": 55
+                  }
+                },
+                "body": [
+                  {
+                    "type": "ExpressionStatement",
+                    "start": 23,
+                    "end": 54,
+                    "loc": {
+                      "start": {
+                        "line": 1,
+                        "column": 23
+                      },
+                      "end": {
+                        "line": 1,
+                        "column": 54
+                      }
+                    },
+                    "expression": {
+                      "type": "UnaryExpression",
+                      "start": 23,
+                      "end": 54,
+                      "loc": {
+                        "start": {
+                          "line": 1,
+                          "column": 23
+                        },
+                        "end": {
+                          "line": 1,
+                          "column": 54
+                        }
+                      },
+                      "operator": "~",
+                      "prefix": true,
+                      "argument": {
+                        "type": "CallExpression",
+                        "start": 24,
+                        "end": 54,
+                        "loc": {
+                          "start": {
+                            "line": 1,
+                            "column": 24
+                          },
+                          "end": {
+                            "line": 1,
+                            "column": 54
+                          }
+                        },
+                        "callee": {
+                          "type": "FunctionExpression",
+                          "start": 24,
+                          "end": 52,
+                          "loc": {
+                            "start": {
+                              "line": 1,
+                              "column": 24
+                            },
+                            "end": {
+                              "line": 1,
+                              "column": 52
+                            }
+                          },
+                          "id": null,
+                          "generator": false,
+                          "async": false,
+                          "params": [],
+                          "body": {
+                            "type": "BlockStatement",
+                            "start": 36,
+                            "end": 52,
+                            "loc": {
+                              "start": {
+                                "line": 1,
+                                "column": 36
+                              },
+                              "end": {
+                                "line": 1,
+                                "column": 52
+                              }
+                            },
+                            "body": [
+                              {
+                                "type": "ReturnStatement",
+                                "start": 38,
+                                "end": 50,
+                                "loc": {
+                                  "start": {
+                                    "line": 1,
+                                    "column": 38
+                                  },
+                                  "end": {
+                                    "line": 1,
+                                    "column": 50
+                                  }
+                                },
+                                "argument": {
+                                  "type": "Literal",
+                                  "start": 45,
+                                  "end": 49,
+                                  "loc": {
+                                    "start": {
+                                      "line": 1,
+                                      "column": 45
+                                    },
+                                    "end": {
+                                      "line": 1,
+                                      "column": 49
+                                    }
+                                  },
+                                  "value": true
+                                }
+                              }
+                            ],
+                            "directives": []
+                          }
+                        },
+                        "arguments": []
+                      }
+                    }
+                  }
+                ],
+                "directives": []
+              },
+              "async": false,
+              "generator": false
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "directives": []
+}
+	`, ast)
+}

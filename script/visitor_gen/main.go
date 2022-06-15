@@ -101,21 +101,23 @@ type Listener struct {
 	Id     string
 	Handle ListenFn
 }
-type Listeners = [N_BEFORE_AFTER_DEF_END]map[string]*Listener
+type Listeners = [N_BEFORE_AFTER_DEF_END]*util.OrderedMap[string, *Listener]
 
 func AddListener(ls *Listeners, t parser.NodeType, impl *Listener) error {
-	if _, ok := ls[t][impl.Id]; ok {
+	if ls[t] != nil && ls[t].HasKey(impl.Id) {
 		return errors.New("duplicate listener with same id: " + impl.Id)
 	}
 	if ls[t] == nil {
-		ls[t] = map[string]*Listener{}
+		ls[t] = util.NewOrderedMap[string, *Listener]()
 	}
-	ls[t][impl.Id] = impl
+	ls[t].Set(impl.Id, impl)
 	return nil
 }
 
 func RemoveListener(ls *Listeners, t parser.NodeType, impl *Listener) {
-	delete(ls[t], impl.Id)
+  if ls[t] != nil {
+    ls[t].Remove(impl.Id)
+  }
 }
 
 func NodeBeforeEvent(t parser.NodeType) parser.NodeType {
@@ -247,7 +249,7 @@ func genDefaultVisitors(output io.Writer, nodeTypStruct map[string]string, struc
 	}
 	tpl, err := template.New("visitor types").Funcs(fnMap).Parse(`
 var DefaultVisitors Visitors = [N_BEFORE_AFTER_DEF_END]Visitor{}
-var DefaultListeners Listeners = [N_BEFORE_AFTER_DEF_END]map[string]*Listener{}
+var DefaultListeners Listeners = [N_BEFORE_AFTER_DEF_END]*util.OrderedMap[string, *Listener]{}
 
 func init() {
   {{- range $key, $value := .NodeTypStruct }}
@@ -259,7 +261,7 @@ func init() {
   {{- end }}
 
   {{ range $key, $value := .NodeTypStruct }}
-    DefaultListeners[N_{{ $key | UnPrefix | ToUpper }}] = map[string]*Listener{}
+    DefaultListeners[N_{{ $key | UnPrefix | ToUpper }}] = util.NewOrderedMap[string, *Listener]()
   {{- end }}
 }
   `)
@@ -381,6 +383,7 @@ import (
 	"errors"
 
 	"github.com/hsiaosiyuan0/mole/ecma/parser"
+  "github.com/hsiaosiyuan0/mole/util"
 )
 
   `)

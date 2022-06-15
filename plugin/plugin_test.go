@@ -60,7 +60,7 @@ func TestOptsParse(t *testing.T) {
 
 	_, err := optsSchema.ParseOpts(`["backtick", { "avoidEscape": true }]`, validator.New(), map[int]Validate{
 		0: func(in interface{}) error {
-			if in != "backtick" {
+			if *in.(*string) != "backtick" {
 				return errors.New("not backtick")
 			}
 			return nil

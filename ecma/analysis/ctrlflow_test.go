@@ -6777,21 +6777,21 @@ initial->b0 [xlabel="",color="black"];
 
 // func TestCtrlflow_Demo(t *testing.T) {
 // 	ast, symtab, err := compile(`
-//   while (true) { }
-//   x = 1;
+//   var a = function f() { if (baz) { return true; } return 1 }
 //   `, nil)
 // 	AssertEqual(t, nil, err, "should be prog ok")
 
 // 	ana := NewAnalysis(ast, symtab)
 // 	ana.Analyze()
 
-// 	// 	fn := ast.(*parser.Prog).Body()[0].(*parser.VarDecStmt).DecList()[0].(*parser.VarDec).Init()
-// 	// 	fnGraph := ana.AnalysisCtx().GraphOf(fn)
+// 	fn := ast.(*parser.Prog).Body()[0].(*parser.VarDecStmt).DecList()[0].(*parser.VarDec).Init()
+// 	fnGraph := ana.AnalysisCtx().GraphOf(fn)
+
+// 	AssertEqualString(t, `
+
+// 	`, fnGraph.Dot(), "should be ok")
 
 // 	// 	AssertEqualString(t, `
 
-// 	// `, fnGraph.Dot(), "should be ok")
-// 	AssertEqualString(t, `
-
-// `, ana.Graph().Dot(), "should be ok")
+// 	// `, ana.Graph().Dot(), "should be ok")
 // }
