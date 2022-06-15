@@ -25,6 +25,7 @@ type DirWalker struct {
 	wgDone chan bool
 
 	stop chan error
+	fin  chan bool
 	err  error
 }
 
@@ -47,6 +48,7 @@ func NewDirWalker(dir string, concurrent int, handle DirWalkerHandle) *DirWalker
 		wgDone: make(chan bool),
 
 		stop: make(chan error),
+		fin:  make(chan bool),
 	}
 
 	return w.initWorkers()
@@ -72,34 +74,40 @@ func (w *DirWalker) push(file string) {
 }
 
 func (w *DirWalker) walk() {
-	for range w.newJob {
-		dir := w.shift()
-		if dir == "" {
-			continue
-		}
-
-		files, err := os.ReadDir(dir)
-		if err != nil {
-			w.stop <- err
-			return
-		}
-
-		// process the handle of directory synchronously to keep the lexical order
-		// between the directory and its children files
-		w.handle(dir, true, w)
-
-		for _, file := range files {
-			pth := path.Join(dir, file.Name())
-			if file.IsDir() {
-				w.wg.Add(1)
-				w.push(pth)
-				go func() { w.newJob <- true }()
-			} else {
-				w.handle(pth, false, w)
+loop:
+	for {
+		select {
+		case <-w.newJob:
+			dir := w.shift()
+			if dir == "" {
+				continue
 			}
-		}
 
-		w.wg.Done()
+			files, err := os.ReadDir(dir)
+			if err != nil {
+				w.stop <- err
+				return
+			}
+
+			// process the handle of directory synchronously to keep the lexical order
+			// between the directory and its children files
+			w.handle(dir, true, w)
+
+			for _, file := range files {
+				pth := path.Join(dir, file.Name())
+				if file.IsDir() {
+					w.wg.Add(1)
+					w.push(pth)
+					go func() { w.newJob <- true }()
+				} else {
+					w.handle(pth, false, w)
+				}
+			}
+
+			w.wg.Done()
+		case <-w.fin:
+			break loop
+		}
 	}
 }
 
@@ -140,5 +148,5 @@ loop:
 		}
 	}
 
-	close(w.newJob)
+	w.fin <- true
 }
