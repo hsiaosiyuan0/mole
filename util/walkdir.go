@@ -139,4 +139,6 @@ loop:
 			break loop
 		}
 	}
+
+	close(w.newJob)
 }
