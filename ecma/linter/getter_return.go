@@ -64,7 +64,7 @@ func isGetter(node parser.Node, ctx *walk.VisitorCtx) (bool, parser.Node) {
 		// process `Object.defineProperty`
 		if ctx.Parent.Parent.Parent.Node.Type() == parser.N_EXPR_CALL {
 			// `ctx.Parent.Parent.Parent` can never be nil since `ctx.Parent.Parent` has been guarded as an ObjExpr and
-			// `ObjExpr` can not live alone
+			// `ObjExpr` never live alone
 
 			callee := ctx.Parent.Parent.Parent.Node.(*parser.CallExpr).Callee()
 			if GetStaticPropertyName(callee) == "defineProperty" {
