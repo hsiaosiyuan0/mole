@@ -114,7 +114,7 @@ func AddListener(ls *Listeners, t parser.NodeType, impl *Listener) error {
 	return nil
 }
 
-func RemoveListener(ls *Listeners, t parser.NodeType, impl Listener) {
+func RemoveListener(ls *Listeners, t parser.NodeType, impl *Listener) {
 	delete(ls[t], impl.Id)
 }
 

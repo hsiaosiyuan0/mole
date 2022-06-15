@@ -178,3 +178,27 @@ func TestIgnoreNestOverride(t *testing.T) {
 	util.AssertEqual(t, 1, len(r.Diagnoses), "should be ok")
 	util.AssertEqual(t, true, strings.HasSuffix(r.Diagnoses[0].Loc.Source(), "a/test.js"), "should be ok")
 }
+
+func TestDisableAll(t *testing.T) {
+	r := lint(t, "disable_all")
+	util.AssertEqual(t, true, r.InternalError == nil, "should be ok")
+	util.AssertEqual(t, 0, len(r.Diagnoses), "should be ok")
+}
+
+func TestEnableAll(t *testing.T) {
+	r := lint(t, "enable_all")
+	util.AssertEqual(t, true, r.InternalError == nil, "should be ok")
+	util.AssertEqual(t, 1, len(r.Diagnoses), "should be ok")
+}
+
+func TestDisableRules(t *testing.T) {
+	r := lint(t, "disable_rules")
+	util.AssertEqual(t, true, r.InternalError == nil, "should be ok")
+	util.AssertEqual(t, 1, len(r.Diagnoses), "should be ok")
+}
+
+func TestDisableNextLine(t *testing.T) {
+	r := lint(t, "disable_next_line")
+	util.AssertEqual(t, true, r.InternalError == nil, "should be ok")
+	util.AssertEqual(t, 1, len(r.Diagnoses), "should be ok")
+}

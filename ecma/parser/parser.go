@@ -192,6 +192,10 @@ func (p *Parser) BtmStmtCmts() []*span.Range {
 	return p.lexer.takePrevCmts()
 }
 
+func (p *Parser) Ast() Node {
+	return p.prog
+}
+
 func (p *Parser) Prog() (Node, error) {
 	loc := p.loc()
 	pg := NewProg()
