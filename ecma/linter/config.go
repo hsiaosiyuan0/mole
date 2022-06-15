@@ -30,6 +30,7 @@ func init() {
 		&NoAlert{},
 		&NoUnreachable{},
 		&GetterReturn{},
+		&NoEmpty{},
 	}
 
 	for _, rule := range rules {
@@ -320,10 +321,10 @@ func (c *Config) CfgOfRule(name string) *RuleCfg {
 	return c.rulesCfg[name]
 }
 
-func (c *Config) LevelOfRule(name string) DiagLevel {
+func (c *Config) LevelOfRule(name string, def DiagLevel) DiagLevel {
 	rc := c.rulesCfg[name]
 	if rc == nil {
-		return DL_ERROR
+		return def
 	}
 	return rc.Level
 }

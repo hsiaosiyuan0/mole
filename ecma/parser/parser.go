@@ -196,6 +196,10 @@ func (p *Parser) Ast() Node {
 	return p.prog
 }
 
+func (p *Parser) Lexer() *Lexer {
+	return p.lexer
+}
+
 func (p *Parser) Prog() (Node, error) {
 	loc := p.loc()
 	pg := NewProg()
@@ -217,8 +221,8 @@ func (p *Parser) Prog() (Node, error) {
 
 	pg.stmts = stmts
 	pg.loc = p.finLoc(loc)
-	pg.loc.end.line = p.lexer.src.Line()
-	pg.loc.end.col = p.lexer.src.Col()
+	pg.loc.end.Line = p.lexer.src.Line()
+	pg.loc.end.Col = p.lexer.src.Col()
 	pg.loc.rng.end = p.lexer.src.Ofst()
 
 	if err := p.checkExp(scope.Exports); err != nil {
@@ -4483,8 +4487,8 @@ func (p *Parser) checkCallee(callee Node, nextLoc *Loc) error {
 }
 
 func (p *Parser) isLtTok(tok *Token) bool {
-	line := tok.begin.line
-	col := tok.begin.col
+	line := tok.begin.Line
+	col := tok.begin.Col
 	key := uint64(line)<<32 | uint64(col)
 	_, ok := p.ltTokens[key]
 	return ok
@@ -4545,8 +4549,8 @@ func (p *Parser) callExpr(callee Node, root bool, directOpt bool, opt *Loc, notC
 			lt := tok.value == T_LT
 			var line, col uint32
 			if lt {
-				line = tok.begin.line
-				col = tok.begin.col
+				line = tok.begin.Line
+				col = tok.begin.Col
 				p.pushState()
 			}
 			// `superTypArgs` is used to represent expr like `(class extends f()<T> {})`
@@ -6422,19 +6426,19 @@ func (p *Parser) finLoc(loc *Loc) *Loc {
 func (p *Parser) errorTok(tok *Token) *ParserError {
 	if tok.value != T_ILLEGAL {
 		return newParserError(fmt.Sprintf(ERR_TPL_UNEXPECTED_TOKEN_TYPE, TokenKinds[tok.value].Name),
-			p.lexer.src.Path, tok.begin.line, tok.begin.col)
+			p.lexer.src.Path, tok.begin.Line, tok.begin.Col)
 	}
-	return newParserError(tok.ErrMsg(), p.lexer.src.Path, tok.begin.line, tok.begin.col)
+	return newParserError(tok.ErrMsg(), p.lexer.src.Path, tok.begin.Line, tok.begin.Col)
 }
 
-func (p *Parser) errorAt(tok TokenValue, pos *Pos, errMsg string) *ParserError {
+func (p *Parser) errorAt(tok TokenValue, pos *span.Pos, errMsg string) *ParserError {
 	if tok != T_ILLEGAL && errMsg == "" {
 		return newParserError(fmt.Sprintf(ERR_TPL_UNEXPECTED_TOKEN_TYPE, TokenKinds[tok].Name),
-			p.lexer.src.Path, pos.line, pos.col)
+			p.lexer.src.Path, pos.Line, pos.Col)
 	}
-	return newParserError(errMsg, p.lexer.src.Path, pos.line, pos.col)
+	return newParserError(errMsg, p.lexer.src.Path, pos.Line, pos.Col)
 }
 
 func (p *Parser) errorAtLoc(loc *Loc, errMsg string) *ParserError {
-	return newParserError(errMsg, p.lexer.src.Path, loc.begin.line, loc.begin.col)
+	return newParserError(errMsg, p.lexer.src.Path, loc.begin.Line, loc.begin.Col)
 }

@@ -2,32 +2,12 @@ package parser
 
 import "github.com/hsiaosiyuan0/mole/span"
 
-type Pos struct {
-	line uint32
-	col  uint32
-}
-
-func (p *Pos) Line() uint32 {
-	return p.line
-}
-
-func (p *Pos) Column() uint32 {
-	return p.col
-}
-
-func (p *Pos) Clone() *Pos {
-	return &Pos{
-		line: p.line,
-		col:  p.col,
-	}
-}
-
 type Token struct {
 	value TokenValue
 	text  string
 	raw   span.Range
-	begin Pos
-	end   Pos
+	begin span.Pos
+	end   span.Pos
 
 	// len of the codepoints in token. during the token is processing,
 	// it will store the begin pos of that token
@@ -39,11 +19,11 @@ type Token struct {
 	ext interface{}
 }
 
-func (t *Token) Begin() *Pos {
+func (t *Token) Begin() *span.Pos {
 	return &t.begin
 }
 
-func (t *Token) End() *Pos {
+func (t *Token) End() *span.Pos {
 	return &t.end
 }
 
@@ -180,8 +160,8 @@ type TokExtTplSpan struct {
 	str      string
 	strLen   uint32
 	strRng   span.Range
-	strBegin Pos
-	strEnd   Pos
+	strBegin span.Pos
+	strEnd   span.Pos
 
 	Plain bool
 

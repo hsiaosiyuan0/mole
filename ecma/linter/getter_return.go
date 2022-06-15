@@ -25,10 +25,10 @@ func (n *GetterReturn) Meta() *Meta {
 	}
 }
 
-var opts = plugin.DefineOptions(GetterReturnOpts{})
+var getterReturnOpts = plugin.DefineOptions(GetterReturnOpts{})
 
 func (n *GetterReturn) Options() *plugin.Options {
-	return opts
+	return getterReturnOpts
 }
 
 func (n *GetterReturn) Validate() *validator.Validate {
@@ -102,7 +102,7 @@ func (n *GetterReturn) Create(rc *RuleCtx) map[parser.NodeType]walk.ListenFn {
 	// `dup` holds this relation [fn => error]
 	dup := map[parser.Node]bool{}
 
-	fnTypes := []parser.NodeType{parser.N_EXPR_FN, parser.N_STMT_FN, parser.N_EXPR_ARROW}
+	interests := []parser.NodeType{parser.N_EXPR_FN, parser.N_STMT_FN, parser.N_EXPR_ARROW}
 	handleFn := func(node parser.Node, key string, ctx *walk.VisitorCtx) {
 		if _, ok := dup[node]; ok {
 			return
@@ -150,7 +150,7 @@ func (n *GetterReturn) Create(rc *RuleCtx) map[parser.NodeType]walk.ListenFn {
 		}
 	}
 
-	for _, nt := range fnTypes {
+	for _, nt := range interests {
 		fns[walk.NodeAfterEvent(nt)] = handleFn
 	}
 

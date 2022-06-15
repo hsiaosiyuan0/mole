@@ -600,7 +600,7 @@ func IdOfAstNode(node parser.Node) string {
 			i = "_1"
 		}
 	}
-	return fmt.Sprintf("loc%d_%d_%d%s", pos.Line(), pos.Column(), node.Type(), i)
+	return fmt.Sprintf("loc%d_%d_%d%s", pos.Line, pos.Col, node.Type(), i)
 }
 
 type Graph struct {

@@ -50,16 +50,16 @@ func (r *Range) Clone() *Range {
 
 type Loc struct {
 	src   *span.Source
-	begin *Pos
-	end   *Pos
+	begin *span.Pos
+	end   *span.Pos
 	rng   *Range
 }
 
 func NewLoc() *Loc {
 	return &Loc{
 		src:   nil,
-		begin: &Pos{},
-		end:   &Pos{},
+		begin: &span.Pos{},
+		end:   &span.Pos{},
 		rng:   &Range{},
 	}
 }
@@ -80,15 +80,15 @@ func (l *Loc) Source() string {
 	return l.src.Path
 }
 
-func (l *Loc) Begin() *Pos {
+func (l *Loc) Begin() *span.Pos {
 	return l.begin
 }
 
-func (l *Loc) SetBegin(begin *Pos) {
+func (l *Loc) SetBegin(begin *span.Pos) {
 	l.begin = begin
 }
 
-func (l *Loc) End() *Pos {
+func (l *Loc) End() *span.Pos {
 	return l.end
 }
 
@@ -610,9 +610,9 @@ func startOf(locs ...*Loc) *Loc {
 		if loc == nil {
 			continue
 		}
-		if loc.begin.line < line || (loc.begin.line == line && loc.begin.col < col) {
-			line = loc.begin.line
-			col = loc.begin.col
+		if loc.begin.Line < line || (loc.begin.Line == line && loc.begin.Col < col) {
+			line = loc.begin.Line
+			col = loc.begin.Col
 			start = i
 		}
 	}
@@ -627,9 +627,9 @@ func endOf(locs ...*Loc) *Loc {
 		if loc == nil {
 			continue
 		}
-		if loc.end.line > line || (loc.end.line == line && loc.end.col > col) {
-			line = loc.end.line
-			col = loc.end.col
+		if loc.end.Line > line || (loc.end.Line == line && loc.end.Col > col) {
+			line = loc.end.Line
+			col = loc.end.Col
 			end = i
 		}
 	}
@@ -650,13 +650,13 @@ func LocWithTypeInfo(node Node, includeParamProp bool) *Loc {
 		starLocList = append(starLocList, []*Loc{ti.BeginLoc()}...)
 	}
 	start := startOf(starLocList...)
-	loc.begin.line = start.begin.line
-	loc.begin.col = start.begin.col
+	loc.begin.Line = start.begin.Line
+	loc.begin.Col = start.begin.Col
 	loc.rng.start = start.rng.start
 
 	end := endOf(locOfNode(ti.TypAnnot()), ti.Ques(), locOfNode(node))
-	loc.end.line = end.end.line
-	loc.end.col = end.end.col
+	loc.end.Line = end.end.Line
+	loc.end.Col = end.end.Col
 	loc.rng.end = end.rng.end
 
 	return loc

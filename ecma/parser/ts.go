@@ -1597,8 +1597,8 @@ func (p *Parser) tsTryTypArgs(asyncLoc *Loc, noJsx bool) (Node, error) {
 			if pe, ok := err.(*ParserError); ok {
 				if pe.msg == ERR_UNTERMINATED_JSX_CONTENTS {
 					pe.msg = ERR_JSX_TS_LT_AMBIGUITY
-					pe.line = loc.begin.line
-					pe.col = loc.begin.col
+					pe.line = loc.begin.Line
+					pe.col = loc.begin.Col
 				}
 			}
 			return nil, err
@@ -1718,8 +1718,8 @@ func (p *Parser) tsTypArgs(canConst bool, noJsx bool) (Node, error) {
 	defer p.lexer.PopMode()
 
 	loc := p.locFromTok(p.lexer.Next()) // `<`
-	errTypArgMissingGT.line = loc.begin.line
-	errTypArgMissingGT.col = loc.begin.col
+	errTypArgMissingGT.line = loc.begin.Line
+	errTypArgMissingGT.col = loc.begin.Col
 
 	args := make([]Node, 0, 1)
 	jsx := p.feat&FEAT_JSX != 0

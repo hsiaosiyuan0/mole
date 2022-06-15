@@ -21,6 +21,7 @@ import (
 type Unit interface {
 	Lang() string
 	Config() *Config
+	HasCommentInSpan(*span.Pos, *span.Pos) bool
 	Report(*Diagnosis)
 }
 
@@ -44,7 +45,7 @@ func (u *RuleCtx) Opts() []interface{} {
 func (u *RuleCtx) Report(node parser.Node, msg string, level DiagLevel) {
 	lang := u.unit.Lang()
 	rule := u.ruleFact.Name()
-	lvl := u.Config().LevelOfRule(rule)
+	lvl := u.Config().LevelOfRule(rule, level)
 
 	dig := &Diagnosis{
 		Loc:   node.Loc().Clone(),
@@ -105,6 +106,36 @@ func (u *JsUnit) Lang() string {
 
 func (u *JsUnit) Report(dig *Diagnosis) {
 	u.linter.report(dig)
+}
+
+func (u *JsUnit) HasCommentInSpan(begin, end *span.Pos) bool {
+	lexer := u.parser.Lexer()
+	cmts := lexer.Comments()
+
+	bl := begin.Line
+	el := end.Line
+	if bl != el {
+		for i := bl; i <= el; i++ {
+			if _, ok := cmts[i]; ok {
+				return true
+			}
+		}
+		return false
+	}
+
+	line := cmts[bl]
+	if len(line) == 0 {
+		return false
+	}
+
+	bc := begin.Col
+	ec := end.Col
+	for i := bc; i <= ec; i++ {
+		if _, ok := line[i]; ok {
+			return true
+		}
+	}
+	return false
 }
 
 func isJsFile(f string) bool {
@@ -406,7 +437,7 @@ func (l *Linter) report(dig *Diagnosis) {
 	defer l.diagsLock.Unlock()
 
 	file := dig.Loc.Source()
-	line := dig.Loc.Begin().Line()
+	line := dig.Loc.Begin().Line
 
 	list := l.diags[file]
 	if list == nil {
@@ -527,8 +558,8 @@ func (d *Diagnosis) MarshalJSON() ([]byte, error) {
 		Level uint16 `json:"level"`
 		Msg   string `json:"Msg"`
 	}{
-		Line:  d.Loc.Begin().Line(),
-		Col:   d.Loc.Begin().Column(),
+		Line:  d.Loc.Begin().Line,
+		Col:   d.Loc.Begin().Col,
 		Lang:  d.Lang,
 		Rule:  d.Rule,
 		Level: uint16(d.Level),

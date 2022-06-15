@@ -2,10 +2,11 @@ package estree
 
 import (
 	"github.com/hsiaosiyuan0/mole/ecma/parser"
+	"github.com/hsiaosiyuan0/mole/span"
 )
 
-func pos(p *parser.Pos) *Position {
-	return &Position{Line: int(p.Line()), Column: int(p.Column())}
+func pos(p *span.Pos) *Position {
+	return &Position{Line: int(p.Line), Column: int(p.Col)}
 }
 
 func loc(s *parser.Loc) *SrcLoc {

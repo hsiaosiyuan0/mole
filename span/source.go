@@ -257,3 +257,15 @@ func (r *Range) Clone() *Range {
 		Hi:  r.Hi,
 	}
 }
+
+type Pos struct {
+	Line uint32
+	Col  uint32
+}
+
+func (p *Pos) Clone() *Pos {
+	return &Pos{
+		Line: p.Line,
+		Col:  p.Col,
+	}
+}

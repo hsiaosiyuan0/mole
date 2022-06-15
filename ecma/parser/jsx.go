@@ -194,8 +194,8 @@ func (p *Parser) jsxExpr(loc *Loc) (Node, error) {
 	} else if av == T_BRACE_R {
 		tok := p.lexer.Next()
 		// adjust loc of the empty node
-		locAfterBrace.end.line = tok.begin.line
-		locAfterBrace.end.col = tok.begin.col - 1
+		locAfterBrace.end.Line = tok.begin.Line
+		locAfterBrace.end.Col = tok.begin.Col - 1
 		locAfterBrace.rng.end = tok.raw.Lo
 		empty = &JsxEmpty{N_JSX_EMPTY, locAfterBrace}
 		expr = &JsxExprSpan{N_JSX_EXPR_SPAN, p.finLoc(loc), empty}
