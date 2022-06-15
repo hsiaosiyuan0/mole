@@ -151,7 +151,7 @@ func (c *Config) Init() error {
 	return nil
 }
 
-func (c *Config) addRuleFact(rfs []RuleFact) error {
+func (c *Config) AddRuleFacts(rfs []RuleFact) error {
 	for _, rf := range rfs {
 		for _, la := range rf.Meta().Lang {
 			if c.ruleFacts[la] == nil {
@@ -182,7 +182,7 @@ func (c *Config) InitPlugins() error {
 		if err != nil {
 			return err
 		}
-		if err = c.addRuleFact(rfs); err != nil {
+		if err = c.AddRuleFacts(rfs); err != nil {
 			return err
 		}
 	}

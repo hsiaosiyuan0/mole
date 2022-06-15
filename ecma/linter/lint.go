@@ -2,6 +2,7 @@ package linter
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"path"
@@ -330,6 +331,8 @@ type Linter struct {
 	// file => line => diagnoses
 	diags     map[string]map[uint32][]*Diagnosis
 	diagsLock sync.Mutex
+
+	r *Reports
 }
 
 func NewLinter(dir string, cfg *Config, skipBuiltin bool) (*Linter, error) {
@@ -364,6 +367,7 @@ func NewLinter(dir string, cfg *Config, skipBuiltin bool) (*Linter, error) {
 		cfgMap:    map[string]*Config{},
 		diags:     map[string]map[uint32][]*Diagnosis{},
 		diagsLock: sync.Mutex{},
+		r:         newReports(),
 	}
 	l.setCfgMap(dir, cfg)
 	return l, nil
@@ -416,8 +420,20 @@ func (l *Linter) report(dig *Diagnosis) {
 	list[line] = append(diags, dig)
 }
 
+func (l *Linter) Config() *Config {
+	return l.cfg
+}
+
 func (l *Linter) Process() *Reports {
 	w := util.NewDirWalker(l.dir, 0, func(f string, dir bool, dw *util.DirWalker) {
+		defer func() {
+			if r := recover(); r != nil {
+				msg := fmt.Sprintf("unexpected error in uint routine, error: %v, src: %v", r, f)
+				err := errors.New(msg)
+				l.r.addAbnormals(err)
+			}
+		}()
+
 		if dir {
 			if _, ok := l.cfgMap[f]; ok {
 				return
@@ -448,12 +464,14 @@ func (l *Linter) Process() *Reports {
 		if isJsFile(f) {
 			code, err := ioutil.ReadFile(f)
 			if err != nil {
-				dw.Stop(err)
+				l.r.addAbnormals(err)
+				return
 			}
 
 			u, err := NewJsUnit(f, string(code), cfg)
 			if err != nil {
-				dw.Stop(err)
+				l.r.addAbnormals(err)
+				return
 			}
 
 			u.linter = l
@@ -464,21 +482,20 @@ func (l *Linter) Process() *Reports {
 
 	w.Walk()
 
-	return l.genReports(w.Err())
+	if w.Err() != nil {
+		l.r.addAbnormals(w.Err())
+	}
+
+	return l.mrkReports()
 }
 
-func (l *Linter) genReports(internalErr error) *Reports {
-	r := &Reports{
-		InternalError: internalErr,
-		Diagnoses:     []*Diagnosis{},
-	}
-
+func (l *Linter) mrkReports() *Reports {
 	for _, line := range l.diags {
 		for _, dig := range line {
-			r.Diagnoses = append(r.Diagnoses, dig...)
+			l.r.Diagnoses = append(l.r.Diagnoses, dig...)
 		}
 	}
-	return r
+	return l.r
 }
 
 type DiagLevel uint16
@@ -517,6 +534,25 @@ func (d *Diagnosis) MarshalJSON() ([]byte, error) {
 }
 
 type Reports struct {
-	InternalError error        `json:"internalError"`
-	Diagnoses     []*Diagnosis `json:"diagnoses"`
+	// the errors occur in the internal, they maybe caused by some bugs in the internal
+	Abnormals []error      `json:"abnormals"`
+	Diagnoses []*Diagnosis `json:"diagnoses"`
+
+	abnormalsLock sync.Mutex
+}
+
+func newReports() *Reports {
+	return &Reports{
+		Abnormals: []error{},
+		Diagnoses: []*Diagnosis{},
+
+		abnormalsLock: sync.Mutex{},
+	}
+}
+
+func (r *Reports) addAbnormals(err error) {
+	r.abnormalsLock.Lock()
+	defer r.abnormalsLock.Unlock()
+
+	r.Abnormals = append(r.Abnormals, err)
 }

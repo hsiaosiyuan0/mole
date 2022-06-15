@@ -9,6 +9,8 @@ import (
 	"testing"
 
 	"github.com/hsiaosiyuan0/mole/ecma/linter"
+	"github.com/hsiaosiyuan0/mole/ecma/parser"
+	"github.com/hsiaosiyuan0/mole/ecma/walk"
 	"github.com/hsiaosiyuan0/mole/plugin"
 	"github.com/hsiaosiyuan0/mole/util"
 )
@@ -117,12 +119,12 @@ func TestProcess(t *testing.T) {
 	}
 
 	r := linter.Process()
-	util.AssertEqual(t, true, r.InternalError == nil, "should be ok")
+	util.AssertEqual(t, 0, len(r.Abnormals), "should be ok")
 	util.AssertEqual(t, 1, len(r.Diagnoses), "should be ok")
 	util.AssertEqual(t, "disallow the use of `alert`, `confirm`, and `prompt`", r.Diagnoses[0].Msg, "should be ok")
 }
 
-func lint(t *testing.T, rule string) *linter.Reports {
+func mkrLinter(t *testing.T, rule string) *linter.Linter {
 	_, b, _, _ := runtime.Caller(0)
 	basepath := filepath.Dir(b)
 
@@ -133,72 +135,107 @@ func lint(t *testing.T, rule string) *linter.Reports {
 		t.Fatal(err)
 	}
 
-	return linter.Process()
+	return linter
 }
 
 func TestNoAlert(t *testing.T) {
-	r := lint(t, "no_alert")
-	util.AssertEqual(t, true, r.InternalError == nil, "should be ok")
+	r := mkrLinter(t, "no_alert").Process()
+	util.AssertEqual(t, 0, len(r.Abnormals), "should be ok")
 	util.AssertEqual(t, 1, len(r.Diagnoses), "should be ok")
 	util.AssertEqual(t, "disallow the use of `alert`, `confirm`, and `prompt`", r.Diagnoses[0].Msg, "should be ok")
 }
 
 func TestNoUnreachable(t *testing.T) {
-	r := lint(t, "no_unreachable")
-	util.AssertEqual(t, true, r.InternalError == nil, "should be ok")
+	r := mkrLinter(t, "no_unreachable").Process()
+	util.AssertEqual(t, 0, len(r.Abnormals), "should be ok")
 	util.AssertEqual(t, 1, len(r.Diagnoses), "should be ok")
 	util.AssertEqual(t, "disallow unreachable code", r.Diagnoses[0].Msg, "should be ok")
 }
 
 func TestIgnore(t *testing.T) {
-	r := lint(t, "ignore")
-	util.AssertEqual(t, true, r.InternalError == nil, "should be ok")
+	r := mkrLinter(t, "ignore").Process()
+	util.AssertEqual(t, 0, len(r.Abnormals), "should be ok")
 	util.AssertEqual(t, 1, len(r.Diagnoses), "should be ok")
 	util.AssertEqual(t, true, strings.HasSuffix(r.Diagnoses[0].Loc.Source(), "test1.js"), "should be ok")
 }
 
 func TestIgnoreFile(t *testing.T) {
-	r := lint(t, "ignore_file")
-	util.AssertEqual(t, true, r.InternalError == nil, "should be ok")
+	r := mkrLinter(t, "ignore_file").Process()
+	util.AssertEqual(t, 0, len(r.Abnormals), "should be ok")
 	util.AssertEqual(t, 1, len(r.Diagnoses), "should be ok")
 	util.AssertEqual(t, true, strings.HasSuffix(r.Diagnoses[0].Loc.Source(), "test1.js"), "should be ok")
 }
 
 func TestIgnoreRoot(t *testing.T) {
-	r := lint(t, "ignore_root")
-	util.AssertEqual(t, true, r.InternalError == nil, "should be ok")
+	r := mkrLinter(t, "ignore_root").Process()
+	util.AssertEqual(t, 0, len(r.Abnormals), "should be ok")
 	util.AssertEqual(t, 1, len(r.Diagnoses), "should be ok")
 	util.AssertEqual(t, true, strings.HasSuffix(r.Diagnoses[0].Loc.Source(), "a/test.js"), "should be ok")
 }
 
 func TestIgnoreNestOverride(t *testing.T) {
 	// the nested `.eslintignore` needs a `.eslintrc.js` to active the nested config resolution
-	r := lint(t, "ignore_nested")
-	util.AssertEqual(t, true, r.InternalError == nil, "should be ok")
+	r := mkrLinter(t, "ignore_nested").Process()
+	util.AssertEqual(t, 0, len(r.Abnormals), "should be ok")
 	util.AssertEqual(t, 1, len(r.Diagnoses), "should be ok")
 	util.AssertEqual(t, true, strings.HasSuffix(r.Diagnoses[0].Loc.Source(), "a/test.js"), "should be ok")
 }
 
 func TestDisableAll(t *testing.T) {
-	r := lint(t, "disable_all")
-	util.AssertEqual(t, true, r.InternalError == nil, "should be ok")
+	r := mkrLinter(t, "disable_all").Process()
+	util.AssertEqual(t, 0, len(r.Abnormals), "should be ok")
 	util.AssertEqual(t, 0, len(r.Diagnoses), "should be ok")
 }
 
 func TestEnableAll(t *testing.T) {
-	r := lint(t, "enable_all")
-	util.AssertEqual(t, true, r.InternalError == nil, "should be ok")
+	r := mkrLinter(t, "enable_all").Process()
+	util.AssertEqual(t, 0, len(r.Abnormals), "should be ok")
 	util.AssertEqual(t, 1, len(r.Diagnoses), "should be ok")
 }
 
 func TestDisableRules(t *testing.T) {
-	r := lint(t, "disable_rules")
-	util.AssertEqual(t, true, r.InternalError == nil, "should be ok")
+	r := mkrLinter(t, "disable_rules").Process()
+	util.AssertEqual(t, 0, len(r.Abnormals), "should be ok")
 	util.AssertEqual(t, 1, len(r.Diagnoses), "should be ok")
 }
 
 func TestDisableNextLine(t *testing.T) {
-	r := lint(t, "disable_next_line")
-	util.AssertEqual(t, true, r.InternalError == nil, "should be ok")
+	r := mkrLinter(t, "disable_next_line").Process()
+	util.AssertEqual(t, 0, len(r.Abnormals), "should be ok")
+	util.AssertEqual(t, 1, len(r.Diagnoses), "should be ok")
+}
+
+type PanicByNum struct{}
+
+func (n *PanicByNum) Name() string {
+	return "PanicInCallExpr"
+}
+
+func (n *PanicByNum) Meta() *linter.Meta {
+	return &linter.Meta{
+		Lang: []string{linter.RL_JS},
+		Kind: linter.RK_LINT_SEMANTIC,
+		Docs: linter.Docs{
+			Desc: "",
+			Url:  "",
+		},
+	}
+}
+
+func (n *PanicByNum) Create(rc *linter.RuleCtx) map[parser.NodeType]walk.ListenFn {
+	return map[parser.NodeType]walk.ListenFn{
+		walk.NodeBeforeEvent(parser.N_LIT_NUM): func(node parser.Node, key string, ctx *walk.VisitorCtx) {
+			panic("panic by num")
+		},
+	}
+}
+
+// panic in one unit should interrupt the other units's routines
+func TestPanicInRule(t *testing.T) {
+	lin := mkrLinter(t, "panic_in_rule")
+	lin.Config().AddRuleFacts([]linter.RuleFact{&PanicByNum{}})
+
+	r := lin.Process()
+	util.AssertEqual(t, 1, len(r.Abnormals), "should be ok")
 	util.AssertEqual(t, 1, len(r.Diagnoses), "should be ok")
 }
