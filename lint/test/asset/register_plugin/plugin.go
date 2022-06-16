@@ -2,15 +2,15 @@ package main
 
 import (
 	"github.com/go-playground/validator/v10"
-	"github.com/hsiaosiyuan0/mole/ecma/linter"
 	"github.com/hsiaosiyuan0/mole/ecma/parser"
 	"github.com/hsiaosiyuan0/mole/ecma/walk"
+	"github.com/hsiaosiyuan0/mole/lint"
 	"github.com/hsiaosiyuan0/mole/plugin"
 	"github.com/hsiaosiyuan0/mole/util"
 )
 
-func Register() []linter.RuleFact {
-	return []linter.RuleFact{
+func Register() []lint.RuleFact {
+	return []lint.RuleFact{
 		&NoAlert{},
 	}
 }
@@ -21,11 +21,11 @@ func (n *NoAlert) Name() string {
 	return "no-alert"
 }
 
-func (n *NoAlert) Meta() *linter.Meta {
-	return &linter.Meta{
-		Lang: []string{linter.RL_JS},
-		Kind: linter.RK_LINT_SEMANTIC,
-		Docs: linter.Docs{
+func (n *NoAlert) Meta() *lint.Meta {
+	return &lint.Meta{
+		Lang: []string{lint.RL_JS},
+		Kind: lint.RK_LINT_SEMANTIC,
+		Docs: lint.Docs{
 			Desc: "",
 			Url:  "",
 		},
@@ -46,12 +46,12 @@ func (n *NoAlert) Validates() map[int]plugin.Validate {
 
 var forbids = []string{"alert", "confirm", "prompt"}
 
-func (n *NoAlert) Create(rc *linter.RuleCtx) map[parser.NodeType]walk.ListenFn {
+func (n *NoAlert) Create(rc *lint.RuleCtx) map[parser.NodeType]walk.ListenFn {
 	return map[parser.NodeType]walk.ListenFn{
 		walk.NodeBeforeEvent(parser.N_EXPR_CALL): func(node parser.Node, key string, ctx *walk.VisitorCtx) {
 			callee := node.(*parser.CallExpr).Callee()
 			if callee.Type() == parser.N_NAME && util.Includes(forbids, callee.Loc().Text()) {
-				rc.Report(node, "disallow the use of `alert`, `confirm`, and `prompt`", linter.DL_ERROR)
+				rc.Report(node, "disallow the use of `alert`, `confirm`, and `prompt`", lint.DL_ERROR)
 			}
 		},
 	}

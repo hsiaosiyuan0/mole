@@ -1,5 +1,4 @@
 .DS_Store
-/lint
 bin
 lint.exe
 *.log

@@ -1,4 +1,4 @@
-package linter
+package lint
 
 import (
 	"github.com/go-playground/validator/v10"

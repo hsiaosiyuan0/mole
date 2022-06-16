@@ -1,4 +1,4 @@
-package linter
+package lint
 
 import "github.com/hsiaosiyuan0/mole/ecma/parser"
 

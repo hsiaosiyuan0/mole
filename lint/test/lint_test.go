@@ -1,4 +1,4 @@
-package plugin_test
+package lint_test
 
 import (
 	"fmt"
@@ -9,9 +9,9 @@ import (
 	"testing"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/hsiaosiyuan0/mole/ecma/linter"
 	"github.com/hsiaosiyuan0/mole/ecma/parser"
 	"github.com/hsiaosiyuan0/mole/ecma/walk"
+	"github.com/hsiaosiyuan0/mole/lint"
 	"github.com/hsiaosiyuan0/mole/plugin"
 	"github.com/hsiaosiyuan0/mole/util"
 )
@@ -48,7 +48,7 @@ func TestLoadJsCfg(t *testing.T) {
 
 	cf := path.Join(basepath, "asset", "resolve_plugin", ".eslintrc.js")
 
-	cfg, err := linter.NewConfig(cf, nil)
+	cfg, err := lint.NewConfig(cf, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -62,7 +62,7 @@ func TestLoadJsCfgInDir(t *testing.T) {
 
 	dir := path.Join(basepath, "asset", "resolve_plugin")
 
-	cfg, err := linter.LoadCfgInDir(dir, nil)
+	cfg, err := lint.LoadCfgInDir(dir, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -76,7 +76,7 @@ func TestIgnorePattern(t *testing.T) {
 
 	dir := path.Join(basepath, "asset", "resolve_plugin")
 
-	cfg, err := linter.LoadCfgInDir(dir, nil)
+	cfg, err := lint.LoadCfgInDir(dir, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -95,7 +95,7 @@ func TestRegisterPlugin(t *testing.T) {
 	dir := path.Join(basepath, "asset", "register_plugin")
 	util.ShellInDir(dir, "go", "build", "-buildmode=plugin", fmt.Sprintf("-o=node_modules/go-cross-ci-demo/build/go-cross-ci-demo-%s-%s", runtime.GOOS, runtime.GOARCH))
 
-	cfg, err := linter.LoadCfgInDir(dir, nil)
+	cfg, err := lint.LoadCfgInDir(dir, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -104,7 +104,7 @@ func TestRegisterPlugin(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	util.AssertEqual(t, 1, len(cfg.RuleFactsLang()[linter.RL_JS]), "should be ok")
+	util.AssertEqual(t, 1, len(cfg.RuleFactsLang()[lint.RL_JS]), "should be ok")
 }
 
 func TestProcess(t *testing.T) {
@@ -114,7 +114,7 @@ func TestProcess(t *testing.T) {
 	dir := path.Join(basepath, "asset", "register_plugin")
 	util.ShellInDir(dir, "go", "build", "-buildmode=plugin", fmt.Sprintf("-o=node_modules/go-cross-ci-demo/build/go-cross-ci-demo-%s-%s", runtime.GOOS, runtime.GOARCH))
 
-	linter, err := linter.NewLinter(dir, nil, true)
+	linter, err := lint.NewLinter(dir, nil, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -125,13 +125,13 @@ func TestProcess(t *testing.T) {
 	util.AssertEqual(t, "disallow the use of `alert`, `confirm`, and `prompt`", r.Diagnoses[0].Msg, "should be ok")
 }
 
-func mkrLinter(t *testing.T, rule string) *linter.Linter {
+func mkrLinter(t *testing.T, rule string) *lint.Linter {
 	_, b, _, _ := runtime.Caller(0)
 	basepath := filepath.Dir(b)
 
 	dir := path.Join(basepath, "asset", rule)
 
-	linter, err := linter.NewLinter(dir, nil, false)
+	linter, err := lint.NewLinter(dir, nil, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -212,11 +212,11 @@ func (n *PanicByNum) Name() string {
 	return "PanicInCallExpr"
 }
 
-func (n *PanicByNum) Meta() *linter.Meta {
-	return &linter.Meta{
-		Lang: []string{linter.RL_JS},
-		Kind: linter.RK_LINT_SEMANTIC,
-		Docs: linter.Docs{
+func (n *PanicByNum) Meta() *lint.Meta {
+	return &lint.Meta{
+		Lang: []string{lint.RL_JS},
+		Kind: lint.RK_LINT_SEMANTIC,
+		Docs: lint.Docs{
 			Desc: "",
 			Url:  "",
 		},
@@ -235,7 +235,7 @@ func (n *PanicByNum) Validates() map[int]plugin.Validate {
 	return nil
 }
 
-func (n *PanicByNum) Create(rc *linter.RuleCtx) map[parser.NodeType]walk.ListenFn {
+func (n *PanicByNum) Create(rc *lint.RuleCtx) map[parser.NodeType]walk.ListenFn {
 	return map[parser.NodeType]walk.ListenFn{
 		walk.NodeBeforeEvent(parser.N_LIT_NUM): func(node parser.Node, key string, ctx *walk.VisitorCtx) {
 			panic("panic by num")
@@ -246,7 +246,7 @@ func (n *PanicByNum) Create(rc *linter.RuleCtx) map[parser.NodeType]walk.ListenF
 // panic in one unit should interrupt the other units's routines
 func TestPanicInRule(t *testing.T) {
 	lin := mkrLinter(t, "panic_in_rule")
-	lin.Config().AddRuleFacts([]linter.RuleFact{&PanicByNum{}})
+	lin.Config().AddRuleFacts([]lint.RuleFact{&PanicByNum{}})
 
 	r := lin.Process()
 	util.AssertEqual(t, 1, len(r.Abnormals), "should be ok")
