@@ -1,0 +1,10 @@
+{
+  "name": "node-resolve-index",
+  "exports": {
+    "./b1.js": "./b.js",
+    "./b2.js": "./b.js"
+  },
+  "imports": {
+    "#dep": "./b.js"
+  }
+}
