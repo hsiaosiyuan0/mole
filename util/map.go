@@ -24,17 +24,28 @@ func (o *OrderedMap[k, v]) HasKey(key k) bool {
 	return ok
 }
 
-func (o *OrderedMap[k, v]) Set(key k, val v) {
+func (o *OrderedMap[k, v]) Get(key k) (vv v) {
+	kv, ok := o.dict[key]
+	if ok {
+		vv = kv.Value.(*KvPair[k, v]).Val
+		return
+	}
+	return
+}
+
+func (o *OrderedMap[k, v]) Set(key k, val v) *list.Element {
 	pair := &KvPair[k, v]{key, val}
 
 	if old, ok := o.dict[key]; ok {
-		elem := o.list.InsertBefore(pair, old)
-		o.dict[key] = elem
-		o.list.Remove(old)
-	} else {
 		elem := o.list.PushBack(pair)
 		o.dict[key] = elem
+		o.list.Remove(old)
+		return elem
 	}
+
+	elem := o.list.PushBack(pair)
+	o.dict[key] = elem
+	return elem
 }
 
 func (o *OrderedMap[k, v]) Remove(key k) {

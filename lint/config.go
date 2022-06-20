@@ -305,7 +305,7 @@ func (c *Config) IsIgnored(f string) bool {
 	if c.matcher == nil {
 		return false
 	}
-	isDir, _ := util.IsDir(f)
+	isDir := util.IsDir(f)
 	return c.matcher.Match(strings.Split(f, string(filepath.Separator)), isDir)
 }
 

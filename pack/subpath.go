@@ -128,11 +128,27 @@ func isTacitSubpath(c map[string]interface{}) bool {
 	return false
 }
 
-func NewSubpathGrp(c map[string]interface{}) (*SubpathGrp, error) {
-	if isTacitSubpath(c) {
-		c = map[string]interface{}{
-			".": c,
+// the type of `c`` should be `string` or `map[string]interface{}``
+func NewSubpathGrp(c interface{}) (*SubpathGrp, error) {
+	var cm map[string]interface{}
+
+	switch vc := c.(type) {
+	case string:
+		cm = map[string]interface{}{
+			".": map[string]interface{}{
+				"default": vc,
+			},
 		}
+	case map[string]interface{}:
+		if isTacitSubpath(vc) {
+			cm = map[string]interface{}{
+				".": vc,
+			}
+		} else {
+			cm = vc
+		}
+	default:
+		return nil, errors.New(fmt.Sprintf("deformed subpath group: %v", c))
 	}
 
 	sg := &SubpathGrp{
@@ -140,7 +156,7 @@ func NewSubpathGrp(c map[string]interface{}) (*SubpathGrp, error) {
 		pos: []*Subpath{},
 	}
 
-	for src, cond := range c {
+	for src, cond := range cm {
 		s, err := NewSubpath(src, cond)
 		if err != nil {
 			return nil, err
@@ -149,7 +165,7 @@ func NewSubpathGrp(c map[string]interface{}) (*SubpathGrp, error) {
 		if cond == nil {
 			sg.neg = append(sg.neg, s)
 		} else {
-			sg.pos = append(sg.neg, s)
+			sg.pos = append(sg.pos, s)
 		}
 	}
 

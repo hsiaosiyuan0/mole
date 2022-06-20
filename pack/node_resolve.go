@@ -2,12 +2,13 @@ package pack
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/fs"
-	"os"
 	"path"
 	"path/filepath"
 	"strings"
+	"sync"
 	"syscall"
 
 	"github.com/hsiaosiyuan0/mole/util"
@@ -16,51 +17,24 @@ import (
 type NodeResolver struct {
 	pkgLoader *PkginfoLoader
 
-	// both `LOAD_PACKAGE_IMPORTS(X, DIR)` and `LOAD_PACKAGE_SELF(X, DIR)` has a nerd strategy
-	// described as `Find the closest package scope SCOPE to DIR`, which means each part of
-	// the `DIR` should be taken in account to found out if there is a `package.json` in it.
-	//
-	// consider below example:
-	//
-	// ```js
-	// // current file `a-package/b/c/d.mjs`
-	// import "a-package/b/c/d.mjs"
-	// ```
-	//
-	// above import semantic will be handled by the `LOAD_PACKAGE_SELF(X, DIR)` function, then
-	// `a-package/b/c` and `a-package/b` are needed to be checked in `order` to find out if there
-	// is a `package.json` under one of them, obviously it will lost the performance
-	//
-	// a trade-off is made in mole after considering the resolving-performance and spec-compatibility,
-	// its key is the `pki` field, the caller specify the `approximately` closest scope via this field
-	// instead of bubbling up the directory parts
-	//
-	// let's still base on above example, the value of `pki` should be the instance of the `package.json`
-	// under the directory of the module `a-package`, expressed like `a-package/package.json`, in other words
-	// the processes to of `a-package/b/c/package.json` and `a-package/b/package.json` are skipped, so if
-	// there is really either a-package/b/c/package.json` or `a-package/b/package.json` then the result is
-	// a mistake, that's why the `a-package/package.json` is called a `approximately` closest scope
-	pki *Pkginfo
+	self *Pkginfo
 
 	target  string
 	cw      string
 	imports [][]string
 	exports [][]string
-	exts    map[string]bool
+	exts    []string
 	builtin map[string]bool
 
 	tried []string
 }
 
-func NewNodeResolver(pki *Pkginfo, target string, cw string, exports [][]string, imports [][]string,
-	exts map[string]bool, builtin map[string]bool, pkginfoLoader *PkginfoLoader) *NodeResolver {
+func NewNodeResolver(exports [][]string, imports [][]string,
+	exts []string, builtin map[string]bool, pkginfoLoader *PkginfoLoader) *NodeResolver {
 
 	r := &NodeResolver{
 		pkgLoader: pkginfoLoader,
 
-		pki:     pki,
-		target:  target,
-		cw:      cw,
 		exports: exports,
 		imports: imports,
 		exts:    exts,
@@ -88,7 +62,10 @@ func NewNodeResolver(pki *Pkginfo, target string, cw string, exports [][]string,
 // checkout: https://nodejs.org/api/modules.html#modules_all_together
 //
 // `target` and `cw` cannot be empty string
-func (r *NodeResolver) Resolve() (string, error) {
+func (r *NodeResolver) Resolve(target string, cw string) (string, error) {
+	r.target = target
+	r.cw = cw
+
 	if r.isBuiltin(r.target) {
 		return "", nil
 	}
@@ -114,6 +91,11 @@ func (r *NodeResolver) Resolve() (string, error) {
 			return "", err
 		}
 		return f, nil
+	}
+
+	var err error
+	if r.self, err = r.pkgLoader.closest(r.cw); err != nil {
+		return "", err
 	}
 
 	if c == '#' {
@@ -143,11 +125,7 @@ func (r *NodeResolver) try(target string) {
 	r.tried = append(r.tried, target)
 }
 
-var jsDefaultExtensions = map[string]bool{
-	".js":   true,
-	".json": true,
-	".node": true,
-}
+var jsDefaultExtensions = []string{".js", ".json", ".node"}
 
 // target can be either directory or normal file
 func (r *NodeResolver) loadAsFile(target []string) string {
@@ -161,7 +139,7 @@ func (r *NodeResolver) loadAsFile(target []string) string {
 		return ""
 	}
 
-	for ext := range r.exts {
+	for _, ext := range r.exts {
 		fe := file + ext
 		if util.IsFile(fe) {
 			return fe
@@ -178,8 +156,7 @@ func (r *NodeResolver) loadIndex(target []string) string {
 
 // target must be a directory
 func (r *NodeResolver) loadAsDir(target []string, raise bool) (string, error) {
-	pkg := filepath.Join(filepath.Join(target...), "package.json")
-	pki, err := r.pkgLoader.Load(pkg)
+	pki, err := r.pkgLoader.Load(filepath.Join(append(target, "package.json")...))
 	if err != nil {
 		switch ev := err.(type) {
 		case *fs.PathError:
@@ -243,16 +220,16 @@ func (r *NodeResolver) loadModule(target []string, start []string) (string, erro
 }
 
 func (r *NodeResolver) loadPkgImports(target []string) (string, error) {
-	if r.pki.imports == nil {
+	if r.self.imports == nil {
 		return "", newNoModErr(r)
 	}
 
-	ok, m := r.pki.imports.Match(path.Join(target...), r.exports)
+	ok, m := r.self.imports.Match(path.Join(target...), r.exports)
 	if !ok {
 		return "", nil
 	}
 
-	file := append(r.pki.dir, pathSplit(m)...)
+	file := append(r.self.dir, pathSplit(m)...)
 	if f := r.loadAsFile(file); f != "" {
 		return f, nil
 	}
@@ -275,12 +252,12 @@ func subpathOf(target []string) ([]string, []string) {
 }
 
 func (r *NodeResolver) loadPkgSelf(target []string, dir []string) (string, error) {
-	if r.pki.exports == nil {
+	if r.self.exports == nil {
 		return "", nil
 	}
 
 	name, subpath := subpathOf(target)
-	if r.pki.Name != path.Join(name...) {
+	if r.self.Name != path.Join(name...) {
 		return "", nil
 	}
 
@@ -291,23 +268,23 @@ func (r *NodeResolver) loadPkgSelf(target []string, dir []string) (string, error
 
 	// load as file
 	if sp == "." || filepath.Ext(sp) != "" {
-		ok, m := r.pki.exports.Match(sp, r.exports)
+		ok, m := r.self.exports.Match(sp, r.exports)
 		if !ok {
 			return "", nil
 		}
 
-		file := append(r.pki.dir, pathSplit(m)...)
+		file := append(r.self.dir, pathSplit(m)...)
 		if f := r.loadAsFile(file); f != "" {
 			return f, nil
 		}
 	} else {
-		for ext := range r.exts {
-			ok, m := r.pki.exports.Match(sp+ext, r.exports)
+		for _, ext := range r.exts {
+			ok, m := r.self.exports.Match(sp+ext, r.exports)
 			if !ok {
 				return "", nil
 			}
 
-			file := append(r.pki.dir, pathSplit(m)...)
+			file := append(r.self.dir, pathSplit(m)...)
 			if f := r.loadAsFile(file); f != "" {
 				return f, nil
 			}
@@ -315,11 +292,11 @@ func (r *NodeResolver) loadPkgSelf(target []string, dir []string) (string, error
 	}
 
 	// load as dir
-	ok, m := r.pki.exports.Match(sp, r.exports)
+	ok, m := r.self.exports.Match(sp, r.exports)
 	if !ok {
 		return "", nil
 	}
-	f, err := r.loadAsDir(append(r.pki.dir, pathSplit(m)...), false)
+	f, err := r.loadAsDir(append(r.self.dir, pathSplit(m)...), false)
 	if err != nil {
 		return "", err
 	}
@@ -330,8 +307,7 @@ func (r *NodeResolver) loadPkgExports(target []string, dir []string) (string, er
 	name, subpath := subpathOf(target)
 	scope := append(dir, name...)
 
-	pkg := filepath.Join(append(scope, "package.json")...)
-	pki, err := r.pkgLoader.Load(pkg)
+	pki, err := r.pkgLoader.Load(filepath.Join(append(scope, "package.json")...))
 	if err != nil {
 		switch ev := err.(type) {
 		case *fs.PathError:
@@ -364,7 +340,7 @@ func (r *NodeResolver) loadPkgExports(target []string, dir []string) (string, er
 			return f, nil
 		}
 	} else {
-		for ext := range r.exts {
+		for _, ext := range r.exts {
 			ok, m := pki.exports.Match(sp+ext, r.exports)
 			if !ok {
 				return "", nil
@@ -389,6 +365,7 @@ func (r *NodeResolver) loadPkgExports(target []string, dir []string) (string, er
 	return f, nil
 }
 
+// only stores the info for module resolution
 type Pkginfo struct {
 	Name       string                 `json:"name"`
 	Main       string                 `json:"main"`
@@ -418,26 +395,113 @@ func (pi *Pkginfo) compile() error {
 }
 
 type PkginfoLoader struct {
-	// path => info
-	cache *util.LruCache[string, *Pkginfo]
+	loader *FileLoader
+
+	store map[string]*Pkginfo
+	lock  sync.RWMutex
+
+	// cache the path where `package.json` does not exist
+	notFound     map[string]bool
+	notFoundLock sync.RWMutex
 }
 
-func NewPkginfoLoader(cap int, clear int) *PkginfoLoader {
-	return &PkginfoLoader{
-		cache: util.NewLruCache[string, *Pkginfo](cap, clear),
+func NewPkginfoLoader(fl *FileLoader) *PkginfoLoader {
+	if fl == nil {
+		fl = NewFileLoader(1024, 10)
 	}
+
+	return &PkginfoLoader{
+		loader: fl,
+
+		store: map[string]*Pkginfo{},
+		lock:  sync.RWMutex{},
+
+		notFound:     map[string]bool{},
+		notFoundLock: sync.RWMutex{},
+	}
+}
+
+// directly get info from cache
+func (lo *PkginfoLoader) Get(file string) *Pkginfo {
+	lo.lock.RLock()
+	defer lo.lock.RUnlock()
+
+	return lo.store[file]
+}
+
+func (lo *PkginfoLoader) setNotFound(file string, err error) {
+	lo.notFoundLock.Lock()
+	defer lo.notFoundLock.Unlock()
+
+	switch ev := err.(type) {
+	case *fs.PathError:
+		if ev.Unwrap() == syscall.ENOENT {
+			lo.notFound[file] = true
+		}
+	}
+}
+
+func (lo *PkginfoLoader) isNotFound(file string) bool {
+	lo.lock.RLock()
+	defer lo.lock.RUnlock()
+
+	return lo.notFound[file] == true
 }
 
 func (lo *PkginfoLoader) Load(file string) (*Pkginfo, error) {
-	if lo.cache.HasKey(file) {
-		return lo.cache.Get(file), nil
+	if hit := lo.Get(file); hit != nil {
+		return hit, nil
 	}
 
-	code, err := os.ReadFile(file)
+	f, err := lo.loader.Load(file)
 	if err != nil {
 		return nil, err
 	}
 
+	var pi *Pkginfo
+	switch fv := f.(type) {
+	case []byte: // done
+		if pi, err = lo.compile(file, fv); err != nil {
+			lo.setNotFound(file, err)
+			return nil, err
+		}
+	case chan *FileLoadResult:
+		f := <-fv // wait
+		if f.err != nil {
+			return nil, f.err
+		}
+		if pi, err = lo.compile(file, f.raw); err != nil {
+			lo.setNotFound(file, err)
+			return nil, err
+		}
+	default:
+		panic("unreachable")
+	}
+
+	lo.lock.Lock()
+	lo.store[file] = pi
+	lo.lock.Unlock()
+	return pi, nil
+}
+
+func (lo *PkginfoLoader) closest(start string) (*Pkginfo, error) {
+	for {
+		if strings.HasSuffix(start, "node_modules") {
+			break
+		}
+		file := filepath.Join(start, "package.json")
+		if lo.isNotFound(file) {
+			break
+		}
+		if pi, err := lo.Load(file); err == nil {
+			return pi, nil
+		}
+		start = filepath.Dir(start)
+	}
+	return nil, errors.New("failed to find the closest scope from " + start)
+}
+
+func (lo *PkginfoLoader) compile(file string, code []byte) (*Pkginfo, error) {
 	pi := &Pkginfo{
 		dir: osPathSplit(filepath.Dir(file)),
 	}
@@ -448,8 +512,6 @@ func (lo *PkginfoLoader) Load(file string) (*Pkginfo, error) {
 	if err := pi.compile(); err != nil {
 		return nil, err
 	}
-
-	lo.cache.Set(file, pi)
 	return pi, nil
 }
 
@@ -461,12 +523,12 @@ type NoModErr struct {
 }
 
 func (m *NoModErr) Error() string {
-	return fmt.Sprintf("failed to load `%s` in `%s` with exts `%v`, tried these paths:\n %s", m.Target, m.Cw, m.Exts, strings.Join(m.Tried, "\n"))
+	return fmt.Sprintf("failed to load `%s` under `%s` with exts `%v`, tried paths:\n%s", m.Target, m.Cw, m.Exts, strings.Join(m.Tried, "\n"))
 }
 
 func newNoModErr(r *NodeResolver) *NoModErr {
 	keys := []string{}
-	for key := range r.exts {
+	for _, key := range r.exts {
 		keys = append(keys, key)
 	}
 	return &NoModErr{r.target, r.cw, keys, r.tried}

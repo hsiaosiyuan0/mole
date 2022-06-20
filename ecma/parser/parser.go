@@ -2354,7 +2354,12 @@ func (p *Parser) forStmt() (Node, error) {
 		}
 		p.lexer.NextRevise(revise)
 
-		right, err := p.assignExpr(true, false, false, false)
+		var right Node
+		if isOf {
+			right, err = p.assignExpr(true, false, false, false)
+		} else {
+			right, err = p.expr()
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -2373,6 +2378,9 @@ func (p *Parser) forStmt() (Node, error) {
 			}
 			return nil, err
 		}
+
+		s := p.symtab.LeaveScope()
+		s.Node = loop
 
 		p.popLoopStk()
 		loop.loc = p.finLoc(loc)
@@ -3942,8 +3950,6 @@ func (p *Parser) expr() (Node, error) {
 
 // `notGT` is `true` tells the later subroutine does NOT treat the `>` symbol as the greatThen operator
 func (p *Parser) seqExpr(expr Node, notGT bool) (Node, error) {
-	loc := p.loc()
-
 	var err error
 	if expr == nil {
 		expr, err = p.assignExpr(true, notGT, false, false)
@@ -3959,6 +3965,7 @@ func (p *Parser) seqExpr(expr Node, notGT bool) (Node, error) {
 		return expr, nil
 	}
 
+	loc := expr.Loc().Clone()
 	exprs := make([]Node, 0)
 	exprs = append(exprs, expr)
 	for {
@@ -5361,7 +5368,7 @@ func (p *Parser) arg() (Node, error) {
 	if p.lexer.Peek().value == T_DOT_TRI {
 		return p.spread()
 	}
-	return p.assignExpr(false, false, true, false)
+	return p.assignExpr(false, false, p.ts, false)
 }
 
 func (p *Parser) checkOp(tok *Token) error {

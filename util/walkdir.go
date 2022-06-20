@@ -4,7 +4,6 @@ import (
 	"container/list"
 	"os"
 	"path"
-	"runtime"
 	"sync"
 )
 
@@ -21,8 +20,8 @@ type DirWalker struct {
 
 	newJob chan bool
 
-	wg     sync.WaitGroup
-	wgDone chan bool
+	wg    sync.WaitGroup
+	wgFin chan bool
 
 	stop chan error
 	fin  chan bool
@@ -31,7 +30,7 @@ type DirWalker struct {
 
 func NewDirWalker(dir string, concurrent int, handle DirWalkerHandle) *DirWalker {
 	if concurrent == 0 {
-		concurrent = runtime.NumCPU()
+		concurrent = 16
 	}
 
 	w := &DirWalker{
@@ -44,8 +43,8 @@ func NewDirWalker(dir string, concurrent int, handle DirWalkerHandle) *DirWalker
 
 		newJob: make(chan bool),
 
-		wg:     sync.WaitGroup{},
-		wgDone: make(chan bool),
+		wg:    sync.WaitGroup{},
+		wgFin: make(chan bool),
 
 		stop: make(chan error),
 		fin:  make(chan bool),
@@ -128,19 +127,19 @@ func (w *DirWalker) Err() error {
 }
 
 func (w *DirWalker) Walk() {
-	go func() {
-		w.wg.Wait()
-		w.wgDone <- true
-	}()
-
 	w.wg.Add(1)
 	w.push(w.Dir)
 	w.newJob <- true
 
+	go func() {
+		w.wg.Wait()
+		w.wgFin <- true
+	}()
+
 loop:
 	for {
 		select {
-		case <-w.wgDone:
+		case <-w.wgFin:
 			break loop
 		case err := <-w.stop:
 			w.err = err

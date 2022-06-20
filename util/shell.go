@@ -68,12 +68,20 @@ func FileExist(file string) bool {
 	return err == nil
 }
 
-func IsDir(file string) (bool, error) {
+func IsDir(file string) bool {
 	s, err := os.Stat(file)
 	if err != nil {
-		return false, err
+		return false
 	}
-	return s.IsDir(), nil
+	return s.IsDir()
+}
+
+func IsFile(file string) bool {
+	s, err := os.Stat(file)
+	if err != nil {
+		return false
+	}
+	return !s.IsDir()
 }
 
 func UnTarGz(tarball, dist string) error {

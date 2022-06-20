@@ -456,7 +456,18 @@ func (s *Scope) HasLabel(name string) bool {
 }
 
 func (s *Scope) GetLabel(name string) Node {
-	return s.uniqueLabels[name]
+	scope := s
+	for scope != nil {
+		lb := scope.uniqueLabels[name]
+		if lb != nil {
+			return lb
+		}
+		if scope.IsKind(SPK_FUNC) {
+			break
+		}
+		scope = scope.Up
+	}
+	return nil
 }
 
 type SymTab struct {

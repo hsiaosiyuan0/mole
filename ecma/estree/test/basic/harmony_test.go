@@ -31043,3 +31043,283 @@ func TestHarmony319(t *testing.T) {
 }
 	`, ast)
 }
+
+func TestHarmony320(t *testing.T) {
+	ast, err := Compile("for(e in a,b) {}")
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	AssertEqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 16,
+  "body": [
+    {
+      "type": "ForInStatement",
+      "start": 0,
+      "end": 16,
+      "left": {
+        "type": "Identifier",
+        "start": 4,
+        "end": 5,
+        "name": "e"
+      },
+      "right": {
+        "type": "SequenceExpression",
+        "start": 9,
+        "end": 12,
+        "expressions": [
+          {
+            "type": "Identifier",
+            "start": 9,
+            "end": 10,
+            "name": "a"
+          },
+          {
+            "type": "Identifier",
+            "start": 11,
+            "end": 12,
+            "name": "b"
+          }
+        ]
+      },
+      "body": {
+        "type": "BlockStatement",
+        "start": 14,
+        "end": 16,
+        "body": []
+      }
+    }
+  ]
+}
+	`, ast)
+}
+
+func TestHarmony321(t *testing.T) {
+	ast, err := Compile(`(functionName !== '' ? wrapperName + "(" + functionName + ")" : wrapperName)`)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	AssertEqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 76,
+  "body": [
+    {
+      "type": "ExpressionStatement",
+      "start": 0,
+      "end": 76,
+      "expression": {
+        "type": "ConditionalExpression",
+        "start": 1,
+        "end": 75,
+        "test": {
+          "type": "BinaryExpression",
+          "start": 1,
+          "end": 20,
+          "left": {
+            "type": "Identifier",
+            "start": 1,
+            "end": 13,
+            "name": "functionName"
+          },
+          "operator": "!==",
+          "right": {
+            "type": "Literal",
+            "start": 18,
+            "end": 20,
+            "value": "",
+            "raw": "''"
+          }
+        },
+        "consequent": {
+          "type": "BinaryExpression",
+          "start": 23,
+          "end": 61,
+          "left": {
+            "type": "BinaryExpression",
+            "start": 23,
+            "end": 55,
+            "left": {
+              "type": "BinaryExpression",
+              "start": 23,
+              "end": 40,
+              "left": {
+                "type": "Identifier",
+                "start": 23,
+                "end": 34,
+                "name": "wrapperName"
+              },
+              "operator": "+",
+              "right": {
+                "type": "Literal",
+                "start": 37,
+                "end": 40,
+                "value": "(",
+                "raw": "\"(\""
+              }
+            },
+            "operator": "+",
+            "right": {
+              "type": "Identifier",
+              "start": 43,
+              "end": 55,
+              "name": "functionName"
+            }
+          },
+          "operator": "+",
+          "right": {
+            "type": "Literal",
+            "start": 58,
+            "end": 61,
+            "value": ")",
+            "raw": "\")\""
+          }
+        },
+        "alternate": {
+          "type": "Identifier",
+          "start": 64,
+          "end": 75,
+          "name": "wrapperName"
+        }
+      }
+    }
+  ]
+}
+	`, ast)
+}
+
+func TestHarmony322(t *testing.T) {
+	ast, err := Compile(`a: if (c) {
+  b: {
+  }
+  if (1 === b) {
+    break a;
+  }
+  c = h;
+}`)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	AssertEqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 67,
+  "body": [
+    {
+      "type": "LabeledStatement",
+      "start": 0,
+      "end": 67,
+      "body": {
+        "type": "IfStatement",
+        "start": 3,
+        "end": 67,
+        "test": {
+          "type": "Identifier",
+          "start": 7,
+          "end": 8,
+          "name": "c"
+        },
+        "consequent": {
+          "type": "BlockStatement",
+          "start": 10,
+          "end": 67,
+          "body": [
+            {
+              "type": "LabeledStatement",
+              "start": 14,
+              "end": 22,
+              "body": {
+                "type": "BlockStatement",
+                "start": 17,
+                "end": 22,
+                "body": []
+              },
+              "label": {
+                "type": "Identifier",
+                "start": 14,
+                "end": 15,
+                "name": "b"
+              }
+            },
+            {
+              "type": "IfStatement",
+              "start": 25,
+              "end": 56,
+              "test": {
+                "type": "BinaryExpression",
+                "start": 29,
+                "end": 36,
+                "left": {
+                  "type": "Literal",
+                  "start": 29,
+                  "end": 30,
+                  "value": 1,
+                  "raw": "1"
+                },
+                "operator": "===",
+                "right": {
+                  "type": "Identifier",
+                  "start": 35,
+                  "end": 36,
+                  "name": "b"
+                }
+              },
+              "consequent": {
+                "type": "BlockStatement",
+                "start": 38,
+                "end": 56,
+                "body": [
+                  {
+                    "type": "BreakStatement",
+                    "start": 44,
+                    "end": 52,
+                    "label": {
+                      "type": "Identifier",
+                      "start": 50,
+                      "end": 51,
+                      "name": "a"
+                    }
+                  }
+                ]
+              },
+              "alternate": null
+            },
+            {
+              "type": "ExpressionStatement",
+              "start": 59,
+              "end": 65,
+              "expression": {
+                "type": "AssignmentExpression",
+                "start": 59,
+                "end": 64,
+                "operator": "=",
+                "left": {
+                  "type": "Identifier",
+                  "start": 59,
+                  "end": 60,
+                  "name": "c"
+                },
+                "right": {
+                  "type": "Identifier",
+                  "start": 63,
+                  "end": 64,
+                  "name": "h"
+                }
+              }
+            }
+          ]
+        },
+        "alternate": null
+      },
+      "label": {
+        "type": "Identifier",
+        "start": 0,
+        "end": 1,
+        "name": "a"
+      }
+    }
+  ]
+}
+	`, ast)
+}

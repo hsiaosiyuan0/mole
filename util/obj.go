@@ -44,6 +44,27 @@ func WalkObj(obj interface{}, path []string, cb WalkObjFn) bool {
 	return cb(path, obj)
 }
 
+func GetByPath(obj map[string]interface{}, path []string) interface{} {
+	for len(path) > 0 {
+		v := obj[path[0]]
+		if v == nil {
+			return nil
+		}
+
+		path = path[1:]
+		if len(path) == 0 {
+			return v
+		}
+
+		if vo, ok := v.(map[string]interface{}); ok {
+			obj = vo
+		} else {
+			return nil
+		}
+	}
+	return obj
+}
+
 func FlattenMap(m map[string]interface{}) map[string]interface{} {
 	ret := make(map[string]interface{})
 	cb := func(path []string, val interface{}) bool {
