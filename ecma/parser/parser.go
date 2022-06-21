@@ -4123,6 +4123,22 @@ func (p *Parser) isSimpleLVal(expr Node, pat bool, inParen bool, member bool, op
 	return false
 }
 
+func (p *Parser) advanceIfHook() *Token {
+	tok := p.lexer.Peek()
+	if !p.ts {
+		if tok.value != T_HOOK {
+			return nil
+		}
+		return p.lexer.Next()
+	}
+	hook := tok.value == T_HOOK
+	ahead := p.lexer.Peek2nd()
+	if !hook || !ahead.Kind().StartExpr {
+		return nil
+	}
+	return p.lexer.Next()
+}
+
 // https://tc39.es/ecma262/multipage/ecmascript-language-expressions.html#prod-ConditionalExpression
 func (p *Parser) condExpr(notGT bool, notHook bool, notColon bool) (Node, error) {
 	loc := p.loc()
@@ -4135,7 +4151,7 @@ func (p *Parser) condExpr(notGT bool, notHook bool, notColon bool) (Node, error)
 		return test, nil
 	}
 
-	hook := p.advanceIfTok(T_HOOK)
+	hook := p.advanceIfHook()
 	if hook == nil {
 		return test, nil
 	}
@@ -5368,7 +5384,7 @@ func (p *Parser) arg() (Node, error) {
 	if p.lexer.Peek().value == T_DOT_TRI {
 		return p.spread()
 	}
-	return p.assignExpr(false, false, p.ts, false)
+	return p.assignExpr(false, false, false, false)
 }
 
 func (p *Parser) checkOp(tok *Token) error {
