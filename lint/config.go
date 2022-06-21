@@ -206,7 +206,7 @@ func (c *Config) InitPlugins() error {
 
 func (c *Config) InitIgPatterns() error {
 	ps := c.IgnorePatterns
-	psf := path.Join(c.cwd, ".eslintignore")
+	psf := filepath.Join(c.cwd, ".eslintignore")
 	if util.FileExist(psf) {
 		raw, err := ioutil.ReadFile(psf)
 		if err != nil {
@@ -337,7 +337,7 @@ func selCfgFile(dir string) string {
 	}
 
 	for _, cf := range cfs {
-		cf = path.Join(dir, cf)
+		cf = filepath.Join(dir, cf)
 		if util.FileExist(cf) {
 			return cf
 		}

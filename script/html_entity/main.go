@@ -8,7 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"text/template"
@@ -28,7 +28,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	distFile := path.Join(wd, "html_entity.go")
+	distFile := filepath.Join(wd, "html_entity.go")
 	_, err = os.Stat(distFile)
 	if err != nil {
 		return

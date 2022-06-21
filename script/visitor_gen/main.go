@@ -10,7 +10,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-	"path"
+	"path/filepath"
 	"strings"
 
 	"github.com/hsiaosiyuan0/mole/script/macro"
@@ -293,7 +293,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	distFile := path.Join(wd, "visitor.go")
+	distFile := filepath.Join(wd, "visitor.go")
 	_, err = os.Stat(distFile)
 	if err != nil {
 		return

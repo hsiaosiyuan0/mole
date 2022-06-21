@@ -83,7 +83,7 @@ func fixRelativePathInCfg(c map[string]interface{}, dir string) {
 
 func NewTsConfig(dir string, file string) (*TsConfig, error) {
 	if !filepath.IsAbs(file) {
-		file = path.Join(dir, file)
+		file = filepath.Join(dir, file)
 	}
 
 	rawCfg := map[string]interface{}{}
@@ -111,7 +111,7 @@ func NewTsConfig(dir string, file string) (*TsConfig, error) {
 		delete(cc, "extends")
 
 		if !filepath.IsAbs(cf) {
-			cf = path.Join(cd, cf)
+			cf = filepath.Join(cd, cf)
 			cd = filepath.Dir(cf)
 		}
 		raw, err := ioutil.ReadFile(cf)

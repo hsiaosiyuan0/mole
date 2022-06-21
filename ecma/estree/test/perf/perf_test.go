@@ -3,6 +3,7 @@ package estree_test
 import (
 	"io/ioutil"
 	"path"
+	"path/filepath"
 	"runtime"
 	"testing"
 
@@ -40,7 +41,7 @@ func BenchmarkParsingToESTree(t *testing.B) {
 
 	_, fileName, _, _ := runtime.Caller(0)
 	for _, lib := range libs {
-		b, err := ioutil.ReadFile(path.Join(path.Dir(fileName), "asset", lib.name))
+		b, err := ioutil.ReadFile(filepath.Join(path.Dir(fileName), "asset", lib.name))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -74,7 +75,7 @@ func BenchmarkParsing(t *testing.B) {
 
 	_, fileName, _, _ := runtime.Caller(0)
 	for _, lib := range libs {
-		b, err := ioutil.ReadFile(path.Join(path.Dir(fileName), "asset", lib.name))
+		b, err := ioutil.ReadFile(filepath.Join(path.Dir(fileName), "asset", lib.name))
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -6,7 +6,6 @@ import (
 	"io/fs"
 	"io/ioutil"
 	"os"
-	"path"
 	"path/filepath"
 	"plugin"
 	"runtime"
@@ -22,7 +21,7 @@ func Resolve(cwd, name string) (*plugin.Plugin, error) {
 		return nil, errors.New(fmt.Sprintf("absolute path is required: %s", cwd))
 	}
 
-	p := path.Join(cwd, "node_modules", name, "build")
+	p := filepath.Join(cwd, "node_modules", name, "build")
 
 	if !util.FileExist(p) {
 		if cwd == sep { // already the root, stop the resolving
@@ -69,5 +68,5 @@ func Resolve(cwd, name string) (*plugin.Plugin, error) {
 		return nil, errors.New(fmt.Sprintf("cannot find so with os: %s arch: %s", goos, goarch))
 	}
 
-	return plugin.Open(path.Join(p, so.Name()))
+	return plugin.Open(filepath.Join(p, so.Name()))
 }

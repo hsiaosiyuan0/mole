@@ -3,7 +3,7 @@ package util
 import (
 	"container/list"
 	"os"
-	"path"
+	"path/filepath"
 	"sync"
 )
 
@@ -93,7 +93,7 @@ loop:
 			w.handle(dir, true, w)
 
 			for _, file := range files {
-				pth := path.Join(dir, file.Name())
+				pth := filepath.Join(dir, file.Name())
 				if file.IsDir() {
 					w.wg.Add(1)
 					w.push(pth)

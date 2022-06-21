@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"os"
-	"path"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -72,13 +71,13 @@ func ScanFixtures(name string) (map[string]*Fixture, error) {
 	basepath := filepath.Dir(b)
 
 	fxs := make(map[string]*Fixture)
-	err := filepath.Walk(path.Join(basepath, "fixture", name), func(pathStr string, info os.FileInfo, err error) error {
+	err := filepath.Walk(filepath.Join(basepath, "fixture", name), func(pathStr string, info os.FileInfo, err error) error {
 		if err == nil {
 			if info.IsDir() {
 				return nil
 			}
 			dir := filepath.Dir(pathStr)
-			name := strings.Trim(strings.Replace(dir, path.Join(basepath, "fixture"), "", 1), string(os.PathSeparator))
+			name := strings.Trim(strings.Replace(dir, filepath.Join(basepath, "fixture"), "", 1), string(os.PathSeparator))
 			fx := fxs[name]
 			if fx == nil {
 				fx = &Fixture{name, "", "", ""}

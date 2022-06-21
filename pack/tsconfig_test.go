@@ -1,7 +1,6 @@
 package pack
 
 import (
-	"path"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -14,7 +13,7 @@ func TestTsConfig(t *testing.T) {
 	_, b, _, _ := runtime.Caller(0)
 	basepath := filepath.Dir(b)
 
-	dir := path.Join(basepath, "test", "asset", "tsconfig", "sub", "sub")
+	dir := filepath.Join(basepath, "test", "asset", "tsconfig", "sub", "sub")
 	c, err := NewTsConfig(dir, "tsconfig.json")
 	if err != nil {
 		t.Fatal(err)

@@ -2,7 +2,6 @@ package lint_test
 
 import (
 	"fmt"
-	"path"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -20,7 +19,7 @@ func TestResolvePlugin(t *testing.T) {
 	_, b, _, _ := runtime.Caller(0)
 	basepath := filepath.Dir(b)
 
-	dir := path.Join(basepath, "asset", "resolve_plugin")
+	dir := filepath.Join(basepath, "asset", "resolve_plugin")
 	util.ShellInDir(dir, "npm", "i", "go-cross-ci-demo@0.0.5")
 
 	p, err := plugin.Resolve(dir, "go-cross-ci-demo")
@@ -46,7 +45,7 @@ func TestLoadJsCfg(t *testing.T) {
 	_, b, _, _ := runtime.Caller(0)
 	basepath := filepath.Dir(b)
 
-	cf := path.Join(basepath, "asset", "resolve_plugin", ".eslintrc.js")
+	cf := filepath.Join(basepath, "asset", "resolve_plugin", ".eslintrc.js")
 
 	cfg, err := lint.NewConfig(cf, nil)
 	if err != nil {
@@ -60,7 +59,7 @@ func TestLoadJsCfgInDir(t *testing.T) {
 	_, b, _, _ := runtime.Caller(0)
 	basepath := filepath.Dir(b)
 
-	dir := path.Join(basepath, "asset", "resolve_plugin")
+	dir := filepath.Join(basepath, "asset", "resolve_plugin")
 
 	cfg, err := lint.LoadCfgInDir(dir, nil)
 	if err != nil {
@@ -74,7 +73,7 @@ func TestIgnorePattern(t *testing.T) {
 	_, b, _, _ := runtime.Caller(0)
 	basepath := filepath.Dir(b)
 
-	dir := path.Join(basepath, "asset", "resolve_plugin")
+	dir := filepath.Join(basepath, "asset", "resolve_plugin")
 
 	cfg, err := lint.LoadCfgInDir(dir, nil)
 	if err != nil {
@@ -82,17 +81,17 @@ func TestIgnorePattern(t *testing.T) {
 	}
 	cfg.InitIgPatterns()
 
-	util.AssertEqual(t, true, cfg.IsIgnored(path.Join(dir, "test.js")), "should be ok")
-	util.AssertEqual(t, true, cfg.IsIgnored(path.Join(dir, "node_modules", "test1.js")), "should be ok")
-	util.AssertEqual(t, false, cfg.IsIgnored(path.Join(dir, "node_modules", "test.js")), "should be ok")
-	util.AssertEqual(t, false, cfg.IsIgnored(path.Join(dir, ".eslintrc.js")), "should be ok")
+	util.AssertEqual(t, true, cfg.IsIgnored(filepath.Join(dir, "test.js")), "should be ok")
+	util.AssertEqual(t, true, cfg.IsIgnored(filepath.Join(dir, "node_modules", "test1.js")), "should be ok")
+	util.AssertEqual(t, false, cfg.IsIgnored(filepath.Join(dir, "node_modules", "test.js")), "should be ok")
+	util.AssertEqual(t, false, cfg.IsIgnored(filepath.Join(dir, ".eslintrc.js")), "should be ok")
 }
 
 func TestRegisterPlugin(t *testing.T) {
 	_, b, _, _ := runtime.Caller(0)
 	basepath := filepath.Dir(b)
 
-	dir := path.Join(basepath, "asset", "register_plugin")
+	dir := filepath.Join(basepath, "asset", "register_plugin")
 	util.ShellInDir(dir, "go", "build", "-buildmode=plugin", fmt.Sprintf("-o=node_modules/go-cross-ci-demo/build/go-cross-ci-demo-%s-%s", runtime.GOOS, runtime.GOARCH))
 
 	cfg, err := lint.LoadCfgInDir(dir, nil)
@@ -111,7 +110,7 @@ func TestProcess(t *testing.T) {
 	_, b, _, _ := runtime.Caller(0)
 	basepath := filepath.Dir(b)
 
-	dir := path.Join(basepath, "asset", "register_plugin")
+	dir := filepath.Join(basepath, "asset", "register_plugin")
 	util.ShellInDir(dir, "go", "build", "-buildmode=plugin", fmt.Sprintf("-o=node_modules/go-cross-ci-demo/build/go-cross-ci-demo-%s-%s", runtime.GOOS, runtime.GOARCH))
 
 	linter, err := lint.NewLinter(dir, nil, true)
@@ -129,7 +128,7 @@ func mkrLinter(t *testing.T, rule string) *lint.Linter {
 	_, b, _, _ := runtime.Caller(0)
 	basepath := filepath.Dir(b)
 
-	dir := path.Join(basepath, "asset", rule)
+	dir := filepath.Join(basepath, "asset", rule)
 
 	linter, err := lint.NewLinter(dir, nil, false)
 	if err != nil {

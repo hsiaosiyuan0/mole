@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os/exec"
-	"path"
+	"path/filepath"
 	"strings"
 
 	"github.com/hsiaosiyuan0/mole/ecma/estree"
@@ -36,11 +36,11 @@ func main() {
 }
 
 func assembleOutFile(file string, tag string) string {
-	dir, f := path.Split(file)
-	ext := path.Ext(f)
+	dir, f := filepath.Split(file)
+	ext := filepath.Ext(f)
 	fileNoExt := f[0:strings.LastIndex(f, ext)]
 	nf := fileNoExt + tag + ext
-	return path.Join(dir, nf)
+	return filepath.Join(dir, nf)
 }
 
 func printJsAst(src, file string) (string, error) {

@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path"
 	"path/filepath"
 	"runtime"
 	"sync"
@@ -15,7 +14,7 @@ func TestWalkDir(t *testing.T) {
 	_, b, _, _ := runtime.Caller(0)
 	basepath := filepath.Dir(b)
 
-	dir := path.Join(basepath, "test")
+	dir := filepath.Join(basepath, "test")
 
 	var lock sync.Mutex
 	files := []string{}
@@ -35,7 +34,7 @@ func TestWalkDirStop(t *testing.T) {
 	_, b, _, _ := runtime.Caller(0)
 	basepath := filepath.Dir(b)
 
-	dir := path.Join(basepath, "test")
+	dir := filepath.Join(basepath, "test")
 
 	w := NewDirWalker(dir, 0, func(f string, dir bool, dw *DirWalker) {
 		dw.Stop(errors.New("stopped"))
@@ -52,7 +51,7 @@ func BenchmarkWalkOneWorker(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	cwd, err = filepath.Abs(path.Join(cwd, ".."))
+	cwd, err = filepath.Abs(filepath.Join(cwd, ".."))
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -76,7 +75,7 @@ func BenchmarkWalkMultiWorkers(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	cwd, err = filepath.Abs(path.Join(cwd, ".."))
+	cwd, err = filepath.Abs(filepath.Join(cwd, ".."))
 	if err != nil {
 		b.Fatal(err)
 	}

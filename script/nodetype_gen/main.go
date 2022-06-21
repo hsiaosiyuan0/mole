@@ -8,7 +8,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-	"path"
+	"path/filepath"
 	"text/template"
 
 	"github.com/hsiaosiyuan0/mole/script/macro"
@@ -46,7 +46,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	distFile := path.Join(wd, "nodetype_string.go")
+	distFile := filepath.Join(wd, "nodetype_string.go")
 	_, err = os.Stat(distFile)
 
 	if err != nil {

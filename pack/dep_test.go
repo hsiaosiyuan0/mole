@@ -2,7 +2,6 @@ package pack
 
 import (
 	"fmt"
-	"path"
 	"path/filepath"
 	"runtime"
 	"testing"
@@ -15,7 +14,7 @@ func TestDepScanner(t *testing.T) {
 	_, b, _, _ := runtime.Caller(0)
 	basepath := filepath.Dir(b)
 
-	dir := path.Join(basepath, "test", "asset", "dep-scanner")
+	dir := filepath.Join(basepath, "test", "asset", "dep-scanner")
 	util.ShellInDir(dir, "npm", "i")
 
 	opts := NewDepScannerOpts()
