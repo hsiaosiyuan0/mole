@@ -1,0 +1,6 @@
+{
+  "name": "dep-scanner",
+  "dependencies": {
+    "react": "^18.2.0"
+  }
+}

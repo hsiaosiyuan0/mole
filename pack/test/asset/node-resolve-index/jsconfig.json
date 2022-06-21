@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "target": "es2017",
+    "allowSyntheticDefaultImports": false,
+    "baseUrl": "./",
+    "paths": {
+      "@/*": ["src/*"],
+      "@page/*": ["src/page/*"],
+      "@*": ["node_modules/@*"]
+    },
+    "jsx": "preserve"
+  },
+  "exclude": ["node_modules", "public"],
+  "include": ["src"]
+}

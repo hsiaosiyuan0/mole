@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 	"syscall"
@@ -19,18 +20,22 @@ type NodeResolver struct {
 
 	self *Pkginfo
 
-	target  string
-	cw      string
+	target string
+	cw     string
+
 	imports [][]string
 	exports [][]string
 	exts    []string
 	builtin map[string]bool
 
+	ts       bool
+	pathMaps *PathMaps
+
 	tried []string
 }
 
-func NewNodeResolver(exports [][]string, imports [][]string,
-	exts []string, builtin map[string]bool, pkginfoLoader *PkginfoLoader) *NodeResolver {
+func NewNodeResolver(exports [][]string, imports [][]string, exts []string,
+	builtin map[string]bool, pkginfoLoader *PkginfoLoader, ts bool, pathMaps *PathMaps) *NodeResolver {
 
 	r := &NodeResolver{
 		pkgLoader: pkginfoLoader,
@@ -39,6 +44,9 @@ func NewNodeResolver(exports [][]string, imports [][]string,
 		imports: imports,
 		exts:    exts,
 		builtin: builtin,
+
+		ts:       ts,
+		pathMaps: pathMaps,
 
 		tried: []string{},
 	}
@@ -59,15 +67,19 @@ func NewNodeResolver(exports [][]string, imports [][]string,
 	return r
 }
 
+type NodeResolveResult struct {
+	f1, f2 string
+}
+
 // checkout: https://nodejs.org/api/modules.html#modules_all_together
 //
 // `target` and `cw` cannot be empty string
-func (r *NodeResolver) Resolve(target string, cw string) (string, error) {
+func (r *NodeResolver) Resolve(target string, cw string) ([]string, error) {
 	r.target = target
 	r.cw = cw
 
 	if r.isBuiltin(r.target) {
-		return "", nil
+		return nil, nil
 	}
 
 	parts := pathSplit(r.target)
@@ -75,27 +87,18 @@ func (r *NodeResolver) Resolve(target string, cw string) (string, error) {
 
 	c := r.target[0]
 	if c == '.' || c == '/' {
-		var file []string
-		if c == '.' {
-			file = append(cwp, parts...)
-		} else {
-			file = parts
-		}
+		return r.loadRelative(parts, cwp)
+	}
 
-		if f := r.loadAsFile(file); f != "" {
+	if r.pathMaps != nil {
+		if f := r.pathMaps.Match(r.target, r); f != nil {
 			return f, nil
 		}
-
-		f, err := r.loadAsDir(file, true)
-		if err != nil {
-			return "", err
-		}
-		return f, nil
 	}
 
 	var err error
 	if r.self, err = r.pkgLoader.closest(r.cw); err != nil {
-		return "", err
+		return nil, err
 	}
 
 	if c == '#' {
@@ -104,13 +107,30 @@ func (r *NodeResolver) Resolve(target string, cw string) (string, error) {
 
 	f, err := r.loadPkgSelf(parts, cwp)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	if f != "" {
+	if f != nil {
 		return f, nil
 	}
 
 	return r.loadModule(parts, cwp)
+}
+
+func (r *NodeResolver) ResolveRoots(target string, cws []string) ([]string, error) {
+	ure := &NoModUnderRootsErr{[]*NoModErr{}}
+	for _, cw := range cws {
+		f, err := r.Resolve(target, cw)
+		if err != nil {
+			if e, ok := err.(*NoModErr); ok {
+				ure.errs = append(ure.errs, e)
+				continue
+			}
+			return nil, err
+		} else {
+			return f, nil
+		}
+	}
+	return nil, ure
 }
 
 func (r *NodeResolver) isBuiltin(target string) bool {
@@ -126,6 +146,7 @@ func (r *NodeResolver) try(target string) {
 }
 
 var jsDefaultExtensions = []string{".js", ".json", ".node"}
+var tsDefaultExtensions = append([]string{".ts", ".tsx", ".d.ts"}, jsDefaultExtensions...)
 
 // target can be either directory or normal file
 func (r *NodeResolver) loadAsFile(target []string) string {
@@ -148,6 +169,25 @@ func (r *NodeResolver) loadAsFile(target []string) string {
 	return ""
 }
 
+func (r *NodeResolver) loadRelative(target []string, cw []string) ([]string, error) {
+	var file []string
+	if target[0] == "." {
+		file = append(cw, target...)
+	} else {
+		file = target
+	}
+
+	if f := r.loadAsFile(file); f != "" {
+		return []string{f}, nil
+	}
+
+	f, err := r.loadAsDir(file, true)
+	if err != nil {
+		return nil, err
+	}
+	return f, nil
+}
+
 // target must be a directory
 func (r *NodeResolver) loadIndex(target []string) string {
 	target = append(target, "index")
@@ -155,35 +195,55 @@ func (r *NodeResolver) loadIndex(target []string) string {
 }
 
 // target must be a directory
-func (r *NodeResolver) loadAsDir(target []string, raise bool) (string, error) {
+func (r *NodeResolver) loadAsDir(target []string, raise bool) ([]string, error) {
 	pki, err := r.pkgLoader.Load(filepath.Join(append(target, "package.json")...))
 	if err != nil {
 		switch ev := err.(type) {
 		case *fs.PathError:
 			if ev.Unwrap() != syscall.ENOENT {
-				return "", err
+				return nil, err
 			}
 		default:
-			return "", err
+			return nil, err
 		}
 	}
 
-	if pki != nil && pki.Main != "" {
-		file := append(target, pki.Main)
-		if f := r.loadAsFile(file); f != "" {
-			return f, nil
+	res := []string{}
+	if pki != nil {
+		if pki.Main != "" {
+			file := append(target, pki.Main)
+			if f := r.loadAsFile(file); f != "" {
+				res = append(res, f)
+			} else {
+				return nil, newNoModErr(r)
+			}
 		}
-		return "", newNoModErr(r)
+		if r.ts && pki.Types != "" {
+			file := append(target, pki.Types)
+			if f := r.loadAsFile(file); f != "" {
+				res = append(res, f)
+			} else {
+				return nil, newNoModErr(r)
+			}
+		}
+		if len(res) > 0 {
+			return res, nil
+		}
 	}
 
 	f := r.loadIndex(target)
-	if f == "" && raise {
-		return "", newNoModErr(r)
+	if f == "" {
+		if raise {
+			return nil, newNoModErr(r)
+		}
+		return nil, nil
 	}
-	return f, nil
+
+	res = append(res, f)
+	return res, nil
 }
 
-func (r *NodeResolver) loadModule(target []string, start []string) (string, error) {
+func (r *NodeResolver) loadModule(target []string, start []string) ([]string, error) {
 	parts := start
 
 	for len(parts) > 0 {
@@ -196,47 +256,47 @@ func (r *NodeResolver) loadModule(target []string, start []string) (string, erro
 
 		f, err := r.loadPkgExports(target, dir)
 		if err != nil {
-			return "", nil
+			return nil, nil
 		}
-		if f != "" {
+		if f != nil {
 			return f, nil
 		}
 
 		file := append(dir, target...)
 		if f := r.loadAsFile(file); f != "" {
-			return f, nil
+			return []string{f}, nil
 		}
 
 		f, err = r.loadAsDir(file, false)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
-		if f != "" {
+		if f != nil {
 			return f, nil
 		}
 	}
 
-	return "", newNoModErr(r)
+	return nil, newNoModErr(r)
 }
 
-func (r *NodeResolver) loadPkgImports(target []string) (string, error) {
+func (r *NodeResolver) loadPkgImports(target []string) ([]string, error) {
 	if r.self.imports == nil {
-		return "", newNoModErr(r)
+		return nil, newNoModErr(r)
 	}
 
 	ok, m := r.self.imports.Match(path.Join(target...), r.exports)
 	if !ok {
-		return "", nil
+		return nil, nil
 	}
 
 	file := append(r.self.dir, pathSplit(m)...)
 	if f := r.loadAsFile(file); f != "" {
-		return f, nil
+		return []string{f}, nil
 	}
 
 	f, err := r.loadAsDir(file, true)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	return f, nil
 }
@@ -251,14 +311,14 @@ func subpathOf(target []string) ([]string, []string) {
 	return name, subpath
 }
 
-func (r *NodeResolver) loadPkgSelf(target []string, dir []string) (string, error) {
+func (r *NodeResolver) loadPkgSelf(target []string, dir []string) ([]string, error) {
 	if r.self.exports == nil {
-		return "", nil
+		return nil, nil
 	}
 
 	name, subpath := subpathOf(target)
 	if r.self.Name != path.Join(name...) {
-		return "", nil
+		return nil, nil
 	}
 
 	sp := "."
@@ -270,23 +330,23 @@ func (r *NodeResolver) loadPkgSelf(target []string, dir []string) (string, error
 	if sp == "." || filepath.Ext(sp) != "" {
 		ok, m := r.self.exports.Match(sp, r.exports)
 		if !ok {
-			return "", nil
+			return nil, nil
 		}
 
 		file := append(r.self.dir, pathSplit(m)...)
 		if f := r.loadAsFile(file); f != "" {
-			return f, nil
+			return []string{f}, nil
 		}
 	} else {
 		for _, ext := range r.exts {
 			ok, m := r.self.exports.Match(sp+ext, r.exports)
 			if !ok {
-				return "", nil
+				return nil, nil
 			}
 
 			file := append(r.self.dir, pathSplit(m)...)
 			if f := r.loadAsFile(file); f != "" {
-				return f, nil
+				return []string{f}, nil
 			}
 		}
 	}
@@ -294,16 +354,16 @@ func (r *NodeResolver) loadPkgSelf(target []string, dir []string) (string, error
 	// load as dir
 	ok, m := r.self.exports.Match(sp, r.exports)
 	if !ok {
-		return "", nil
+		return nil, nil
 	}
 	f, err := r.loadAsDir(append(r.self.dir, pathSplit(m)...), false)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	return f, nil
 }
 
-func (r *NodeResolver) loadPkgExports(target []string, dir []string) (string, error) {
+func (r *NodeResolver) loadPkgExports(target []string, dir []string) ([]string, error) {
 	name, subpath := subpathOf(target)
 	scope := append(dir, name...)
 
@@ -312,15 +372,15 @@ func (r *NodeResolver) loadPkgExports(target []string, dir []string) (string, er
 		switch ev := err.(type) {
 		case *fs.PathError:
 			if ev.Unwrap() != syscall.ENOENT {
-				return "", err
+				return nil, err
 			}
 		default:
-			return "", err
+			return nil, err
 		}
 	}
 
 	if pki == nil || pki.exports == nil {
-		return "", nil
+		return nil, nil
 	}
 
 	sp := "."
@@ -332,23 +392,23 @@ func (r *NodeResolver) loadPkgExports(target []string, dir []string) (string, er
 	if sp == "." || filepath.Ext(sp) != "" {
 		ok, m := pki.exports.Match(sp, r.exports)
 		if !ok {
-			return "", nil
+			return nil, nil
 		}
 
 		file := append(scope, pathSplit(m)...)
 		if f := r.loadAsFile(file); f != "" {
-			return f, nil
+			return []string{f}, nil
 		}
 	} else {
 		for _, ext := range r.exts {
 			ok, m := pki.exports.Match(sp+ext, r.exports)
 			if !ok {
-				return "", nil
+				return nil, nil
 			}
 
 			file := append(scope, pathSplit(m)...)
 			if f := r.loadAsFile(file); f != "" {
-				return f, nil
+				return []string{f}, nil
 			}
 		}
 	}
@@ -356,11 +416,11 @@ func (r *NodeResolver) loadPkgExports(target []string, dir []string) (string, er
 	// load as dir
 	ok, m := pki.exports.Match(sp, r.exports)
 	if !ok {
-		return "", nil
+		return nil, nil
 	}
 	f, err := r.loadAsDir(append(scope, pathSplit(m)...), false)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	return f, nil
 }
@@ -369,6 +429,7 @@ func (r *NodeResolver) loadPkgExports(target []string, dir []string) (string, er
 type Pkginfo struct {
 	Name       string                 `json:"name"`
 	Main       string                 `json:"main"`
+	Types      string                 `json:"types"`
 	RawExports interface{}            `json:"exports"`
 	RawImports map[string]interface{} `json:"imports"`
 
@@ -515,6 +576,18 @@ func (lo *PkginfoLoader) compile(file string, code []byte) (*Pkginfo, error) {
 	return pi, nil
 }
 
+type NoModUnderRootsErr struct {
+	errs []*NoModErr
+}
+
+func (m *NoModUnderRootsErr) Error() string {
+	sb := strings.Builder{}
+	for _, e := range m.errs {
+		sb.WriteString(e.Error() + "\n")
+	}
+	return sb.String()
+}
+
 type NoModErr struct {
 	Target string
 	Cw     string
@@ -550,4 +623,74 @@ func osPathSplit(f string) []string {
 		parts[0] = osSep
 	}
 	return parts
+}
+
+// covers the path-mapping in ts:
+// https://www.typescriptlang.org/docs/handbook/module-resolution.html#path-mapping
+type PathMap struct {
+	pat  interface{} // string|*regexp.Regexp
+	cond []string
+}
+
+func NewPathMap(pat string, baseUrl string, cond []string) (*PathMap, error) {
+	p, err := compileSubpath(pat)
+	if err != nil {
+		return nil, err
+	}
+	for i, c := range cond {
+		if !path.IsAbs(c) {
+			c = path.Join(baseUrl, c)
+		}
+		cond[i] = filepath.Join(pathSplit(c)...)
+	}
+	return &PathMap{p, cond}, nil
+}
+
+func (m *PathMap) Match(nom string, r *NodeResolver) []string {
+	mc := false
+	var mcs []string
+	switch v := m.pat.(type) {
+	case string:
+		mc = nom == v
+	case *regexp.Regexp:
+		mcs = v.FindStringSubmatch(nom)
+		mc = len(mcs) > 0
+	}
+	if !mc {
+		return nil
+	}
+
+	for _, d := range m.cond {
+		d = strings.Replace(d, "*", mcs[1], -1)
+		if f, _ := r.loadRelative(osPathSplit(d), nil); f != nil {
+			return f
+		}
+	}
+	return nil
+}
+
+type PathMaps struct {
+	maps []*PathMap
+}
+
+func NewPathMaps(baseUrl string, c map[string][]string) (*PathMaps, error) {
+	maps := []*PathMap{}
+	for p, cond := range c {
+		m, err := NewPathMap(p, baseUrl, cond)
+		if err != nil {
+			return nil, err
+		}
+		maps = append(maps, m)
+	}
+	return &PathMaps{maps}, nil
+}
+
+func (p *PathMaps) Match(file string, r *NodeResolver) []string {
+	for _, m := range p.maps {
+		mr := m.Match(file, r)
+		if mr != nil {
+			return mr
+		}
+	}
+	return nil
 }

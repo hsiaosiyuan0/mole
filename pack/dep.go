@@ -3,7 +3,6 @@ package pack
 import (
 	"container/list"
 	"errors"
-	"fmt"
 	"path/filepath"
 	"sync"
 	"sync/atomic"
@@ -35,6 +34,9 @@ type DepScannerOpts struct {
 
 	concurrent int
 	unitFacts  map[string]DepUnitFact
+
+	tsConfig *TsConfig
+	ts       bool
 }
 
 func NewDepScannerOpts() *DepScannerOpts {
@@ -46,6 +48,22 @@ func NewDepScannerOpts() *DepScannerOpts {
 
 	opts.regUnitFact(&JsUnitFact{})
 	return opts
+}
+
+func (s *DepScannerOpts) SetTsconfig(dir string, file string, ts bool) error {
+	var err error
+	s.tsConfig, err = NewTsConfig(dir, file)
+	if err != nil {
+		return err
+	}
+
+	_, err = s.tsConfig.PathMaps()
+	if err != nil {
+		return err
+	}
+
+	s.ts = ts
+	return nil
 }
 
 func (s *DepScannerOpts) regUnitFact(u DepUnitFact) {
@@ -185,7 +203,6 @@ func (s *DepScanner) Run() error {
 
 	go func() {
 		s.wg.Wait()
-		fmt.Println("done")
 		s.wgFin <- true
 	}()
 
@@ -203,7 +220,7 @@ loop:
 	}
 
 	s.fin <- true
-	return nil
+	return s.fatal
 }
 
 func (s *DepScanner) newModule(file string) Module {
@@ -266,7 +283,8 @@ type JsUnitFact struct{}
 
 func (j *JsUnitFact) New(s *DepScanner, req *DepFileReq) DepUnit {
 	opts := s.opts
-	r := NewNodeResolver(opts.exports, opts.imports, opts.extensions, opts.builtin, s.pkgLoader)
+	r := NewNodeResolver(opts.exports, opts.imports, opts.extensions, opts.builtin,
+		s.pkgLoader, opts.ts, opts.tsConfig.pathMaps)
 	return &JsUnit{s, req, r}
 }
 
@@ -354,9 +372,9 @@ func (j *JsUnit) Load() error {
 		return err
 	}
 
-	m := j.s.getOrNewModule(file)
+	m := j.s.getOrNewModule(file[0])
 	if m == nil {
-		return errors.New("unsupported file: " + file)
+		return errors.New("unsupported file: " + file[0])
 	}
 
 	if !m.Parsed() {
@@ -365,8 +383,8 @@ func (j *JsUnit) Load() error {
 			return err
 		}
 
-		lang := filepath.Ext(file)
-		cw := filepath.Dir(file)
+		lang := filepath.Ext(file[0])
+		cw := filepath.Dir(file[0])
 		for _, f := range derived {
 			j.s.addNewJob(&DepFileReq{f, cw, lang})
 		}
