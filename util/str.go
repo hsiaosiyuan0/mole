@@ -6,8 +6,8 @@ import (
 	"unicode/utf8"
 )
 
-// remove comments in json, for keep the loc of error is meaningful, the comments
-// are replace to their equal-length spaces
+// remove comments in json, for keeping the loc of error is meaningful, the comments
+// are replaced with their equal-length spaces
 func RemoveJsonComments(str string) ([]byte, error) {
 	sb := strings.Builder{}
 

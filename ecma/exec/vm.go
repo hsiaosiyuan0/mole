@@ -305,6 +305,8 @@ func ToBool(v interface{}) bool {
 	switch vv := v.(type) {
 	case float64:
 		return vv != 0
+	case int:
+		return vv != 0
 	case string:
 		return vv != ""
 	case bool:

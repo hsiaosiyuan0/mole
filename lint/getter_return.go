@@ -3,6 +3,7 @@ package lint
 import (
 	"github.com/go-playground/validator/v10"
 	"github.com/hsiaosiyuan0/mole/ecma/analysis"
+	"github.com/hsiaosiyuan0/mole/ecma/astutil"
 	"github.com/hsiaosiyuan0/mole/ecma/parser"
 	"github.com/hsiaosiyuan0/mole/ecma/walk"
 	"github.com/hsiaosiyuan0/mole/plugin"
@@ -67,7 +68,7 @@ func isGetter(node parser.Node, ctx *walk.VisitorCtx) (bool, parser.Node) {
 			// `ObjExpr` never live alone
 
 			callee := ctx.Parent.Parent.Parent.Node.(*parser.CallExpr).Callee()
-			if parser.GetStaticPropertyName(callee) == "defineProperty" {
+			if astutil.GetStaticPropertyName(callee) == "defineProperty" {
 				return true, parent.(*parser.Prop).Key()
 			}
 		}
@@ -77,7 +78,7 @@ func isGetter(node parser.Node, ctx *walk.VisitorCtx) (bool, parser.Node) {
 			ctx.Parent.Parent.Parent.Parent.Parent.Node.Type() == parser.N_EXPR_CALL {
 
 			callee := ctx.Parent.Parent.Parent.Parent.Parent.Node.(*parser.CallExpr).Callee()
-			if parser.GetStaticPropertyName(callee) == "defineProperties" {
+			if astutil.GetStaticPropertyName(callee) == "defineProperties" {
 				return true, parent.(*parser.Prop).Key()
 			}
 		}

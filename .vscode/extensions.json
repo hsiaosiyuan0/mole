@@ -1,7 +1,6 @@
 {
   "recommendations": [
     "golang.Go",
-    "EditorConfig.EditorConfig",
-    "jinliming2.vscode-go-template"
+    "EditorConfig.EditorConfig"
   ]
 }

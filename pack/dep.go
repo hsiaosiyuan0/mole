@@ -7,6 +7,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/hsiaosiyuan0/mole/ecma/astutil"
 	"github.com/hsiaosiyuan0/mole/ecma/parser"
 	"github.com/hsiaosiyuan0/mole/ecma/walk"
 	"github.com/hsiaosiyuan0/mole/span"
@@ -306,6 +307,39 @@ type JsUnit struct {
 	r   *NodeResolver
 }
 
+func getParentCond(ctx *walk.VisitorCtx) parser.Node {
+	barrier := []parser.NodeType{parser.N_EXPR_FN, parser.N_STMT_FN, parser.N_EXPR_ARROW}
+	pn, ctx := astutil.GetParent(ctx, []parser.NodeType{parser.N_STMT_IF}, barrier)
+	if pn != nil {
+		return pn
+	}
+
+	pn, ctx = astutil.GetParent(ctx, []parser.NodeType{parser.N_EXPR_COND}, barrier)
+	if pn != nil {
+		pnIf, _ := astutil.GetParent(ctx, []parser.NodeType{parser.N_STMT_IF}, barrier)
+		if pnIf != nil {
+			return pnIf
+		}
+		return pn
+	}
+
+	pn, ctx = astutil.GetParent(ctx, []parser.NodeType{parser.N_EXPR_BIN}, barrier)
+	if pn != nil {
+		op := pn.(*parser.BinExpr).Op()
+		if op == parser.T_AND || op == parser.T_OR {
+			pnIf, _ := astutil.GetParent(ctx, []parser.NodeType{parser.N_STMT_IF}, barrier)
+			if pnIf != nil {
+				return pnIf
+			}
+			return pn
+		}
+	}
+
+	return nil
+}
+
+// TODO: select require calls from true branches
+
 func parseDep(file, code string) ([]string, error) {
 	s := span.NewSource(file, code)
 	p := parser.NewParser(s, parser.NewParserOpts())
@@ -324,7 +358,7 @@ func parseDep(file, code string) ([]string, error) {
 	reqRebound := false
 	walk.SetVisitor(&ctx.Visitors, parser.N_EXPR_ASSIGN, func(node parser.Node, key string, ctx *walk.VisitorCtx) {
 		n := node.(*parser.AssignExpr)
-		if parser.GetName(n.Lhs()) == "require" {
+		if astutil.GetName(n.Lhs()) == "require" {
 			s := ctx.WalkCtx.Scope()
 			ref := s.BindingOf("require")
 			reqRebound = ref == nil
@@ -335,9 +369,10 @@ func parseDep(file, code string) ([]string, error) {
 		n := node.(*parser.CallExpr)
 		callee := n.Callee()
 		s := ctx.WalkCtx.Scope()
-		if !reqRebound && callee.Type() == parser.N_NAME && parser.GetName(callee) == "require" &&
-			s.BindingOf("require") == nil &&
-			len(n.Args()) == 1 && n.Args()[0].Type() == parser.N_LIT_STR {
+		isRequireCall := !reqRebound && astutil.GetName(callee) == "require" &&
+			s.BindingOf("require") == nil && len(n.Args()) == 1 && n.Args()[0].Type() == parser.N_LIT_STR
+		if isRequireCall {
+
 			derived = append(derived, n.Args()[0].(*parser.StrLit).Text())
 		}
 	})
