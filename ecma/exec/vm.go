@@ -132,7 +132,7 @@ func (ee *ExprEvaluator) init() {
 			case parser.T_EQ, parser.T_EQ_S:
 				ee.push(reflect.DeepEqual(lhs, rhs))
 			case parser.T_ADD:
-				ee.push(ToNum(lhs) + ToNum(rhs))
+				ee.push(Add(lhs, rhs))
 			case parser.T_SUB:
 				ee.push(ToNum(lhs) - ToNum(rhs))
 			case parser.T_MUL:
@@ -173,6 +173,16 @@ func (ee *ExprEvaluator) Release() {
 
 func (ee *ExprEvaluator) GetResult() interface{} {
 	return ee.pop()
+}
+
+func Add(a, b interface{}) interface{} {
+	_, sa := a.(string)
+	_, sb := b.(string)
+	if sa || sb {
+		return ToStr(a) + ToStr(b)
+	}
+
+	return ToNum(a) + ToNum(b)
 }
 
 func ToNum(v interface{}) float64 {

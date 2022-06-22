@@ -42,6 +42,22 @@ func TestExecExprAdd(t *testing.T) {
 	ee.Release()
 }
 
+func TestExecExprAddStr(t *testing.T) {
+	_, ast, symtab, err := compile(`
+  1 + '2'
+  `, nil)
+	util.AssertEqual(t, nil, err, "should pass")
+
+	ctx := walk.NewWalkCtx(ast, symtab)
+	ee := NewExprEvaluator(ctx)
+	walk.VisitNode(ast, "", ctx.VisitorCtx())
+
+	res := ee.GetResult()
+	util.AssertEqual(t, "12", res, "should be ok")
+
+	ee.Release()
+}
+
 func TestExecExprEqual(t *testing.T) {
 	_, ast, symtab, err := compile(`
   1 + 2 == 3
