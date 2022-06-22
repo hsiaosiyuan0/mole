@@ -2,42 +2,42 @@ package util
 
 import "sync"
 
-type LruCache[k comparable, v any] struct {
+type LruCache[K comparable, V any] struct {
 	cap   int
-	store *OrderedMap[k, v]
+	store *OrderedMap[K, V]
 	clear int
 
 	lock sync.RWMutex
 }
 
-func NewLruCache[k comparable, v any](cap int, clear int) *LruCache[k, v] {
+func NewLruCache[K comparable, V any](cap int, clear int) *LruCache[K, V] {
 	if clear == 0 || clear > cap {
 		clear = cap
 	}
-	return &LruCache[k, v]{
+	return &LruCache[K, V]{
 		cap:   cap,
-		store: NewOrderedMap[k, v](),
+		store: NewOrderedMap[K, V](),
 		clear: clear,
 
 		lock: sync.RWMutex{},
 	}
 }
 
-func (c *LruCache[k, v]) HasKey(key k) bool {
+func (c *LruCache[K, V]) HasKey(key K) bool {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 
 	return c.store.HasKey(key)
 }
 
-func (c *LruCache[k, v]) Get(key k) v {
+func (c *LruCache[K, V]) Get(key K) V {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 
 	return c.store.Get(key)
 }
 
-func (c *LruCache[k, v]) Set(key k, val v) {
+func (c *LruCache[K, V]) Set(key K, val V) {
 	if c.HasKey(key) {
 		c.lock.Lock()
 		defer c.lock.Unlock()

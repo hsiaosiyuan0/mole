@@ -306,7 +306,7 @@ type JsUnit struct {
 	r   *NodeResolver
 }
 
-func (j *JsUnit) parse_(file, code string) ([]string, error) {
+func parseDep(file, code string) ([]string, error) {
 	s := span.NewSource(file, code)
 	p := parser.NewParser(s, parser.NewParserOpts())
 	ast, err := p.Prog()
@@ -320,13 +320,31 @@ func (j *JsUnit) parse_(file, code string) ([]string, error) {
 		n := node.(*parser.ImportDec)
 		derived = append(derived, n.Src().(*parser.StrLit).Text())
 	})
+
+	reqRebound := false
+	walk.SetVisitor(&ctx.Visitors, parser.N_EXPR_ASSIGN, func(node parser.Node, key string, ctx *walk.VisitorCtx) {
+		n := node.(*parser.AssignExpr)
+		if parser.GetName(n.Lhs()) == "require" {
+			s := ctx.WalkCtx.Scope()
+			ref := s.BindingOf("require")
+			reqRebound = ref == nil
+		}
+	})
+
 	walk.SetVisitor(&ctx.Visitors, parser.N_EXPR_CALL, func(node parser.Node, key string, ctx *walk.VisitorCtx) {
 		n := node.(*parser.CallExpr)
 		callee := n.Callee()
-		if callee.Type() == parser.N_NAME && callee.(*parser.Ident).Text() == "require" &&
+		s := ctx.WalkCtx.Scope()
+		if !reqRebound && callee.Type() == parser.N_NAME && parser.GetName(callee) == "require" &&
+			s.BindingOf("require") == nil &&
 			len(n.Args()) == 1 && n.Args()[0].Type() == parser.N_LIT_STR {
 			derived = append(derived, n.Args()[0].(*parser.StrLit).Text())
 		}
+	})
+
+	walk.SetVisitor(&ctx.Visitors, parser.N_IMPORT_CALL, func(node parser.Node, key string, ctx *walk.VisitorCtx) {
+		n := node.(*parser.ImportCall)
+		derived = append(derived, n.Src().(*parser.StrLit).Text())
 	})
 
 	walk.VisitNode(ast, "", ctx.VisitorCtx())
@@ -362,7 +380,7 @@ func (j *JsUnit) parse(m Module) ([]string, error) {
 	jm := m.(*JsModule)
 	jm.size = len(f)
 	jm.parsed = true
-	return j.parse_(jm.file, string(f))
+	return parseDep(jm.file, string(f))
 }
 
 func (j *JsUnit) Load() error {

@@ -2,39 +2,39 @@ package util
 
 import "container/list"
 
-type KvPair[k comparable, v any] struct {
-	Key k
-	Val v
+type KvPair[K comparable, V any] struct {
+	Key K
+	Val V
 }
 
-type OrderedMap[k comparable, v any] struct {
-	dict map[k]*list.Element
+type OrderedMap[K comparable, V any] struct {
+	dict map[K]*list.Element
 	list *list.List
 }
 
-func NewOrderedMap[k comparable, v any]() *OrderedMap[k, v] {
-	return &OrderedMap[k, v]{
-		dict: map[k]*list.Element{},
+func NewOrderedMap[K comparable, V any]() *OrderedMap[K, V] {
+	return &OrderedMap[K, V]{
+		dict: map[K]*list.Element{},
 		list: list.New(),
 	}
 }
 
-func (o *OrderedMap[k, v]) HasKey(key k) bool {
+func (o *OrderedMap[K, V]) HasKey(key K) bool {
 	_, ok := o.dict[key]
 	return ok
 }
 
-func (o *OrderedMap[k, v]) Get(key k) (vv v) {
+func (o *OrderedMap[K, V]) Get(key K) (v V) {
 	kv, ok := o.dict[key]
 	if ok {
-		vv = kv.Value.(*KvPair[k, v]).Val
+		v = kv.Value.(*KvPair[K, V]).Val
 		return
 	}
 	return
 }
 
-func (o *OrderedMap[k, v]) Set(key k, val v) *list.Element {
-	pair := &KvPair[k, v]{key, val}
+func (o *OrderedMap[K, V]) Set(key K, val V) *list.Element {
+	pair := &KvPair[K, V]{key, val}
 
 	if old, ok := o.dict[key]; ok {
 		elem := o.list.PushBack(pair)

@@ -10,6 +10,69 @@ import (
 	"github.com/hsiaosiyuan0/mole/util"
 )
 
+func TestParseDep(t *testing.T) {
+	deps, err := parseDep("", `
+  require('a.js')
+`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	util.AssertEqual(t, 1, len(deps), "should be ok")
+}
+
+func TestParseDepRebound(t *testing.T) {
+	deps, err := parseDep("", `
+  require = a
+  require('a.js')
+`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	util.AssertEqual(t, 0, len(deps), "should be ok")
+}
+
+func TestParseDepValShadow(t *testing.T) {
+	deps, err := parseDep("", `
+function f() {
+  var require = a
+  require('a.js')
+}
+`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	util.AssertEqual(t, 0, len(deps), "should be ok")
+}
+
+func TestParseDepAfterValShadow(t *testing.T) {
+	deps, err := parseDep("", `
+function f() {
+  var require = a
+  require('a.js')
+}
+require('a.js')
+`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	util.AssertEqual(t, 1, len(deps), "should be ok")
+}
+
+func TestParseDepImport(t *testing.T) {
+	deps, err := parseDep("", `
+import('a.js')
+`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	util.AssertEqual(t, 1, len(deps), "should be ok")
+}
+
 func TestDepScanner(t *testing.T) {
 	_, b, _, _ := runtime.Caller(0)
 	basepath := filepath.Dir(b)
