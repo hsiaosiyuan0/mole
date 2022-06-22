@@ -14,6 +14,7 @@ import (
 
 type ExprEvaluator struct {
 	id      string
+	node    parser.Node
 	walkCtx *walk.WalkCtx
 	vars    map[string]interface{}
 
@@ -39,10 +40,11 @@ var builtinProto = map[reflect.Type]map[string]NativeFn{
 	},
 }
 
-func NewExprEvaluator(wc *walk.WalkCtx) *ExprEvaluator {
+func NewExprEvaluator(node parser.Node) *ExprEvaluator {
 	ee := &ExprEvaluator{
 		id:        fmt.Sprintf("expr_evaluator_%d", time.Now().Nanosecond()),
-		walkCtx:   wc,
+		node:      node,
+		walkCtx:   walk.NewWalkCtx(node, nil),
 		vars:      map[string]interface{}{},
 		stk:       list.New(),
 		listeners: map[parser.NodeType]*walk.Listener{},
@@ -242,14 +244,24 @@ func (ee *ExprEvaluator) init() {
 		})
 }
 
+func (ee *ExprEvaluator) Exec(vars map[string]interface{}) *ExprEvaluator {
+	if vars == nil {
+		ee.vars = map[string]interface{}{}
+	} else {
+		ee.vars = vars
+	}
+	walk.VisitNode(ee.node, "", ee.walkCtx.VisitorCtx())
+	return ee
+}
+
 func (ee *ExprEvaluator) Release() {
 	for nt, lis := range ee.listeners {
 		walk.RemoveListener(&ee.walkCtx.Listeners, nt, lis)
 	}
 }
 
-func (ee *ExprEvaluator) GetResult() interface{} {
-	return ee.pop()
+func (ee *ExprEvaluator) GetResult() (interface{}, error) {
+	return ee.pop(), ee.err
 }
 
 func Add(a, b interface{}) interface{} {

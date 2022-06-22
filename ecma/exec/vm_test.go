@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/hsiaosiyuan0/mole/ecma/parser"
-	"github.com/hsiaosiyuan0/mole/ecma/walk"
 	"github.com/hsiaosiyuan0/mole/span"
 	"github.com/hsiaosiyuan0/mole/util"
 )
@@ -27,358 +26,328 @@ func compile(code string, opts *parser.ParserOpts) (*parser.Parser, parser.Node,
 }
 
 func TestExecExprAdd(t *testing.T) {
-	_, ast, symtab, err := compile(`
+	_, ast, _, err := compile(`
   1 + 2
   `, nil)
 	util.AssertEqual(t, nil, err, "should pass")
 
-	ctx := walk.NewWalkCtx(ast, symtab)
-	ee := NewExprEvaluator(ctx)
-	walk.VisitNode(ast, "", ctx.VisitorCtx())
+	ee := NewExprEvaluator(ast)
+	res, err := ee.Exec(nil).GetResult()
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	res := ee.GetResult()
 	util.AssertEqual(t, 3.0, res, "should be ok")
-
-	ee.Release()
 }
 
 func TestExecNull(t *testing.T) {
-	_, ast, symtab, err := compile(`
+	_, ast, _, err := compile(`
   null
   `, nil)
 	util.AssertEqual(t, nil, err, "should pass")
 
-	ctx := walk.NewWalkCtx(ast, symtab)
-	ee := NewExprEvaluator(ctx)
-
-	walk.VisitNode(ast, "", ctx.VisitorCtx())
-	res := ee.GetResult()
+	ee := NewExprEvaluator(ast)
+	res, err := ee.Exec(nil).GetResult()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	util.AssertEqual(t, nil, res, "should be ok")
-
-	ee.Release()
 }
 
 func TestExecUndef(t *testing.T) {
-	_, ast, symtab, err := compile(`
+	_, ast, _, err := compile(`
   undefined
   `, nil)
 	util.AssertEqual(t, nil, err, "should pass")
 
-	ctx := walk.NewWalkCtx(ast, symtab)
-	ee := NewExprEvaluator(ctx)
-
-	walk.VisitNode(ast, "", ctx.VisitorCtx())
-	res := ee.GetResult()
-
+	ee := NewExprEvaluator(ast)
+	res, _ := ee.Exec(nil).GetResult()
 	util.AssertEqual(t, nil, res, "should be ok")
-
-	ee.Release()
 }
 
 func TestExecExprAddStr(t *testing.T) {
-	_, ast, symtab, err := compile(`
+	_, ast, _, err := compile(`
   1 + '2'
   `, nil)
 	util.AssertEqual(t, nil, err, "should pass")
 
-	ctx := walk.NewWalkCtx(ast, symtab)
-	ee := NewExprEvaluator(ctx)
-	walk.VisitNode(ast, "", ctx.VisitorCtx())
+	ee := NewExprEvaluator(ast)
+	res, err := ee.Exec(nil).GetResult()
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	res := ee.GetResult()
 	util.AssertEqual(t, "12", res, "should be ok")
-
-	ee.Release()
 }
 
 func TestExecExprEqual(t *testing.T) {
-	_, ast, symtab, err := compile(`
+	_, ast, _, err := compile(`
   1 + 2 == 3
   `, nil)
 	util.AssertEqual(t, nil, err, "should pass")
 
-	ctx := walk.NewWalkCtx(ast, symtab)
-	ee := NewExprEvaluator(ctx)
-	walk.VisitNode(ast, "", ctx.VisitorCtx())
+	ee := NewExprEvaluator(ast)
+	res, err := ee.Exec(nil).GetResult()
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	res := ee.GetResult()
 	util.AssertEqual(t, true, res, "should be ok")
-
-	ee.Release()
 }
 
 func TestExecExprMemExpr(t *testing.T) {
-	_, ast, symtab, err := compile(`
+	_, ast, _, err := compile(`
   process.env.ENV
   `, nil)
 	util.AssertEqual(t, nil, err, "should pass")
 
-	ctx := walk.NewWalkCtx(ast, symtab)
-	ee := NewExprEvaluator(ctx)
-
-	ee.vars = map[string]interface{}{
+	ee := NewExprEvaluator(ast)
+	res, err := ee.Exec(map[string]interface{}{
 		"process": map[string]interface{}{
 			"env": map[string]interface{}{
 				"ENV": "development",
 			},
 		},
+	}).GetResult()
+
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	walk.VisitNode(ast, "", ctx.VisitorCtx())
-
-	res := ee.GetResult()
 	util.AssertEqual(t, "development", res, "should be ok")
-
-	ee.Release()
 }
 
 func TestExecExprMemExpr2(t *testing.T) {
-	_, ast, symtab, err := compile(`
+	_, ast, _, err := compile(`
   process['env']['ENV']
   `, nil)
 	util.AssertEqual(t, nil, err, "should pass")
 
-	ctx := walk.NewWalkCtx(ast, symtab)
-	ee := NewExprEvaluator(ctx)
-
-	ee.vars = map[string]interface{}{
+	ee := NewExprEvaluator(ast)
+	res, err := ee.Exec(map[string]interface{}{
 		"process": map[string]interface{}{
 			"env": map[string]interface{}{
 				"ENV": "development",
 			},
 		},
+	}).GetResult()
+
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	walk.VisitNode(ast, "", ctx.VisitorCtx())
-
-	res := ee.GetResult()
 	util.AssertEqual(t, "development", res, "should be ok")
-
-	ee.Release()
 }
 
 func TestExecExprMemExprEqual(t *testing.T) {
-	_, ast, symtab, err := compile(`
+	_, ast, _, err := compile(`
   process['env']['ENV'] === 'development'
   `, nil)
 	util.AssertEqual(t, nil, err, "should pass")
 
-	ctx := walk.NewWalkCtx(ast, symtab)
-	ee := NewExprEvaluator(ctx)
-
-	ee.vars = map[string]interface{}{
+	ee := NewExprEvaluator(ast)
+	res, err := ee.Exec(map[string]interface{}{
 		"process": map[string]interface{}{
 			"env": map[string]interface{}{
 				"ENV": "development",
 			},
 		},
+	}).GetResult()
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	walk.VisitNode(ast, "", ctx.VisitorCtx())
-
-	res := ee.GetResult()
 	util.AssertEqual(t, true, res, "should be ok")
 
 	ee.Release()
 }
 
 func TestExecExprToBool(t *testing.T) {
-	_, ast, symtab, err := compile(`
+	_, ast, _, err := compile(`
   !(process['env']['ENV'] === 'development')
   `, nil)
 	util.AssertEqual(t, nil, err, "should pass")
 
-	ctx := walk.NewWalkCtx(ast, symtab)
-	ee := NewExprEvaluator(ctx)
-
-	ee.vars = map[string]interface{}{
+	ee := NewExprEvaluator(ast)
+	res, err := ee.Exec(map[string]interface{}{
 		"process": map[string]interface{}{
 			"env": map[string]interface{}{
 				"ENV": "development",
 			},
 		},
+	}).GetResult()
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	walk.VisitNode(ast, "", ctx.VisitorCtx())
-
-	res := ee.GetResult()
 	util.AssertEqual(t, false, res, "should be ok")
 
 	ee.Release()
 }
 
 func TestExecExprToBool2(t *testing.T) {
-	_, ast, symtab, err := compile(`
+	_, ast, _, err := compile(`
   !process['not set']
   `, nil)
 	util.AssertEqual(t, nil, err, "should pass")
 
-	ctx := walk.NewWalkCtx(ast, symtab)
-	ee := NewExprEvaluator(ctx)
+	ee := NewExprEvaluator(ast)
+	res, err := ee.Exec(nil).GetResult()
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	walk.VisitNode(ast, "", ctx.VisitorCtx())
-
-	res := ee.GetResult()
 	util.AssertEqual(t, true, res, "should be ok")
 
 	ee.Release()
 }
 
 func TestExecBool(t *testing.T) {
-	_, ast, symtab, err := compile(`
+	_, ast, _, err := compile(`
   true
   `, nil)
 	util.AssertEqual(t, nil, err, "should pass")
 
-	ctx := walk.NewWalkCtx(ast, symtab)
-	ee := NewExprEvaluator(ctx)
+	ee := NewExprEvaluator(ast)
+	res, err := ee.Exec(nil).GetResult()
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	walk.VisitNode(ast, "", ctx.VisitorCtx())
-
-	res := ee.GetResult()
 	util.AssertEqual(t, true, res, "should be ok")
 
 	ee.Release()
 }
 
 func TestExecLogic(t *testing.T) {
-	_, ast, symtab, err := compile(`
+	_, ast, _, err := compile(`
   process.env.ENV === 'development' || process.env.ENV === 'production'
   `, nil)
 	util.AssertEqual(t, nil, err, "should pass")
 
-	ctx := walk.NewWalkCtx(ast, symtab)
-	ee := NewExprEvaluator(ctx)
-
-	ee.vars = map[string]interface{}{
+	// 1
+	ee := NewExprEvaluator(ast)
+	res, err := ee.Exec(map[string]interface{}{
 		"process": map[string]interface{}{
 			"env": map[string]interface{}{
 				"ENV": "development",
 			},
 		},
+	}).GetResult()
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	walk.VisitNode(ast, "", ctx.VisitorCtx())
-	res := ee.GetResult()
 	util.AssertEqual(t, true, res, "should be ok")
 
-	ee.vars = map[string]interface{}{
+	// 2
+	res, err = ee.Exec(map[string]interface{}{
 		"process": map[string]interface{}{
 			"env": map[string]interface{}{
 				"ENV": "production",
 			},
 		},
+	}).GetResult()
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	walk.VisitNode(ast, "", ctx.VisitorCtx())
-	res = ee.GetResult()
 	util.AssertEqual(t, true, res, "should be ok")
-
-	ee.Release()
 }
 
 func TestExecArrLit(t *testing.T) {
-	_, ast, symtab, err := compile(`
+	_, ast, _, err := compile(`
   [1, 2]
   `, nil)
 	util.AssertEqual(t, nil, err, "should pass")
 
-	ctx := walk.NewWalkCtx(ast, symtab)
-	ee := NewExprEvaluator(ctx)
-
-	walk.VisitNode(ast, "", ctx.VisitorCtx())
-	res := ee.GetResult()
+	ee := NewExprEvaluator(ast)
+	res, err := ee.Exec(nil).GetResult()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	util.AssertEqual(t, 2, len(res.([]interface{})), "should be ok")
-
-	ee.Release()
 }
 
 func TestExecArrLitIdx(t *testing.T) {
-	_, ast, symtab, err := compile(`
+	_, ast, _, err := compile(`
   [1, 2][0] == 1
   `, nil)
 	util.AssertEqual(t, nil, err, "should pass")
 
-	ctx := walk.NewWalkCtx(ast, symtab)
-	ee := NewExprEvaluator(ctx)
-
-	walk.VisitNode(ast, "", ctx.VisitorCtx())
-	res := ee.GetResult()
+	ee := NewExprEvaluator(ast)
+	res, err := ee.Exec(nil).GetResult()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	util.AssertEqual(t, true, res, "should be ok")
-
-	ee.Release()
 }
 
 func TestExecArrLitNoIdx(t *testing.T) {
-	_, ast, symtab, err := compile(`
+	_, ast, _, err := compile(`
   [1, 2][3] == null
   `, nil)
 	util.AssertEqual(t, nil, err, "should pass")
 
-	ctx := walk.NewWalkCtx(ast, symtab)
-	ee := NewExprEvaluator(ctx)
-
-	walk.VisitNode(ast, "", ctx.VisitorCtx())
-	res := ee.GetResult()
+	ee := NewExprEvaluator(ast)
+	res, err := ee.Exec(nil).GetResult()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	util.AssertEqual(t, true, res, "should be ok")
-
-	ee.Release()
 }
 
 func TestExecArrIncludes(t *testing.T) {
-	_, ast, symtab, err := compile(`
+	_, ast, _, err := compile(`
   [1, 2].includes(1)
   `, nil)
 	util.AssertEqual(t, nil, err, "should pass")
 
-	ctx := walk.NewWalkCtx(ast, symtab)
-	ee := NewExprEvaluator(ctx)
-
-	walk.VisitNode(ast, "", ctx.VisitorCtx())
-	res := ee.GetResult()
+	ee := NewExprEvaluator(ast)
+	res, err := ee.Exec(nil).GetResult()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	util.AssertEqual(t, true, res, "should be ok")
-
-	ee.Release()
 }
 
 func TestExecArrIncludes2(t *testing.T) {
-	_, ast, symtab, err := compile(`
+	_, ast, _, err := compile(`
   ["REG", "ONLINE"].includes(process.env.ENV)
   `, nil)
 	util.AssertEqual(t, nil, err, "should pass")
 
 	// 1
-	ctx := walk.NewWalkCtx(ast, symtab)
-	ee := NewExprEvaluator(ctx)
-	ee.vars = map[string]interface{}{
+	ee := NewExprEvaluator(ast)
+	res, err := ee.Exec(map[string]interface{}{
 		"process": map[string]interface{}{
 			"env": map[string]interface{}{
 				"ENV": "TEST",
 			},
 		},
+	}).GetResult()
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	walk.VisitNode(ast, "", ctx.VisitorCtx())
-	res := ee.GetResult()
 	util.AssertEqual(t, false, res, "should be ok")
 
 	// 2
-	ee.vars = map[string]interface{}{
+	res, err = ee.Exec(map[string]interface{}{
 		"process": map[string]interface{}{
 			"env": map[string]interface{}{
 				"ENV": "ONLINE",
 			},
 		},
+	}).GetResult()
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	walk.VisitNode(ast, "", ctx.VisitorCtx())
-	res = ee.GetResult()
 	util.AssertEqual(t, true, res, "should be ok")
-
-	ee.Release()
 }
