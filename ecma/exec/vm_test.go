@@ -277,3 +277,40 @@ func TestExecArrIncludes(t *testing.T) {
 
 	ee.Release()
 }
+
+func TestExecArrIncludes2(t *testing.T) {
+	_, ast, symtab, err := compile(`
+  ["REG", "ONLINE"].includes(process.env.ENV)
+  `, nil)
+	util.AssertEqual(t, nil, err, "should pass")
+
+	// 1
+	ctx := walk.NewWalkCtx(ast, symtab)
+	ee := NewExprEvaluator(ctx)
+	ee.vars = map[string]interface{}{
+		"process": map[string]interface{}{
+			"env": map[string]interface{}{
+				"ENV": "TEST",
+			},
+		},
+	}
+
+	walk.VisitNode(ast, "", ctx.VisitorCtx())
+	res := ee.GetResult()
+	util.AssertEqual(t, false, res, "should be ok")
+
+	// 2
+	ee.vars = map[string]interface{}{
+		"process": map[string]interface{}{
+			"env": map[string]interface{}{
+				"ENV": "ONLINE",
+			},
+		},
+	}
+
+	walk.VisitNode(ast, "", ctx.VisitorCtx())
+	res = ee.GetResult()
+	util.AssertEqual(t, true, res, "should be ok")
+
+	ee.Release()
+}

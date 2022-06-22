@@ -24,10 +24,10 @@ type ExprEvaluator struct {
 	listeners map[parser.NodeType]*walk.Listener
 }
 
-var builtinProto = map[reflect.Type]map[string]BuiltinFn{
+var builtinProto = map[reflect.Type]map[string]NativeFn{
 	reflect.TypeOf([]interface{}{}): {
-		"includes": func(ee *ExprEvaluator, args *Args) interface{} {
-			arr := ee.this.([]interface{})
+		"includes": func(this interface{}, args *Args) interface{} {
+			arr := this.([]interface{})
 			target := args.Get(0)
 			for _, arg := range arr {
 				if reflect.DeepEqual(arg, target) {
@@ -146,13 +146,16 @@ func (ee *ExprEvaluator) init() {
 
 			prop := ee.pop()
 			obj := ee.pop()
+
 			v := GetProp(obj, prop)
-			if v != nil {
-				ee.push(v)
-			} else {
-				ee.push(GetBuiltinProto(reflect.TypeOf(obj), prop))
+			if v == nil {
+				v = GetBuiltinProto(reflect.TypeOf(obj), prop)
+				if IsNativeFn(v) {
+					v = NewBuiltinFn(obj, v.(NativeFn))
+				}
 			}
-			ee.this = obj
+
+			ee.push(v)
 		})
 
 	ee.addListener(walk.NodeAfterEvent(parser.N_EXPR_BIN),
@@ -220,8 +223,8 @@ func (ee *ExprEvaluator) init() {
 			}
 
 			fn := ee.pop()
-			if f, ok := fn.(BuiltinFn); ok {
-				ee.push(f(ee, NewArgs(args)))
+			if fo, ok := fn.(*BuiltinFn); ok {
+				ee.push(fo.Call(NewArgs(args)))
 			} else {
 				ee.push(nil)
 			}
@@ -350,4 +353,22 @@ func (a *Args) Get(i int) interface{} {
 	return nil
 }
 
-type BuiltinFn = func(*ExprEvaluator, *Args) interface{}
+type NativeFn = func(this interface{}, args *Args) interface{}
+
+func IsNativeFn(o interface{}) bool {
+	_, ok := o.(NativeFn)
+	return ok
+}
+
+type BuiltinFn struct {
+	this interface{}
+	fn   NativeFn
+}
+
+func NewBuiltinFn(this interface{}, fn NativeFn) *BuiltinFn {
+	return &BuiltinFn{this, fn}
+}
+
+func (f *BuiltinFn) Call(args *Args) interface{} {
+	return f.fn(f.this, args)
+}
