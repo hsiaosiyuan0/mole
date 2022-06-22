@@ -85,6 +85,15 @@ func (ee *ExprEvaluator) init() {
 			ee.push(node.(*parser.BoolLit).Val())
 		})
 
+	ee.addListener(walk.NodeAfterEvent(parser.N_LIT_NULL),
+		func(node parser.Node, key string, ctx *walk.VisitorCtx) {
+			if ee.err != nil {
+				return
+			}
+
+			ee.push(nil)
+		})
+
 	ee.addListener(walk.NodeAfterEvent(parser.N_NAME),
 		func(node parser.Node, key string, ctx *walk.VisitorCtx) {
 			if ee.err != nil {
@@ -94,6 +103,8 @@ func (ee *ExprEvaluator) init() {
 			name := node.(*parser.Ident).Text()
 			if ctx.ParentNode().Type() == parser.N_EXPR_MEMBER && key == "Prop" {
 				ee.push(name)
+			} else if name == "undefined" {
+				ee.push(nil)
 			} else {
 				ee.push(ee.vars[name])
 			}
@@ -296,11 +307,15 @@ func GetProp(obj, prop interface{}) interface{} {
 	if obj == nil || prop == nil {
 		return nil
 	}
+
 	p := ToStr(prop)
-	if ov, ok := obj.(map[string]interface{}); !ok {
-		return nil
-	} else {
+	switch ov := obj.(type) {
+	case []interface{}:
+		return GetElem(obj, prop)
+	case map[string]interface{}:
 		return ov[p]
+	default:
+		return nil
 	}
 }
 
@@ -313,7 +328,10 @@ func GetBuiltinProto(typ reflect.Type, prop interface{}) interface{} {
 	if fns == nil {
 		return nil
 	}
-	return fns[p]
+	if f, ok := fns[p]; ok {
+		return f
+	}
+	return nil
 }
 
 func GetElem(obj, prop interface{}) interface{} {

@@ -42,6 +42,40 @@ func TestExecExprAdd(t *testing.T) {
 	ee.Release()
 }
 
+func TestExecNull(t *testing.T) {
+	_, ast, symtab, err := compile(`
+  null
+  `, nil)
+	util.AssertEqual(t, nil, err, "should pass")
+
+	ctx := walk.NewWalkCtx(ast, symtab)
+	ee := NewExprEvaluator(ctx)
+
+	walk.VisitNode(ast, "", ctx.VisitorCtx())
+	res := ee.GetResult()
+
+	util.AssertEqual(t, nil, res, "should be ok")
+
+	ee.Release()
+}
+
+func TestExecUndef(t *testing.T) {
+	_, ast, symtab, err := compile(`
+  undefined
+  `, nil)
+	util.AssertEqual(t, nil, err, "should pass")
+
+	ctx := walk.NewWalkCtx(ast, symtab)
+	ee := NewExprEvaluator(ctx)
+
+	walk.VisitNode(ast, "", ctx.VisitorCtx())
+	res := ee.GetResult()
+
+	util.AssertEqual(t, nil, res, "should be ok")
+
+	ee.Release()
+}
+
 func TestExecExprAddStr(t *testing.T) {
 	_, ast, symtab, err := compile(`
   1 + '2'
@@ -257,6 +291,40 @@ func TestExecArrLit(t *testing.T) {
 	res := ee.GetResult()
 
 	util.AssertEqual(t, 2, len(res.([]interface{})), "should be ok")
+
+	ee.Release()
+}
+
+func TestExecArrLitIdx(t *testing.T) {
+	_, ast, symtab, err := compile(`
+  [1, 2][0] == 1
+  `, nil)
+	util.AssertEqual(t, nil, err, "should pass")
+
+	ctx := walk.NewWalkCtx(ast, symtab)
+	ee := NewExprEvaluator(ctx)
+
+	walk.VisitNode(ast, "", ctx.VisitorCtx())
+	res := ee.GetResult()
+
+	util.AssertEqual(t, true, res, "should be ok")
+
+	ee.Release()
+}
+
+func TestExecArrLitNoIdx(t *testing.T) {
+	_, ast, symtab, err := compile(`
+  [1, 2][3] == null
+  `, nil)
+	util.AssertEqual(t, nil, err, "should pass")
+
+	ctx := walk.NewWalkCtx(ast, symtab)
+	ee := NewExprEvaluator(ctx)
+
+	walk.VisitNode(ast, "", ctx.VisitorCtx())
+	res := ee.GetResult()
+
+	util.AssertEqual(t, true, res, "should be ok")
 
 	ee.Release()
 }
