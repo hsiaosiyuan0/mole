@@ -159,8 +159,6 @@ func TestExecExprMemExprEqual(t *testing.T) {
 	}
 
 	util.AssertEqual(t, true, res, "should be ok")
-
-	ee.Release()
 }
 
 func TestExecExprToBool(t *testing.T) {
@@ -182,8 +180,6 @@ func TestExecExprToBool(t *testing.T) {
 	}
 
 	util.AssertEqual(t, false, res, "should be ok")
-
-	ee.Release()
 }
 
 func TestExecExprToBool2(t *testing.T) {
@@ -199,8 +195,6 @@ func TestExecExprToBool2(t *testing.T) {
 	}
 
 	util.AssertEqual(t, true, res, "should be ok")
-
-	ee.Release()
 }
 
 func TestExecBool(t *testing.T) {
@@ -216,8 +210,6 @@ func TestExecBool(t *testing.T) {
 	}
 
 	util.AssertEqual(t, true, res, "should be ok")
-
-	ee.Release()
 }
 
 func TestExecLogic(t *testing.T) {
