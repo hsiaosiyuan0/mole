@@ -223,3 +223,39 @@ func TestExecBool(t *testing.T) {
 
 	ee.Release()
 }
+
+func TestExecLogic(t *testing.T) {
+	_, ast, symtab, err := compile(`
+  process.env.ENV === 'development' || process.env.ENV === 'production'
+  `, nil)
+	util.AssertEqual(t, nil, err, "should pass")
+
+	ctx := walk.NewWalkCtx(ast, symtab)
+	ee := NewExprEvaluator(ctx)
+
+	ee.vars = map[string]interface{}{
+		"process": map[string]interface{}{
+			"env": map[string]interface{}{
+				"ENV": "development",
+			},
+		},
+	}
+
+	walk.VisitNode(ast, "", ctx.VisitorCtx())
+	res := ee.GetResult()
+	util.AssertEqual(t, true, res, "should be ok")
+
+	ee.vars = map[string]interface{}{
+		"process": map[string]interface{}{
+			"env": map[string]interface{}{
+				"ENV": "production",
+			},
+		},
+	}
+
+	walk.VisitNode(ast, "", ctx.VisitorCtx())
+	res = ee.GetResult()
+	util.AssertEqual(t, true, res, "should be ok")
+
+	ee.Release()
+}

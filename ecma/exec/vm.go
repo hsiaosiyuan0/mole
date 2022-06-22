@@ -144,6 +144,10 @@ func (ee *ExprEvaluator) init() {
 				} else {
 					ee.push(ToNum(lhs) - r)
 				}
+			case parser.T_AND:
+				ee.push(ToBool(lhs) && ToBool(rhs))
+			case parser.T_OR:
+				ee.push(ToBool(lhs) || ToBool(rhs))
 			}
 		})
 
@@ -218,6 +222,8 @@ func ToBool(v interface{}) bool {
 		return vv != 0
 	case string:
 		return vv != ""
+	case bool:
+		return vv
 	case nil:
 		return false
 	}
