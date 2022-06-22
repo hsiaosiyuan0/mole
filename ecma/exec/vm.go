@@ -17,10 +17,26 @@ type ExprEvaluator struct {
 	walkCtx *walk.WalkCtx
 	vars    map[string]interface{}
 
-	stk *list.List
-	err error
+	this interface{}
+	stk  *list.List
+	err  error
 
 	listeners map[parser.NodeType]*walk.Listener
+}
+
+var builtinProto = map[reflect.Type]map[string]BuiltinFn{
+	reflect.TypeOf([]interface{}{}): {
+		"includes": func(ee *ExprEvaluator, args *Args) interface{} {
+			arr := ee.this.([]interface{})
+			target := args.Get(0)
+			for _, arg := range arr {
+				if reflect.DeepEqual(arg, target) {
+					return true
+				}
+			}
+			return false
+		},
+	},
 }
 
 func NewExprEvaluator(wc *walk.WalkCtx) *ExprEvaluator {
@@ -83,6 +99,21 @@ func (ee *ExprEvaluator) init() {
 			}
 		})
 
+	ee.addListener(walk.NodeAfterEvent(parser.N_LIT_ARR),
+		func(node parser.Node, key string, ctx *walk.VisitorCtx) {
+			if ee.err != nil {
+				return
+			}
+
+			n := node.(*parser.ArrLit)
+			arrLen := len(n.Elems())
+			arr := make([]interface{}, arrLen)
+			for i := len(n.Elems()) - 1; i >= 0; i-- {
+				arr[i] = ee.pop()
+			}
+			ee.push(arr)
+		})
+
 	ee.addListener(walk.NodeAfterEvent(parser.N_LIT_NUM),
 		func(node parser.Node, key string, ctx *walk.VisitorCtx) {
 			if ee.err != nil {
@@ -115,7 +146,13 @@ func (ee *ExprEvaluator) init() {
 
 			prop := ee.pop()
 			obj := ee.pop()
-			ee.push(GetProp(obj, prop))
+			v := GetProp(obj, prop)
+			if v != nil {
+				ee.push(v)
+			} else {
+				ee.push(GetBuiltinProto(reflect.TypeOf(obj), prop))
+			}
+			ee.this = obj
 		})
 
 	ee.addListener(walk.NodeAfterEvent(parser.N_EXPR_BIN),
@@ -165,6 +202,28 @@ func (ee *ExprEvaluator) init() {
 				ee.push(!ToBool(arg))
 			default:
 				ee.push(false)
+			}
+		})
+
+	ee.addListener(walk.NodeAfterEvent(parser.N_EXPR_CALL),
+		func(node parser.Node, key string, ctx *walk.VisitorCtx) {
+			if ee.err != nil {
+				return
+			}
+
+			n := node.(*parser.CallExpr)
+			argsLen := len(n.Args())
+			args := make([]interface{}, argsLen)
+
+			for i := argsLen - 1; i >= 0; i-- {
+				args[i] = ee.pop()
+			}
+
+			fn := ee.pop()
+			if f, ok := fn.(BuiltinFn); ok {
+				ee.push(f(ee, NewArgs(args)))
+			} else {
+				ee.push(nil)
 			}
 		})
 }
@@ -241,3 +300,54 @@ func GetProp(obj, prop interface{}) interface{} {
 		return ov[p]
 	}
 }
+
+func GetBuiltinProto(typ reflect.Type, prop interface{}) interface{} {
+	if prop == nil {
+		return nil
+	}
+	p := ToStr(prop)
+	fns := builtinProto[typ]
+	if fns == nil {
+		return nil
+	}
+	return fns[p]
+}
+
+func GetElem(obj, prop interface{}) interface{} {
+	if obj == nil || prop == nil {
+		return nil
+	}
+
+	p := ToNum(prop)
+	if math.IsNaN(p) || p < 0 {
+		return nil
+	}
+
+	arr, ok := obj.([]interface{})
+	if !ok {
+		return nil
+	}
+
+	i := int(p)
+	if i > len(arr)-1 {
+		return nil
+	}
+	return arr[i]
+}
+
+type Args struct {
+	args []interface{}
+}
+
+func NewArgs(args []interface{}) *Args {
+	return &Args{args}
+}
+
+func (a *Args) Get(i int) interface{} {
+	if i < len(a.args) {
+		return a.args[i]
+	}
+	return nil
+}
+
+type BuiltinFn = func(*ExprEvaluator, *Args) interface{}
