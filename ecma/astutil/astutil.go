@@ -1,8 +1,6 @@
 package astutil
 
 import (
-	"container/list"
-
 	"github.com/hsiaosiyuan0/mole/ecma/exec"
 	"github.com/hsiaosiyuan0/mole/ecma/parser"
 	"github.com/hsiaosiyuan0/mole/ecma/walk"
@@ -105,44 +103,40 @@ func SelectTrueBranches(node parser.Node, vars map[string]interface{}) []parser.
 	return tbs
 }
 
+// the minimal unit of the target nodes is expr
 func CollectNodesInTrueBranches(node parser.Node, typ []parser.NodeType, vars map[string]interface{}) []parser.Node {
 	ret := []parser.Node{}
-	nodes := list.New()
-	nodes.PushBack(node)
+	wc := walk.NewWalkCtx(node, nil)
 
-	for node := nodes.Front(); node != nil; node = nodes.Front() {
-		n := node.Value.(parser.Node)
-		if util.Includes(typ, n.Type()) {
-			ret = append(ret, n)
+	walkTrueBranches := func(node parser.Node, key string, ctx *walk.VisitorCtx) {
+		subs := SelectTrueBranches(node, vars)
+		for _, sub := range subs {
+			walk.VisitNode(sub, key, ctx)
 		}
-
-		switch n.Type() {
-		case parser.N_STMT_IF, parser.N_EXPR_BIN, parser.N_EXPR_COND:
-			subs := SelectTrueBranches(n, vars)
-			for _, sub := range subs {
-				nodes.PushBack(sub)
-			}
-		case parser.N_EXPR_ASSIGN:
-			nodes.PushBack(n.(*parser.AssignExpr).Rhs())
-		case parser.N_STMT_VAR_DEC:
-			for _, d := range n.(*parser.VarDecStmt).DecList() {
-				nodes.PushBack(d.(*parser.VarDec).Init())
-			}
-		case parser.N_STMT_EXPR:
-			nodes.PushBack(n.(*parser.ExprStmt).Expr())
-		case parser.N_STMT_BLOCK:
-			for _, sn := range n.(*parser.BlockStmt).Body() {
-				nodes.PushBack(sn)
-			}
-		}
-		nodes.Remove(node)
 	}
+
+	walk.SetVisitor(&wc.Visitors, parser.N_STMT_IF, walkTrueBranches)
+	walk.SetVisitor(&wc.Visitors, parser.N_EXPR_BIN, walkTrueBranches)
+	walk.SetVisitor(&wc.Visitors, parser.N_EXPR_COND, walkTrueBranches)
+
+	for _, t := range typ {
+		walk.AddNodeAfterListener(&wc.Listeners, t, &walk.Listener{
+			Id: "CollectNodesInTrueBranches",
+			Handle: func(node parser.Node, key string, ctx *walk.VisitorCtx) {
+				ret = append(ret, node)
+			},
+		})
+	}
+
+	walk.VisitNode(node, "", wc.VisitorCtx())
+
 	return ret
 }
 
 func IsNodeContains(parent, sub parser.Node) bool {
 	ctx := walk.NewWalkCtx(parent, nil)
-	ok := true
+
+	ok := false
 	fn := &walk.Listener{
 		Id: "IsNodeContains",
 		Handle: func(node parser.Node, key string, ctx *walk.VisitorCtx) {
@@ -152,7 +146,9 @@ func IsNodeContains(parent, sub parser.Node) bool {
 			}
 		},
 	}
+
 	walk.AddBeforeListener(&ctx.Listeners, fn)
+	walk.VisitNode(parent, "", ctx.VisitorCtx())
 	return ok
 }
 

@@ -46,13 +46,19 @@ func TestIsNodeContains(t *testing.T) {
   } else {
     e
   }
+
+  f
 `, nil)
 	util.AssertEqual(t, nil, err, "should be prog ok")
 
-	ifSmt := ast.(*parser.Prog).Body()[0].(*parser.IfStmt)
+	prog := ast.(*parser.Prog)
+	ifSmt := prog.Body()[0].(*parser.IfStmt)
 	bs := IfStmtToSwitchBranches(ifSmt)
 	ok := IsNodeContains(ifSmt, bs[len(bs)-1].body.(*parser.BlockStmt).Body()[0])
 	util.AssertEqual(t, true, ok, "should be ok")
+
+	ok = IsNodeContains(ifSmt, prog.Body()[1])
+	util.AssertEqual(t, false, ok, "should be ok")
 }
 
 func TestSelectIf(t *testing.T) {
@@ -210,6 +216,51 @@ func TestCollectNodesInTrueBranches3(t *testing.T) {
 
 func TestCollectNodesInTrueBranches4(t *testing.T) {
 	ast, err := compile(`
+  if (a) {
+   require("a1.js")
+   if (b) {
+     a && require("a2.js")
+     require("a3.js")
+   }
+   require("a4.js")
+  }
+`, nil)
+	util.AssertEqual(t, nil, err, "should be prog ok")
+
+	ifSmt := ast.(*parser.Prog).Body()[0].(*parser.IfStmt)
+	nodes := CollectNodesInTrueBranches(ifSmt, []parser.NodeType{parser.N_EXPR_CALL}, map[string]interface{}{
+		"a":       1,
+		"b":       1,
+		"require": 1,
+	})
+
+	util.AssertEqual(t, 4, len(nodes), "should be ok")
+}
+
+func TestCollectNodesInTrueBranches5(t *testing.T) {
+	ast, err := compile(`
+  if (a) {
+   require("a1.js")
+   if (b) {
+     a && require("a2.js")
+     require("a3.js")
+   }
+  }
+  require("a4.js")
+`, nil)
+	util.AssertEqual(t, nil, err, "should be prog ok")
+
+	nodes := CollectNodesInTrueBranches(ast, []parser.NodeType{parser.N_EXPR_CALL}, map[string]interface{}{
+		"a":       1,
+		"b":       1,
+		"require": 1,
+	})
+
+	util.AssertEqual(t, 4, len(nodes), "should be ok")
+}
+
+func TestCollectNodesInTrueBranches6(t *testing.T) {
+	ast, err := compile(`
   if (process.env.NODE_ENV === 'production') {
     module.exports = require('./cjs/react.production.min.js');
   } else {
@@ -238,4 +289,42 @@ func TestCollectNodesInTrueBranches4(t *testing.T) {
 		},
 	})
 	util.AssertEqual(t, "./cjs/react.production.min.js", nodes[0].(*parser.CallExpr).Args()[0].(*parser.StrLit).Text(), "should be ok")
+}
+
+func TestCollectNodesInTrueBranches7(t *testing.T) {
+	ast, err := compile(`
+  if (process.env.NODE_ENV !== "production") {
+    (function() {
+  'use strict';
+  
+  var React = require('react');
+  var _assign = require('object-assign');
+  var Scheduler = require('scheduler');
+  var checkPropTypes = require('prop-types/checkPropTypes');
+  var tracing = require('scheduler/tracing');
+    })()
+  }
+`, nil)
+	util.AssertEqual(t, nil, err, "should be prog ok")
+
+	// 1
+	ifSmt := ast.(*parser.Prog).Body()[0].(*parser.IfStmt)
+	nodes := CollectNodesInTrueBranches(ifSmt, []parser.NodeType{parser.N_EXPR_CALL}, map[string]interface{}{
+		"process": map[string]interface{}{
+			"env": map[string]interface{}{
+				"NODE_ENV": "production",
+			},
+		},
+	})
+	util.AssertEqual(t, 0, len(nodes), "should be ok")
+
+	// 2
+	nodes = CollectNodesInTrueBranches(ifSmt, []parser.NodeType{parser.N_EXPR_CALL}, map[string]interface{}{
+		"process": map[string]interface{}{
+			"env": map[string]interface{}{
+				"NODE_ENV": "development",
+			},
+		},
+	})
+	util.AssertEqual(t, 6, len(nodes), "should be ok")
 }

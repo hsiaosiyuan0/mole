@@ -184,6 +184,8 @@ func (ee *ExprEvaluator) init() {
 			switch n.Op() {
 			case parser.T_EQ, parser.T_EQ_S:
 				ee.push(reflect.DeepEqual(lhs, rhs))
+			case parser.T_NE, parser.T_NE_S:
+				ee.push(!reflect.DeepEqual(lhs, rhs))
 			case parser.T_ADD:
 				ee.push(Add(lhs, rhs))
 			case parser.T_SUB:

@@ -31,6 +31,8 @@ type DepScannerOpts struct {
 	exports [][]string
 	imports [][]string
 
+	vars map[string]interface{}
+
 	builtin map[string]bool
 
 	concurrent int
@@ -51,6 +53,10 @@ func NewDepScannerOpts() *DepScannerOpts {
 	return opts
 }
 
+func (s *DepScannerOpts) SerVars(vars map[string]interface{}) {
+	s.vars = vars
+}
+
 func (s *DepScannerOpts) SetTsconfig(dir string, file string, ts bool) error {
 	var err error
 	s.tsConfig, err = NewTsConfig(dir, file)
@@ -65,6 +71,13 @@ func (s *DepScannerOpts) SetTsconfig(dir string, file string, ts bool) error {
 
 	s.ts = ts
 	return nil
+}
+
+func (s *DepScannerOpts) pathMaps() *PathMaps {
+	if s.tsConfig == nil {
+		return nil
+	}
+	return s.tsConfig.pathMaps
 }
 
 func (s *DepScannerOpts) regUnitFact(u DepUnitFact) {
@@ -284,8 +297,8 @@ type JsUnitFact struct{}
 
 func (j *JsUnitFact) New(s *DepScanner, req *DepFileReq) DepUnit {
 	opts := s.opts
-	r := NewNodeResolver(opts.exports, opts.imports, opts.extensions, opts.builtin,
-		s.pkgLoader, opts.ts, opts.tsConfig.pathMaps)
+	r := NewNodeResolver(
+		opts.exports, opts.imports, opts.extensions, opts.builtin, s.pkgLoader, opts.ts, opts.pathMaps())
 	return &JsUnit{s, req, r}
 }
 
@@ -338,9 +351,7 @@ func getParentCond(ctx *walk.VisitorCtx) parser.Node {
 	return nil
 }
 
-// TODO: select require calls from true branches
-
-func parseDep(file, code string) ([]string, error) {
+func parseDep(file, code string, vars map[string]interface{}) ([]string, error) {
 	s := span.NewSource(file, code)
 	p := parser.NewParser(s, parser.NewParserOpts())
 	ast, err := p.Prog()
@@ -350,39 +361,75 @@ func parseDep(file, code string) ([]string, error) {
 
 	ctx := walk.NewWalkCtx(ast, p.Symtab())
 	derived := []string{}
-	walk.SetVisitor(&ctx.Visitors, parser.N_STMT_IMPORT, func(node parser.Node, key string, ctx *walk.VisitorCtx) {
-		n := node.(*parser.ImportDec)
-		derived = append(derived, n.Src().(*parser.StrLit).Text())
+	walk.AddNodeAfterListener(&ctx.Listeners, parser.N_STMT_IMPORT, &walk.Listener{
+		Id: "parseDep",
+		Handle: func(node parser.Node, key string, ctx *walk.VisitorCtx) {
+			n := node.(*parser.ImportDec)
+			derived = append(derived, n.Src().(*parser.StrLit).Text())
+		},
 	})
 
 	reqRebound := false
-	walk.SetVisitor(&ctx.Visitors, parser.N_EXPR_ASSIGN, func(node parser.Node, key string, ctx *walk.VisitorCtx) {
-		n := node.(*parser.AssignExpr)
-		if astutil.GetName(n.Lhs()) == "require" {
+	walk.AddNodeAfterListener(&ctx.Listeners, parser.N_EXPR_ASSIGN, &walk.Listener{
+		Id: "parseDep",
+		Handle: func(node parser.Node, key string, ctx *walk.VisitorCtx) {
+			n := node.(*parser.AssignExpr)
+			if astutil.GetName(n.Lhs()) == "require" {
+				s := ctx.WalkCtx.Scope()
+				ref := s.BindingOf("require")
+				reqRebound = ref == nil
+			}
+		},
+	})
+
+	candidates := map[parser.Node]parser.Node{}
+	walk.AddNodeAfterListener(&ctx.Listeners, parser.N_EXPR_CALL, &walk.Listener{
+		Id: "parseDep",
+		Handle: func(node parser.Node, key string, ctx *walk.VisitorCtx) {
+			n := node.(*parser.CallExpr)
 			s := ctx.WalkCtx.Scope()
-			ref := s.BindingOf("require")
-			reqRebound = ref == nil
-		}
+			callee := n.Callee()
+			args := n.Args()
+
+			isRequire :=
+				!reqRebound && astutil.GetName(callee) == "require" && s.BindingOf("require") == nil &&
+					len(args) == 1 && args[0].Type() == parser.N_LIT_STR
+
+			if isRequire {
+				candidates[node] = node
+			}
+		},
 	})
 
-	walk.SetVisitor(&ctx.Visitors, parser.N_EXPR_CALL, func(node parser.Node, key string, ctx *walk.VisitorCtx) {
-		n := node.(*parser.CallExpr)
-		callee := n.Callee()
-		s := ctx.WalkCtx.Scope()
-		isRequireCall := !reqRebound && astutil.GetName(callee) == "require" &&
-			s.BindingOf("require") == nil && len(n.Args()) == 1 && n.Args()[0].Type() == parser.N_LIT_STR
-		if isRequireCall {
-
-			derived = append(derived, n.Args()[0].(*parser.StrLit).Text())
-		}
-	})
-
-	walk.SetVisitor(&ctx.Visitors, parser.N_IMPORT_CALL, func(node parser.Node, key string, ctx *walk.VisitorCtx) {
-		n := node.(*parser.ImportCall)
-		derived = append(derived, n.Src().(*parser.StrLit).Text())
+	walk.AddNodeAfterListener(&ctx.Listeners, parser.N_IMPORT_CALL, &walk.Listener{
+		Id: "parseDep",
+		Handle: func(node parser.Node, key string, ctx *walk.VisitorCtx) {
+			candidates[node] = node
+		},
 	})
 
 	walk.VisitNode(ast, "", ctx.VisitorCtx())
+
+	interests := []parser.NodeType{parser.N_IMPORT_CALL}
+	if !reqRebound {
+		interests = append(interests, parser.N_EXPR_CALL)
+	}
+
+	nodes := astutil.CollectNodesInTrueBranches(ast, interests, vars)
+
+	for _, node := range nodes {
+		if it, ok := candidates[node]; ok {
+			switch it.Type() {
+			case parser.N_EXPR_CALL:
+				n := node.(*parser.CallExpr)
+				derived = append(derived, n.Args()[0].(*parser.StrLit).Text())
+			case parser.N_IMPORT_CALL:
+				n := node.(*parser.ImportCall)
+				derived = append(derived, n.Src().(*parser.StrLit).Text())
+			}
+		}
+	}
+
 	return derived, nil
 }
 
@@ -415,7 +462,7 @@ func (j *JsUnit) parse(m Module) ([]string, error) {
 	jm := m.(*JsModule)
 	jm.size = len(f)
 	jm.parsed = true
-	return parseDep(jm.file, string(f))
+	return parseDep(jm.file, string(f), j.s.opts.vars)
 }
 
 func (j *JsUnit) Load() error {
