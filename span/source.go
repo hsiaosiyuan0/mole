@@ -14,17 +14,14 @@ type Runes struct {
 // of bytes to the beginning of the next rune
 //
 // returned rune may be either `EOF` or `utf8.RuneError`
-// in both case with size zero
 func (s *Runes) advance() (rune, int) {
 	r, size := utf8.DecodeRuneInString(s.raw)
 	if r == utf8.RuneError {
 		if size == 0 {
 			r = EOF
 		}
-		size = 0
-	} else {
-		s.raw = s.raw[size:]
 	}
+	s.raw = s.raw[size:]
 	return r, size
 }
 

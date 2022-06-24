@@ -31323,3 +31323,321 @@ func TestHarmony322(t *testing.T) {
 }
 	`, ast)
 }
+
+func TestHarmony323(t *testing.T) {
+	ast, err := Compile(`const HomePage = Loadable({
+    loader: () => import('./pages/HomePage'),
+    loading: Loading
+});`)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	AssertEqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 98,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 0,
+      "end": 98,
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 6,
+          "end": 97,
+          "id": {
+            "type": "Identifier",
+            "start": 6,
+            "end": 14,
+            "name": "HomePage"
+          },
+          "init": {
+            "type": "CallExpression",
+            "start": 17,
+            "end": 97,
+            "callee": {
+              "type": "Identifier",
+              "start": 17,
+              "end": 25,
+              "name": "Loadable"
+            },
+            "arguments": [
+              {
+                "type": "ObjectExpression",
+                "start": 26,
+                "end": 96,
+                "properties": [
+                  {
+                    "type": "Property",
+                    "start": 32,
+                    "end": 72,
+                    "method": false,
+                    "shorthand": false,
+                    "computed": false,
+                    "key": {
+                      "type": "Identifier",
+                      "start": 32,
+                      "end": 38,
+                      "name": "loader"
+                    },
+                    "value": {
+                      "type": "ArrowFunctionExpression",
+                      "start": 40,
+                      "end": 72,
+                      "id": null,
+                      "expression": true,
+                      "generator": false,
+                      "async": false,
+                      "params": [],
+                      "body": {
+                        "type": "ImportExpression",
+                        "start": 46,
+                        "end": 72,
+                        "source": {
+                          "type": "Literal",
+                          "start": 53,
+                          "end": 71,
+                          "value": "./pages/HomePage",
+                          "raw": "'./pages/HomePage'"
+                        }
+                      }
+                    },
+                    "kind": "init"
+                  },
+                  {
+                    "type": "Property",
+                    "start": 78,
+                    "end": 94,
+                    "method": false,
+                    "shorthand": false,
+                    "computed": false,
+                    "key": {
+                      "type": "Identifier",
+                      "start": 78,
+                      "end": 85,
+                      "name": "loading"
+                    },
+                    "value": {
+                      "type": "Identifier",
+                      "start": 87,
+                      "end": 94,
+                      "name": "Loading"
+                    },
+                    "kind": "init"
+                  }
+                ]
+              }
+            ],
+            "optional": false
+          }
+        }
+      ],
+      "kind": "const"
+    }
+  ]
+}
+	`, ast)
+}
+
+func TestHarmony324(t *testing.T) {
+	ast, err := Compile(`path.replace(/([.+*?=^!:${}()[\]|/\\])/g, "\\$1")`)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	AssertEqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 49,
+  "body": [
+    {
+      "type": "ExpressionStatement",
+      "start": 0,
+      "end": 49,
+      "expression": {
+        "type": "CallExpression",
+        "start": 0,
+        "end": 49,
+        "callee": {
+          "type": "MemberExpression",
+          "start": 0,
+          "end": 12,
+          "object": {
+            "type": "Identifier",
+            "start": 0,
+            "end": 4,
+            "name": "path"
+          },
+          "property": {
+            "type": "Identifier",
+            "start": 5,
+            "end": 12,
+            "name": "replace"
+          },
+          "computed": false,
+          "optional": false
+        },
+        "arguments": [
+          {
+            "type": "Literal",
+            "start": 13,
+            "end": 40,
+            "value": null,
+            "regexp": {
+              "pattern": "([.+*?=^!:${}()[\\]|/\\\\])",
+              "flags": "g"
+            }
+          },
+          {
+            "type": "Literal",
+            "start": 42,
+            "end": 48,
+            "value": "\\$1",
+            "raw": "\"\\\\$1\""
+          }
+        ],
+        "optional": false
+      }
+    }
+  ]
+}
+	`, ast)
+}
+
+func TestHarmony325(t *testing.T) {
+	ast, err := Compile(`iconv.defaultCharUnicode = '�';`)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	AssertEqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 33,
+  "body": [
+    {
+      "type": "ExpressionStatement",
+      "start": 0,
+      "end": 33,
+      "expression": {
+        "type": "AssignmentExpression",
+        "start": 0,
+        "end": 32,
+        "operator": "=",
+        "left": {
+          "type": "MemberExpression",
+          "start": 0,
+          "end": 24,
+          "object": {
+            "type": "Identifier",
+            "start": 0,
+            "end": 5,
+            "name": "iconv"
+          },
+          "property": {
+            "type": "Identifier",
+            "start": 6,
+            "end": 24,
+            "name": "defaultCharUnicode"
+          },
+          "computed": false,
+          "optional": false
+        },
+        "right": {
+          "type": "Literal",
+          "start": 27,
+          "end": 32,
+          "value": "�",
+          "raw": "'�'"
+        }
+      }
+    }
+  ]
+}
+	`, ast)
+}
+
+func TestHarmony326(t *testing.T) {
+	ast, err := Compile(`function f() {
+  function d() {}
+
+  var d = 1;
+}`)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	AssertEqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 48,
+  "body": [
+    {
+      "type": "FunctionDeclaration",
+      "start": 0,
+      "end": 48,
+      "id": {
+        "type": "Identifier",
+        "start": 9,
+        "end": 10,
+        "name": "f"
+      },
+      "generator": false,
+      "async": false,
+      "params": [],
+      "body": {
+        "type": "BlockStatement",
+        "start": 13,
+        "end": 48,
+        "body": [
+          {
+            "type": "FunctionDeclaration",
+            "start": 17,
+            "end": 32,
+            "id": {
+              "type": "Identifier",
+              "start": 26,
+              "end": 27,
+              "name": "d"
+            },
+            "generator": false,
+            "async": false,
+            "params": [],
+            "body": {
+              "type": "BlockStatement",
+              "start": 30,
+              "end": 32,
+              "body": []
+            }
+          },
+          {
+            "type": "VariableDeclaration",
+            "start": 36,
+            "end": 46,
+            "declarations": [
+              {
+                "type": "VariableDeclarator",
+                "start": 40,
+                "end": 45,
+                "id": {
+                  "type": "Identifier",
+                  "start": 40,
+                  "end": 41,
+                  "name": "d"
+                },
+                "init": {
+                  "type": "Literal",
+                  "start": 44,
+                  "end": 45,
+                  "value": 1,
+                  "raw": "1"
+                }
+              }
+            ],
+            "kind": "var"
+          }
+        ]
+      }
+    }
+  ]
+}
+	`, ast)
+}

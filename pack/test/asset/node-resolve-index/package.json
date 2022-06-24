@@ -1,5 +1,6 @@
 {
   "name": "node-resolve-index",
+  "version": "0.0.1",
   "exports": {
     "./b1.js": "./b.js",
     "./b2.js": "./b.js"

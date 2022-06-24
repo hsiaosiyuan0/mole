@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"container/list"
 	"fmt"
 	"strconv"
 	"unicode"
@@ -997,12 +998,18 @@ func (l *Lexer) readSinglelineComment(tok *Token) *Token {
 	return l.finToken(tok, T_COMMENT)
 }
 
-// here is an assertion, for any valid regexp, the backslash is always escaped if it appears
-// at any point of the content of the regexp
-// base on above assertion, here we read the regexp roughly by stepping the content until the
-// close backslash is matched as well as no validation is applied on that content
+// here is an assertion: for any valid regexp, the backslashes should be escaped if
+// they're not encapsulated by the group syntax, such as `()` and `[]`
+//
+// base on above assertion, here we read the regexp roughly by consuming but not parsing
+// its contents
 func (l *Lexer) readRegexp(tok *Token) *Token {
 	pattern := l.src.NewOpenRange()
+
+	couples := list.New()
+	rng := false
+	rngLen := 0
+
 	for {
 		c := l.src.Peek()
 		if c == utf8.RuneError {
@@ -1026,11 +1033,33 @@ func (l *Lexer) readRegexp(tok *Token) *Token {
 			}
 			continue
 		}
-		if c == '/' {
+
+		if (c == '(' || c == '[') && !rng {
+			rng = c == '['
+			couples.PushBack(c)
+		} else if (c == ')' && !rng) || (c == ']' && rngLen > 0) {
+			last := couples.Back()
+			if last == nil && c == ')' { // `]` doest not own the exception
+				return l.errToken(tok, ERR_UNTERMINATED_REGEXP)
+			}
+			lhs := last.Value.(rune)
+			if (c == ')' && lhs == '(') || (c == ']' && lhs == '[') {
+				couples.Remove(last)
+				if c == ']' {
+					rng = false
+				}
+			} else if c == ')' { // `]` doest not own the exception
+				l.errToken(tok, ERR_UNTERMINATED_REGEXP)
+			}
+		} else if c == '/' && couples.Len() == 0 {
 			break
 		} else if c == span.EOF {
 			tok.begin.Col += 1
 			return l.errToken(tok, ERR_UNTERMINATED_REGEXP)
+		}
+
+		if rng {
+			rngLen += 1
 		}
 		l.src.Read()
 	}
@@ -1098,7 +1127,7 @@ func (l *Lexer) readStr() *Token {
 
 	for {
 		c := l.src.Read()
-		if c == utf8.RuneError || c == span.EOF {
+		if c == span.EOF {
 			return l.errToken(tok, ERR_UNTERMINATED_STR)
 		} else if c == '\\' {
 			nc := l.src.Peek()

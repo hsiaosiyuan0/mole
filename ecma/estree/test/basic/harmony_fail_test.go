@@ -1338,7 +1338,10 @@ func TestHarmonyFail294(t *testing.T) {
 	TestFail(t, "try {} catch {}", "Unexpected token `{` at (1:13)", opts)
 }
 
-func TestHarmonyFail295(t *testing.T) {}
+func TestHarmonyFail295(t *testing.T) {
+	TestFail(t, "function f() {}\nvar f;",
+		"Identifier `f` has already been declared at (2:4)", nil)
+}
 
 func TestHarmonyFail296(t *testing.T) {}
 

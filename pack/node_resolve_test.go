@@ -21,7 +21,9 @@ func TestNodeResolveIndex(t *testing.T) {
 	}
 
 	r := NewNodeResolver(nil, nil, nil, nil, pkiLoader, false, nil)
-	file, err := r.Resolve("./a", dir)
+	file, pi, err := r.Resolve("./a", dir)
+	util.AssertEqual(t, "node-resolve-index", pi.Name, "should be ok")
+	util.AssertEqual(t, "0.0.1", pi.Version, "should be ok")
 	util.AssertEqual(t, nil, err, "should be ok")
 	util.AssertEqual(t, true, strings.HasSuffix(file[0], "a/index.js"), "should be ok")
 }
@@ -38,11 +40,11 @@ func TestNodeResolveSelf(t *testing.T) {
 	}
 
 	r := NewNodeResolver(nil, nil, nil, nil, pkiLoader, false, nil)
-	file, err := r.Resolve("node-resolve-index/b1.js", filepath.Join(dir, "a"))
+	file, _, err := r.Resolve("node-resolve-index/b1.js", filepath.Join(dir, "a"))
 	util.AssertEqual(t, nil, err, "should be ok")
 	util.AssertEqual(t, true, strings.HasSuffix(file[0], "b.js"), "should be ok")
 
-	file, err = r.Resolve("node-resolve-index/b2", filepath.Join(dir, "a"))
+	file, _, err = r.Resolve("node-resolve-index/b2", filepath.Join(dir, "a"))
 	util.AssertEqual(t, nil, err, "should be ok")
 	util.AssertEqual(t, true, strings.HasSuffix(file[0], "b.js"), "should be ok")
 }
@@ -59,7 +61,7 @@ func TestNodeResolveImport(t *testing.T) {
 	}
 
 	r := NewNodeResolver(nil, nil, nil, nil, pkiLoader, false, nil)
-	file, err := r.Resolve("#dep", filepath.Join(dir, "a"))
+	file, _, err := r.Resolve("#dep", filepath.Join(dir, "a"))
 	util.AssertEqual(t, nil, err, "should be ok")
 	util.AssertEqual(t, true, strings.HasSuffix(file[0], "b.js"), "should be ok")
 }
@@ -76,7 +78,7 @@ func TestNodeResolveModuleMain(t *testing.T) {
 	}
 
 	r := NewNodeResolver(nil, nil, nil, nil, pkiLoader, false, nil)
-	file, err := r.Resolve("mimic1", filepath.Join(dir, "a"))
+	file, _, err := r.Resolve("mimic1", filepath.Join(dir, "a"))
 	util.AssertEqual(t, nil, err, "should be ok")
 	util.AssertEqual(t, true, strings.HasSuffix(file[0], "index1.js"), "should be ok")
 }
@@ -93,7 +95,9 @@ func TestNodeResolveExports(t *testing.T) {
 	}
 
 	r := NewNodeResolver(nil, nil, nil, nil, pkiLoader, false, nil)
-	file, err := r.Resolve("mimic2/a", filepath.Join(dir, "a"))
+	file, pi, err := r.Resolve("mimic2/a", filepath.Join(dir, "a"))
+	util.AssertEqual(t, "mimic2", pi.Name, "should be ok")
+	util.AssertEqual(t, "0.0.1", pi.Version, "should be ok")
 	util.AssertEqual(t, nil, err, "should be ok")
 	util.AssertEqual(t, true, strings.HasSuffix(file[0], "b.js"), "should be ok")
 }
@@ -110,7 +114,7 @@ func TestNodeResolveExportsMain(t *testing.T) {
 	}
 
 	r := NewNodeResolver(nil, nil, nil, nil, pkiLoader, false, nil)
-	file, err := r.Resolve("mimic4", filepath.Join(dir, "a"))
+	file, _, err := r.Resolve("mimic4", filepath.Join(dir, "a"))
 	util.AssertEqual(t, nil, err, "should be ok")
 	util.AssertEqual(t, true, strings.HasSuffix(file[0], "a.js"), "should be ok")
 }
@@ -137,15 +141,15 @@ func TestNodeResolvePathMaps(t *testing.T) {
 	}
 
 	r := NewNodeResolver(nil, nil, nil, nil, pkiLoader, false, pathMaps)
-	file, err := r.Resolve("@/app", filepath.Join(dir, "a"))
+	file, _, err := r.Resolve("@/app", filepath.Join(dir, "a"))
 	util.AssertEqual(t, nil, err, "should be ok")
 	util.AssertEqual(t, true, strings.HasSuffix(file[0], "app.js"), "should be ok")
 
-	file, err = r.Resolve("@page/page-a", filepath.Join(dir, "a"))
+	file, _, err = r.Resolve("@page/page-a", filepath.Join(dir, "a"))
 	util.AssertEqual(t, nil, err, "should be ok")
 	util.AssertEqual(t, true, strings.HasSuffix(file[0], "src/page/page-a.js"), "should be ok")
 
-	file, err = r.Resolve("@scope/a", filepath.Join(dir, "a"))
+	file, _, err = r.Resolve("@scope/a", filepath.Join(dir, "a"))
 	util.AssertEqual(t, nil, err, "should be ok")
 	util.AssertEqual(t, true, strings.HasSuffix(file[0], "@scope/a/index.js"), "should be ok")
 }

@@ -260,7 +260,10 @@ func (s *Scope) AddLocal(ref *Ref, name string, checkDup bool) bool {
 	if ref.BindKind == BK_VAR {
 		ps := s.UpperFn()
 		localInPs := ps.Refs[name]
-		if localInPs != nil && localInPs.BindKind != BK_VAR {
+
+		if checkDup && localInPs != nil &&
+			((localInPs.BindKind != BK_VAR && localInPs.Typ != RDT_FN) ||
+				(localInPs.Scope.Id == 0 && localInPs.Typ == RDT_FN)) {
 			return CheckRefDup(localInPs, ref)
 		}
 		ps.Refs[name] = ref
@@ -273,7 +276,7 @@ func (s *Scope) AddLocal(ref *Ref, name string, checkDup bool) bool {
 	}
 
 	bindKind := ref.BindKind
-	if local != nil && (local.BindKind != BK_VAR || bindKind != BK_VAR) {
+	if local != nil && ((local.BindKind != BK_VAR && local.Typ != RDT_FN && local.Scope.Id != 0) || bindKind != BK_VAR) {
 		return CheckRefDup(local, ref)
 	}
 
@@ -282,6 +285,9 @@ func (s *Scope) AddLocal(ref *Ref, name string, checkDup bool) bool {
 	return true
 }
 
+// caller should ensure both `r1` and `r2` have the same name,
+// return `true` - `r1` and `r2` are diff
+// return `false` - `r1` and `r2` are dup
 func CheckRefDup(r1, r2 *Ref) bool {
 	if IsCallableClass(r1, r2) {
 		return true
@@ -301,7 +307,7 @@ func CheckRefDup(r1, r2 *Ref) bool {
 	return !IsBothTyp(r1, r2) && !IsBothVal(r1, r2)
 }
 
-// both `r1` and `r2` should:
+// caller should ensure both `r1` and `r2` match below rules:
 // - are def rather than ref
 // - have the same name
 //
@@ -328,7 +334,7 @@ func IsCallableClass(r1, r2 *Ref) bool {
 	return fn != nil && cls != nil
 }
 
-// both `r1` and `r2` should:
+// caller should ensure both `r1` and `r2` match below rules:
 // - are def rather than ref
 // - have the same name
 //
@@ -345,7 +351,7 @@ func IsBothFnTypDec(r1, r2 *Ref) bool {
 		r2.Typ&RDT_TYPE != 0
 }
 
-// both `r1` and `r2` should:
+// caller should ensure both `r1` and `r2` match below rules:
 // - are def rather than ref
 // - have the same name
 func IsBothTyp(r1, r2 *Ref) bool {
@@ -359,8 +365,8 @@ func IsBothTyp(r1, r2 *Ref) bool {
 	return typ == 2
 }
 
-// both `r1` and `r2` should:
-// - are def rather than ref
+// caller should ensure both `r1` and `r2` match below rules:
+// - be def rather than ref
 // - have the same name
 func IsBothVal(r1, r2 *Ref) bool {
 	typ := 0
@@ -373,7 +379,7 @@ func IsBothVal(r1, r2 *Ref) bool {
 	return typ == 2
 }
 
-// both `r1` and `r2` should:
+// caller should ensure both `r1` and `r2` match below rules:
 // - are def rather than ref
 // - have the same name
 //
@@ -400,7 +406,7 @@ func IsClsAndIft(r1, r2 *Ref) bool {
 	return cls != nil && itf != nil
 }
 
-// both `r1` and `r2` should:
+// caller should ensure both `r1` and `r2` match below rules:
 // - are def rather than ref
 // - have the same name
 //
@@ -415,7 +421,7 @@ func IsBothEnum(r1, r2 *Ref) bool {
 		(r1.Typ&RDT_CONST_ENUM != 0 && r2.Typ&RDT_CONST_ENUM != 0)
 }
 
-// both `r1` and `r2` should:
+// caller should ensure both `r1` and `r2` match below rules:
 // - are def rather than ref
 // - have the same name
 //

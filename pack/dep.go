@@ -49,7 +49,7 @@ func NewDepScannerOpts() *DepScannerOpts {
 		unitFacts:  map[string]DepUnitFact{},
 	}
 
-	opts.regUnitFact(&JsUnitFact{})
+	opts.regUnitFact(&JsUnitFact{}).regUnitFact(&JsonUnitFact{})
 	return opts
 }
 
@@ -80,10 +80,11 @@ func (s *DepScannerOpts) pathMaps() *PathMaps {
 	return s.tsConfig.pathMaps
 }
 
-func (s *DepScannerOpts) regUnitFact(u DepUnitFact) {
+func (s *DepScannerOpts) regUnitFact(u DepUnitFact) *DepScannerOpts {
 	for _, lang := range u.Lang() {
 		s.unitFacts[lang] = u
 	}
+	return s
 }
 
 type DepScanner struct {
@@ -95,6 +96,9 @@ type DepScanner struct {
 	mId         uint64
 	modules     map[string]Module
 	modulesLock sync.Mutex
+
+	umbrellas     map[string]Module
+	umbrellasLock sync.Mutex
 
 	fileReqList     *list.List
 	fileReqListLock sync.Mutex
@@ -122,6 +126,9 @@ func NewDepScanner(opts *DepScannerOpts) *DepScanner {
 
 		modules:     map[string]Module{},
 		modulesLock: sync.Mutex{},
+
+		umbrellas:     map[string]Module{},
+		umbrellasLock: sync.Mutex{},
 
 		fileReqList:     list.New(),
 		fileReqListLock: sync.Mutex{},
@@ -248,6 +255,29 @@ func (s *DepScanner) newModule(file string) Module {
 	return m
 }
 
+func (s *DepScanner) getOrNewUmbrella(pi *Pkginfo) Module {
+	s.umbrellasLock.Lock()
+	defer s.umbrellasLock.Unlock()
+
+	file := pi.File()
+
+	if m, ok := s.umbrellas[file]; ok {
+		return m
+	}
+
+	m := &JsModule{
+		id:      atomic.AddUint64(&s.mId, 1),
+		file:    file,
+		name:    pi.Name,
+		version: pi.Version,
+		inlets:  []*Relation{},
+		outlets: []*Relation{},
+	}
+	m.setUmbrella(m.Id())
+	s.umbrellas[file] = m
+	return m
+}
+
 func (s *DepScanner) getOrNewModule(file string) Module {
 	s.modulesLock.Lock()
 	defer s.modulesLock.Unlock()
@@ -320,37 +350,6 @@ type JsUnit struct {
 	r   *NodeResolver
 }
 
-func getParentCond(ctx *walk.VisitorCtx) parser.Node {
-	barrier := []parser.NodeType{parser.N_EXPR_FN, parser.N_STMT_FN, parser.N_EXPR_ARROW}
-	pn, ctx := astutil.GetParent(ctx, []parser.NodeType{parser.N_STMT_IF}, barrier)
-	if pn != nil {
-		return pn
-	}
-
-	pn, ctx = astutil.GetParent(ctx, []parser.NodeType{parser.N_EXPR_COND}, barrier)
-	if pn != nil {
-		pnIf, _ := astutil.GetParent(ctx, []parser.NodeType{parser.N_STMT_IF}, barrier)
-		if pnIf != nil {
-			return pnIf
-		}
-		return pn
-	}
-
-	pn, ctx = astutil.GetParent(ctx, []parser.NodeType{parser.N_EXPR_BIN}, barrier)
-	if pn != nil {
-		op := pn.(*parser.BinExpr).Op()
-		if op == parser.T_AND || op == parser.T_OR {
-			pnIf, _ := astutil.GetParent(ctx, []parser.NodeType{parser.N_STMT_IF}, barrier)
-			if pnIf != nil {
-				return pnIf
-			}
-			return pn
-		}
-	}
-
-	return nil
-}
-
 func parseDep(file, code string, vars map[string]interface{}) ([]string, error) {
 	s := span.NewSource(file, code)
 	p := parser.NewParser(s, parser.NewParserOpts())
@@ -361,6 +360,8 @@ func parseDep(file, code string, vars map[string]interface{}) ([]string, error) 
 
 	ctx := walk.NewWalkCtx(ast, p.Symtab())
 	derived := []string{}
+
+	// collect the import statements
 	walk.AddNodeAfterListener(&ctx.Listeners, parser.N_STMT_IMPORT, &walk.Listener{
 		Id: "parseDep",
 		Handle: func(node parser.Node, key string, ctx *walk.VisitorCtx) {
@@ -369,6 +370,7 @@ func parseDep(file, code string, vars map[string]interface{}) ([]string, error) 
 		},
 	})
 
+	// check if the `require` has been rebound to other values
 	reqRebound := false
 	walk.AddNodeAfterListener(&ctx.Listeners, parser.N_EXPR_ASSIGN, &walk.Listener{
 		Id: "parseDep",
@@ -382,6 +384,7 @@ func parseDep(file, code string, vars map[string]interface{}) ([]string, error) 
 		},
 	})
 
+	// collect the require calls first, which will be filtered by below condition judgement
 	candidates := map[parser.Node]parser.Node{}
 	walk.AddNodeAfterListener(&ctx.Listeners, parser.N_EXPR_CALL, &walk.Listener{
 		Id: "parseDep",
@@ -401,6 +404,7 @@ func parseDep(file, code string, vars map[string]interface{}) ([]string, error) 
 		},
 	})
 
+	// since `import` is keyword instead of variable, collect the import points directly
 	walk.AddNodeAfterListener(&ctx.Listeners, parser.N_IMPORT_CALL, &walk.Listener{
 		Id: "parseDep",
 		Handle: func(node parser.Node, key string, ctx *walk.VisitorCtx) {
@@ -408,15 +412,17 @@ func parseDep(file, code string, vars map[string]interface{}) ([]string, error) 
 		},
 	})
 
+	// do the collecting processes mentioned above
 	walk.VisitNode(ast, "", ctx.VisitorCtx())
 
+	// find the all call exprs in the true branches
 	interests := []parser.NodeType{parser.N_IMPORT_CALL}
 	if !reqRebound {
 		interests = append(interests, parser.N_EXPR_CALL)
 	}
-
 	nodes := astutil.CollectNodesInTrueBranches(ast, interests, vars)
 
+	// filter out the dead require calls
 	for _, node := range nodes {
 		if it, ok := candidates[node]; ok {
 			switch it.Type() {
@@ -453,7 +459,7 @@ func (j *JsUnit) load(m Module) ([]byte, error) {
 	panic("unreachable")
 }
 
-func (j *JsUnit) parse(m Module) ([]string, error) {
+func (j *JsUnit) scan(m Module) ([]string, error) {
 	f, err := j.load(m)
 	if err != nil {
 		return nil, err
@@ -461,13 +467,13 @@ func (j *JsUnit) parse(m Module) ([]string, error) {
 
 	jm := m.(*JsModule)
 	jm.size = len(f)
-	jm.parsed = true
+	jm.scanned = true
 	return parseDep(jm.file, string(f), j.s.opts.vars)
 }
 
 func (j *JsUnit) Load() error {
 	req := j.req
-	file, err := j.r.Resolve(req.target, req.cw)
+	file, pi, err := j.r.Resolve(req.target, req.cw)
 	if err != nil {
 		return err
 	}
@@ -477,8 +483,11 @@ func (j *JsUnit) Load() error {
 		return errors.New("unsupported file: " + file[0])
 	}
 
-	if !m.Parsed() {
-		derived, err := j.parse(m)
+	umb := j.s.getOrNewUmbrella(pi)
+	m.setUmbrella(umb.Id())
+
+	if jm, ok := m.(*JsModule); ok && !jm.IsJson() && !m.Scanned() {
+		derived, err := j.scan(m)
 		if err != nil {
 			return err
 		}
@@ -490,5 +499,36 @@ func (j *JsUnit) Load() error {
 		}
 	}
 
+	return nil
+}
+
+type JsonUnitFact struct{}
+
+func (j *JsonUnitFact) New(s *DepScanner, req *DepFileReq) DepUnit {
+	opts := s.opts
+	r := NewNodeResolver(
+		opts.exports, opts.imports, opts.extensions, opts.builtin, s.pkgLoader, opts.ts, opts.pathMaps())
+	return &JsonUnit{s, req, r}
+}
+
+func (j *JsonUnitFact) Lang() []string {
+	return []string{".json"}
+}
+
+func (j *JsonUnitFact) NewModule(file string) Module {
+	return &JsModule{
+		file:    file,
+		inlets:  []*Relation{},
+		outlets: []*Relation{},
+	}
+}
+
+type JsonUnit struct {
+	s   *DepScanner
+	req *DepFileReq
+	r   *NodeResolver
+}
+
+func (j *JsonUnit) Load() error {
 	return nil
 }

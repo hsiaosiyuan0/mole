@@ -123,19 +123,12 @@ if (process.env.NODE_ENV === 'production') {
 	util.AssertEqual(t, "./cjs/react-dom.production.min.js", deps[0], "should be ok")
 }
 
-func init() {
-	_, b, _, _ := runtime.Caller(0)
-	basepath := filepath.Dir(b)
-
-	dir := filepath.Join(basepath, "test", "asset", "dep-scanner")
-	util.ShellInDir(dir, "npm", "i")
-}
-
 func TestDepScanner(t *testing.T) {
 	_, b, _, _ := runtime.Caller(0)
 	basepath := filepath.Dir(b)
 
 	dir := filepath.Join(basepath, "test", "asset", "dep-scanner")
+	util.ShellInDir(dir, "npm", "i")
 
 	opts := NewDepScannerOpts()
 	opts.dir = dir

@@ -1,6 +1,10 @@
 package pack
 
-import "github.com/hsiaosiyuan0/mole/span"
+import (
+	"strings"
+
+	"github.com/hsiaosiyuan0/mole/span"
+)
 
 type Relation struct {
 	Lhs   uint64
@@ -14,6 +18,9 @@ type Module interface {
 	Id() uint64
 	setId(id uint64)
 
+	Name() string
+	Version() string
+
 	Lang() string
 
 	setFile(string)
@@ -24,10 +31,14 @@ type Module interface {
 	Entry() bool
 	setAsEntry()
 
-	Ext() bool
-	ExtMain() uint64
+	Outside() bool
 
-	Parsed() bool
+	setUmbrella(uint64)
+	Umbrella() uint64
+
+	IsUmbrella() bool
+
+	Scanned() bool
 
 	Inlets() []*Relation
 	Outlets() []*Relation
@@ -37,13 +48,16 @@ type JsModule struct {
 	id   uint64
 	lang string
 
-	file   string
-	size   int
-	parsed bool
+	name    string
+	version string
 
-	entry   bool
-	ext     bool
-	extMain uint64
+	file    string
+	size    int
+	scanned bool
+
+	entry    bool
+	outside  bool
+	umbrella uint64
 
 	inlets  []*Relation
 	outlets []*Relation
@@ -55,6 +69,14 @@ func (m *JsModule) setId(id uint64) {
 
 func (m *JsModule) Id() uint64 {
 	return m.id
+}
+
+func (m *JsModule) Name() string {
+	return m.name
+}
+
+func (m *JsModule) Version() string {
+	return m.version
 }
 
 func (m *JsModule) Lang() string {
@@ -81,16 +103,28 @@ func (m *JsModule) Entry() bool {
 	return m.entry
 }
 
-func (m *JsModule) Parsed() bool {
-	return m.parsed
+func (m *JsModule) Scanned() bool {
+	return m.scanned
 }
 
-func (m *JsModule) Ext() bool {
-	return m.ext
+func (m *JsModule) Outside() bool {
+	return m.outside
 }
 
-func (m *JsModule) ExtMain() uint64 {
-	return m.extMain
+func (m *JsModule) setUmbrella(id uint64) {
+	m.umbrella = id
+}
+
+func (m *JsModule) IsUmbrella() bool {
+	return m.id == m.umbrella
+}
+
+func (m *JsModule) IsJson() bool {
+	return strings.HasSuffix(m.file, ".json")
+}
+
+func (m *JsModule) Umbrella() uint64 {
+	return m.umbrella
 }
 
 func (m *JsModule) Inlets() []*Relation {

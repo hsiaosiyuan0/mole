@@ -5779,7 +5779,7 @@ func (p *Parser) arrowFn(loc *Loc, args []Node, params []Node, ti *TypInfo) (Nod
 		if ps.IsKind(SPK_NOT_IN) {
 			scope.AddKind(SPK_NOT_IN)
 		}
-		body, err = p.expr()
+		body, err = p.assignExpr(true, false, false, false)
 		if err != nil {
 			return nil, err
 		}
