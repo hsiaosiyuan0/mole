@@ -18,6 +18,8 @@ func TestFixture_es2015(t *testing.T) {
 func TestFixture_ts(t *testing.T) {
 	opts := parser.NewParserOpts()
 	opts.Feature = opts.Feature.On(parser.FEAT_TS)
+	// `FEAT_JSX` will be turned on by the `options.json` of the
+	// test case automatically
 	opts.Feature = opts.Feature.Off(parser.FEAT_JSX)
 	RunFixtures(t, "typescript", opts)
 }
@@ -25,6 +27,9 @@ func TestFixture_ts(t *testing.T) {
 func TestFixture_tsManually(t *testing.T) {
 	opts := parser.NewParserOpts()
 	opts.Feature = opts.Feature.On(parser.FEAT_TS)
-	opts.Feature = opts.Feature.Off(parser.FEAT_JSX)
-	RunFixtures(t, "typescript/arrow-function/arrow-like-in-conditional-1", opts)
+	// `FEAT_JSX` will be turned on by the `options.json` of the
+	// test case automatically
+	opts.Feature = opts.Feature.On(parser.FEAT_JSX)
+	opts.Feature = opts.Feature.Off(parser.FEAT_STRICT)
+	RunFixtures(t, "core/yield/nested-scope", opts)
 }

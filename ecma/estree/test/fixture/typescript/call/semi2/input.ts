@@ -1,0 +1,1 @@
+const { pod, app, env } = useParams<{ pod: string; app: string; env: string }>();

@@ -3,9 +3,11 @@ package pack
 import (
 	"container/list"
 	"errors"
+	"fmt"
 	"path/filepath"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/hsiaosiyuan0/mole/ecma/astutil"
 	"github.com/hsiaosiyuan0/mole/ecma/parser"
@@ -24,29 +26,31 @@ type DepUnit interface {
 }
 
 type DepScannerOpts struct {
-	dir        string
-	entries    []string
-	extensions []string
+	Dir        string
+	Entries    []string
+	Extensions []string
 
-	exports [][]string
-	imports [][]string
+	Exports [][]string
+	Imports [][]string
 
-	vars map[string]interface{}
+	Vars map[string]interface{}
 
-	builtin map[string]bool
+	Builtin map[string]bool
 
 	concurrent int
 	unitFacts  map[string]DepUnitFact
 
-	tsConfig *TsConfig
-	ts       bool
+	TsConfig   *TsConfig
+	Ts         bool
+	ParserOpts map[string]interface{}
 }
 
 func NewDepScannerOpts() *DepScannerOpts {
 	opts := &DepScannerOpts{
-		entries:    []string{},
+		Entries:    []string{},
 		concurrent: 16,
 		unitFacts:  map[string]DepUnitFact{},
+		Ts:         true,
 	}
 
 	opts.regUnitFact(&JsUnitFact{}).regUnitFact(&JsonUnitFact{})
@@ -54,30 +58,30 @@ func NewDepScannerOpts() *DepScannerOpts {
 }
 
 func (s *DepScannerOpts) SerVars(vars map[string]interface{}) {
-	s.vars = vars
+	s.Vars = vars
 }
 
 func (s *DepScannerOpts) SetTsconfig(dir string, file string, ts bool) error {
 	var err error
-	s.tsConfig, err = NewTsConfig(dir, file)
+	s.TsConfig, err = NewTsConfig(dir, file)
 	if err != nil {
 		return err
 	}
 
-	_, err = s.tsConfig.PathMaps()
+	_, err = s.TsConfig.PathMaps()
 	if err != nil {
 		return err
 	}
 
-	s.ts = ts
+	s.Ts = ts
 	return nil
 }
 
 func (s *DepScannerOpts) pathMaps() *PathMaps {
-	if s.tsConfig == nil {
+	if s.TsConfig == nil {
 		return nil
 	}
-	return s.tsConfig.pathMaps
+	return s.TsConfig.pathMaps
 }
 
 func (s *DepScannerOpts) regUnitFact(u DepUnitFact) *DepScannerOpts {
@@ -93,8 +97,9 @@ type DepScanner struct {
 	fileLoader *FileLoader
 	pkgLoader  *PkginfoLoader
 
-	mId         uint64
-	modules     map[string]Module
+	mId         int64
+	allModules  map[int64]Module
+	fileModules map[string]Module
 	modulesLock sync.Mutex
 
 	umbrellas     map[string]Module
@@ -124,7 +129,8 @@ func NewDepScanner(opts *DepScannerOpts) *DepScanner {
 		fileLoader: fileLoader,
 		pkgLoader:  NewPkginfoLoader(fileLoader),
 
-		modules:     map[string]Module{},
+		allModules:  map[int64]Module{},
+		fileModules: map[string]Module{},
 		modulesLock: sync.Mutex{},
 
 		umbrellas:     map[string]Module{},
@@ -147,6 +153,23 @@ func NewDepScanner(opts *DepScannerOpts) *DepScanner {
 	return s.initWorkers()
 }
 
+func (s *DepScanner) Modules() map[int64]Module {
+	return s.allModules
+}
+
+func (s *DepScanner) Umbrellas() map[string]Module {
+	return s.umbrellas
+}
+
+type FileReqTimeoutErr struct {
+	Target string
+	Cw     string
+}
+
+func (e *FileReqTimeoutErr) Error() string {
+	return fmt.Sprintf("file request timeout, file: %s cw: %s", e.Target, e.Cw)
+}
+
 func (s *DepScanner) handleFileReq() {
 loop:
 	for {
@@ -163,10 +186,22 @@ loop:
 				continue
 			}
 
-			if err := unit.Load(); err != nil {
-				s.Minor(err)
+			done := make(chan bool)
+
+			go func() {
+				if err := unit.Load(); err != nil {
+					s.Minor(err)
+				}
+				done <- true
+			}()
+
+			select {
+			case <-time.After(5 * time.Second):
+				s.Minor(&FileReqTimeoutErr{req.target, req.cw})
+				s.wg.Done()
+			case <-done:
+				s.wg.Done()
 			}
-			s.wg.Done()
 
 		case <-s.fin:
 			break loop
@@ -251,7 +286,7 @@ func (s *DepScanner) newModule(file string) Module {
 		return nil
 	}
 	m := uf.NewModule(file)
-	m.setId(atomic.AddUint64(&s.mId, 1))
+	m.setId(atomic.AddInt64(&s.mId, 1))
 	return m
 }
 
@@ -266,43 +301,61 @@ func (s *DepScanner) getOrNewUmbrella(pi *Pkginfo) Module {
 	}
 
 	m := &JsModule{
-		id:      atomic.AddUint64(&s.mId, 1),
-		file:    file,
-		name:    pi.Name,
-		version: pi.Version,
-		inlets:  []*Relation{},
-		outlets: []*Relation{},
+		id:          atomic.AddInt64(&s.mId, 1),
+		file:        file,
+		name:        pi.Name,
+		version:     pi.Version,
+		inlets:      []*Relation{},
+		inletsLock:  sync.Mutex{},
+		outlets:     []*Relation{},
+		outletsLock: sync.Mutex{},
 	}
 	m.setUmbrella(m.Id())
 	s.umbrellas[file] = m
+	s.addModule(m)
 	return m
+}
+
+func (s *DepScanner) addModule(m Module) {
+	s.modulesLock.Lock()
+	defer s.modulesLock.Unlock()
+
+	s.allModules[m.Id()] = m
 }
 
 func (s *DepScanner) getOrNewModule(file string) Module {
 	s.modulesLock.Lock()
 	defer s.modulesLock.Unlock()
 
-	if m, ok := s.modules[file]; ok {
+	if m, ok := s.fileModules[file]; ok {
 		return m
 	}
 
 	m := s.newModule(file)
-	s.modules[file] = m
+	if m != nil {
+		s.fileModules[file] = m
+		s.allModules[m.Id()] = m
+	}
 	return m
 }
 
 func (s *DepScanner) prepareEntries() error {
-	dir := s.opts.dir
-	for _, entry := range s.opts.entries {
+	dir := s.opts.Dir
+	for _, entry := range s.opts.Entries {
 		file := filepath.Join(dir, entry)
 		m := s.newModule(file)
 		m.setAsEntry()
-		s.modules[file] = m
+		s.fileModules[file] = m
+		s.allModules[m.Id()] = m
 
-		req := &DepFileReq{file, dir, filepath.Ext(file)}
+		req := &DepFileReq{[]*ImportFrame{}, nil, file, dir, filepath.Ext(file)}
 		s.addNewJob(req)
 	}
 	return nil
+}
+
+func (s *DepScanner) Minors() []error {
+	return s.minors
 }
 
 func (s *DepScanner) Minor(err error) {
@@ -317,7 +370,15 @@ func (s *DepScanner) Fin() chan bool {
 	return s.fin
 }
 
+type ImportFrame struct {
+	Mid       int64
+	Line, Col uint32
+	Import    bool
+}
+
 type DepFileReq struct {
+	iptStk []*ImportFrame
+	parent Module
 	target string
 	cw     string
 	lang   string
@@ -328,7 +389,12 @@ type JsUnitFact struct{}
 func (j *JsUnitFact) New(s *DepScanner, req *DepFileReq) DepUnit {
 	opts := s.opts
 	r := NewNodeResolver(
-		opts.exports, opts.imports, opts.extensions, opts.builtin, s.pkgLoader, opts.ts, opts.pathMaps())
+		opts.Exports, opts.Imports, opts.Extensions, opts.Builtin, s.pkgLoader, opts.Ts, opts.pathMaps())
+
+	if s.opts.TsConfig != nil {
+		r.baseUrl = s.opts.TsConfig.CompilerOptions.BaseUrl
+	}
+
 	return &JsUnit{s, req, r}
 }
 
@@ -338,9 +404,11 @@ func (j *JsUnitFact) Lang() []string {
 
 func (j *JsUnitFact) NewModule(file string) Module {
 	return &JsModule{
-		file:    file,
-		inlets:  []*Relation{},
-		outlets: []*Relation{},
+		file:        file,
+		inlets:      []*Relation{},
+		inletsLock:  sync.Mutex{},
+		outlets:     []*Relation{},
+		outletsLock: sync.Mutex{},
 	}
 }
 
@@ -350,23 +418,56 @@ type JsUnit struct {
 	r   *NodeResolver
 }
 
-func parseDep(file, code string, vars map[string]interface{}) ([]string, error) {
+type importPoint struct {
+	file      string
+	line, col uint32
+	ipt       bool
+}
+
+func parseDep(file, code string, vars map[string]interface{}, parserOpts map[string]interface{}, m *JsModule) ([]*importPoint, error) {
 	s := span.NewSource(file, code)
-	p := parser.NewParser(s, parser.NewParserOpts())
+	opts := parser.NewParserOpts()
+	if parserOpts != nil {
+		opts.MergeJson(parserOpts)
+	}
+
+	ext := filepath.Ext(file)
+	if ext == ".ts" {
+		opts.Feature = opts.Feature.On(parser.FEAT_STRICT)
+		opts.Feature = opts.Feature.On(parser.FEAT_TS)
+		opts.Feature = opts.Feature.Off(parser.FEAT_JSX)
+	} else if ext == ".tsx" {
+		opts.Feature = opts.Feature.On(parser.FEAT_STRICT)
+		opts.Feature = opts.Feature.On(parser.FEAT_TS)
+		opts.Feature = opts.Feature.On(parser.FEAT_JSX)
+	} else if ext == ".jsx" {
+		opts.Feature = opts.Feature.On(parser.FEAT_JSX)
+	} else {
+		opts.Feature = opts.Feature.Off(parser.FEAT_JSX)
+		opts.Feature = opts.Feature.Off(parser.FEAT_STRICT)
+	}
+
+	p := parser.NewParser(s, opts)
+
 	ast, err := p.Prog()
 	if err != nil {
 		return nil, err
 	}
 
+	if m != nil {
+		m.setStrict(p.Symtab().Root.IsKind(parser.SPK_STRICT))
+	}
+
 	ctx := walk.NewWalkCtx(ast, p.Symtab())
-	derived := []string{}
+	derived := []*importPoint{}
 
 	// collect the import statements
 	walk.AddNodeAfterListener(&ctx.Listeners, parser.N_STMT_IMPORT, &walk.Listener{
 		Id: "parseDep",
 		Handle: func(node parser.Node, key string, ctx *walk.VisitorCtx) {
 			n := node.(*parser.ImportDec)
-			derived = append(derived, n.Src().(*parser.StrLit).Text())
+			loc := n.Loc().Begin()
+			derived = append(derived, &importPoint{n.Src().(*parser.StrLit).Text(), loc.Line, loc.Col, true})
 		},
 	})
 
@@ -428,10 +529,12 @@ func parseDep(file, code string, vars map[string]interface{}) ([]string, error) 
 			switch it.Type() {
 			case parser.N_EXPR_CALL:
 				n := node.(*parser.CallExpr)
-				derived = append(derived, n.Args()[0].(*parser.StrLit).Text())
+				loc := n.Loc().Begin()
+				derived = append(derived, &importPoint{n.Args()[0].(*parser.StrLit).Text(), loc.Line, loc.Col, false})
 			case parser.N_IMPORT_CALL:
 				n := node.(*parser.ImportCall)
-				derived = append(derived, n.Src().(*parser.StrLit).Text())
+				loc := n.Loc().Begin()
+				derived = append(derived, &importPoint{n.Src().(*parser.StrLit).Text(), loc.Line, loc.Col, true})
 			}
 		}
 	}
@@ -459,7 +562,7 @@ func (j *JsUnit) load(m Module) ([]byte, error) {
 	panic("unreachable")
 }
 
-func (j *JsUnit) scan(m Module) ([]string, error) {
+func (j *JsUnit) scan(m Module) ([]*importPoint, error) {
 	f, err := j.load(m)
 	if err != nil {
 		return nil, err
@@ -468,7 +571,8 @@ func (j *JsUnit) scan(m Module) ([]string, error) {
 	jm := m.(*JsModule)
 	jm.size = len(f)
 	jm.scanned = true
-	return parseDep(jm.file, string(f), j.s.opts.vars)
+
+	return parseDep(jm.file, string(f), j.s.opts.Vars, j.s.opts.ParserOpts, jm)
 }
 
 func (j *JsUnit) Load() error {
@@ -478,9 +582,18 @@ func (j *JsUnit) Load() error {
 		return err
 	}
 
+	if len(file) == 0 {
+		return nil // builtin module
+	}
+
 	m := j.s.getOrNewModule(file[0])
 	if m == nil {
 		return errors.New("unsupported file: " + file[0])
+	}
+	m.setImportStk(req.iptStk)
+
+	if req.parent != nil {
+		link(req.parent, m)
 	}
 
 	umb := j.s.getOrNewUmbrella(pi)
@@ -494,8 +607,9 @@ func (j *JsUnit) Load() error {
 
 		lang := filepath.Ext(file[0])
 		cw := filepath.Dir(file[0])
-		for _, f := range derived {
-			j.s.addNewJob(&DepFileReq{f, cw, lang})
+		for _, d := range derived {
+			frame := &ImportFrame{m.Id(), d.line, d.col, d.ipt}
+			j.s.addNewJob(&DepFileReq{append(req.iptStk, frame), m, d.file, cw, lang})
 		}
 	}
 
@@ -507,7 +621,7 @@ type JsonUnitFact struct{}
 func (j *JsonUnitFact) New(s *DepScanner, req *DepFileReq) DepUnit {
 	opts := s.opts
 	r := NewNodeResolver(
-		opts.exports, opts.imports, opts.extensions, opts.builtin, s.pkgLoader, opts.ts, opts.pathMaps())
+		opts.Exports, opts.Imports, opts.Extensions, opts.Builtin, s.pkgLoader, opts.Ts, opts.pathMaps())
 	return &JsonUnit{s, req, r}
 }
 

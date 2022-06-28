@@ -34,6 +34,9 @@ func NewSubpath(src string, cond interface{}) (*Subpath, error) {
 		}
 		return &Subpath{pat, cv}, nil
 
+	case []interface{}:
+		return NewSubpath(src, cv[0])
+
 	case nil:
 		pat, err := compileSubpath(src)
 		if err != nil {

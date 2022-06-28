@@ -1,6 +1,9 @@
 package parser
 
-import "fmt"
+import (
+	"encoding/json"
+	"fmt"
+)
 
 type LexerError struct {
 	msg  string
@@ -40,6 +43,20 @@ func newParserError(msg, file string, line, col uint32) *ParserError {
 
 func (e *ParserError) Error() string {
 	return fmt.Sprintf("%s at %s(%d:%d)", e.msg, e.file, e.line, e.col)
+}
+
+func (e *ParserError) MarshalJSON() ([]byte, error) {
+	return json.Marshal(&struct {
+		Msg  string `json:"msg"`
+		File string `json:"file"`
+		Line uint32 `json:"line"`
+		Col  uint32 `json:"col"`
+	}{
+		Msg:  e.msg,
+		File: e.file,
+		Line: e.line,
+		Col:  e.col,
+	})
 }
 
 const (

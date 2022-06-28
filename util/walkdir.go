@@ -9,6 +9,8 @@ import (
 
 type DirWalkerHandle = func(string, bool, *DirWalker)
 
+// by the benchmark, there is no execution performance benefit from the works pool,
+// however the works pool is still useful since it can stop the routine more precisely
 type DirWalker struct {
 	Dir        string
 	Concurrent int

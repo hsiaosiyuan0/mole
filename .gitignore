@@ -8,3 +8,4 @@ lint.exe
 .env
 *.so
 /test.go
+/.vscode/launch.json

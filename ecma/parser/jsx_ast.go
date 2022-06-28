@@ -1,5 +1,7 @@
 package parser
 
+// grammar: https://facebook.github.io/jsx/
+
 type JsxIdent struct {
 	typ        NodeType
 	loc        *Loc

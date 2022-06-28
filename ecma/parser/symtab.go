@@ -55,15 +55,16 @@ const (
 type RefDefType uint32
 
 const (
-	RDT_NONE       RefDefType = 0
-	RDT_FN         RefDefType = 1 << iota
-	RDT_PVT_FIELD  RefDefType = 1 << iota
-	RDT_CLASS      RefDefType = 1 << iota
-	RDT_ENUM       RefDefType = 1 << iota
-	RDT_CONST_ENUM RefDefType = 1 << iota
-	RDT_ITF        RefDefType = 1 << iota
-	RDT_NS         RefDefType = 1 << iota
-	RDT_TYPE       RefDefType = 1 << iota
+	RDT_NONE RefDefType = 0
+	RDT_FN   RefDefType = 1 << iota
+	RDT_PVT_FIELD
+	RDT_CLASS
+	RDT_IMPORT
+	RDT_ENUM
+	RDT_CONST_ENUM
+	RDT_ITF
+	RDT_NS
+	RDT_TYPE
 )
 
 func (t RefDefType) On(flag RefDefType) RefDefType {
@@ -80,9 +81,9 @@ func (t RefDefType) IsTyp() bool {
 
 func (t RefDefType) IsPureTyp() bool {
 	return t&RDT_TYPE != 0 &&
-		t&RDT_CLASS == 0 &&
-		t&RDT_ENUM == 0 &&
-		t&RDT_CONST_ENUM == 0
+		(t&RDT_CLASS == 0 ||
+			t&RDT_ENUM == 0 ||
+			t&RDT_CONST_ENUM == 0)
 }
 
 func (t RefDefType) IsVal() bool {
@@ -261,7 +262,7 @@ func (s *Scope) AddLocal(ref *Ref, name string, checkDup bool) bool {
 		ps := s.UpperFn()
 		localInPs := ps.Refs[name]
 
-		if checkDup && localInPs != nil &&
+		if checkDup && localInPs != nil && localInPs.BindKind != BK_PARAM &&
 			((localInPs.BindKind != BK_VAR && localInPs.Typ != RDT_FN) ||
 				(localInPs.Scope.Id == 0 && localInPs.Typ == RDT_FN)) {
 			return CheckRefDup(localInPs, ref)
@@ -276,7 +277,8 @@ func (s *Scope) AddLocal(ref *Ref, name string, checkDup bool) bool {
 	}
 
 	bindKind := ref.BindKind
-	if local != nil && ((local.BindKind != BK_VAR && local.Typ != RDT_FN && local.Scope.Id != 0) || bindKind != BK_VAR) {
+	if local != nil && ((local.BindKind != BK_VAR && local.BindKind != BK_PARAM && local.Typ != RDT_FN && local.Scope.Id != 0) ||
+		bindKind != BK_VAR) {
 		return CheckRefDup(local, ref)
 	}
 
@@ -285,9 +287,7 @@ func (s *Scope) AddLocal(ref *Ref, name string, checkDup bool) bool {
 	return true
 }
 
-// caller should ensure both `r1` and `r2` have the same name,
-// return `true` - `r1` and `r2` are diff
-// return `false` - `r1` and `r2` are dup
+// caller should ensure both `r1` and `r2` have the same name
 func CheckRefDup(r1, r2 *Ref) bool {
 	if IsCallableClass(r1, r2) {
 		return true
@@ -300,6 +300,9 @@ func CheckRefDup(r1, r2 *Ref) bool {
 	}
 	if IsBothEnum(r1, r2) {
 		return true
+	}
+	if IsEnumAndVal(r1, r2) {
+		return false
 	}
 	if IsBothItf(r1, r2) {
 		return true
@@ -419,6 +422,11 @@ func IsClsAndIft(r1, r2 *Ref) bool {
 func IsBothEnum(r1, r2 *Ref) bool {
 	return (r1.Typ&RDT_ENUM != 0 && r2.Typ&RDT_ENUM != 0) ||
 		(r1.Typ&RDT_CONST_ENUM != 0 && r2.Typ&RDT_CONST_ENUM != 0)
+}
+
+func IsEnumAndVal(r1, r2 *Ref) bool {
+	return (r1.Typ&RDT_ENUM != 0 && r2.Typ&RDT_ENUM == 0) ||
+		(r1.Typ&RDT_ENUM == 0 && r2.Typ&RDT_ENUM != 0)
 }
 
 // caller should ensure both `r1` and `r2` match below rules:

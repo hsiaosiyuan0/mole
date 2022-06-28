@@ -13,20 +13,20 @@ import (
 type LexerModeKind int
 
 const (
-	LM_NONE            LexerModeKind = 0
-	LM_STRICT          LexerModeKind = 1 << iota
-	LM_TEMPLATE        LexerModeKind = 1 << iota // for inline spans can tell they are in template string
-	LM_TEMPLATE_TAGGED LexerModeKind = 1 << iota
-	LM_ASYNC           LexerModeKind = 1 << iota
-	LM_GENERATOR       LexerModeKind = 1 << iota
-	LM_CLASS_BODY      LexerModeKind = 1 << iota
-	LM_CLASS_CTOR      LexerModeKind = 1 << iota
-	LM_NEW             LexerModeKind = 1 << iota
-	LM_JSX             LexerModeKind = 1 << iota
-	LM_JSX_CHILD       LexerModeKind = 1 << iota
-	LM_JSX_ATTR        LexerModeKind = 1 << iota
-	LM_TS              LexerModeKind = 1 << iota
-	LM_TS_TYP_ARG      LexerModeKind = 1 << iota
+	LM_NONE     LexerModeKind = 0
+	LM_STRICT   LexerModeKind = 1 << iota
+	LM_TEMPLATE               // for inline spans can tell they are in template string
+	LM_TEMPLATE_TAGGED
+	LM_ASYNC
+	LM_GENERATOR
+	LM_CLASS_BODY
+	LM_CLASS_CTOR
+	LM_NEW
+	LM_JSX
+	LM_JSX_CHILD
+	LM_JSX_ATTR
+	LM_TS
+	LM_TS_TYP_ARG
 )
 
 type LexerMode struct {
@@ -323,6 +323,11 @@ func (l *Lexer) AddMode(mode LexerModeKind) {
 	cur.kind |= mode
 }
 
+func (l *Lexer) EraseMode(mode LexerModeKind) {
+	cur := &l.state.mode[len(l.state.mode)-1]
+	cur.kind &= ^mode
+}
+
 func (l *Lexer) IsMode(mode LexerModeKind) bool {
 	return l.CurMode().kind&mode > 0
 }
@@ -357,7 +362,7 @@ func (l *Lexer) readTokWithComment() *Token {
 
 	if !l.IsMode(LM_JSX) && !l.IsMode(LM_JSX_CHILD) {
 		if l.aheadIsIdStart() {
-			return l.readName()
+			return l.readName(false)
 		} else if l.aheadIsNumStart() {
 			return l.readNum()
 		} else if l.aheadIsStrStart() {
@@ -397,6 +402,9 @@ func (l *Lexer) readTokWithComment() *Token {
 			return l.finToken(tok, T_DOT)
 		case '/':
 			l.src.Read()
+			if l.src.AheadIsCh('/') {
+				return l.readSinglelineComment(tok)
+			}
 			return l.finToken(tok, T_DIV)
 		case '>':
 			l.src.Read()
@@ -408,9 +416,12 @@ func (l *Lexer) readTokWithComment() *Token {
 			if l.IsMode(LM_JSX_ATTR) {
 				return l.readStr()
 			}
+		case '-':
+			l.src.Read()
+			return l.finToken(tok, T_HYPHEN)
 		}
 		if l.aheadIsIdStart() {
-			return l.readName()
+			return l.readName(true)
 		}
 		return l.errToken(l.newToken(), ERR_UNEXPECTED_TOKEN)
 	}
@@ -466,7 +477,7 @@ func (l *Lexer) lexTok() *Token {
 func (l *Lexer) advance() *Token {
 	tok := l.lexTok()
 
-	// only update `prtVal` for telling whether ahead is regexp or not
+	// only update `prtVal` for telling whether ahead is regexp or not,
 	// other prt fields such as `prtRng` will be updated after `Next` is
 	// called
 	l.state.prtVal = tok.value
@@ -620,7 +631,7 @@ func (l *Lexer) readTplChs() (text []rune, fin bool, line, col, ofst, pos uint32
 }
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-lexical-grammar.html#prod-IdentifierName
-func (l *Lexer) readName() *Token {
+func (l *Lexer) readName(jsx bool) *Token {
 	tok := l.newToken()
 
 	runes := make([]rune, 0, 10)
@@ -631,7 +642,7 @@ func (l *Lexer) readName() *Token {
 	runes = append(runes, r)
 
 	col := l.src.Col()
-	idPart, escapeInPart, err := l.readIdPart()
+	idPart, escapeInPart, err := l.readIdPart(jsx)
 	if err != "" {
 		tok.begin.Col = col
 		return l.errToken(tok, err)
@@ -661,7 +672,7 @@ func (l *Lexer) readName() *Token {
 	return l.finToken(tok, T_NAME)
 }
 
-func (l *Lexer) aheadIsRegexp(afterLineTerm bool) bool {
+func (l *Lexer) aheadIsRegexp() bool {
 	if l.IsMode(LM_JSX) || l.IsMode(LM_JSX_ATTR) || l.IsMode(LM_TS_TYP_ARG) {
 		return false
 	}
@@ -670,7 +681,7 @@ func (l *Lexer) aheadIsRegexp(afterLineTerm bool) bool {
 		return true
 	}
 
-	// base on prev read firstly
+	// firstly, base on prev read
 	prev := l.state.prtVal
 	if prev == T_ILLEGAL {
 		prev = l.state.pptVal
@@ -682,7 +693,7 @@ func (l *Lexer) aheadIsRegexp(afterLineTerm bool) bool {
 	}
 
 	be := TokenKinds[prev].BeforeExpr
-	return be || afterLineTerm
+	return be
 }
 
 func (l *Lexer) hasMaybeLsh(line, col uint32) bool {
@@ -938,7 +949,7 @@ func (l *Lexer) readSymbol() *Token {
 			return l.readSinglelineComment(tok)
 		} else if l.src.AheadIsCh('*') {
 			return l.readMultilineComment(tok)
-		} else if l.aheadIsRegexp(l.src.MetLineTerm()) {
+		} else if l.aheadIsRegexp() {
 			return l.readRegexp(tok)
 		} else if l.src.AheadIsCh('=') {
 			l.src.Read()
@@ -1042,7 +1053,10 @@ func (l *Lexer) readRegexp(tok *Token) *Token {
 			if last == nil && c == ')' { // `]` doest not own the exception
 				return l.errToken(tok, ERR_UNTERMINATED_REGEXP)
 			}
-			lhs := last.Value.(rune)
+			lhs := utf8.RuneError
+			if last != nil {
+				lhs = last.Value.(rune)
+			}
 			if (c == ')' && lhs == '(') || (c == ']' && lhs == '[') {
 				couples.Remove(last)
 				if c == ']' {
@@ -1072,7 +1086,7 @@ func (l *Lexer) readRegexp(tok *Token) *Token {
 	var fs []rune
 	if l.aheadIsIdPart(false) {
 		col := l.src.Col()
-		fs, _, err = l.readIdPart()
+		fs, _, err = l.readIdPart(false)
 		if err != "" {
 			tok.begin.Col = col
 			return l.errToken(nil, err)
@@ -1160,8 +1174,8 @@ func (l *Lexer) readStr() *Token {
 			text = append(text, c)
 		}
 	}
-	tok.ext = &TokExtStr{open, legacyOctalEscapeSeq}
 	tok.text = string(text)
+	tok.ext = &TokExtStr{open, legacyOctalEscapeSeq}
 	return l.finToken(tok, T_STRING)
 }
 
@@ -1187,8 +1201,9 @@ func (l *Lexer) readEscapeSeq() (r rune, errMsg string, octalEscapeSeq bool) {
 		r = '\v'
 		return
 	case '0', '1', '2', '3', '4', '5', '6', '7':
-		octalEscapeSeq = true
-		r, errMsg = l.readOctalEscapeSeq(c)
+		var i int
+		r, errMsg, i = l.readOctalEscapeSeq(c)
+		octalEscapeSeq = r != 0 || i != 1
 		return
 	case 'x':
 		r, errMsg = l.readHexEscapeSeq()
@@ -1202,13 +1217,13 @@ func (l *Lexer) readEscapeSeq() (r rune, errMsg string, octalEscapeSeq bool) {
 }
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-lexical-grammar.html#prod-LegacyOctalEscapeSequence
-func (l *Lexer) readOctalEscapeSeq(first rune) (rune, string) {
+func (l *Lexer) readOctalEscapeSeq(first rune) (rune, string, int) {
 	octal := make([]rune, 0, 3)
 	octal = append(octal, first)
 	zeroToThree := first >= '0' && first <= '3'
 	i := 1
 	if l.IsMode(LM_TEMPLATE) {
-		return utf8.RuneError, ERR_TPL_LEGACY_OCTAL_ESCAPE_IN
+		return utf8.RuneError, ERR_TPL_LEGACY_OCTAL_ESCAPE_IN, 0
 	}
 	for {
 		if !zeroToThree && i == 2 || zeroToThree && i == 3 {
@@ -1223,9 +1238,9 @@ func (l *Lexer) readOctalEscapeSeq(first rune) (rune, string) {
 	}
 	r, err := strconv.ParseInt(string(octal[:]), 8, 32)
 	if err != nil {
-		return utf8.RuneError, ""
+		return utf8.RuneError, "", i
 	}
-	return rune(r), ""
+	return rune(r), "", i
 }
 
 func (l *Lexer) readHexEscapeSeq() (rune, string) {
@@ -1254,7 +1269,7 @@ func (l *Lexer) readNamePvt() *Token {
 	if !l.aheadIsIdStart() {
 		return l.errToken(l.newToken(), ERR_UNEXPECTED_CHAR)
 	}
-	tok := l.readName()
+	tok := l.readName(false)
 	tok.raw.Lo -= 1
 	tok.begin.Col -= 1
 	if tok.value != T_NAME {
@@ -1547,11 +1562,11 @@ func (l *Lexer) readIdStart() (r rune, containsEscape bool, errMsg string) {
 	return l.readUnicodeEscape(c, true)
 }
 
-func (l *Lexer) readIdPart() (rs []rune, containsEscape bool, errMsg string) {
+func (l *Lexer) readIdPart(jsx bool) (rs []rune, containsEscape bool, errMsg string) {
 	runes := make([]rune, 0, 10)
 	for {
 		c := l.src.Peek()
-		if IsIdStart(c) || IsIdPart(c) {
+		if IsIdStart(c) || IsIdPart(c) || (jsx && c == '-') {
 			c, escape, err := l.readUnicodeEscape(l.src.Read(), true)
 			if escape && !containsEscape {
 				containsEscape = escape

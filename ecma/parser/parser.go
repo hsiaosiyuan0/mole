@@ -911,6 +911,19 @@ func (p *Parser) importDec() (Node, error) {
 		return nil, err
 	}
 
+	if !typDec {
+		for _, spec := range specs {
+			s := spec.(*ImportSpec)
+			ref := NewRef()
+			ref.Def = s.local.(*Ident)
+			ref.BindKind = BK_CONST
+			ref.Typ = RDT_IMPORT
+			if p.addLocalBinding(p.Symtab().Scopes[0], ref, true, ref.Def.Text()); err != nil {
+				return nil, err
+			}
+		}
+	}
+
 	node.loc = p.finLoc(loc)
 	return node, nil
 }
@@ -1057,7 +1070,7 @@ func (p *Parser) classDec(expr bool, canNameOmitted bool, declare bool, abstract
 			// - `(class<T> {});`
 			// - `(class implements X.Y<T> {});`
 		} else {
-			id, err = p.identStrict(ps, true, true, false)
+			id, err = p.identStrict(ps, true, true)
 			if err != nil {
 				return nil, err
 			}
@@ -2091,7 +2104,7 @@ func (p *Parser) switchCase(tok *Token) (*SwitchCase, error) {
 
 	cons := make([]Node, 0)
 	for {
-		tok := p.lexer.Peek()
+		tok := p.lexer.PeekStmtBegin()
 		if tok.value == T_CASE || tok.value == T_DEFAULT || tok.value == T_BRACE_R {
 			break
 		} else if tok.value == T_EOF {
@@ -2573,7 +2586,7 @@ func (p *Parser) fnDec(expr bool, async *Token, canNameOmitted bool) (Node, erro
 		// below `argsToFormalParams`
 		p.checkName = false
 		scope.AddKind(SPK_FORMAL_PARAMS)
-		args, _, typArgs, _, err = p.argList(false, false, asyncLoc)
+		args, _, typArgs, _, err = p.argList(false, false, asyncLoc, false)
 		scope.EraseKind(SPK_FORMAL_PARAMS)
 		p.checkName = true
 		if err != nil {
@@ -3239,7 +3252,7 @@ func (p *Parser) isProhibitedName(scope *Scope, name string, withStrict bool, lV
 	return scope.IsKind(SPK_ASYNC) && name == "await"
 }
 
-func (p *Parser) identStrict(scope *Scope, forceStrict bool, binding bool, jsx bool) (Node, error) {
+func (p *Parser) identStrict(scope *Scope, forceStrict bool, binding bool) (Node, error) {
 	if scope == nil {
 		scope = p.scope()
 	}
@@ -3267,15 +3280,11 @@ func (p *Parser) identStrict(scope *Scope, forceStrict bool, binding bool, jsx b
 		}
 	}
 
-	if !jsx {
-		return &Ident{N_NAME, loc, name, false, tok.ContainsEscape(), nil, tok.IsKw(), p.newTypInfo()}, nil
-	}
-
-	return &JsxIdent{N_JSX_ID, loc, name, nil, p.newTypInfo()}, nil
+	return &Ident{N_NAME, loc, name, false, tok.ContainsEscape(), nil, tok.IsKw(), p.newTypInfo()}, nil
 }
 
 func (p *Parser) ident(scope *Scope, binding bool) (*Ident, error) {
-	id, err := p.identStrict(scope, false, binding, false)
+	id, err := p.identStrict(scope, false, binding)
 	if err != nil {
 		return nil, err
 	}
@@ -3991,7 +4000,9 @@ func (p *Parser) aheadIsYield() bool {
 	if !p.scope().IsKind(SPK_GENERATOR) {
 		return false
 	}
-	return p.lexer.Peek().value == T_YIELD
+	ahead := p.lexer.Peek()
+	av := ahead.value
+	return av == T_YIELD || av == T_NAME && ahead.RawText() == "yield"
 }
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-functions-and-classes.html#prod-YieldExpression
@@ -4017,7 +4028,7 @@ func (p *Parser) yieldExpr() (Node, error) {
 		delegate = true
 	}
 
-	arg, err := p.assignExpr(true, false, false, false)
+	arg, err := p.assignExpr(true, false, false, true)
 	if err != nil {
 		return nil, err
 	}
@@ -4132,11 +4143,14 @@ func (p *Parser) advanceIfHook() *Token {
 		return p.lexer.Next()
 	}
 	hook := tok.value == T_HOOK
-	ahead := p.lexer.Peek2nd()
-	if !hook || !ahead.Kind().StartExpr {
-		return nil
+	if hook {
+		ahead := p.lexer.Peek2nd()
+		av := ahead.value
+		if ahead.Kind().StartExpr || (p.feat&FEAT_JSX != 0 && av == T_LT) {
+			return p.lexer.Next()
+		}
 	}
-	return p.lexer.Next()
+	return nil
 }
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-expressions.html#prod-ConditionalExpression
@@ -4295,9 +4309,11 @@ func (p *Parser) unaryExpr(typArgs Node, typArgsLoc *Loc, notColon bool) (Node, 
 		p.lexer.Next()
 		return p.awaitExpr(tok)
 	}
+
 	return p.updateExpr(typArgs, typArgsLoc, notColon)
 }
 
+// https://tc39.es/ecma262/multipage/ecmascript-language-expressions.html#prod-UpdateExpression
 func (p *Parser) updateExpr(typArgs Node, typArgsLoc *Loc, notColon bool) (Node, error) {
 	loc := p.loc()
 	tok := p.lexer.Peek()
@@ -4374,6 +4390,12 @@ func (p *Parser) lhs(notColon bool) (Node, error) {
 		return nil, err
 	}
 	node = p.tsNoNull(node)
+	if p.lexer.Peek().value == T_DOT {
+		node, _, err = p.callExpr(node, true, false, nil, notColon)
+		if err != nil {
+			return nil, err
+		}
+	}
 	return node, nil
 }
 
@@ -4426,7 +4448,7 @@ func (p *Parser) newExpr() (Node, error) {
 	ahead := p.lexer.Peek()
 	if p.aheadIsArgList(ahead) {
 		p.pushState()
-		args, _, typArgs, _, err = p.argList(true, true, nil)
+		args, _, typArgs, _, err = p.argList(true, true, nil, false)
 		if err != nil {
 			// `new A < T`
 			if err == errTypArgMissingGT {
@@ -4577,7 +4599,7 @@ func (p *Parser) callExpr(callee Node, root bool, directOpt bool, opt *Loc, notC
 				p.pushState()
 			}
 			// `superTypArgs` is used to represent expr like `(class extends f()<T> {})`
-			args, _, typArgs, superTypArgs, err := p.argList(true, true, nil)
+			args, _, typArgs, superTypArgs, err := p.argList(true, true, nil, true)
 			if err != nil {
 				if err == errTypArgMissingGT && firstOpt == nil {
 					p.popState()
@@ -5289,8 +5311,8 @@ func (p *Parser) checkArgs(args []Node, spread bool, simplicity bool) error {
 	return nil
 }
 
-func (p *Parser) argList(check bool, incall bool, asyncLoc *Loc) ([]Node, *Loc, Node, Node, error) {
-	typArgs, err := p.tsTryTypArgs(asyncLoc, false)
+func (p *Parser) argList(check bool, incall bool, asyncLoc *Loc, noJsx bool) ([]Node, *Loc, Node, Node, error) {
+	typArgs, err := p.tsTryTypArgs(asyncLoc, noJsx)
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
@@ -5813,7 +5835,7 @@ func (p *Parser) parenExpr(typArgs Node, notColon bool) (Node, error) {
 	scope := p.symtab.EnterScope(false, false, false)
 	scope.AddKind(SPK_PAREN)
 	p.checkName = false
-	args, tailingComma, ta, _, err := p.argList(false, false, nil)
+	args, tailingComma, ta, _, err := p.argList(false, false, nil, false)
 	p.checkName = true
 	p.symtab.LeaveScope()
 
@@ -6361,7 +6383,7 @@ func (p *Parser) nameOfNode(node Node) string {
 }
 
 func (p *Parser) isExprOpening(raise bool) (*Token, error) {
-	tok := p.lexer.Peek()
+	tok := p.lexer.PeekStmtBegin()
 	tv := tok.value
 	if raise && tv != T_SEMI && tv != T_BRACE_R && tv != T_COMMA && tv != T_PAREN_R && !tok.afterLineTerm && tv != T_EOF {
 		errMsg := ERR_UNEXPECTED_TOKEN

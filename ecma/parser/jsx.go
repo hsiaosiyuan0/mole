@@ -25,21 +25,31 @@ func (p *Parser) jsxNsExpr(ns Node, path string) (Node, string, error) {
 	if _, err := p.nextMustTok(T_COLON); err != nil {
 		return nil, "", err
 	}
-	name, err := p.identStrict(nil, false, false, true)
+	name, pth, err := p.jsxId()
 	if err != nil {
 		return nil, "", err
 	}
-	jsxName := name.(*JsxIdent).val
-	return &JsxNsName{N_JSX_NS, p.finLoc(ns.Loc().Clone()), ns, name}, path + ":" + jsxName, nil
+	return &JsxNsName{N_JSX_NS, p.finLoc(ns.Loc().Clone()), ns, name}, path + ":" + pth, nil
+}
+
+func (p *Parser) jsxId() (Node, string, error) {
+	tok := p.lexer.Next()
+	loc := p.locFromTok(tok)
+	tv := tok.value
+	if tv != T_NAME {
+		return nil, "", p.errorTok(tok)
+	}
+
+	t := tok.Text()
+	return &JsxIdent{N_JSX_ID, p.finLoc(loc), t, nil, p.newTypInfo()}, t, nil
 }
 
 func (p *Parser) jsxName() (Node, string, error) {
-	id, err := p.identStrict(nil, false, false, true)
+	id, jsxName, err := p.jsxId()
 	if err != nil {
 		return nil, "", err
 	}
-	jsxId := id.(*JsxIdent)
-	jsxName := jsxId.Text()
+
 	ahead := p.lexer.Peek()
 	av := ahead.value
 
@@ -56,7 +66,7 @@ func (p *Parser) jsxName() (Node, string, error) {
 			return nil, "", err
 		}
 	} else {
-		name = jsxId
+		name = id
 		pth = jsxName
 	}
 	typArgs, err := p.tsTryTypArgs(nil, true)
@@ -359,7 +369,7 @@ func (p *Parser) jsx(root bool, opening bool) (Node, error) {
 	p.lexer.PopMode()
 	ahead = p.lexer.Peek()
 	// here `T_LT` is not say that the followed node is a jsx-open tag since the close-tag also starts with `<`
-	// however if we combind the `is root` condition with is `is LI` then we can report the error `ERR_JSX_ADJACENT_ELEM_SHOULD_BE_WRAPPED`
+	// however if we combined the `is root` condition with is `is LI` then we can report the error `ERR_JSX_ADJACENT_ELEM_SHOULD_BE_WRAPPED`
 	// correctly since the root jsx element must stand alone
 	if ahead.value == T_LT && root {
 		return nil, p.errorAt(ahead.value, &ahead.begin, ERR_JSX_ADJACENT_ELEM_SHOULD_BE_WRAPPED)

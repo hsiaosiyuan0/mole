@@ -357,9 +357,10 @@ const (
 	T_ASSIGN_END
 
 	T_JSX_TXT
+	T_HYPHEN
+
 	T_TS_AS
 	T_TS_NO_NULL
-
 	T_AT
 
 	T_TOKEN_DEF_END
@@ -377,7 +378,7 @@ type TokenKind struct {
 	// tokenizing phase
 	BeforeExpr bool
 
-	// `StartExpr` is attached to each token to indicate the token itself is the beginning of expr
+	// `StartExpr` is attached to each token to indicate the token itself is the beginning of an expr,
 	// it's used when parsing the argument of `yield`
 	StartExpr bool
 }
@@ -544,9 +545,10 @@ var TokenKinds = [T_TOKEN_DEF_END + 1]*TokenKind{
 	{T_ASSIGN_END, "assignment end", 0, false, false, false},
 
 	{T_JSX_TXT, "jsx text", 0, false, false, false},
+	{T_HYPHEN, "-", 0, false, false, false},
+
 	{T_TS_AS, "as", 12, false, true, false},
 	{T_TS_NO_NULL, "!", 0, false, false, false},
-
 	{T_AT, "@", 0, false, false, true},
 
 	{T_TOKEN_DEF_END, "token end def", 0, false, false, false},

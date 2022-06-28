@@ -159,7 +159,7 @@ func (p *Parser) tsUnionOrIntersectType(lhs Node, minPcd int, rough bool, canCon
 		}
 
 		elems = append(elems, rhs)
-		if kind.Pcd < pcd {
+		if lhs != nil && kind.Pcd < pcd {
 			if nt == N_TS_UNION_TYP {
 				lhs = &TsUnionTyp{N_TS_UNION_TYP, p.finLoc(lhs.Loc().Clone()), firstOp, elems, nil}
 			} else {
@@ -199,6 +199,14 @@ func (p *Parser) tsConstructTyp(loc *Loc, abstract bool) (Node, error) {
 func (p *Parser) tsIsPrimitive(typ NodeType) bool {
 	switch typ {
 	case N_TS_ANY, N_TS_NUM, N_TS_BOOL, N_TS_STR, N_TS_SYM, N_TS_VOID, N_TS_THIS:
+		return true
+	}
+	return false
+}
+
+func (p *Parser) tsIsNameLike(typ NodeType) bool {
+	switch typ {
+	case N_TS_ANY, N_TS_BOOL, N_TS_SYM, N_TS_VOID, N_TS_THIS, N_TS_NEVER, N_TS_UNKNOWN, N_TS_UNDEF, N_TS_REF:
 		return true
 	}
 	return false
@@ -1727,10 +1735,14 @@ func (p *Parser) tsTypArgs(canConst bool, noJsx bool) (Node, error) {
 		ahead := p.lexer.Peek()
 		av := ahead.value
 		if av == T_GT {
+			if !noJsx && jsx && len(args) == 0 {
+				return nil, errTypArgMaybeJsx
+			}
+
 			p.lexer.Next()
 			break
-		} else if av == T_NAME || ahead.IsLit(true) || ahead.IsCtxKw() || ahead.value == T_LT || ahead.value == T_PAREN_L {
-			// next is typ， fallthrough to below `p.tsTyp` to handle this branch
+		} else if av == T_NAME || ahead.IsLit(true) || ahead.IsCtxKw() || av == T_LT || av == T_PAREN_L || av == T_BRACE_L {
+			// next is typ, fallthrough to below `p.tsTyp` to handle this branch
 		} else {
 			return nil, errTypArgMissingGT
 		}
@@ -1742,6 +1754,7 @@ func (p *Parser) tsTypArgs(canConst bool, noJsx bool) (Node, error) {
 			}
 			return nil, err
 		}
+		nameLike := p.tsIsNameLike(arg.Type())
 
 		ahead = p.lexer.Peek()
 		av = ahead.value
@@ -1757,7 +1770,7 @@ func (p *Parser) tsTypArgs(canConst bool, noJsx bool) (Node, error) {
 				return nil, err
 			}
 			arg = &TsParam{N_TS_PARAM, p.finLoc(id.Loc().Clone()), id, cons, nil}
-		} else if !noJsx && jsx && (av == T_NAME || ahead.IsKw() || av == T_DIV || av == T_BRACE_L || av == T_GT) {
+		} else if !noJsx && jsx && (av == T_NAME || ahead.IsKw() || av == T_DIV || av == T_BRACE_L || (av == T_GT && nameLike && len(args) == 0)) {
 			return nil, errTypArgMaybeJsx
 		}
 
@@ -2246,7 +2259,7 @@ func (p *Parser) tsModDec() (*TsDec, error) {
 	} else if global {
 		name = &Ident{N_NAME, p.finLoc(loc.Clone()), "global", false, false, nil, true, p.newTypInfo()}
 	} else {
-		name, err = p.identStrict(nil, false, false, false)
+		name, err = p.identStrict(nil, false, false)
 		if err != nil {
 			return nil, err
 		}

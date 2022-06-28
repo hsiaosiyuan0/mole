@@ -1,0 +1,1 @@
+var INTERNAL_COMPONENT_ID_PREFIX = '\0_ec_\0'

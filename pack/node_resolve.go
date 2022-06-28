@@ -30,6 +30,7 @@ type NodeResolver struct {
 	builtin map[string]bool
 
 	ts       bool
+	baseUrl  string
 	pathMaps *PathMaps
 
 	tried []string
@@ -52,18 +53,25 @@ func NewNodeResolver(exports [][]string, imports [][]string, exts []string,
 		tried: []string{},
 	}
 
-	if r.exports == nil {
+	if len(r.exports) == 0 {
 		r.exports = [][]string{{"node", "require"}}
 	}
-	if r.imports == nil {
+	if len(r.imports) == 0 {
 		r.imports = [][]string{{"node", "require"}}
+	}
+	if len(r.builtin) == 0 {
+		r.builtin = jsBuiltin
 	}
 
 	r.exports = append(r.exports, []string{"default"})
 	r.imports = append(r.imports, []string{"default"})
 
 	if r.exts == nil {
-		r.exts = jsDefaultExtensions
+		if r.ts {
+			r.exts = tsDefaultExtensions
+		} else {
+			r.exts = jsDefaultExtensions
+		}
 	}
 	return r
 }
@@ -110,7 +118,7 @@ func (r *NodeResolver) Resolve(target string, cw string) ([]string, *Pkginfo, er
 	if err != nil {
 		return nil, nil, err
 	}
-	if f != nil {
+	if len(f) != 0 {
 		return f, pi, nil
 	}
 
@@ -146,8 +154,38 @@ func (r *NodeResolver) try(target string) {
 	r.tried = append(r.tried, target)
 }
 
-var jsDefaultExtensions = []string{".js", ".json", ".node"}
+var jsDefaultExtensions = []string{".js", ".jsx", ".mjs", ".json", ".node"}
 var tsDefaultExtensions = append([]string{".ts", ".tsx", ".d.ts"}, jsDefaultExtensions...)
+
+var jsBuiltin = map[string]bool{
+	"assert":         true,
+	"buffer":         true,
+	"child_process":  true,
+	"cluster":        true,
+	"crypto":         true,
+	"dgram":          true,
+	"dns":            true,
+	"domain":         true,
+	"events":         true,
+	"fs":             true,
+	"http":           true,
+	"https":          true,
+	"net":            true,
+	"os":             true,
+	"path":           true,
+	"querystring":    true,
+	"readline":       true,
+	"stream":         true,
+	"string_decoder": true,
+	"timers":         true,
+	"tls":            true,
+	"tty":            true,
+	"url":            true,
+	"util":           true,
+	"v8":             true,
+	"vm":             true,
+	"zlib":           true,
+}
 
 // target can be either directory or normal file
 func (r *NodeResolver) loadAsFile(target []string) (string, *Pkginfo) {
@@ -180,7 +218,7 @@ func (r *NodeResolver) loadAsFile(target []string) (string, *Pkginfo) {
 
 func (r *NodeResolver) loadRelative(target []string, cw []string, pi *Pkginfo) ([]string, *Pkginfo, error) {
 	var file []string
-	if target[0] == "." {
+	if target[0][0] == '.' {
 		file = append(cw, target...)
 	} else {
 		file = target
@@ -190,7 +228,7 @@ func (r *NodeResolver) loadRelative(target []string, cw []string, pi *Pkginfo) (
 		return []string{f}, pi, nil
 	}
 
-	f, pi, err := r.loadAsDir(file, true)
+	f, pi, err := r.loadAsDir(file, true, true)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -204,16 +242,20 @@ func (r *NodeResolver) loadIndex(target []string) (string, *Pkginfo) {
 }
 
 // target must be a directory
-func (r *NodeResolver) loadAsDir(target []string, raise bool) ([]string, *Pkginfo, error) {
-	pki, err := r.pkgLoader.Load(filepath.Join(append(target, "package.json")...))
-	if err != nil {
-		switch ev := err.(type) {
-		case *fs.PathError:
-			if ev.Unwrap() != syscall.ENOENT {
+func (r *NodeResolver) loadAsDir(target []string, raise bool, skipPkgInfo bool) ([]string, *Pkginfo, error) {
+	var pki *Pkginfo
+	var err error
+	if !skipPkgInfo {
+		pki, err = r.pkgLoader.Load(filepath.Join(append(target, "package.json")...))
+		if err != nil {
+			switch ev := err.(type) {
+			case *fs.PathError:
+				if ev.Unwrap() != syscall.ENOENT {
+					return nil, nil, err
+				}
+			default:
 				return nil, nil, err
 			}
-		default:
-			return nil, nil, err
 		}
 	}
 
@@ -223,6 +265,8 @@ func (r *NodeResolver) loadAsDir(target []string, raise bool) ([]string, *Pkginf
 			file := append(target, pki.Main)
 			if f, _ := r.loadAsFile(file); f != "" {
 				res = append(res, f)
+			} else if f, _, _ := r.loadAsDir(file, false, true); len(f) > 0 {
+				res = append(res, f...)
 			} else {
 				return nil, nil, newNoModErr(r)
 			}
@@ -265,9 +309,9 @@ func (r *NodeResolver) loadModule(target []string, start []string) ([]string, *P
 
 		f, pi, err := r.loadPkgExports(target, dir)
 		if err != nil {
-			return nil, nil, nil
+			return nil, nil, err
 		}
-		if f != nil {
+		if len(f) != 0 {
 			return f, pi, nil
 		}
 
@@ -276,13 +320,24 @@ func (r *NodeResolver) loadModule(target []string, start []string) ([]string, *P
 			return []string{f}, pi, nil
 		}
 
-		f, pi, err = r.loadAsDir(file, false)
+		f, pi, err = r.loadAsDir(file, false, false)
 		if err != nil {
 			return nil, nil, err
 		}
-		if f != nil {
+		if len(f) != 0 {
 			return f, pi, nil
 		}
+	}
+
+	if r.ts && r.baseUrl != "" {
+		prefix := osPathSplit(r.baseUrl)
+		target := append(prefix, target...)
+
+		f, pi := r.loadAsFile(target)
+		if f != "" {
+			return []string{f}, pi, nil
+		}
+		return r.loadAsDir(target, true, false)
 	}
 
 	return nil, nil, newNoModErr(r)
@@ -303,7 +358,7 @@ func (r *NodeResolver) loadPkgImports(target []string, pi *Pkginfo) ([]string, *
 		return []string{f}, pi, nil
 	}
 
-	f, pi, err := r.loadAsDir(file, true)
+	f, pi, err := r.loadAsDir(file, true, false)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -365,7 +420,7 @@ func (r *NodeResolver) loadPkgSelf(target []string, dir []string, pi *Pkginfo) (
 	if !ok {
 		return nil, nil, nil
 	}
-	f, pi, err := r.loadAsDir(append(r.self.dir, pathSplit(m)...), false)
+	f, pi, err := r.loadAsDir(append(r.self.dir, pathSplit(m)...), false, false)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -427,7 +482,7 @@ func (r *NodeResolver) loadPkgExports(target []string, dir []string) ([]string, 
 	if !ok {
 		return nil, nil, nil
 	}
-	f, pki, err := r.loadAsDir(append(scope, pathSplit(m)...), false)
+	f, pki, err := r.loadAsDir(append(scope, pathSplit(m)...), false, false)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -682,7 +737,7 @@ func (m *PathMap) Match(nom string, r *NodeResolver) []string {
 
 	for _, d := range m.cond {
 		d = strings.Replace(d, "*", mcs[1], -1)
-		if f, _, _ := r.loadRelative(osPathSplit(d), nil, nil); f != nil {
+		if f, _, _ := r.loadRelative(osPathSplit(d), nil, nil); len(f) != 0 {
 			return f
 		}
 	}

@@ -1,0 +1,470 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 81,
+  "loc": {
+    "start": {
+      "line": 1,
+      "column": 0
+    },
+    "end": {
+      "line": 1,
+      "column": 81
+    }
+  },
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 0,
+      "end": 81,
+      "loc": {
+        "start": {
+          "line": 1,
+          "column": 0
+        },
+        "end": {
+          "line": 1,
+          "column": 81
+        }
+      },
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 6,
+          "end": 80,
+          "loc": {
+            "start": {
+              "line": 1,
+              "column": 6
+            },
+            "end": {
+              "line": 1,
+              "column": 80
+            }
+          },
+          "id": {
+            "type": "ObjectPattern",
+            "start": 6,
+            "end": 23,
+            "loc": {
+              "start": {
+                "line": 1,
+                "column": 6
+              },
+              "end": {
+                "line": 1,
+                "column": 23
+              }
+            },
+            "properties": [
+              {
+                "type": "Property",
+                "start": 8,
+                "end": 11,
+                "loc": {
+                  "start": {
+                    "line": 1,
+                    "column": 8
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": 11
+                  }
+                },
+                "key": {
+                  "type": "Identifier",
+                  "start": 8,
+                  "end": 11,
+                  "loc": {
+                    "start": {
+                      "line": 1,
+                      "column": 8
+                    },
+                    "end": {
+                      "line": 1,
+                      "column": 11
+                    }
+                  },
+                  "name": "pod"
+                },
+                "computed": false,
+                "method": false,
+                "shorthand": true,
+                "value": {
+                  "type": "Identifier",
+                  "start": 8,
+                  "end": 11,
+                  "loc": {
+                    "start": {
+                      "line": 1,
+                      "column": 8
+                    },
+                    "end": {
+                      "line": 1,
+                      "column": 11
+                    }
+                  },
+                  "name": "pod"
+                }
+              },
+              {
+                "type": "Property",
+                "start": 13,
+                "end": 16,
+                "loc": {
+                  "start": {
+                    "line": 1,
+                    "column": 13
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": 16
+                  }
+                },
+                "key": {
+                  "type": "Identifier",
+                  "start": 13,
+                  "end": 16,
+                  "loc": {
+                    "start": {
+                      "line": 1,
+                      "column": 13
+                    },
+                    "end": {
+                      "line": 1,
+                      "column": 16
+                    }
+                  },
+                  "name": "app"
+                },
+                "computed": false,
+                "method": false,
+                "shorthand": true,
+                "value": {
+                  "type": "Identifier",
+                  "start": 13,
+                  "end": 16,
+                  "loc": {
+                    "start": {
+                      "line": 1,
+                      "column": 13
+                    },
+                    "end": {
+                      "line": 1,
+                      "column": 16
+                    }
+                  },
+                  "name": "app"
+                }
+              },
+              {
+                "type": "Property",
+                "start": 18,
+                "end": 21,
+                "loc": {
+                  "start": {
+                    "line": 1,
+                    "column": 18
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": 21
+                  }
+                },
+                "key": {
+                  "type": "Identifier",
+                  "start": 18,
+                  "end": 21,
+                  "loc": {
+                    "start": {
+                      "line": 1,
+                      "column": 18
+                    },
+                    "end": {
+                      "line": 1,
+                      "column": 21
+                    }
+                  },
+                  "name": "env"
+                },
+                "computed": false,
+                "method": false,
+                "shorthand": true,
+                "value": {
+                  "type": "Identifier",
+                  "start": 18,
+                  "end": 21,
+                  "loc": {
+                    "start": {
+                      "line": 1,
+                      "column": 18
+                    },
+                    "end": {
+                      "line": 1,
+                      "column": 21
+                    }
+                  },
+                  "name": "env"
+                }
+              }
+            ]
+          },
+          "init": {
+            "type": "CallExpression",
+            "start": 26,
+            "end": 80,
+            "loc": {
+              "start": {
+                "line": 1,
+                "column": 26
+              },
+              "end": {
+                "line": 1,
+                "column": 80
+              }
+            },
+            "callee": {
+              "type": "Identifier",
+              "start": 26,
+              "end": 35,
+              "loc": {
+                "start": {
+                  "line": 1,
+                  "column": 26
+                },
+                "end": {
+                  "line": 1,
+                  "column": 35
+                }
+              },
+              "name": "useParams"
+            },
+            "arguments": [],
+            "typeParameters": {
+              "type": "TSTypeParameterInstantiation",
+              "start": 35,
+              "end": 78,
+              "loc": {
+                "start": {
+                  "line": 1,
+                  "column": 35
+                },
+                "end": {
+                  "line": 1,
+                  "column": 78
+                }
+              },
+              "params": [
+                {
+                  "type": "TSTypeLiteral",
+                  "start": 36,
+                  "end": 77,
+                  "loc": {
+                    "start": {
+                      "line": 1,
+                      "column": 36
+                    },
+                    "end": {
+                      "line": 1,
+                      "column": 77
+                    }
+                  },
+                  "members": [
+                    {
+                      "type": "TSPropertySignature",
+                      "start": 38,
+                      "end": 50,
+                      "loc": {
+                        "start": {
+                          "line": 1,
+                          "column": 38
+                        },
+                        "end": {
+                          "line": 1,
+                          "column": 50
+                        }
+                      },
+                      "key": {
+                        "type": "Identifier",
+                        "start": 38,
+                        "end": 41,
+                        "loc": {
+                          "start": {
+                            "line": 1,
+                            "column": 38
+                          },
+                          "end": {
+                            "line": 1,
+                            "column": 41
+                          }
+                        },
+                        "name": "pod"
+                      },
+                      "computed": false,
+                      "typeAnnotation": {
+                        "type": "TSTypeAnnotation",
+                        "start": 41,
+                        "end": 49,
+                        "loc": {
+                          "start": {
+                            "line": 1,
+                            "column": 41
+                          },
+                          "end": {
+                            "line": 1,
+                            "column": 49
+                          }
+                        },
+                        "typeAnnotation": {
+                          "type": "TSStringKeyword",
+                          "start": 43,
+                          "end": 49,
+                          "loc": {
+                            "start": {
+                              "line": 1,
+                              "column": 43
+                            },
+                            "end": {
+                              "line": 1,
+                              "column": 49
+                            }
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "type": "TSPropertySignature",
+                      "start": 51,
+                      "end": 63,
+                      "loc": {
+                        "start": {
+                          "line": 1,
+                          "column": 51
+                        },
+                        "end": {
+                          "line": 1,
+                          "column": 63
+                        }
+                      },
+                      "key": {
+                        "type": "Identifier",
+                        "start": 51,
+                        "end": 54,
+                        "loc": {
+                          "start": {
+                            "line": 1,
+                            "column": 51
+                          },
+                          "end": {
+                            "line": 1,
+                            "column": 54
+                          }
+                        },
+                        "name": "app"
+                      },
+                      "computed": false,
+                      "typeAnnotation": {
+                        "type": "TSTypeAnnotation",
+                        "start": 54,
+                        "end": 62,
+                        "loc": {
+                          "start": {
+                            "line": 1,
+                            "column": 54
+                          },
+                          "end": {
+                            "line": 1,
+                            "column": 62
+                          }
+                        },
+                        "typeAnnotation": {
+                          "type": "TSStringKeyword",
+                          "start": 56,
+                          "end": 62,
+                          "loc": {
+                            "start": {
+                              "line": 1,
+                              "column": 56
+                            },
+                            "end": {
+                              "line": 1,
+                              "column": 62
+                            }
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "type": "TSPropertySignature",
+                      "start": 64,
+                      "end": 75,
+                      "loc": {
+                        "start": {
+                          "line": 1,
+                          "column": 64
+                        },
+                        "end": {
+                          "line": 1,
+                          "column": 75
+                        }
+                      },
+                      "key": {
+                        "type": "Identifier",
+                        "start": 64,
+                        "end": 67,
+                        "loc": {
+                          "start": {
+                            "line": 1,
+                            "column": 64
+                          },
+                          "end": {
+                            "line": 1,
+                            "column": 67
+                          }
+                        },
+                        "name": "env"
+                      },
+                      "computed": false,
+                      "typeAnnotation": {
+                        "type": "TSTypeAnnotation",
+                        "start": 67,
+                        "end": 75,
+                        "loc": {
+                          "start": {
+                            "line": 1,
+                            "column": 67
+                          },
+                          "end": {
+                            "line": 1,
+                            "column": 75
+                          }
+                        },
+                        "typeAnnotation": {
+                          "type": "TSStringKeyword",
+                          "start": 69,
+                          "end": 75,
+                          "loc": {
+                            "start": {
+                              "line": 1,
+                              "column": 69
+                            },
+                            "end": {
+                              "line": 1,
+                              "column": 75
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "kind": "const"
+    }
+  ],
+  "directives": []
+}

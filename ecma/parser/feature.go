@@ -43,7 +43,7 @@ const (
 	FEAT_JSX
 	FEAT_JSX_NS
 
-	// not found where in the spec says that the flags of regexp is neened to check
+	// not found where in the spec says that the flags of regexp is needed to check
 	// even though it's implemented in some other parsers, so flag `FEAT_CHK_REGEXP_FLAGS`
 	// is opt-in in mole
 	FEAT_CHK_REGEXP_FLAGS

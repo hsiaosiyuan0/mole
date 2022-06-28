@@ -13,7 +13,7 @@ import (
 func TestParseDep(t *testing.T) {
 	deps, err := parseDep("", `
   require('a.js')
-`, nil)
+`, nil, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -25,7 +25,7 @@ func TestParseDepRebound(t *testing.T) {
 	deps, err := parseDep("", `
   require = a
   require('a.js')
-`, nil)
+`, nil, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -39,7 +39,7 @@ function f() {
   var require = a
   require('a.js')
 }
-`, nil)
+`, nil, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -54,7 +54,7 @@ function f() {
   require('a.js')
 }
 require('a.js')
-`, nil)
+`, nil, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -65,7 +65,7 @@ require('a.js')
 func TestParseDepImport(t *testing.T) {
 	deps, err := parseDep("", `
 import('a.js')
-`, nil)
+`, nil, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -74,31 +74,14 @@ import('a.js')
 }
 
 func TestParseCondImport1(t *testing.T) {
-	deps, err := parseDep("", `
-if (process.env.NODE_ENV === 'production') {
-  // DCE check should happen before ReactDOM bundle executes so that
-  // DevTools can report bad minification during injection.
-  checkDCE();
-  module.exports = require('./cjs/react-dom.production.min.js');
-} else {
-  module.exports = require('./cjs/react-dom.development.js');
-}
-`, map[string]interface{}{
+	vars := map[string]interface{}{
 		"process": map[string]interface{}{
 			"env": map[string]interface{}{
 				"NODE_ENV": "development",
 			},
 		},
-	})
-	if err != nil {
-		t.Fatal(err)
 	}
 
-	util.AssertEqual(t, 1, len(deps), "should be ok")
-	util.AssertEqual(t, "./cjs/react-dom.development.js", deps[0], "should be ok")
-}
-
-func TestParseCondImport2(t *testing.T) {
 	deps, err := parseDep("", `
 if (process.env.NODE_ENV === 'production') {
   // DCE check should happen before ReactDOM bundle executes so that
@@ -108,19 +91,40 @@ if (process.env.NODE_ENV === 'production') {
 } else {
   module.exports = require('./cjs/react-dom.development.js');
 }
-`, map[string]interface{}{
-		"process": map[string]interface{}{
-			"env": map[string]interface{}{
-				"NODE_ENV": "production",
-			},
-		},
-	})
+`, vars, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	util.AssertEqual(t, 1, len(deps), "should be ok")
-	util.AssertEqual(t, "./cjs/react-dom.production.min.js", deps[0], "should be ok")
+	util.AssertEqual(t, "./cjs/react-dom.development.js", deps[0].file, "should be ok")
+}
+
+func TestParseCondImport2(t *testing.T) {
+	vars := map[string]interface{}{
+		"process": map[string]interface{}{
+			"env": map[string]interface{}{
+				"NODE_ENV": "production",
+			},
+		},
+	}
+
+	deps, err := parseDep("", `
+if (process.env.NODE_ENV === 'production') {
+  // DCE check should happen before ReactDOM bundle executes so that
+  // DevTools can report bad minification during injection.
+  checkDCE();
+  module.exports = require('./cjs/react-dom.production.min.js');
+} else {
+  module.exports = require('./cjs/react-dom.development.js');
+}
+`, vars, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	util.AssertEqual(t, 1, len(deps), "should be ok")
+	util.AssertEqual(t, "./cjs/react-dom.production.min.js", deps[0].file, "should be ok")
 }
 
 func TestDepScanner(t *testing.T) {
@@ -131,10 +135,10 @@ func TestDepScanner(t *testing.T) {
 	util.ShellInDir(dir, "npm", "i")
 
 	opts := NewDepScannerOpts()
-	opts.dir = dir
-	opts.entries = append(opts.entries, "./src/index.js")
+	opts.Dir = dir
+	opts.Entries = append(opts.Entries, "./src/index.js")
 
-	err := opts.SetTsconfig(opts.dir, "jsconfig.json", true)
+	err := opts.SetTsconfig(opts.Dir, "jsconfig.json", true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -154,7 +158,7 @@ func TestDepScanner(t *testing.T) {
 	}
 
 	cnt := 0
-	for _, m := range s.modules {
+	for _, m := range s.fileModules {
 		if m != nil {
 			cnt += 1
 			fmt.Println(m.File())
