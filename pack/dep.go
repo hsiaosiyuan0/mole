@@ -445,7 +445,6 @@ func parseDep(file, code string, vars map[string]interface{}, parserOpts map[str
 	} else if ext == ".jsx" {
 		opts.Feature = opts.Feature.On(parser.FEAT_JSX)
 	} else {
-		opts.Feature = opts.Feature.Off(parser.FEAT_JSX)
 		opts.Feature = opts.Feature.Off(parser.FEAT_STRICT)
 	}
 
