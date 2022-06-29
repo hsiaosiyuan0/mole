@@ -599,7 +599,6 @@ func (j *JsUnit) Load() error {
 	}
 
 	umb := j.s.getOrNewUmbrella(pi)
-	umb.addSize(m.Size())
 	m.setUmbrella(umb.Id())
 
 	if jm, ok := m.(*JsModule); ok && !m.Scanned() {
@@ -618,7 +617,7 @@ func (j *JsUnit) Load() error {
 			}
 
 			umb.addSize(m.Size())
-		} else {
+		} else if !jm.IsUmbrella() {
 			jm.scanned = true
 
 			s, err := os.Stat(file[0])

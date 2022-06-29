@@ -1,6 +1,6 @@
 {
   "name": "molecast",
-  "version": "0.0.17",
+  "version": "0.0.18",
   "description": "Tools to facilitate the frontend development.",
   "bin": "run.js",
   "scripts": {},
