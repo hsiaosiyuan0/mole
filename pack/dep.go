@@ -569,7 +569,7 @@ func (j *JsUnit) scan(m Module) ([]*importPoint, error) {
 	}
 
 	jm := m.(*JsModule)
-	jm.size = len(f)
+	jm.size = int64(len(f))
 	jm.scanned = true
 
 	return parseDep(jm.file, string(f), j.s.opts.Vars, j.s.opts.ParserOpts, jm)
@@ -597,6 +597,7 @@ func (j *JsUnit) Load() error {
 	}
 
 	umb := j.s.getOrNewUmbrella(pi)
+	umb.addSize(m.Size())
 	m.setUmbrella(umb.Id())
 
 	if jm, ok := m.(*JsModule); ok && !jm.IsJson() && !m.Scanned() {
@@ -611,6 +612,8 @@ func (j *JsUnit) Load() error {
 			frame := &ImportFrame{m.Id(), d.line, d.col, d.ipt}
 			j.s.addNewJob(&DepFileReq{append(req.iptStk, frame), m, d.file, cw, lang})
 		}
+
+		umb.addSize(m.Size())
 	}
 
 	return nil

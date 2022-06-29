@@ -261,12 +261,21 @@ func (r *NodeResolver) loadAsDir(target []string, raise bool, skipPkgInfo bool) 
 
 	res := []string{}
 	if pki != nil {
-		if pki.Main != "" {
+		if pki.Module != "" {
+			file := append(target, pki.Module)
+			if f, _ := r.loadAsFile(file); f != "" {
+				res = append(res, f)
+			} else if f, _ := r.loadIndex(file); f != "" {
+				res = append(res, f)
+			} else {
+				return nil, nil, newNoModErr(r)
+			}
+		} else if pki.Main != "" {
 			file := append(target, pki.Main)
 			if f, _ := r.loadAsFile(file); f != "" {
 				res = append(res, f)
-			} else if f, _, _ := r.loadAsDir(file, false, true); len(f) > 0 {
-				res = append(res, f...)
+			} else if f, _ := r.loadIndex(file); f != "" {
+				res = append(res, f)
 			} else {
 				return nil, nil, newNoModErr(r)
 			}
@@ -297,6 +306,23 @@ func (r *NodeResolver) loadAsDir(target []string, raise bool, skipPkgInfo bool) 
 }
 
 func (r *NodeResolver) loadModule(target []string, start []string) ([]string, *Pkginfo, error) {
+	if r.ts && r.baseUrl != "" {
+		prefix := osPathSplit(r.baseUrl)
+		tgt := append(prefix, target...)
+
+		f, pi := r.loadAsFile(tgt)
+		if f != "" {
+			return []string{f}, pi, nil
+		}
+		fs, pi, err := r.loadAsDir(tgt, false, false)
+		if err != nil {
+			return nil, nil, err
+		}
+		if len(fs) != 0 {
+			return fs, pi, nil
+		}
+	}
+
 	parts := util.Copy(start)
 
 	for len(parts) > 0 {
@@ -327,17 +353,6 @@ func (r *NodeResolver) loadModule(target []string, start []string) ([]string, *P
 		if len(f) != 0 {
 			return f, pi, nil
 		}
-	}
-
-	if r.ts && r.baseUrl != "" {
-		prefix := osPathSplit(r.baseUrl)
-		target := append(prefix, target...)
-
-		f, pi := r.loadAsFile(target)
-		if f != "" {
-			return []string{f}, pi, nil
-		}
-		return r.loadAsDir(target, true, false)
 	}
 
 	return nil, nil, newNoModErr(r)
@@ -494,6 +509,7 @@ type Pkginfo struct {
 	Name       string                 `json:"name"`
 	Version    string                 `json:"version"`
 	Main       string                 `json:"main"`
+	Module     string                 `json:"module"`
 	Types      string                 `json:"types"`
 	RawExports interface{}            `json:"exports"`
 	RawImports map[string]interface{} `json:"imports"`

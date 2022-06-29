@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
+	"sort"
 	"time"
 
 	"github.com/hsiaosiyuan0/mole/ecma/parser"
@@ -17,14 +18,48 @@ type PkgAnalysis struct {
 	entries []string
 }
 
+type DupVersion struct {
+	Id      int64  `json:"id"`
+	Version string `json:"version"`
+	Size    int64  `json:"size"`
+}
+
+type DupItem struct {
+	Name     string        `json:"name"`
+	Size     int64         `json:"size"`
+	Versions []*DupVersion `json:"versions"`
+}
+
+type DupItems []*DupItem
+
+func (d DupItems) Len() int           { return len(d) }
+func (d DupItems) Less(i, j int) bool { return d[i].Size > d[j].Size }
+func (d DupItems) Swap(i, j int)      { d[i], d[j] = d[j], d[i] }
+
+func (d *DupItem) addVersion(m pack.Module) {
+	for _, v := range d.Versions {
+		if v.Id == m.Id() {
+			return
+		}
+	}
+	v := &DupVersion{m.Id(), m.Version(), m.Size()}
+	d.Versions = append(d.Versions, v)
+	d.Size += v.Size
+}
+
+type ImportPoint struct {
+	File       string   `json:"file"`
+	ImportPath []string `json:"importPath"`
+}
+
 type Result struct {
 	Elapsed int64 `json:"elapsed"`
 
 	// name => versions
-	DupModules map[int64][]string `json:"dupModules"`
+	DupModules []*DupItem `json:"dupModules"`
 
-	// name+version => [][]Loc
-	ImportPoints map[string][][]string `json:"importPoints"`
+	// name+version => []*ImportPoint
+	ImportPoints map[string][]*ImportPoint `json:"importPoints"`
 
 	Modules map[int64]pack.Module `json:"modules"`
 
@@ -71,10 +106,11 @@ func (a *PkgAnalysis) Process(opts *Options) bool {
 	s := pack.NewDepScanner(packOpts)
 
 	res := &Result{
-		DupModules:    map[int64][]string{},
-		ImportPoints:  map[string][][]string{},
+		DupModules:    []*DupItem{},
+		ImportPoints:  map[string][]*ImportPoint{},
 		ParserErrors:  []error{},
 		ResolveErrors: []error{},
+		TimeoutErrors: []error{},
 	}
 
 	begin := time.Now()
@@ -109,6 +145,7 @@ func (a *PkgAnalysis) Process(opts *Options) bool {
 		}
 	}
 
+	dupItemsMap := map[int64]*DupItem{}
 	modules := s.Modules()
 	for _, mf := range dups {
 		m := umbrellas[mf]
@@ -117,15 +154,24 @@ func (a *PkgAnalysis) Process(opts *Options) bool {
 		for _, v := range dupVs[n] {
 			sm := modules[v]
 
-			if res.DupModules[m.Id()] == nil {
-				res.DupModules[m.Id()] = []string{}
+			dupItem := dupItemsMap[m.Id()]
+			if dupItem == nil {
+				dupItem = &DupItem{m.Name(), 0, []*DupVersion{}}
+				dupItemsMap[m.Id()] = dupItem
 			}
 
-			res.DupModules[m.Id()] = append(res.DupModules[m.Id()], sm.Version())
+			dupItem.addVersion(sm)
 			res.ImportPoints[sm.Name()+"@"+sm.Version()] = findImportPoints(sm, modules)
 		}
 	}
 
+	dupItems := []*DupItem{}
+	for _, item := range dupItemsMap {
+		dupItems = append(dupItems, item)
+	}
+	sort.Sort(DupItems(dupItems))
+
+	res.DupModules = dupItems
 	res.Modules = modules
 
 	errs := s.Minors()
@@ -145,7 +191,7 @@ func (a *PkgAnalysis) Process(opts *Options) bool {
 		panic(err)
 	}
 
-	out := filepath.Join(a.dir, "mole-pkg-analysis.json")
+	out := filepath.Join(a.dir, fmt.Sprintf("mole-pkg-analysis-%d.json", time.Now().Unix()))
 	err = ioutil.WriteFile(out, outData, 0644)
 	if err != nil {
 		panic(err)
@@ -155,7 +201,7 @@ func (a *PkgAnalysis) Process(opts *Options) bool {
 }
 
 // find the import points where cause the umbrella being introduced
-func findImportPoints(main pack.Module, modules map[int64]pack.Module) [][]string {
+func findImportPoints(main pack.Module, modules map[int64]pack.Module) []*ImportPoint {
 	subs := []pack.Module{}
 	for _, m := range modules {
 		if m == nil {
@@ -166,14 +212,14 @@ func findImportPoints(main pack.Module, modules map[int64]pack.Module) [][]strin
 		}
 	}
 
-	ret := [][]string{}
+	ret := []*ImportPoint{}
 	for _, c := range subs {
 		stk := []string{}
 		for _, frame := range c.ImportStk() {
 			fm := modules[frame.Mid]
 			stk = append(stk, fmt.Sprintf("%s(%d:%d)", fm.File(), frame.Line, frame.Col))
 		}
-		ret = append(ret, stk)
+		ret = append(ret, &ImportPoint{c.File(), stk})
 	}
 
 	return ret

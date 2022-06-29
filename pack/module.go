@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"strings"
 	"sync"
+	"sync/atomic"
 )
 
 type Relation struct {
@@ -70,7 +71,9 @@ type Module interface {
 	setStrict(bool)
 	Strict() bool
 
-	Size() int
+	addSize(int64)
+	Size() int64
+	setSize(int64)
 
 	Entry() bool
 	setAsEntry()
@@ -104,7 +107,7 @@ type JsModule struct {
 	version string
 
 	file    string
-	size    int
+	size    int64
 	strict  bool
 	scanned bool
 
@@ -149,8 +152,16 @@ func (m *JsModule) File() string {
 	return m.file
 }
 
-func (m *JsModule) Size() int {
+func (m *JsModule) addSize(s int64) {
+	atomic.AddInt64(&m.size, s)
+}
+
+func (m *JsModule) Size() int64 {
 	return m.size
+}
+
+func (m *JsModule) setSize(s int64) {
+	atomic.StoreInt64(&m.size, s)
 }
 
 func (m *JsModule) setAsEntry() {
@@ -235,10 +246,10 @@ func (m *JsModule) MarshalJSON() ([]byte, error) {
 		Name     string      `json:"name"`
 		Version  string      `json:"version"`
 		File     string      `json:"file"`
-		Size     int         `json:"size"`
+		Size     int64       `json:"size"`
 		Strict   bool        `json:"strict"`
 		Entry    bool        `json:"entry"`
-		Umbrella bool        `json:"umbrella"`
+		Umbrella int64       `json:"umbrella"`
 		Inlets   []*Relation `json:"inlets"`
 		Outlets  []*Relation `json:"outlets"`
 	}{
@@ -249,7 +260,7 @@ func (m *JsModule) MarshalJSON() ([]byte, error) {
 		Size:     m.size,
 		Strict:   m.strict,
 		Entry:    m.entry,
-		Umbrella: m.IsUmbrella(),
+		Umbrella: m.umbrella,
 		Inlets:   m.inlets,
 		Outlets:  m.outlets,
 	})

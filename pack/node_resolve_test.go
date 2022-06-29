@@ -119,6 +119,23 @@ func TestNodeResolveExportsMain(t *testing.T) {
 	util.AssertEqual(t, true, strings.HasSuffix(file[0], "a.js"), "should be ok")
 }
 
+func TestNodeResolveDirIdx(t *testing.T) {
+	_, b, _, _ := runtime.Caller(0)
+	basepath := filepath.Dir(b)
+
+	dir := filepath.Join(basepath, "test", "asset", "node-resolve-index")
+	pkiLoader := NewPkginfoLoader(nil)
+	_, err := pkiLoader.Load(filepath.Join(dir, "package.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	r := NewNodeResolver(nil, nil, nil, nil, pkiLoader, false, nil)
+	file, _, err := r.Resolve("mimic5", filepath.Join(dir, "a"))
+	util.AssertEqual(t, nil, err, "should be ok")
+	util.AssertEqual(t, true, strings.HasSuffix(file[0], "index.js"), "should be ok")
+}
+
 func TestNodeResolvePathMaps(t *testing.T) {
 	_, b, _, _ := runtime.Caller(0)
 	basepath := filepath.Dir(b)
