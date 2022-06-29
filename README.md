@@ -1,6 +1,6 @@
 # Mole
 
-Mole is a toolkit written in Golang to facilitate frontend development experience by providing various functionalities like lint, code-format, bundle, .etc.
+Mole is a toolkit written in Golang to improve the frontend development by providing various functionalities like lint, code-format, bundle, .etc.
 
 <details>
   <summary>Why Golang</summary>
