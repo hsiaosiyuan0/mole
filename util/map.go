@@ -58,3 +58,11 @@ func (o *OrderedMap[k, v]) Remove(key k) {
 func (o *OrderedMap[k, v]) Front() *list.Element {
 	return o.list.Front()
 }
+
+func Keys[K comparable, V any](m map[K]V) []K {
+	keys := []K{}
+	for k := range m {
+		keys = append(keys, k)
+	}
+	return keys
+}

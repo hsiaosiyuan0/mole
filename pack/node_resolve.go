@@ -8,6 +8,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"sync"
 	"syscall"
@@ -306,7 +307,7 @@ func (r *NodeResolver) loadAsDir(target []string, raise bool, skipPkgInfo bool) 
 }
 
 func (r *NodeResolver) loadModule(target []string, start []string) ([]string, *Pkginfo, error) {
-	if r.ts && r.baseUrl != "" {
+	if r.baseUrl != "" {
 		prefix := osPathSplit(r.baseUrl)
 		tgt := append(prefix, target...)
 
@@ -766,7 +767,16 @@ type PathMaps struct {
 
 func NewPathMaps(baseUrl string, c map[string][]string) (*PathMaps, error) {
 	maps := []*PathMap{}
-	for p, cond := range c {
+	keys := util.Keys(c)
+
+	// sort the pattern as desc order by their string length, give the
+	// longest pattern the most weight
+	sort.Slice(keys, func(i, j int) bool {
+		return len(keys[i]) > len(keys[j])
+	})
+
+	for _, p := range keys {
+		cond := c[p]
 		m, err := NewPathMap(p, baseUrl, cond)
 		if err != nil {
 			return nil, err
