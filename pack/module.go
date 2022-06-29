@@ -51,8 +51,8 @@ func FindInlet(a Module, src int64, create bool) (*Relation, bool) {
 }
 
 func link(a, b Module) {
-	FindOutlet(a, b.Id(), true)
-	FindInlet(b, a.Id(), true)
+	a.AddOutlet(b.Id())
+	b.AddInlet(a.Id())
 }
 
 // methods on `Module` should be thread-safe
@@ -87,7 +87,7 @@ type Module interface {
 
 	Scanned() bool
 
-	AddInlets(int64)
+	AddInlet(int64)
 	Inlets() []*Relation
 
 	AddOutlet(int64)
@@ -204,7 +204,7 @@ func (m *JsModule) Umbrella() int64 {
 	return m.umbrella
 }
 
-func (m *JsModule) AddInlets(src int64) {
+func (m *JsModule) AddInlet(src int64) {
 	m.inletsLock.Lock()
 	defer m.inletsLock.Unlock()
 
