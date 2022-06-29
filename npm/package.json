@@ -1,8 +1,8 @@
 {
   "name": "molecast",
-  "version": "0.0.16",
+  "version": "0.0.17",
   "description": "Tools to facilitate the frontend development.",
-  "bin": "run.sh",
+  "bin": "run.js",
   "scripts": {},
   "repository": {
     "type": "git",
