@@ -29,6 +29,7 @@
     "instanceof",
     "jquery",
     "keyof",
+    "molecast",
     "parens",
     "pbcopy",
     "Pkgs",

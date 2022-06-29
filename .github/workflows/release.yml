@@ -1,47 +1,32 @@
-on: 
-  release:
-    types: [published]
-name: Build Release
+name: npm-publish
+on:
+  push:
+    branches:
+      - 'main'
+    paths:
+      - 'npm/package.json'
+
 jobs:
-  release-linux-amd64:
-    name: release linux/amd64
+  release:
+    name: release molecast
     runs-on: ubuntu-latest
+
     steps:
-    - uses: actions/checkout@v2
-    - name: compile and release
-      uses: ngs/go-release.action@master
-      env:
-        CMD_PATH: "./cmd/mole"
-        PROJECT_NAME: "mole"
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        GOARCH: amd64
-        GOOS: linux
-        EXTRA_FILES: "LICENSE"
-  release-darwin-amd64:
-    name: release darwin/amd64
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
-    - name: compile and release
-      uses: ngs/go-release.action@master
-      env:
-        CMD_PATH: "./cmd/mole"
-        PROJECT_NAME: "mole"
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        GOARCH: amd64
-        GOOS: darwin
-        EXTRA_FILES: "LICENSE"
-  release-windows-amd64:
-    name: release windows/amd64
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
-    - name: compile and release
-      uses: ngs/go-release.action@master
-      env:
-        CMD_PATH: "./cmd/mole"
-        PROJECT_NAME: "mole"
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        GOARCH: amd64
-        GOOS: windows
-        EXTRA_FILES: "LICENSE"
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v3
+        with:
+          go-version: ">=1.18.0"
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 16
+
+      - run: GOARCH=arm64 GOOS=linux go build -buildmode exe -o ./npm/mole-linux-arm64 ./cli
+      - run: GOARCH=amd64 GOOS=linux go build -buildmode exe -o ./npm/mole-linux-amd64 ./cli
+      - run: GOARCH=arm64 GOOS=darwin go build -buildmode exe -o ./npm/mole-darwin-arm64 ./cli
+      - run: GOARCH=amd64 GOOS=darwin go build -buildmode exe -o ./npm/mole-darwin-amd64 ./cli
+
+      - name: Publish to npm
+        uses: JS-DevTools/npm-publish@v1
+        with:
+          package: "./npm/package.json"
+          token: ${{ secrets.NPM_TOKEN }}

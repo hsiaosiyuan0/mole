@@ -4,6 +4,7 @@ import (
 	"container/list"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"sync"
 	"sync/atomic"
@@ -13,6 +14,7 @@ import (
 	"github.com/hsiaosiyuan0/mole/ecma/parser"
 	"github.com/hsiaosiyuan0/mole/ecma/walk"
 	"github.com/hsiaosiyuan0/mole/span"
+	"github.com/hsiaosiyuan0/mole/util"
 )
 
 type DepUnitFact interface {
@@ -600,20 +602,32 @@ func (j *JsUnit) Load() error {
 	umb.addSize(m.Size())
 	m.setUmbrella(umb.Id())
 
-	if jm, ok := m.(*JsModule); ok && !jm.IsJson() && !m.Scanned() {
-		derived, err := j.scan(m)
-		if err != nil {
-			return err
-		}
+	if jm, ok := m.(*JsModule); ok && !m.Scanned() {
+		if !jm.IsJson() {
+			derived, err := j.scan(m)
+			if err != nil {
+				return err
+			}
 
-		lang := filepath.Ext(file[0])
-		cw := filepath.Dir(file[0])
-		for _, d := range derived {
-			frame := &ImportFrame{m.Id(), d.line, d.col, d.ipt}
-			j.s.addNewJob(&DepFileReq{append(req.iptStk, frame), m, d.file, cw, lang})
-		}
+			lang := filepath.Ext(file[0])
+			cw := filepath.Dir(file[0])
+			for _, d := range derived {
+				frame := &ImportFrame{m.Id(), d.line, d.col, d.ipt}
+				stk := util.Copy(req.iptStk)
+				j.s.addNewJob(&DepFileReq{append(stk, frame), m, d.file, cw, lang})
+			}
 
-		umb.addSize(m.Size())
+			umb.addSize(m.Size())
+		} else {
+			jm.scanned = true
+
+			s, err := os.Stat(file[0])
+			if err != nil {
+				return err
+			}
+			jm.size = s.Size()
+			umb.addSize(jm.size)
+		}
 	}
 
 	return nil
