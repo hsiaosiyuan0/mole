@@ -58,7 +58,12 @@ if (fs.existsSync(mole)) {
   if (isQuirks) {
     args = args.filter((arg) => arg !== "--quirks");
   }
-  execSync(mole + " " + args.join(" "));
+
+  try {
+    execSync(mole + " " + args.join(" "), { shell: true, stdio: "inherit" });
+  } catch (error) {
+    // discard the `Command failed` error raised from nodejs to keep the error output clean
+  }
 } else {
   console.log(`Unable to run molecast at ${mole}`);
 }
