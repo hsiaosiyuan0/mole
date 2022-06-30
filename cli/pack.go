@@ -16,6 +16,7 @@ import (
 type PkgAnalysis struct {
 	dir     string
 	entries []string
+	out     string
 }
 
 type DupVersion struct {
@@ -74,6 +75,7 @@ func (a *PkgAnalysis) Process(opts *Options) bool {
 	}
 
 	a.dir = opts.dir
+	a.out = opts.out
 
 	cfg := opts.cfg
 	if cfg == "" {
@@ -145,7 +147,7 @@ func (a *PkgAnalysis) Process(opts *Options) bool {
 		}
 	}
 
-	dupItemsMap := map[int64]*DupItem{}
+	dupItemsMap := map[string]*DupItem{}
 	modules := s.Modules()
 	for _, mf := range dups {
 		m := umbrellas[mf]
@@ -154,10 +156,10 @@ func (a *PkgAnalysis) Process(opts *Options) bool {
 		for _, v := range dupVs[n] {
 			sm := modules[v]
 
-			dupItem := dupItemsMap[m.Id()]
+			dupItem := dupItemsMap[m.Name()]
 			if dupItem == nil {
 				dupItem = &DupItem{m.Name(), 0, []*DupVersion{}}
-				dupItemsMap[m.Id()] = dupItem
+				dupItemsMap[m.Name()] = dupItem
 			}
 
 			dupItem.addVersion(sm)
@@ -191,7 +193,15 @@ func (a *PkgAnalysis) Process(opts *Options) bool {
 		panic(err)
 	}
 
-	out := filepath.Join(a.dir, fmt.Sprintf("mole-pkg-analysis-%d.json", time.Now().Unix()))
+	out := a.out
+	if out == "" {
+		out = filepath.Join(a.dir, fmt.Sprintf("mole-pkg-analysis-%d.json", time.Now().Unix()))
+	}
+
+	if util.FileExist(out) {
+		panic(fmt.Sprintf("Output file `%s` already exists, abort to overwrite it", out))
+	}
+
 	err = ioutil.WriteFile(out, outData, 0644)
 	if err != nil {
 		panic(err)
