@@ -5,6 +5,9 @@ import (
 )
 
 type Config struct {
+	// web, node, react-native
+	Target string `json:"target"`
+
 	Entries       []string               `json:"entries"`
 	DefinedVars   map[string]interface{} `json:"definedVars"`
 	Tsconfig      string                 `json:"tsconfig"`
@@ -25,12 +28,17 @@ func NewConfig(dir string, raw []byte) (*Config, error) {
 
 func (c *Config) NewDepScannerOpts() *DepScannerOpts {
 	o := NewDepScannerOpts()
+	o.target = c.Target
 	o.Dir = c.dir
 	o.Entries = c.Entries
 
-	err := o.SetTsconfig(o.Dir, c.Tsconfig, c.Ts)
-	if err != nil {
-		panic(err)
+	o.ResolveBuiltin()
+
+	if c.Tsconfig != "" {
+		err := o.SetTsconfig(o.Dir, c.Tsconfig, c.Ts)
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	o.SerVars(c.DefinedVars)

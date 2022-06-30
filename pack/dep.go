@@ -27,7 +27,15 @@ type DepUnit interface {
 	Load() error
 }
 
+const (
+	TGT_WEB  string = "web"
+	TGT_NODE        = "node"
+	TGT_RN          = "react-native"
+)
+
 type DepScannerOpts struct {
+	target string
+
 	Dir        string
 	Entries    []string
 	Extensions []string
@@ -57,6 +65,14 @@ func NewDepScannerOpts() *DepScannerOpts {
 
 	opts.regUnitFact(&JsUnitFact{}).regUnitFact(&JsonUnitFact{})
 	return opts
+}
+
+func (s *DepScannerOpts) ResolveBuiltin() {
+	if s.target == TGT_NODE {
+		s.Builtin = nodeBuiltin
+	} else if s.target == TGT_RN {
+		s.Builtin = rnBuiltin
+	}
 }
 
 func (s *DepScannerOpts) SerVars(vars map[string]interface{}) {

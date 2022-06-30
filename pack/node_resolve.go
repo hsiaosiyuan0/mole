@@ -60,9 +60,6 @@ func NewNodeResolver(exports [][]string, imports [][]string, exts []string,
 	if len(r.imports) == 0 {
 		r.imports = [][]string{{"node", "require"}}
 	}
-	if len(r.builtin) == 0 {
-		r.builtin = jsBuiltin
-	}
 
 	r.exports = append(r.exports, []string{"default"})
 	r.imports = append(r.imports, []string{"default"})
@@ -157,36 +154,6 @@ func (r *NodeResolver) try(target string) {
 
 var jsDefaultExtensions = []string{".js", ".jsx", ".mjs", ".json", ".node"}
 var tsDefaultExtensions = append([]string{".ts", ".tsx", ".d.ts"}, jsDefaultExtensions...)
-
-var jsBuiltin = map[string]bool{
-	"assert":         true,
-	"buffer":         true,
-	"child_process":  true,
-	"cluster":        true,
-	"crypto":         true,
-	"dgram":          true,
-	"dns":            true,
-	"domain":         true,
-	"events":         true,
-	"fs":             true,
-	"http":           true,
-	"https":          true,
-	"net":            true,
-	"os":             true,
-	"path":           true,
-	"querystring":    true,
-	"readline":       true,
-	"stream":         true,
-	"string_decoder": true,
-	"timers":         true,
-	"tls":            true,
-	"tty":            true,
-	"url":            true,
-	"util":           true,
-	"v8":             true,
-	"vm":             true,
-	"zlib":           true,
-}
 
 // target can be either directory or normal file
 func (r *NodeResolver) loadAsFile(target []string) (string, *Pkginfo) {
