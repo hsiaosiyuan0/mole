@@ -366,6 +366,9 @@ func (l *Lexer) readTokWithComment() *Token {
 		} else if l.aheadIsNumStart() {
 			return l.readNum()
 		} else if l.aheadIsStrStart() {
+			if l.IsMode(LM_JSX_ATTR) {
+				return l.readJsxStr()
+			}
 			return l.readStr()
 		} else if l.aheadIsTplStart() {
 			return l.readTplSpan()
@@ -414,7 +417,7 @@ func (l *Lexer) readTokWithComment() *Token {
 			return l.finToken(tok, T_ASSIGN)
 		case '"', '\'':
 			if l.IsMode(LM_JSX_ATTR) {
-				return l.readStr()
+				return l.readJsxStr()
 			}
 		case '-':
 			l.src.Read()
@@ -1176,6 +1179,26 @@ func (l *Lexer) readStr() *Token {
 	}
 	tok.text = string(text)
 	tok.ext = &TokExtStr{open, legacyOctalEscapeSeq}
+	return l.finToken(tok, T_STRING)
+}
+
+func (l *Lexer) readJsxStr() *Token {
+	tok := l.newToken()
+	open := l.src.Read()
+	text := make([]rune, 0, 10)
+
+	for {
+		c := l.src.Read()
+		if c == span.EOF {
+			return l.errToken(tok, ERR_UNTERMINATED_STR)
+		} else if c == open {
+			break
+		} else {
+			text = append(text, c)
+		}
+	}
+	tok.text = string(text)
+	tok.ext = &TokExtStr{open, false}
 	return l.finToken(tok, T_STRING)
 }
 

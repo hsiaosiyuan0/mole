@@ -31641,3 +31641,497 @@ func TestHarmony326(t *testing.T) {
 }
 	`, ast)
 }
+
+func TestHarmony327(t *testing.T) {
+	ast, err := Compile(`<Polygon
+    fill={fontFill}
+    points="6.5,19.5 6.5,16.5 1.5,16.5 1.5,1.5 12.5,1.5 12.5,10.5 14.5,10.5 14.5,16.5 12.5,16.5 12.5,19.5
+    " />`)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	AssertEqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 143,
+  "loc": {
+    "start": {
+      "line": 1,
+      "column": 0
+    },
+    "end": {
+      "line": 4,
+      "column": 8
+    }
+  },
+  "body": [
+    {
+      "type": "ExpressionStatement",
+      "start": 0,
+      "end": 143,
+      "loc": {
+        "start": {
+          "line": 1,
+          "column": 0
+        },
+        "end": {
+          "line": 4,
+          "column": 8
+        }
+      },
+      "expression": {
+        "type": "JSXElement",
+        "start": 0,
+        "end": 143,
+        "loc": {
+          "start": {
+            "line": 1,
+            "column": 0
+          },
+          "end": {
+            "line": 4,
+            "column": 8
+          }
+        },
+        "openingElement": {
+          "type": "JSXOpeningElement",
+          "start": 0,
+          "end": 143,
+          "loc": {
+            "start": {
+              "line": 1,
+              "column": 0
+            },
+            "end": {
+              "line": 4,
+              "column": 8
+            }
+          },
+          "name": {
+            "type": "JSXIdentifier",
+            "start": 1,
+            "end": 8,
+            "loc": {
+              "start": {
+                "line": 1,
+                "column": 1
+              },
+              "end": {
+                "line": 1,
+                "column": 8
+              }
+            },
+            "name": "Polygon"
+          },
+          "attributes": [
+            {
+              "type": "JSXAttribute",
+              "start": 13,
+              "end": 28,
+              "loc": {
+                "start": {
+                  "line": 2,
+                  "column": 4
+                },
+                "end": {
+                  "line": 2,
+                  "column": 19
+                }
+              },
+              "name": {
+                "type": "JSXIdentifier",
+                "start": 13,
+                "end": 17,
+                "loc": {
+                  "start": {
+                    "line": 2,
+                    "column": 4
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": 8
+                  }
+                },
+                "name": "fill"
+              },
+              "value": {
+                "type": "JSXExpressionContainer",
+                "start": 18,
+                "end": 28,
+                "loc": {
+                  "start": {
+                    "line": 2,
+                    "column": 9
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": 19
+                  }
+                },
+                "expression": {
+                  "type": "Identifier",
+                  "start": 19,
+                  "end": 27,
+                  "loc": {
+                    "start": {
+                      "line": 2,
+                      "column": 10
+                    },
+                    "end": {
+                      "line": 2,
+                      "column": 18
+                    }
+                  },
+                  "name": "fontFill"
+                }
+              }
+            },
+            {
+              "type": "JSXAttribute",
+              "start": 33,
+              "end": 140,
+              "loc": {
+                "start": {
+                  "line": 3,
+                  "column": 4
+                },
+                "end": {
+                  "line": 4,
+                  "column": 5
+                }
+              },
+              "name": {
+                "type": "JSXIdentifier",
+                "start": 33,
+                "end": 39,
+                "loc": {
+                  "start": {
+                    "line": 3,
+                    "column": 4
+                  },
+                  "end": {
+                    "line": 3,
+                    "column": 10
+                  }
+                },
+                "name": "points"
+              },
+              "value": {
+                "type": "Literal",
+                "start": 40,
+                "end": 140,
+                "loc": {
+                  "start": {
+                    "line": 3,
+                    "column": 11
+                  },
+                  "end": {
+                    "line": 4,
+                    "column": 5
+                  }
+                },
+                "value": "6.5,19.5 6.5,16.5 1.5,16.5 1.5,1.5 12.5,1.5 12.5,10.5 14.5,10.5 14.5,16.5 12.5,16.5 12.5,19.5\n    ",
+                "raw": "\"6.5,19.5 6.5,16.5 1.5,16.5 1.5,1.5 12.5,1.5 12.5,10.5 14.5,10.5 14.5,16.5 12.5,16.5 12.5,19.5\n    \""
+              }
+            }
+          ],
+          "selfClosing": true
+        },
+        "closingElement": null,
+        "children": []
+      }
+    }
+  ],
+  "directives": []
+}
+	`, ast)
+}
+
+func TestHarmony328(t *testing.T) {
+	ast, err := Compile(`const onPress = tappable && (!!index || index === 0) ? () => {
+    } : undefined;`)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	AssertEqualJson(t, `
+{
+  "type": "Program",
+  "start": 0,
+  "end": 81,
+  "loc": {
+    "start": {
+      "line": 1,
+      "column": 0
+    },
+    "end": {
+      "line": 2,
+      "column": 18
+    }
+  },
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 0,
+      "end": 81,
+      "loc": {
+        "start": {
+          "line": 1,
+          "column": 0
+        },
+        "end": {
+          "line": 2,
+          "column": 18
+        }
+      },
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 6,
+          "end": 80,
+          "loc": {
+            "start": {
+              "line": 1,
+              "column": 6
+            },
+            "end": {
+              "line": 2,
+              "column": 17
+            }
+          },
+          "id": {
+            "type": "Identifier",
+            "start": 6,
+            "end": 13,
+            "loc": {
+              "start": {
+                "line": 1,
+                "column": 6
+              },
+              "end": {
+                "line": 1,
+                "column": 13
+              }
+            },
+            "name": "onPress"
+          },
+          "init": {
+            "type": "ConditionalExpression",
+            "start": 16,
+            "end": 80,
+            "loc": {
+              "start": {
+                "line": 1,
+                "column": 16
+              },
+              "end": {
+                "line": 2,
+                "column": 17
+              }
+            },
+            "test": {
+              "type": "LogicalExpression",
+              "start": 16,
+              "end": 52,
+              "loc": {
+                "start": {
+                  "line": 1,
+                  "column": 16
+                },
+                "end": {
+                  "line": 1,
+                  "column": 52
+                }
+              },
+              "left": {
+                "type": "Identifier",
+                "start": 16,
+                "end": 24,
+                "loc": {
+                  "start": {
+                    "line": 1,
+                    "column": 16
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": 24
+                  }
+                },
+                "name": "tappable"
+              },
+              "operator": "&&",
+              "right": {
+                "type": "LogicalExpression",
+                "start": 29,
+                "end": 51,
+                "loc": {
+                  "start": {
+                    "line": 1,
+                    "column": 29
+                  },
+                  "end": {
+                    "line": 1,
+                    "column": 51
+                  }
+                },
+                "left": {
+                  "type": "UnaryExpression",
+                  "start": 29,
+                  "end": 36,
+                  "loc": {
+                    "start": {
+                      "line": 1,
+                      "column": 29
+                    },
+                    "end": {
+                      "line": 1,
+                      "column": 36
+                    }
+                  },
+                  "operator": "!",
+                  "prefix": true,
+                  "argument": {
+                    "type": "UnaryExpression",
+                    "start": 30,
+                    "end": 36,
+                    "loc": {
+                      "start": {
+                        "line": 1,
+                        "column": 30
+                      },
+                      "end": {
+                        "line": 1,
+                        "column": 36
+                      }
+                    },
+                    "operator": "!",
+                    "prefix": true,
+                    "argument": {
+                      "type": "Identifier",
+                      "start": 31,
+                      "end": 36,
+                      "loc": {
+                        "start": {
+                          "line": 1,
+                          "column": 31
+                        },
+                        "end": {
+                          "line": 1,
+                          "column": 36
+                        }
+                      },
+                      "name": "index"
+                    }
+                  }
+                },
+                "operator": "||",
+                "right": {
+                  "type": "BinaryExpression",
+                  "start": 40,
+                  "end": 51,
+                  "loc": {
+                    "start": {
+                      "line": 1,
+                      "column": 40
+                    },
+                    "end": {
+                      "line": 1,
+                      "column": 51
+                    }
+                  },
+                  "left": {
+                    "type": "Identifier",
+                    "start": 40,
+                    "end": 45,
+                    "loc": {
+                      "start": {
+                        "line": 1,
+                        "column": 40
+                      },
+                      "end": {
+                        "line": 1,
+                        "column": 45
+                      }
+                    },
+                    "name": "index"
+                  },
+                  "operator": "===",
+                  "right": {
+                    "type": "Literal",
+                    "start": 50,
+                    "end": 51,
+                    "loc": {
+                      "start": {
+                        "line": 1,
+                        "column": 50
+                      },
+                      "end": {
+                        "line": 1,
+                        "column": 51
+                      }
+                    },
+                    "value": 0
+                  }
+                }
+              }
+            },
+            "consequent": {
+              "type": "ArrowFunctionExpression",
+              "start": 55,
+              "end": 68,
+              "loc": {
+                "start": {
+                  "line": 1,
+                  "column": 55
+                },
+                "end": {
+                  "line": 2,
+                  "column": 5
+                }
+              },
+              "id": null,
+              "generator": false,
+              "async": false,
+              "params": [],
+              "body": {
+                "type": "BlockStatement",
+                "start": 61,
+                "end": 68,
+                "loc": {
+                  "start": {
+                    "line": 1,
+                    "column": 61
+                  },
+                  "end": {
+                    "line": 2,
+                    "column": 5
+                  }
+                },
+                "body": [],
+                "directives": []
+              }
+            },
+            "alternate": {
+              "type": "Identifier",
+              "start": 71,
+              "end": 80,
+              "loc": {
+                "start": {
+                  "line": 2,
+                  "column": 8
+                },
+                "end": {
+                  "line": 2,
+                  "column": 17
+                }
+              },
+              "name": "undefined"
+            }
+          }
+        }
+      ],
+      "kind": "const"
+    }
+  ],
+  "directives": []
+}
+	`, ast)
+}

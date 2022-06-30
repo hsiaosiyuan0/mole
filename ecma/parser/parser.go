@@ -4155,11 +4155,11 @@ func (p *Parser) advanceIfHook() *Token {
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-expressions.html#prod-ConditionalExpression
 func (p *Parser) condExpr(notGT bool, notHook bool, notColon bool) (Node, error) {
-	loc := p.loc()
 	test, err := p.binExpr(nil, 0, false, false, notGT, notColon)
 	if err != nil {
 		return nil, err
 	}
+	loc := test.Loc().Clone()
 
 	if notHook {
 		return test, nil
@@ -6385,7 +6385,7 @@ func (p *Parser) nameOfNode(node Node) string {
 func (p *Parser) isExprOpening(raise bool) (*Token, error) {
 	tok := p.lexer.PeekStmtBegin()
 	tv := tok.value
-	if raise && tv != T_SEMI && tv != T_BRACE_R && tv != T_COMMA && tv != T_PAREN_R && !tok.afterLineTerm && tv != T_EOF {
+	if raise && tv != T_SEMI && tv != T_BRACE_R && tv != T_COMMA && tv != T_PAREN_R && tv != T_COLON && !tok.afterLineTerm && tv != T_EOF {
 		errMsg := ERR_UNEXPECTED_TOKEN
 		if tok.value == T_ILLEGAL {
 			if msg, ok := tok.ext.(string); ok {
