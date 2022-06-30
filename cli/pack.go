@@ -83,7 +83,7 @@ func (a *PkgAnalysis) Process(opts *Options) bool {
 	cfgFile := filepath.Join(opts.dir, cfg)
 	cfgRaw, err := ioutil.ReadFile(cfgFile)
 	if err != nil {
-		panic(cfgRaw)
+		panic(err)
 	}
 
 	c, err := pack.NewConfig(opts.dir, cfgRaw)
