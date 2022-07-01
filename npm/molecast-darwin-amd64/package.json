@@ -1,6 +1,6 @@
 {
   "author": "hsiaosiyuan0@gmail.com",
-  "bin": "run.js",
+  "bin": "./mole",
   "bugs": {
     "url": "https://github.com/x-orpheus/mole/issues"
   },
@@ -25,5 +25,5 @@
     "url": "git+https://github.com/x-orpheus/mole.git"
   },
   "scripts": {},
-  "version": "0.0.25"
+  "version": "0.0.26"
 }
