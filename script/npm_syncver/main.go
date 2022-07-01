@@ -26,7 +26,23 @@ func main() {
 	}
 
 	ver := pkg["version"].(string)
+	pkg["optionalDependencies"] = map[string]string{
+		"molecast-linux-amd64":  ver,
+		"molecast-linux-arm64":  ver,
+		"molecast-darwin-amd64": ver,
+		"molecast-darwin-arm64": ver,
+	}
+	str, err := json.MarshalIndent(pkg, "", "  ")
+	if err != nil {
+		panic(err)
+	}
 
+	err = ioutil.WriteFile(pi, str, 0644)
+	if err != nil {
+		panic(err)
+	}
+
+	// update subs
 	dir := filepath.Join(wd, "npm")
 	subs, err := ioutil.ReadDir(dir)
 	if err != nil {

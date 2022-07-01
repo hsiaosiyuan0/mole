@@ -1,29 +1,29 @@
 {
-  "name": "molecast",
-  "version": "0.0.27",
-  "description": "Tools to facilitate the frontend development.",
+  "author": "hsiaosiyuan0@gmail.com",
   "bin": "./bootstrap.sh",
-  "scripts": {},
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/x-orpheus/mole.git"
+  "bugs": {
+    "url": "https://github.com/x-orpheus/mole/issues"
   },
+  "description": "Tools to facilitate the frontend development.",
+  "homepage": "https://github.com/x-orpheus/mole",
   "keywords": [
     "mole",
     "lint",
     "pack",
     "analysis"
   ],
-  "optionalDependencies": {
-    "molecast-linux-amd64": "0.0.25",
-    "molecast-linux-arm64": "0.0.25",
-    "molecast-darwin-amd64": "0.0.25",
-    "molecast-darwin-arm64": "0.0.25"
-  },
-  "author": "hsiaosiyuan0@gmail.com",
   "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/x-orpheus/mole/issues"
+  "name": "molecast",
+  "optionalDependencies": {
+    "molecast-darwin-amd64": "0.0.28",
+    "molecast-darwin-arm64": "0.0.28",
+    "molecast-linux-amd64": "0.0.28",
+    "molecast-linux-arm64": "0.0.28"
   },
-  "homepage": "https://github.com/x-orpheus/mole"
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/x-orpheus/mole.git"
+  },
+  "scripts": {},
+  "version": "0.0.28"
 }
