@@ -31,10 +31,10 @@ jobs:
           package: "./npm/molecast-linux-arm64/package.json"
           token: ${{ secrets.NPM_TOKEN }}
 
-      - name: publish molecast-linux-arm64
+      - name: publish molecast-linux-amd64
         uses: JS-DevTools/npm-publish@v1
         with:
-          package: "./npm/molecast-linux-arm64/package.json"
+          package: "./npm/molecast-linux-amd64/package.json"
           token: ${{ secrets.NPM_TOKEN }}
 
       - name: publish molecast-darwin-amd64
