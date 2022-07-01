@@ -1,0 +1,29 @@
+{
+  "author": "hsiaosiyuan0@gmail.com",
+  "bin": "run.js",
+  "bugs": {
+    "url": "https://github.com/x-orpheus/mole/issues"
+  },
+  "cpu": [
+    "arm64"
+  ],
+  "description": "Tools to facilitate the frontend development.",
+  "homepage": "https://github.com/x-orpheus/mole",
+  "keywords": [
+    "mole",
+    "lint",
+    "pack",
+    "analysis"
+  ],
+  "license": "MIT",
+  "name": "molecast-darwin-arm64",
+  "os": [
+    "darwin"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/x-orpheus/mole.git"
+  },
+  "scripts": {},
+  "version": "0.0.25"
+}

@@ -2,7 +2,7 @@
   "name": "molecast",
   "version": "0.0.25",
   "description": "Tools to facilitate the frontend development.",
-  "bin": "run.js",
+  "bin": "bootstrap.sh",
   "scripts": {},
   "repository": {
     "type": "git",
@@ -14,6 +14,12 @@
     "pack",
     "analysis"
   ],
+  "optionalDependencies": {
+    "molecast-linux-amd64": "0.0.25",
+    "molecast-linux-arm64": "0.0.25",
+    "molecast-darwin-amd64": "0.0.25",
+    "molecast-darwin-arm64": "0.0.25"
+  },
   "author": "hsiaosiyuan0@gmail.com",
   "license": "MIT",
   "bugs": {
