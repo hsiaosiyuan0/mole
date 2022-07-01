@@ -2,9 +2,9 @@ name: npm-publish
 on:
   push:
     branches:
-      - 'main'
+      - feat/opt-dep
     paths:
-      - 'npm/package.json'
+      - npm/molecast/package.json
 
 jobs:
   release:
@@ -20,13 +20,37 @@ jobs:
         with:
           node-version: 16
 
-      - run: GOARCH=arm64 GOOS=linux go build -buildmode exe -o ./npm/mole-linux-arm64 ./cli
-      - run: GOARCH=amd64 GOOS=linux go build -buildmode exe -o ./npm/mole-linux-amd64 ./cli
-      - run: GOARCH=arm64 GOOS=darwin go build -buildmode exe -o ./npm/mole-darwin-arm64 ./cli
-      - run: GOARCH=amd64 GOOS=darwin go build -buildmode exe -o ./npm/mole-darwin-amd64 ./cli
+      - run: GOARCH=arm64 GOOS=linux go build -buildmode exe -o ./npm/molecast-linux-arm64/mole ./cli
+      - run: GOARCH=amd64 GOOS=linux go build -buildmode exe -o ./npm/molecast-linux-amd64/mole ./cli
+      - run: GOARCH=arm64 GOOS=darwin go build -buildmode exe -o ./npm/molecast-darwin-arm64/mole ./cli
+      - run: GOARCH=amd64 GOOS=darwin go build -buildmode exe -o ./npm/molecast-darwin-amd64/mole ./cli
 
-      - name: Publish to npm
+      - name: publish molecast-linux-arm64
         uses: JS-DevTools/npm-publish@v1
         with:
-          package: "./npm/package.json"
+          package: "./npm/molecast-linux-arm64/package.json"
+          token: ${{ secrets.NPM_TOKEN }}
+
+      - name: publish molecast-linux-amd64
+        uses: JS-DevTools/npm-publish@v1
+        with:
+          package: "./npm/molecast-linux-amd64/package.json"
+          token: ${{ secrets.NPM_TOKEN }}
+
+      - name: publish molecast-darwin-amd64
+        uses: JS-DevTools/npm-publish@v1
+        with:
+          package: "./npm/molecast-darwin-amd64/package.json"
+          token: ${{ secrets.NPM_TOKEN }}
+
+      - name: publish molecast-darwin-arm64
+        uses: JS-DevTools/npm-publish@v1
+        with:
+          package: "./npm/molecast-darwin-arm64/package.json"
+          token: ${{ secrets.NPM_TOKEN }}
+
+      - name: publish molecast
+        uses: JS-DevTools/npm-publish@v1
+        with:
+          package: "./npm/molecast/package.json"
           token: ${{ secrets.NPM_TOKEN }}
