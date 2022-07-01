@@ -14,16 +14,10 @@
   ],
   "license": "MIT",
   "name": "molecast",
-  "optionalDependencies": {
-    "molecast-darwin-amd64": "0.0.28",
-    "molecast-darwin-arm64": "0.0.28",
-    "molecast-linux-amd64": "0.0.28",
-    "molecast-linux-arm64": "0.0.28"
-  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/x-orpheus/mole.git"
   },
   "scripts": {},
-  "version": "0.0.28"
+  "version": "0.0.29"
 }

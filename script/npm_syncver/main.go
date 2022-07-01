@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"regexp"
 )
 
 func main() {
@@ -26,18 +27,15 @@ func main() {
 	}
 
 	ver := pkg["version"].(string)
-	pkg["optionalDependencies"] = map[string]string{
-		"molecast-linux-amd64":  ver,
-		"molecast-linux-arm64":  ver,
-		"molecast-darwin-amd64": ver,
-		"molecast-darwin-arm64": ver,
-	}
-	str, err := json.MarshalIndent(pkg, "", "  ")
+
+	script := filepath.Join(wd, "npm", "molecast", "bootstrap.sh")
+	scriptRaw, err := ioutil.ReadFile(script)
 	if err != nil {
 		panic(err)
 	}
-
-	err = ioutil.WriteFile(pi, str, 0644)
+	re := regexp.MustCompile("VERSION=.*")
+	scriptStr := re.ReplaceAllString(string(scriptRaw), "VERSION="+ver)
+	err = ioutil.WriteFile(script, []byte(scriptStr), 0644)
 	if err != nil {
 		panic(err)
 	}
