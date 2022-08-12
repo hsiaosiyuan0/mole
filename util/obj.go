@@ -6,17 +6,17 @@ import (
 	"strings"
 )
 
-type WalkObjFn func(path []string, val interface{}) bool
+type WalkObjFn func(path []string, val interface{}, key interface{}, parent interface{}, arr bool) bool
 
-func WalkObj(obj interface{}, path []string, cb WalkObjFn) bool {
+func WalkObj(obj interface{}, path []string, cb WalkObjFn, key interface{}, parent interface{}, arr bool) bool {
 	if mv, ok := obj.(map[string]interface{}); ok {
 		for k, v := range mv {
 			path = append(path, k)
-			goon := cb(path, v)
+			goon := cb(path, v, k, mv, false)
 			if !goon {
 				return false
 			}
-			goon = WalkObj(v, path, cb)
+			goon = WalkObj(v, path, cb, k, mv, false)
 			if !goon {
 				return false
 			}
@@ -28,11 +28,11 @@ func WalkObj(obj interface{}, path []string, cb WalkObjFn) bool {
 	if av, ok := obj.([]interface{}); ok {
 		for i, v := range av {
 			path = append(path, strconv.Itoa(i))
-			goon := cb(path, v)
+			goon := cb(path, v, i, av, true)
 			if !goon {
 				return false
 			}
-			goon = WalkObj(v, path, cb)
+			goon = WalkObj(v, path, cb, i, av, true)
 			if !goon {
 				return false
 			}
@@ -41,7 +41,7 @@ func WalkObj(obj interface{}, path []string, cb WalkObjFn) bool {
 		return true
 	}
 
-	return cb(path, obj)
+	return cb(path, obj, key, parent, arr)
 }
 
 func GetByPath(obj map[string]interface{}, path []string) interface{} {
@@ -67,7 +67,7 @@ func GetByPath(obj map[string]interface{}, path []string) interface{} {
 
 func FlattenMap(m map[string]interface{}) map[string]interface{} {
 	ret := make(map[string]interface{})
-	cb := func(path []string, val interface{}) bool {
+	cb := func(path []string, val interface{}, key interface{}, parent interface{}, arr bool) bool {
 		_, isMap := val.(map[string]interface{})
 		_, isArr := val.([]interface{})
 		if !isMap && !isArr {
@@ -75,7 +75,7 @@ func FlattenMap(m map[string]interface{}) map[string]interface{} {
 		}
 		return true
 	}
-	WalkObj(m, make([]string, 0), cb)
+	WalkObj(m, make([]string, 0), cb, nil, nil, false)
 	return ret
 }
 

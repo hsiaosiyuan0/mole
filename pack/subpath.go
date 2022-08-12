@@ -46,9 +46,6 @@ func NewSubpath(src string, cond interface{}) (*Subpath, error) {
 		//   "module-a": false, // same as the `null` in subpath patterns
 		//   "./server/only.js": "./shims/server-only.js"
 		// }
-		//
-		// here we only concern the type, no matter its value, so `true` will be
-		// the same as if it's `false`
 		pat, err := compileSubpath(src)
 		if err != nil {
 			return nil, err
@@ -158,14 +155,19 @@ type SubpathGrp struct {
 //     }
 //   }
 // }
+
+var conditions = []string{"node-addons", "node", "import", "require", "default"}
+
 func isTacitSubpath(c map[string]interface{}) bool {
 	for key := range c {
-		return key[0] != '.' && key[0] != '#'
+		if util.Includes(conditions, key) {
+			return true
+		}
 	}
 	return false
 }
 
-func NewSubpathGrp(c interface{}) (*SubpathGrp, error) {
+func NormalizeSubpath(c interface{}) (map[string]interface{}, error) {
 	var cm map[string]interface{}
 
 	switch vc := c.(type) {
@@ -187,6 +189,15 @@ func NewSubpathGrp(c interface{}) (*SubpathGrp, error) {
 		return nil, errors.New(fmt.Sprintf("deformed subpath group: %v", c))
 	}
 
+	return cm, nil
+}
+
+func NewSubpathGrp(c interface{}) (*SubpathGrp, error) {
+	cm, err := NormalizeSubpath(c)
+	if err != nil {
+		return nil, err
+	}
+
 	sg := &SubpathGrp{
 		neg: []*Subpath{},
 		pos: []*Subpath{},
@@ -198,7 +209,7 @@ func NewSubpathGrp(c interface{}) (*SubpathGrp, error) {
 			return nil, err
 		}
 
-		if cond == nil || false {
+		if cond == nil || cond == false {
 			sg.neg = append(sg.neg, s)
 		} else {
 			sg.pos = append(sg.pos, s)
@@ -208,18 +219,20 @@ func NewSubpathGrp(c interface{}) (*SubpathGrp, error) {
 	return sg, nil
 }
 
-func (sg *SubpathGrp) Match(nom string, conditions [][]string) (bool, string) {
+func (sg *SubpathGrp) Match(nom string, conditions [][]string) (pos, neg bool, m string) {
 	for _, s := range sg.neg {
 		ok, _ := s.Match(nom, conditions)
 		if ok {
-			return false, ""
+			neg = true
+			return
 		}
 	}
 	for _, s := range sg.pos {
-		ok, m := s.Match(nom, conditions)
+		ok, mm := s.Match(nom, conditions)
 		if ok {
-			return true, m
+			pos = true
+			m = mm
 		}
 	}
-	return false, ""
+	return
 }

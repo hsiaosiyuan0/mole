@@ -121,6 +121,13 @@ func (r *NodeResolver) Resolve(target string, cw string) ([]string, *Pkginfo, er
 		return f, pi, nil
 	}
 
+	if r.self.exports != nil {
+		_, neg, _ := r.self.exports.Match(target, r.exports)
+		if neg {
+			return nil, nil, nil
+		}
+	}
+
 	return r.loadModule(parts, cwp)
 }
 
@@ -332,8 +339,8 @@ func (r *NodeResolver) loadPkgImports(target []string, pi *Pkginfo) ([]string, *
 		return nil, nil, newNoModErr(r)
 	}
 
-	ok, m := r.self.imports.Match(path.Join(target...), r.exports)
-	if !ok {
+	_, _, m := r.self.imports.Match(path.Join(target...), r.exports)
+	if m == "" {
 		return nil, nil, nil
 	}
 
@@ -376,8 +383,8 @@ func (r *NodeResolver) loadPkgSelf(target []string, dir []string, pi *Pkginfo) (
 
 	// load as file
 	if sp == "." || filepath.Ext(sp) != "" {
-		ok, m := r.self.exports.Match(sp, r.exports)
-		if !ok {
+		_, _, m := r.self.exports.Match(sp, r.exports)
+		if m == "" {
 			return nil, nil, nil
 		}
 
@@ -387,8 +394,8 @@ func (r *NodeResolver) loadPkgSelf(target []string, dir []string, pi *Pkginfo) (
 		}
 	} else {
 		for _, ext := range r.exts {
-			ok, m := r.self.exports.Match(sp+ext, r.exports)
-			if !ok {
+			_, _, m := r.self.exports.Match(sp+ext, r.exports)
+			if m == "" {
 				return nil, nil, nil
 			}
 
@@ -400,8 +407,8 @@ func (r *NodeResolver) loadPkgSelf(target []string, dir []string, pi *Pkginfo) (
 	}
 
 	// load as dir
-	ok, m := r.self.exports.Match(sp, r.exports)
-	if !ok {
+	_, _, m := r.self.exports.Match(sp, r.exports)
+	if m == "" {
 		return nil, nil, nil
 	}
 	f, pi, err := r.loadAsDir(append(r.self.dir, pathSplit(m)...), false, false)
@@ -438,8 +445,8 @@ func (r *NodeResolver) loadPkgExports(target []string, dir []string) ([]string, 
 
 	// load as file
 	if sp == "." || filepath.Ext(sp) != "" {
-		ok, m := pki.exports.Match(sp, r.exports)
-		if !ok {
+		_, _, m := pki.exports.Match(sp, r.exports)
+		if m == "" {
 			return nil, nil, nil
 		}
 
@@ -449,8 +456,8 @@ func (r *NodeResolver) loadPkgExports(target []string, dir []string) ([]string, 
 		}
 	} else {
 		for _, ext := range r.exts {
-			ok, m := pki.exports.Match(sp+ext, r.exports)
-			if !ok {
+			_, _, m := pki.exports.Match(sp+ext, r.exports)
+			if m == "" {
 				return nil, nil, nil
 			}
 
@@ -462,8 +469,8 @@ func (r *NodeResolver) loadPkgExports(target []string, dir []string) ([]string, 
 	}
 
 	// load as dir
-	ok, m := pki.exports.Match(sp, r.exports)
-	if !ok {
+	_, _, m := pki.exports.Match(sp, r.exports)
+	if m == "" {
 		return nil, nil, nil
 	}
 	f, pki, err := r.loadAsDir(append(scope, pathSplit(m)...), false, false)
@@ -500,17 +507,63 @@ func (pi *Pkginfo) File() string {
 
 func (pi *Pkginfo) compile(browser bool) error {
 	var err error
-	if browser && pi.Browser != nil {
-		pi.exports, err = NewSubpathGrp(pi.Browser)
-		if err != nil {
-			return err
-		}
-	} else if pi.RawExports != nil {
-		pi.exports, err = NewSubpathGrp(pi.RawExports)
+
+	// set an empty value for normalizing and merge the `main`
+	var rawExports map[string]interface{}
+	if len(pi.RawImports) == 0 {
+		rawExports = map[string]interface{}{}
+	} else {
+		rawExports, err = NormalizeSubpath(pi.RawExports)
 		if err != nil {
 			return err
 		}
 	}
+
+	// spec says if `browser` is string then it will replace the `main`
+	main := pi.Main
+	if browser && pi.Browser != nil {
+		if s, ok := pi.Browser.(string); ok {
+			main = s
+		}
+	}
+	mainCond, err := NormalizeSubpath(main)
+	if err != nil {
+		return err
+	}
+	util.MergeMap(rawExports, mainCond)
+
+	if browser && pi.Browser != nil {
+		// do the partial replacement if `browser` is a map
+		if bro, ok := pi.Browser.(map[string]interface{}); ok {
+			applyBro := func(path []string, val interface{}, key interface{}, parent interface{}, arr bool) bool {
+				if s, ok := val.(string); ok {
+					if bro[s] != nil {
+						if arr {
+							parent.([]interface{})[key.(int)] = bro[s]
+						} else {
+							parent.(map[string]interface{})[key.(string)] = bro[s]
+						}
+					}
+				}
+				return true
+			}
+			util.WalkObj(rawExports, make([]string, 0), applyBro, nil, nil, false)
+
+			// merge the ignored settings
+			for k, v := range bro {
+				switch v.(type) {
+				case nil, bool:
+					rawExports[k] = v
+				}
+			}
+		}
+	}
+
+	pi.exports, err = NewSubpathGrp(rawExports)
+	if err != nil {
+		return err
+	}
+
 	if pi.RawImports != nil {
 		pi.imports, err = NewSubpathGrp(pi.RawImports)
 		if err != nil {

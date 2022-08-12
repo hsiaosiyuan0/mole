@@ -618,7 +618,7 @@ func (j *JsUnit) Load() error {
 	}
 
 	if len(file) == 0 {
-		return nil // builtin module
+		return nil // builtin module or ignored
 	}
 
 	m := j.s.getOrNewModule(file[0])
