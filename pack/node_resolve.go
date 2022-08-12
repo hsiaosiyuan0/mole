@@ -56,10 +56,10 @@ func NewNodeResolver(exports [][]string, imports [][]string, exts []string,
 	}
 
 	if len(r.exports) == 0 {
-		r.exports = [][]string{{"node", "require"}}
+		r.exports = [][]string{{"browser", "require"}}
 	}
 	if len(r.imports) == 0 {
-		r.imports = [][]string{{"node", "require"}}
+		r.imports = [][]string{{"browser", "require"}}
 	}
 
 	r.exports = append(r.exports, []string{"default"})

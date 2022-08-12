@@ -156,7 +156,7 @@ type SubpathGrp struct {
 //   }
 // }
 
-var conditions = []string{"node-addons", "node", "import", "require", "default"}
+var conditions = []string{"node-addons", "node", "import", "require", "default", "browser", "electron"}
 
 func isTacitSubpath(c map[string]interface{}) bool {
 	for key := range c {
