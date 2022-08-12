@@ -46,11 +46,11 @@ func TestSubpathGrp(t *testing.T) {
 	})
 	util.AssertEqual(t, nil, err, "should be ok")
 
-	ok, m := sg.Match(".", [][]string{{"node", "require"}})
+	ok, _, m := sg.Match(".", [][]string{{"node", "require"}})
 	util.AssertEqual(t, true, ok, "should be ok")
 	util.AssertEqual(t, "./feature-node.cjs", m, "should be ok")
 
-	ok, m = sg.Match(".", [][]string{{"default"}})
+	ok, _, m = sg.Match(".", [][]string{{"default"}})
 	util.AssertEqual(t, true, ok, "should be ok")
 	util.AssertEqual(t, "./feature.mjs", m, "should be ok")
 
@@ -61,11 +61,11 @@ func TestSubpathGrp(t *testing.T) {
 	})
 	util.AssertEqual(t, nil, err, "should be ok")
 
-	ok, m = sg.Match("./features/m.js", [][]string{{"default"}})
+	ok, _, m = sg.Match("./features/m.js", [][]string{{"default"}})
 	util.AssertEqual(t, true, ok, "should be ok")
 	util.AssertEqual(t, "./src/features/m.js", m, "should be ok")
 
-	ok, m = sg.Match("./features/private-internal/m.js", [][]string{{"default"}})
+	ok, _, m = sg.Match("./features/private-internal/m.js", [][]string{{"default"}})
 	util.AssertEqual(t, false, ok, "should be ok")
 
 	// 3
@@ -77,7 +77,7 @@ func TestSubpathGrp(t *testing.T) {
 	})
 	util.AssertEqual(t, nil, err, "should be ok")
 
-	ok, m = sg.Match("#dep", [][]string{{"default"}})
+	ok, _, m = sg.Match("#dep", [][]string{{"default"}})
 	util.AssertEqual(t, true, ok, "should be ok")
 	util.AssertEqual(t, "./dep-polyfill.js", m, "should be ok")
 }

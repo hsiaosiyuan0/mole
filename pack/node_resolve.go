@@ -510,7 +510,7 @@ func (pi *Pkginfo) compile(browser bool) error {
 
 	// set an empty value for normalizing and merge the `main`
 	var rawExports map[string]interface{}
-	if len(pi.RawImports) == 0 {
+	if pi.RawExports == nil {
 		rawExports = map[string]interface{}{}
 	} else {
 		rawExports, err = NormalizeSubpath(pi.RawExports)
@@ -526,11 +526,13 @@ func (pi *Pkginfo) compile(browser bool) error {
 			main = s
 		}
 	}
-	mainCond, err := NormalizeSubpath(main)
-	if err != nil {
-		return err
+	if main != "" {
+		mainCond, err := NormalizeSubpath(main)
+		if err != nil {
+			return err
+		}
+		util.MergeMap(rawExports, mainCond)
 	}
-	util.MergeMap(rawExports, mainCond)
 
 	if browser && pi.Browser != nil {
 		// do the partial replacement if `browser` is a map
