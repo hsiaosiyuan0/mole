@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -167,6 +168,8 @@ func NewDepScanner(opts *DepScannerOpts) *DepScanner {
 		minor:  make(chan error),
 		minors: []error{},
 	}
+
+	s.pkgLoader.setBrowser(opts.target != TGT_NODE)
 
 	return s.initWorkers()
 }
@@ -359,8 +362,23 @@ func (s *DepScanner) getOrNewModule(file string) Module {
 
 func (s *DepScanner) prepareEntries() error {
 	dir := s.opts.Dir
+
+	entries := make([]string, 0, len(s.opts.Entries))
 	for _, entry := range s.opts.Entries {
-		file := filepath.Join(dir, entry)
+		if strings.IndexRune(entry, '*') != -1 {
+			p := filepath.Join(dir, entry)
+			matches, err := filepath.Glob(p)
+			if err != nil {
+				fmt.Printf("deformed entry `%s` with error `%v` ", entry, err)
+			} else {
+				entries = append(entries, matches...)
+			}
+		} else {
+			entries = append(entries, entry)
+		}
+	}
+
+	for _, file := range entries {
 		m := s.newModule(file)
 		m.setAsEntry()
 		s.fileModules[file] = m
@@ -623,11 +641,17 @@ func (j *JsUnit) Load() error {
 				return err
 			}
 
-			lang := filepath.Ext(file[0])
+			curLang := filepath.Ext(file[0])
 			cw := filepath.Dir(file[0])
 			for _, d := range derived {
 				frame := &ImportFrame{m.Id(), d.line, d.col, d.ipt}
 				stk := util.Copy(req.iptStk)
+				lang := filepath.Ext(d.file)
+				if lang == "" {
+					// if there is no ext in the importing target use
+					// the host file ext instead
+					lang = curLang
+				}
 				j.s.addNewJob(&DepFileReq{append(stk, frame), m, d.file, cw, lang})
 			}
 

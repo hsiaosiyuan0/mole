@@ -9,10 +9,15 @@ import (
 	"github.com/hsiaosiyuan0/mole/util"
 )
 
-// `Subpath` is used to handle the [Subpath patterns](https://nodejs.org/api/packages.html#subpath-patterns) concept
+// `Subpath` is used to handle these concepts:
+// - [subpath patterns](https://nodejs.org/api/packages.html#subpath-patterns)
+// - [browser](https://github.com/defunctzombie/package-browser-field-spec)
+//
+// the quick view of the cases handled by this module can be found at:
+// https://github.com/hsiaosiyuan0/mole/issues/23
 type Subpath struct {
-	pat  interface{} // string|*regexp.Regexp
-	cond map[string]interface{}
+	pat  interface{}            // string|*regexp.Regexp|false
+	cond map[string]interface{} // condition => replacement
 }
 
 func NewSubpath(src string, cond interface{}) (*Subpath, error) {
@@ -34,10 +39,16 @@ func NewSubpath(src string, cond interface{}) (*Subpath, error) {
 		}
 		return &Subpath{pat, cv}, nil
 
-	case []interface{}:
-		return NewSubpath(src, cv[0])
-
-	case nil:
+	case nil, bool:
+		// the browser spec use `false` to indicate the module should be ignored:
+		//
+		// "browser": {
+		//   "module-a": false, // same as the `null` in subpath patterns
+		//   "./server/only.js": "./shims/server-only.js"
+		// }
+		//
+		// here we only concern the type, no matter its value, so `true` will be
+		// the same as if it's `false`
 		pat, err := compileSubpath(src)
 		if err != nil {
 			return nil, err
@@ -92,7 +103,9 @@ func compileSubpath(p string) (interface{}, error) {
 	if strings.Index(p, "*") == -1 {
 		return p, nil
 	}
-	pat := "^" + strings.ReplaceAll(p, "*", "(.*?)") + "$"
+	pat := strings.ReplaceAll(p, "*", "(.*?)")
+	pat = strings.ReplaceAll(pat, "$", "\\$")
+	pat = "^" + pat + "$"
 	return regexp.Compile(pat)
 }
 
@@ -124,6 +137,27 @@ type SubpathGrp struct {
 	pos []*Subpath
 }
 
+// tacit-subpath means the lhs of the subpath is not a relative path, eg:
+//
+// ```
+// {
+//   "exports": {
+//     "import": "./index-module.js",
+//     "require": "./index-require.cjs"
+//   }
+// }
+// ```
+//
+// should be normalized to
+//
+// {
+//   "exports": {
+//     ".": {
+//       "import": "./index-module.js",
+//       "require": "./index-require.cjs"
+//     }
+//   }
+// }
 func isTacitSubpath(c map[string]interface{}) bool {
 	for key := range c {
 		return key[0] != '.' && key[0] != '#'
@@ -131,7 +165,6 @@ func isTacitSubpath(c map[string]interface{}) bool {
 	return false
 }
 
-// the type of `c`` should be `string` or `map[string]interface{}``
 func NewSubpathGrp(c interface{}) (*SubpathGrp, error) {
 	var cm map[string]interface{}
 
@@ -165,7 +198,7 @@ func NewSubpathGrp(c interface{}) (*SubpathGrp, error) {
 			return nil, err
 		}
 
-		if cond == nil {
+		if cond == nil || false {
 			sg.neg = append(sg.neg, s)
 		} else {
 			sg.pos = append(sg.pos, s)

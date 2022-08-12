@@ -792,10 +792,18 @@ func (p *Parser) exportSpec(typ bool) (Node, error) {
 // https://tc39.es/ecma262/multipage/ecmascript-language-scripts-and-modules.html#prod-ImportDeclaration
 func (p *Parser) importDec() (Node, error) {
 	loc := p.loc()
-	ipt := p.lexer.Next()
+	importTok := p.lexer.Peek()
+
 	if p.feat&FEAT_IMPORT_DEC == 0 && p.feat&FEAT_DYNAMIC_IMPORT == 0 {
-		return nil, p.errorTok(ipt)
+		return nil, p.errorTok(importTok)
 	}
+
+	ahead := p.lexer.Peek2nd()
+	if ahead.value == T_PAREN_L || ahead.value == T_DOT {
+		return p.exprStmt()
+	}
+
+	p.lexer.Next() // consume `import`
 
 	specs := make([]Node, 0)
 	tok := p.lexer.Peek()
@@ -860,12 +868,6 @@ func (p *Parser) importDec() (Node, error) {
 			}
 			spec := &ImportSpec{N_IMPORT_SPEC, p.finLoc(p.locFromTok(tok)), true, false, id, id, false}
 			specs = append(specs, spec)
-		} else if tok.value == T_PAREN_L || tok.value == T_DOT {
-			expr, err := p.importCall(ipt)
-			if err != nil {
-				return nil, err
-			}
-			return &ExprStmt{N_STMT_EXPR, expr.Loc().Clone(), expr, false}, nil
 		} else {
 			ss, err := p.importNamedOrNS(false)
 			if err != nil {
@@ -890,7 +892,7 @@ func (p *Parser) importDec() (Node, error) {
 		}
 	}
 
-	ahead := p.lexer.Peek()
+	ahead = p.lexer.Peek()
 	av := ahead.value
 	if av == T_NAME && ahead.Text() == "from" && !ahead.ContainsEscape() {
 		p.lexer.Next()
@@ -4041,7 +4043,7 @@ func (p *Parser) assignExpr(checkLhs bool, notGT bool, notHook bool, notColon bo
 		return p.yieldExpr()
 	}
 
-	lhs, err := p.condExpr(notGT, notHook, notColon)
+	lhs, err := p.condExpr(nil, notGT, notHook, notColon)
 	if err != nil {
 		return nil, err
 	}
@@ -4154,8 +4156,9 @@ func (p *Parser) advanceIfHook() *Token {
 }
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-expressions.html#prod-ConditionalExpression
-func (p *Parser) condExpr(notGT bool, notHook bool, notColon bool) (Node, error) {
-	test, err := p.binExpr(nil, 0, false, false, notGT, notColon)
+func (p *Parser) condExpr(test Node, notGT bool, notHook bool, notColon bool) (Node, error) {
+	var err error
+	test, err = p.binExpr(test, 0, false, false, notGT, notColon)
 	if err != nil {
 		return nil, err
 	}
@@ -4720,7 +4723,18 @@ func (p *Parser) importCall(tok *Token) (Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		return &ImportCall{N_IMPORT_CALL, p.finLoc(loc), src, nil}, nil
+
+		call := &ImportCall{N_IMPORT_CALL, p.finLoc(loc), src, nil}
+		ahead := p.lexer.Peek()
+		semi := ahead.value == T_SEMI
+		if semi || ahead.afterLineTerm {
+			if semi {
+				p.lexer.Next()
+			}
+			return call, nil
+		}
+
+		return p.condExpr(call, false, false, false)
 	}
 	return nil, p.errorTok(ahead)
 }

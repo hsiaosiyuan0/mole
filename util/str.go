@@ -3,6 +3,7 @@ package util
 import (
 	"errors"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 )
 
@@ -26,6 +27,22 @@ func RemoveJsonComments(str string) ([]byte, error) {
 		}
 		return r, s, nil
 	}
+
+	peekNoWhite := func(str string) (rune, int, error) {
+		for {
+			r, s := utf8.DecodeRuneInString(str)
+			if r == utf8.RuneError && s > 0 {
+				return utf8.RuneError, 0, errors.New("deformed json")
+			}
+
+			if unicode.IsSpace(r) {
+				str = str[s:]
+				continue
+			}
+			return r, s, nil
+		}
+	}
+
 	next := func() rune {
 		r, s := utf8.DecodeRuneInString(str)
 		str = str[s:]
@@ -88,6 +105,15 @@ func RemoveJsonComments(str string) ([]byte, error) {
 					sb.WriteRune(' ')
 					sb.WriteRune(' ')
 					state = 0
+					continue
+				}
+			}
+		case ',':
+			if state == 0 {
+				pp, _, _ := peekNoWhite(str[s:])
+				if pp == '}' || pp == ']' {
+					next()
+					sb.WriteRune(' ')
 					continue
 				}
 			}

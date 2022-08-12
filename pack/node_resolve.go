@@ -29,6 +29,7 @@ type NodeResolver struct {
 	exports [][]string
 	exts    []string
 	builtin map[string]bool
+	browser bool
 
 	ts       bool
 	baseUrl  string
@@ -477,6 +478,7 @@ type Pkginfo struct {
 	Name       string                 `json:"name"`
 	Version    string                 `json:"version"`
 	Main       string                 `json:"main"`
+	Browser    interface{}            `json:"browser"`
 	Module     string                 `json:"module"`
 	Types      string                 `json:"types"`
 	RawExports interface{}            `json:"exports"`
@@ -496,9 +498,14 @@ func (pi *Pkginfo) File() string {
 	return pi.file
 }
 
-func (pi *Pkginfo) compile() error {
+func (pi *Pkginfo) compile(browser bool) error {
 	var err error
-	if pi.RawExports != nil {
+	if browser && pi.Browser != nil {
+		pi.exports, err = NewSubpathGrp(pi.Browser)
+		if err != nil {
+			return err
+		}
+	} else if pi.RawExports != nil {
 		pi.exports, err = NewSubpathGrp(pi.RawExports)
 		if err != nil {
 			return err
@@ -522,6 +529,9 @@ type PkginfoLoader struct {
 	// cache the path where `package.json` does not exist
 	notFound     map[string]bool
 	notFoundLock sync.RWMutex
+
+	// use `browser` on the top of `main` in the package.json
+	browser bool
 }
 
 func NewPkginfoLoader(fl *FileLoader) *PkginfoLoader {
@@ -546,6 +556,10 @@ func (lo *PkginfoLoader) Get(file string) *Pkginfo {
 	defer lo.lock.RUnlock()
 
 	return lo.store[file]
+}
+
+func (lo *PkginfoLoader) setBrowser(browser bool) {
+	lo.browser = browser
 }
 
 func (lo *PkginfoLoader) setNotFound(file string, err error) {
@@ -629,7 +643,7 @@ func (lo *PkginfoLoader) compile(file string, code []byte) (*Pkginfo, error) {
 		return nil, err
 	}
 
-	if err := pi.compile(); err != nil {
+	if err := pi.compile(lo.browser); err != nil {
 		return nil, err
 	}
 	return pi, nil
@@ -720,7 +734,9 @@ func (m *PathMap) Match(nom string, r *NodeResolver) []string {
 	}
 
 	for _, d := range m.cond {
-		d = strings.Replace(d, "*", mcs[1], -1)
+		if len(mcs) > 0 {
+			d = strings.Replace(d, "*", mcs[1], -1)
+		}
 		if f, _, _ := r.loadRelative(osPathSplit(d), nil, nil); len(f) != 0 {
 			return f
 		}
@@ -753,12 +769,27 @@ func NewPathMaps(baseUrl string, c map[string][]string) (*PathMaps, error) {
 	return &PathMaps{maps}, nil
 }
 
-func (p *PathMaps) Match(file string, r *NodeResolver) []string {
+func (p *PathMaps) match(file string, r *NodeResolver) []string {
 	for _, m := range p.maps {
 		mr := m.Match(file, r)
 		if mr != nil {
 			return mr
 		}
 	}
+	return nil
+}
+
+func (p *PathMaps) Match(file string, r *NodeResolver) []string {
+	mc := p.match(file, r)
+	if mc != nil {
+		return mc
+	}
+
+	// for `@models` can hit `@models/* => /some/path`, make `@models` to `@models/index`
+	// then use the latter to try the rules again
+	if mc == nil && strings.HasPrefix(file, "@") && strings.IndexRune(file, '/') == -1 {
+		return p.match(file+"/index", r)
+	}
+
 	return nil
 }
