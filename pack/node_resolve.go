@@ -674,7 +674,7 @@ func (lo *PkginfoLoader) Load(file string) (*Pkginfo, error) {
 
 func (lo *PkginfoLoader) closest(start string) (*Pkginfo, error) {
 	for {
-		if strings.HasSuffix(start, "node_modules") {
+		if start == "/" || strings.HasSuffix(start, "node_modules") {
 			break
 		}
 		file := filepath.Join(start, "package.json")

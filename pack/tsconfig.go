@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"path"
 	"path/filepath"
+	"strings"
 
 	"github.com/hsiaosiyuan0/mole/util"
 )
@@ -106,15 +107,27 @@ func NewTsConfig(dir string, file string) (*TsConfig, error) {
 	cc := rawCfg
 	cd := dir
 
+	// load the base config
 	for cc["extends"] != nil {
-		cf := cc["extends"].(string)
+		extFile := cc["extends"].(string)
 		delete(cc, "extends")
 
-		if !filepath.IsAbs(cf) {
-			cf = filepath.Join(cd, cf)
-			cd = filepath.Dir(cf)
+		if strings.HasPrefix(extFile, ".") || strings.HasPrefix(extFile, "/") {
+			extFile = filepath.Join(cd, extFile)
+		} else {
+			fileLoader := NewFileLoader(1024, 10)
+			pkgLoader := NewPkginfoLoader(fileLoader)
+			r := NewNodeResolver(nil, nil, nil, nil, pkgLoader, true, nil)
+
+			files, _, err := r.Resolve(extFile, cd)
+			if err != nil {
+				return nil, err
+			}
+			extFile = files[0]
 		}
-		raw, err := ioutil.ReadFile(cf)
+
+		cd = filepath.Dir(extFile)
+		raw, err := ioutil.ReadFile(extFile)
 		if err != nil {
 			return nil, err
 		}

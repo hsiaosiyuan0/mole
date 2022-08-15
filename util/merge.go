@@ -10,7 +10,9 @@ func MergeMap(dst map[string]interface{}, src map[string]interface{}) {
 				continue
 			}
 		}
-		dst[k] = v
+		if v != nil {
+			dst[k] = v
+		}
 	}
 }
 
