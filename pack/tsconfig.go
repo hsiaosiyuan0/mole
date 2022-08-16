@@ -156,8 +156,9 @@ func NewTsConfig(dir string, file string) (*TsConfig, error) {
 		return nil, err
 	}
 
-	if !path.IsAbs(c.CompilerOptions.BaseUrl) {
-		u := pathSplit(c.CompilerOptions.BaseUrl)
+	bu := c.CompilerOptions.BaseUrl
+	if bu != "" && !path.IsAbs(bu) {
+		u := pathSplit(bu)
 		c.CompilerOptions.BaseUrl = filepath.Join(dir, filepath.Join(u...))
 	}
 

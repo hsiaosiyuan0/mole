@@ -1,0 +1,3 @@
+interface Audio {
+  new: any;
+}

@@ -13,7 +13,7 @@ import (
 func TestParseDep(t *testing.T) {
 	deps, err := parseDep("", `
   require('a.js')
-`, nil, nil, nil)
+`, nil, nil, nil, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -25,7 +25,7 @@ func TestParseDepRebound(t *testing.T) {
 	deps, err := parseDep("", `
   require = a
   require('a.js')
-`, nil, nil, nil)
+`, nil, nil, nil, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -39,7 +39,7 @@ function f() {
   var require = a
   require('a.js')
 }
-`, nil, nil, nil)
+`, nil, nil, nil, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -54,7 +54,7 @@ function f() {
   require('a.js')
 }
 require('a.js')
-`, nil, nil, nil)
+`, nil, nil, nil, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -65,7 +65,7 @@ require('a.js')
 func TestParseDepImport(t *testing.T) {
 	deps, err := parseDep("", `
 import('a.js')
-`, nil, nil, nil)
+`, nil, nil, nil, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -91,7 +91,7 @@ if (process.env.NODE_ENV === 'production') {
 } else {
   module.exports = require('./cjs/react-dom.development.js');
 }
-`, vars, nil, nil)
+`, vars, nil, nil, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -118,7 +118,7 @@ if (process.env.NODE_ENV === 'production') {
 } else {
   module.exports = require('./cjs/react-dom.development.js');
 }
-`, vars, nil, nil)
+`, vars, nil, nil, false)
 	if err != nil {
 		t.Fatal(err)
 	}

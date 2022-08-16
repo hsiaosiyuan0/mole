@@ -24,7 +24,8 @@ type Parser struct {
 	checkName       bool
 	danglingPvtRefs []*Ref
 
-	ts bool
+	ts  bool
+	dts bool
 
 	// the ts func sig cannot stand alone:
 	// `function f(a:number)` is illegal unless it's followed by a
@@ -139,6 +140,7 @@ func (p *Parser) Setup(src *span.Source, opts *ParserOpts) {
 	}
 
 	p.ts = p.feat&FEAT_TS != 0
+	p.dts = p.feat&FEAT_DTS != 0
 }
 
 func (p *Parser) pushLoopStk(loopNode Node) {
@@ -1066,6 +1068,14 @@ func (p *Parser) classDec(expr bool, canNameOmitted bool, declare bool, abstract
 	ahead := p.lexer.Peek()
 	av := ahead.value
 	ti := p.newTypInfo()
+
+	var ds []Node
+	if len(p.hangingDecorators) > 0 {
+		ds = p.hangingDecorators
+		p.hangingDecorators = nil
+		ti.decorators = ds
+	}
+
 	if av != T_BRACE_L && av != T_EXTENDS {
 		if p.ts && (av == T_LT || av == T_IMPLEMENTS) {
 			// hit expr like:
@@ -1149,12 +1159,6 @@ func (p *Parser) classDec(expr bool, canNameOmitted bool, declare bool, abstract
 	typ := N_STMT_CLASS
 	if expr {
 		typ = N_EXPR_CLASS
-	}
-	var ds []Node
-	if len(p.hangingDecorators) > 0 {
-		ds = p.hangingDecorators
-		p.hangingDecorators = nil
-		ti.decorators = ds
 	}
 
 	n := &ClassDec{typ, p.finLoc(loc), id, super, body, declare, ti}
@@ -3149,7 +3153,7 @@ func (p *Parser) varDecStmt(kind TokenValue, asExpr bool) (Node, error) {
 		}
 		lvs = append(lvs, dec.id)
 
-		if isConst && dec.init == nil && !p.scope().IsKind(SPK_NOT_IN) && !(p.ts && p.scope().IsKind(SPK_TS_DECLARE)) {
+		if !p.dts && isConst && dec.init == nil && !p.scope().IsKind(SPK_NOT_IN) && !(p.ts && p.scope().IsKind(SPK_TS_DECLARE)) {
 			return nil, p.errorAtLoc(dec.loc, ERR_CONST_DEC_INIT_REQUIRED)
 		}
 

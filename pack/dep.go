@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -460,7 +461,16 @@ type importPoint struct {
 	ipt       bool
 }
 
-func parseDep(file, code string, vars map[string]interface{}, parserOpts map[string]interface{}, m *JsModule) ([]*importPoint, error) {
+func isFlow(code string) bool {
+	re := regexp.MustCompile(`(?s)/\*.*?\*\s*@flow.*?\*/`)
+	return len(re.Find([]byte(code))) > 0
+}
+
+func parseDep(file, code string, vars map[string]interface{}, parserOpts map[string]interface{}, m *JsModule, skipFlow bool) ([]*importPoint, error) {
+	if skipFlow && isFlow(code) {
+		return []*importPoint{}, nil
+	}
+
 	s := span.NewSource(file, code)
 	opts := parser.NewParserOpts()
 	if parserOpts != nil {
@@ -472,6 +482,9 @@ func parseDep(file, code string, vars map[string]interface{}, parserOpts map[str
 		opts.Feature = opts.Feature.On(parser.FEAT_STRICT)
 		opts.Feature = opts.Feature.On(parser.FEAT_TS)
 		opts.Feature = opts.Feature.Off(parser.FEAT_JSX)
+		if strings.HasSuffix(file, ".d.ts") {
+			opts.Feature = opts.Feature.On(parser.FEAT_DTS)
+		}
 	} else if ext == ".tsx" {
 		opts.Feature = opts.Feature.On(parser.FEAT_STRICT)
 		opts.Feature = opts.Feature.On(parser.FEAT_TS)
@@ -607,7 +620,7 @@ func (j *JsUnit) scan(m Module) ([]*importPoint, error) {
 	jm.size = int64(len(f))
 	jm.scanned = true
 
-	return parseDep(jm.file, string(f), j.s.opts.Vars, j.s.opts.ParserOpts, jm)
+	return parseDep(jm.file, string(f), j.s.opts.Vars, j.s.opts.ParserOpts, jm, j.s.opts.target == TGT_RN)
 }
 
 func (j *JsUnit) Load() error {

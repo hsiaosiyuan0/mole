@@ -9,6 +9,7 @@ type Config struct {
 	Target string `json:"target"`
 
 	Entries       []string               `json:"entries"`
+	Extensions    []string               `json:"extensions"`
 	DefinedVars   map[string]interface{} `json:"definedVars"`
 	Tsconfig      string                 `json:"tsconfig"`
 	Ts            bool                   `json:"ts"`
@@ -31,6 +32,7 @@ func (c *Config) NewDepScannerOpts() *DepScannerOpts {
 	o.target = c.Target
 	o.Dir = c.dir
 	o.Entries = c.Entries
+	o.Extensions = c.Extensions
 
 	o.ResolveBuiltin()
 

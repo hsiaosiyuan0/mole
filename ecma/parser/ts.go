@@ -1328,8 +1328,11 @@ func (p *Parser) tsProp(rough bool, canMapped bool, braceL *Loc) (Node, error) {
 		if roLoc != nil {
 			return nil, p.errorAtLoc(roLoc, ERR_INVALID_RO_MODIFIER_IN_TS_OBJ)
 		}
-		// ConstructSignature
-		return p.tsNewSig(loc)
+		ahead2 := p.lexer.Peek2nd()
+		if ahead2.value != T_COLON {
+			// ConstructSignature
+			return p.tsNewSig(loc)
+		}
 	}
 	if !rough && av == T_BRACKET_L {
 		// IndexSignature
@@ -2213,7 +2216,7 @@ func (p *Parser) tsNS() (Node, error) {
 	ref.Def = def.(*Ident)
 	ref.BindKind = BK_CONST
 	ref.Typ = RDT_NS | RDT_TYPE
-	if err := p.addLocalBinding(nil, ref, true, ref.Def.Text()); err != nil {
+	if err := p.addLocalBinding(nil, ref, !p.dts, ref.Def.Text()); err != nil {
 		return nil, err
 	}
 
@@ -2296,6 +2299,10 @@ func (p *Parser) tsDec() (Node, error) {
 	dec := &TsDec{typ, nil, nil, nil}
 	if ok, kind := p.aheadIsVarDec(tok); ok {
 		dec.inner, err = p.varDecStmt(kind, false)
+		if err != nil {
+			return nil, err
+		}
+
 		typ = N_TS_DEC_VAR_DEC
 		if dec.inner.Type() == N_TS_ENUM {
 			typ = N_TS_DEC_ENUM
@@ -2346,10 +2353,6 @@ func (p *Parser) tsDec() (Node, error) {
 	}
 
 	if err != nil {
-		return nil, err
-	}
-
-	if err = p.checkAmbient(typ, dec.inner); err != nil {
 		return nil, err
 	}
 

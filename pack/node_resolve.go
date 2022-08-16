@@ -161,7 +161,7 @@ func (r *NodeResolver) try(target string) {
 }
 
 var jsDefaultExtensions = []string{".js", ".jsx", ".mjs", ".json", ".node"}
-var tsDefaultExtensions = append([]string{".ts", ".tsx", ".d.ts"}, jsDefaultExtensions...)
+var tsDefaultExtensions = []string{".ts", ".tsx", ".js", ".jsx", ".mjs", ".d.ts", ".json", ".node"}
 
 // target can be either directory or normal file
 func (r *NodeResolver) loadAsFile(target []string) (string, *Pkginfo) {

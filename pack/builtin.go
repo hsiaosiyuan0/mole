@@ -131,4 +131,6 @@ var rnBuiltin = map[string]bool{
 	"CameraRoll":                   true,
 	"DatePickerAndroid":            true,
 	"ImagePickerIOS":               true,
+
+	"dismissKeyboard": true,
 }
