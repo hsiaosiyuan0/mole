@@ -1,8 +1,8 @@
 # Duplicated package analysis
 
-Duplicated package analysis can find out the duplicated packages in the project's dependency graph. The definition of the duplicated packages is that there are multiple versions of same package in the project's dependency graph, each version will be considered by the bundle tools as a individual package.
+Duplicated package analysis is used to out the duplicated packages in your project's dependency graph.
 
-All the duplicated packages will be compiled into the final bundle which leads to the the bundle size problem.
+The definition of the duplicated packages is that there are multiple versions of the same package in the dependency graph and each version will be treated by the bundle tools as if they are individual package, and be compiled into the final bundle leads to the the bundle size problem.
 
 The strategy used for finding out the duplicated package can be briefly described as below:
 
@@ -22,7 +22,7 @@ Use `mole.json` to configure the analyzer:
 }
 ```
 
-Get the analysis report by below command:
+Get the analysis report by using below command:
 
 ```
 npx molecast -pkg-ana

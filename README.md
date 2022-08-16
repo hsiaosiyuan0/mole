@@ -1,6 +1,6 @@
 # Mole
 
-Mole is a toolkit written in Golang to improve the frontend development by providing various functionalities like lint, code-format, bundle, .etc.
+Mole is a toolkit written in Golang to improve the frontend development experience.
 
 <details>
   <summary>Why Golang</summary>
@@ -15,12 +15,20 @@ Fine, just all because I'm too fool to use a fancy language
 
 ## Features
 
-- [x] JavaScript Parser
+- JavaScript Parser
   - ECMAScript up to [ES2021](https://262.ecma-international.org/12.0/)
   - [JSX](https://github.com/facebook/jsx)
   - [ESTree](https://github.com/estree/estree) compatible outputs ([AST explorer on WASM](http://blog.thehardways.me/mole-is-more/#/))
-- [x] TypeScript Parser
+  
+- TypeScript Parser
   - [babel/typescript](https://babeljs.io/docs/en/babel-types#typescript) compatible outputs
+
+- Linter for ecmascript
+  - Some builtin rules: `no-alert`, `getter-return`, `no-unreachable`
+  - Plugin system to add more rules
+
+- [Duplicated package analysis](./docs/dup-pkg-ana/README.md)
+
 - [ ] CSS parser
 - [ ] Less parser
 - [ ] Scss parser
