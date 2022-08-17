@@ -19,7 +19,7 @@ Fine, just all because I'm too fool to use a fancy language
   - ECMAScript up to [ES2021](https://262.ecma-international.org/12.0/)
   - [JSX](https://github.com/facebook/jsx)
   - [ESTree](https://github.com/estree/estree) compatible outputs ([AST explorer on WASM](http://blog.thehardways.me/mole-is-more/#/))
-  
+
 - TypeScript Parser
   - [babel/typescript](https://babeljs.io/docs/en/babel-types#typescript) compatible outputs
 
@@ -27,7 +27,7 @@ Fine, just all because I'm too fool to use a fancy language
   - Some builtin rules: `no-alert`, `getter-return`, `no-unreachable`
   - Plugin system to add more rules
 
-- [Duplicated package analysis](./docs/dup-pkg-ana/README.md)
+- [Duplicate packages analysis](./docs/dup-pkg-ana/README.md)
 
 - [ ] CSS parser
 - [ ] Less parser
