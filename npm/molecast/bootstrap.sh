@@ -37,14 +37,10 @@ download() {
   d=/tmp/$molecast
   mkdir -p $d
   tar -xzf /tmp/$tgz -C $d && mv $d/package/mole $dir/$molecast_ver
-
-  if [ $? -eq 0 ]; then
-    ok "\nSucceeded, please molecast again.\n"
-  fi
 }
 
 if [ -x $molecast_bin ]; then
   $molecast_bin "$@"
 else
-  download
+  download && $molecast_bin "$@"
 fi
