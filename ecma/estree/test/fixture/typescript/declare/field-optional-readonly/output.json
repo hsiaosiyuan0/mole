@@ -1,0 +1,228 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 234,
+  "loc": {
+    "start": {
+      "line": 1,
+      "column": 0
+    },
+    "end": {
+      "line": 11,
+      "column": 0
+    }
+  },
+  "body": [
+    {
+      "type": "TSInterfaceDeclaration",
+      "start": 0,
+      "end": 233,
+      "loc": {
+        "start": {
+          "line": 1,
+          "column": 0
+        },
+        "end": {
+          "line": 10,
+          "column": 1
+        }
+      },
+      "id": {
+        "type": "Identifier",
+        "start": 10,
+        "end": 17,
+        "loc": {
+          "start": {
+            "line": 1,
+            "column": 10
+          },
+          "end": {
+            "line": 1,
+            "column": 17
+          }
+        },
+        "name": "Options"
+      },
+      "body": {
+        "type": "TSInterfaceBody",
+        "start": 18,
+        "end": 233,
+        "loc": {
+          "start": {
+            "line": 1,
+            "column": 18
+          },
+          "end": {
+            "line": 10,
+            "column": 1
+          }
+        },
+        "body": [
+          {
+            "type": "TSPropertySignature",
+            "start": 186,
+            "end": 231,
+            "loc": {
+              "start": {
+                "line": 9,
+                "column": 2
+              },
+              "end": {
+                "line": 9,
+                "column": 47
+              }
+            },
+            "readonly": true,
+            "key": {
+              "type": "Identifier",
+              "start": 195,
+              "end": 201,
+              "loc": {
+                "start": {
+                  "line": 9,
+                  "column": 11
+                },
+                "end": {
+                  "line": 9,
+                  "column": 17
+                }
+              },
+              "name": "format"
+            },
+            "computed": false,
+            "optional": true,
+            "typeAnnotation": {
+              "type": "TSTypeAnnotation",
+              "start": 202,
+              "end": 230,
+              "loc": {
+                "start": {
+                  "line": 9,
+                  "column": 18
+                },
+                "end": {
+                  "line": 9,
+                  "column": 46
+                }
+              },
+              "typeAnnotation": {
+                "type": "TSUnionType",
+                "start": 204,
+                "end": 230,
+                "loc": {
+                  "start": {
+                    "line": 9,
+                    "column": 20
+                  },
+                  "end": {
+                    "line": 9,
+                    "column": 46
+                  }
+                },
+                "types": [
+                  {
+                    "type": "TSLiteralType",
+                    "start": 204,
+                    "end": 212,
+                    "loc": {
+                      "start": {
+                        "line": 9,
+                        "column": 20
+                      },
+                      "end": {
+                        "line": 9,
+                        "column": 28
+                      }
+                    },
+                    "literal": {
+                      "type": "Literal",
+                      "start": 204,
+                      "end": 212,
+                      "loc": {
+                        "start": {
+                          "line": 9,
+                          "column": 20
+                        },
+                        "end": {
+                          "line": 9,
+                          "column": 28
+                        }
+                      },
+                      "value": "object",
+                      "raw": "\"object\""
+                    }
+                  },
+                  {
+                    "type": "TSLiteralType",
+                    "start": 215,
+                    "end": 222,
+                    "loc": {
+                      "start": {
+                        "line": 9,
+                        "column": 31
+                      },
+                      "end": {
+                        "line": 9,
+                        "column": 38
+                      }
+                    },
+                    "literal": {
+                      "type": "Literal",
+                      "start": 215,
+                      "end": 222,
+                      "loc": {
+                        "start": {
+                          "line": 9,
+                          "column": 31
+                        },
+                        "end": {
+                          "line": 9,
+                          "column": 38
+                        }
+                      },
+                      "value": "array",
+                      "raw": "\"array\""
+                    }
+                  },
+                  {
+                    "type": "TSLiteralType",
+                    "start": 225,
+                    "end": 230,
+                    "loc": {
+                      "start": {
+                        "line": 9,
+                        "column": 41
+                      },
+                      "end": {
+                        "line": 9,
+                        "column": 46
+                      }
+                    },
+                    "literal": {
+                      "type": "Literal",
+                      "start": 225,
+                      "end": 230,
+                      "loc": {
+                        "start": {
+                          "line": 9,
+                          "column": 41
+                        },
+                        "end": {
+                          "line": 9,
+                          "column": 46
+                        }
+                      },
+                      "value": "css",
+                      "raw": "\"css\""
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "directives": []
+}

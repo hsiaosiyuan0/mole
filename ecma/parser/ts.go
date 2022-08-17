@@ -1393,6 +1393,10 @@ func (p *Parser) tsProp(rough bool, canMapped bool, braceL *Loc) (Node, error) {
 						return nil, err
 					}
 					name.(NodeWithTypInfo).TypInfo().SetReadonly(true)
+
+					if p.lexer.Peek().value == T_HOOK {
+						ques = p.locFromTok(p.lexer.Next())
+					}
 				}
 			}
 		}

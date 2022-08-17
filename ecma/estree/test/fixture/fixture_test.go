@@ -31,5 +31,5 @@ func TestFixture_tsManually(t *testing.T) {
 	// test case automatically
 	opts.Feature = opts.Feature.On(parser.FEAT_JSX)
 	// opts.Feature = opts.Feature.Off(parser.FEAT_STRICT)
-	RunFixtures(t, "typescript/dts/new-as-field-name", opts)
+	RunFixtures(t, "typescript/declare/field-optional-readonly", opts)
 }
