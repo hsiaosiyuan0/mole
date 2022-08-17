@@ -24,7 +24,7 @@ Fine, just all because I'm too fool to use a fancy language
   - [babel/typescript](https://babeljs.io/docs/en/babel-types#typescript) compatible outputs
 
 - Linter for ecmascript
-  - Some builtin rules: `no-alert`, `getter-return`, `no-unreachable`
+  - Some builtin rules: [no-alert](https://github.com/hsiaosiyuan0/mole/blob/main/lint/no_alert.go), [getter-return](https://github.com/hsiaosiyuan0/mole/blob/main/lint/getter_return.go), [no-unreachable](https://github.com/hsiaosiyuan0/mole/blob/main/lint/no_unreachable.go)
   - Plugin system to add more rules
 
 - [Duplicate packages analysis](./docs/dup-pkg-ana/README.md)
@@ -32,7 +32,7 @@ Fine, just all because I'm too fool to use a fancy language
 - [ ] CSS parser
 - [ ] Less parser
 - [ ] Scss parser
- 
+
 ## Preview
 
 It's easy for OSX users to get a preview binary via [brew](https://brew.sh/):
