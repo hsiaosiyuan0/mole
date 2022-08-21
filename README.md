@@ -33,6 +33,71 @@ Fine, just all because I'm too fool to use a fancy language
 - [ ] Less parser
 - [ ] Scss parser
 
+## Using the parser
+
+For using the parser in Mole, the first step is using `go get` to add Mole as your project's dependency
+
+```bash
+go get github.com/hsiaosiyuan0/mole
+
+# for using go get via a proxy
+https_proxy=127.0.0.1:1080 go get github.com/hsiaosiyuan0/mole
+```
+
+After the installation is succeeded, below code can be used as a demo:
+
+<details>
+  <summary>Click to expand the demo</summary>
+
+```go
+package main
+
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"log"
+
+	"github.com/hsiaosiyuan0/mole/ecma/estree"
+	"github.com/hsiaosiyuan0/mole/ecma/parser"
+	"github.com/hsiaosiyuan0/mole/span"
+)
+
+func main() {
+  // imitate the source code you want to parse
+	code := `
+  console.log("hello world")
+  `
+
+  // create a Source instance to handle to the source code
+	s := span.NewSource("", code)
+
+  // create a parser, here we use the default options
+	opts := parser.NewParserOpts()
+	p := parser.NewParser(s, opts)
+
+  // inform the parser do its parsing process
+	ast, err := p.Prog()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+  // by default the parsed AST is not the ESTree form because the latter has a little redundancy,
+  // however Mole supports to convert its AST to ESTree by using the `estree.ConvertProg` function
+	b, err := json.Marshal(estree.ConvertProg(ast.(*parser.Prog), estree.NewConvertCtx()))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+  // below is nothing new, we just print the ESTree in JSON form
+	var out bytes.Buffer
+	json.Indent(&out, b, "", "  ")
+	fmt.Println(out.String())
+}
+```
+</details>
+
+
 ## Preview
 
 It's easy for OSX users to get a preview binary via [brew](https://brew.sh/):
