@@ -68,32 +68,32 @@ import (
 )
 
 func main() {
-  // imitate the source code you want to parse
+	// imitate the source code you want to parse
 	code := `
   console.log("hello world")
   `
 
-  // create a Source instance to handle to the source code
+	// create a Source instance to handle to the source code
 	s := span.NewSource("", code)
 
-  // create a parser, here we use the default options
+	// create a parser, here we use the default options
 	opts := parser.NewParserOpts()
 	p := parser.NewParser(s, opts)
 
-  // inform the parser do its parsing process
+	// inform the parser do its parsing process
 	ast, err := p.Prog()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-  // by default the parsed AST is not the ESTree form because the latter has a little redundancy,
-  // however Mole supports to convert its AST to ESTree by using the `estree.ConvertProg` function
+	// by default the parsed AST is not the ESTree form because the latter has a little redundancy,
+	// however Mole supports to convert its AST to ESTree by using the `estree.ConvertProg` function
 	b, err := json.Marshal(estree.ConvertProg(ast.(*parser.Prog), estree.NewConvertCtx()))
 	if err != nil {
 		log.Fatal(err)
 	}
 
-  // below is nothing new, we just print the ESTree in JSON form
+	// below is nothing new, we just print the ESTree in JSON form
 	var out bytes.Buffer
 	json.Indent(&out, b, "", "  ")
 	fmt.Println(out.String())
