@@ -40,7 +40,7 @@ For using the parser in Mole, the first step is using `go get` to add Mole as yo
 ```bash
 go get github.com/hsiaosiyuan0/mole
 
-# for using go get via a proxy
+# or using go get via a proxy if you have some network issues
 https_proxy=127.0.0.1:1080 go get github.com/hsiaosiyuan0/mole
 ```
 
