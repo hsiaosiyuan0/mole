@@ -69,9 +69,7 @@ import (
 
 func main() {
 	// imitate the source code you want to parse
-	code := `
-  console.log("hello world")
-  `
+	code := `console.log("hello world")`
 
 	// create a Source instance to handle to the source code
 	s := span.NewSource("", code)
