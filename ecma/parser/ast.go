@@ -184,6 +184,11 @@ type InParenNode interface {
 	SetOuterParen(*Loc)
 }
 
+func IsNodeInParen(node Node) bool {
+	n, ok := node.(InParenNode)
+	return ok && n.OuterParen() != nil
+}
+
 type NullLit struct {
 	typ        NodeType
 	loc        *Loc

@@ -78,10 +78,10 @@ func (p *Parser) tsTyp(rough bool, canConst bool, canCond bool) (Node, error) {
 	if p.lexer.Peek().value == T_NEW {
 		return p.tsConstructTyp(nil, false)
 	}
-	return p.tsUnionOrIntersectType(nil, 0, rough, canConst, canCond)
+	return p.tsUnionOrIntersectType(nil, 0, rough, canConst, canCond, false)
 }
 
-func (p *Parser) tsUnionOrIntersectType(lhs Node, minPcd int, rough bool, canConst bool, canCond bool) (Node, error) {
+func (p *Parser) tsUnionOrIntersectType(lhs Node, minPcd int, rough bool, canConst bool, canCond bool, canFn bool) (Node, error) {
 	var err error
 	if lhs == nil {
 		ahead := p.lexer.Peek()
@@ -96,7 +96,7 @@ func (p *Parser) tsUnionOrIntersectType(lhs Node, minPcd int, rough bool, canCon
 		}
 	}
 
-	if lhs != nil && lhs.Type() == N_TS_FN_TYP {
+	if lhs != nil && lhs.Type() == N_TS_FN_TYP && !canFn {
 		return lhs, nil
 	}
 
@@ -149,7 +149,7 @@ func (p *Parser) tsUnionOrIntersectType(lhs Node, minPcd int, rough bool, canCon
 		kind = TokenKinds[av]
 		for (av == T_BIT_OR || av == T_BIT_AND) && kind.Pcd > pcd {
 			pcd = kind.Pcd
-			rhs, err = p.tsUnionOrIntersectType(rhs, pcd, rough, canConst, canCond)
+			rhs, err = p.tsUnionOrIntersectType(rhs, pcd, rough, canConst, canCond, false)
 			if err != nil {
 				return nil, err
 			}
@@ -169,6 +169,10 @@ func (p *Parser) tsUnionOrIntersectType(lhs Node, minPcd int, rough bool, canCon
 		}
 	}
 
+	// for type dec with prefix bit-op: `type t = | a | b`
+	if lhs == nil {
+		return rhs, nil
+	}
 	return lhs, nil
 }
 
@@ -517,6 +521,7 @@ func (p *Parser) tsParen(keepParen bool) (Node, error) {
 		if !keepParen {
 			return typ, nil
 		}
+
 		return &TsParen{N_TS_PAREN, p.finLoc(loc), typ, nil}, nil
 	}
 
@@ -525,14 +530,24 @@ func (p *Parser) tsParen(keepParen bool) (Node, error) {
 		if param.colon != nil {
 			return nil, p.errorAtLoc(param.colon, ERR_UNEXPECTED_TOKEN)
 		}
+
 		typ, err := p.tsRoughParamToTyp(param, false)
 		if err != nil {
 			return nil, err
 		}
-		if !keepParen {
-			return typ, nil
+
+		node := typ
+		if keepParen {
+			node = &TsParen{N_TS_PAREN, p.finLoc(loc), typ, nil}
 		}
-		return &TsParen{N_TS_PAREN, p.finLoc(loc), typ, nil}, nil
+
+		ahead := p.lexer.Peek()
+		av := ahead.value
+		if av != T_BIT_AND && av != T_BIT_OR {
+			return node, nil
+		}
+
+		return p.tsUnionOrIntersectType(typ, 0, false, false, false, true)
 	}
 
 	if len(params) == 0 {
@@ -540,6 +555,7 @@ func (p *Parser) tsParen(keepParen bool) (Node, error) {
 		if !keepParen {
 			return typ, nil
 		}
+
 		return &TsParen{N_TS_PAREN, p.finLoc(loc), typ, nil}, nil
 	}
 	return nil, p.errorTok(ahead)

@@ -519,6 +519,18 @@ func parseDep(file, code string, vars map[string]interface{}, parserOpts map[str
 		},
 	})
 
+	// collect the export statements
+	walk.AddNodeAfterListener(&ctx.Listeners, parser.N_STMT_EXPORT, &walk.Listener{
+		Id: "parseDep",
+		Handle: func(node parser.Node, key string, ctx *walk.VisitorCtx) {
+			n := node.(*parser.ExportDec)
+			loc := n.Loc().Begin()
+			if n.Src() != nil {
+				derived = append(derived, &importPoint{n.Src().(*parser.StrLit).Text(), loc.Line, loc.Col, true})
+			}
+		},
+	})
+
 	// check if the `require` has been rebound to other values
 	reqRebound := false
 	walk.AddNodeAfterListener(&ctx.Listeners, parser.N_EXPR_ASSIGN, &walk.Listener{

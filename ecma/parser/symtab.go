@@ -307,6 +307,9 @@ func CheckRefDup(r1, r2 *Ref) bool {
 	if IsBothItf(r1, r2) {
 		return true
 	}
+	if IsOneOfNs(r1, r2) {
+		return true
+	}
 	return !IsBothTyp(r1, r2) && !IsBothVal(r1, r2)
 }
 
@@ -441,6 +444,10 @@ func IsEnumAndVal(r1, r2 *Ref) bool {
 // ```
 func IsBothItf(r1, r2 *Ref) bool {
 	return r1.Typ&RDT_ITF != 0 && r2.Typ&RDT_ITF != 0
+}
+
+func IsOneOfNs(r1, r2 *Ref) bool {
+	return r1.Typ&RDT_NS != 0 || r2.Typ&RDT_NS != 0
 }
 
 func (s *Scope) DelLocal(ref *Ref) {
