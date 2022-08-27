@@ -30,6 +30,5 @@ func TestFixture_tsManually(t *testing.T) {
 	// `FEAT_JSX` will be turned on by the `options.json` of the
 	// test case automatically
 	opts.Feature = opts.Feature.On(parser.FEAT_JSX)
-	// opts.Feature = opts.Feature.Off(parser.FEAT_STRICT)
-	RunFixtures(t, "typescript/declare/return-val-complex-union-1", opts)
+	RunFixtures(t, "typescript/decorators/type-arguments", opts)
 }

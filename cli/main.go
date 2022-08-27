@@ -13,6 +13,8 @@ type Options struct {
 	dir     string
 	cfg     string
 	out     string
+
+	perf bool
 }
 
 func newOptions() *Options {
@@ -25,6 +27,8 @@ func newOptions() *Options {
 	flag.StringVar(&opts.dir, "dir", "", "the project directory")
 	flag.StringVar(&opts.cfg, "cfg", "", "the config file")
 	flag.StringVar(&opts.out, "out", "", "the output file")
+
+	flag.BoolVar(&opts.perf, "perf", false, "gen the pprof file")
 
 	flag.Parse()
 

@@ -122,7 +122,7 @@ func (r *Ref) RetainBy(ref *Ref) {
 func NewRef() *Ref {
 	return &Ref{
 		Props: make(map[string][]*Ref),
-		Refs:  make([]*Ref, 0),
+		Refs:  make([]*Ref, 0, 5),
 	}
 }
 

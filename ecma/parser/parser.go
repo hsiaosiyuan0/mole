@@ -56,7 +56,7 @@ type Parser struct {
 	prog Node
 
 	// stmt node => the comments before to that stmt
-	prevStmtCmts map[Node][]*span.Range
+	prevStmtCmts map[Node][]span.Range
 }
 
 type ParserOpts struct {
@@ -130,7 +130,7 @@ func (p *Parser) Setup(src *span.Source, opts *ParserOpts) {
 	p.loopStk = []Node{}
 	p.retsStk = [][]Node{}
 	p.tryStk = []Node{}
-	p.prevStmtCmts = map[Node][]*span.Range{}
+	p.prevStmtCmts = map[Node][]span.Range{}
 
 	p.lexer = NewLexer(src)
 	p.lexer.ver = opts.Version
@@ -167,7 +167,7 @@ func (p *Parser) lastTry() Node {
 }
 
 func (p *Parser) incRetsStk() {
-	p.retsStk = append(p.retsStk, []Node{})
+	p.retsStk = append(p.retsStk, make([]Node, 0, 5))
 }
 
 func (p *Parser) decRetsStk() []Node {
@@ -186,11 +186,11 @@ func (p *Parser) Symtab() *SymTab {
 	return p.symtab
 }
 
-func (p *Parser) PrevStmtCmts(stmt Node) []*span.Range {
+func (p *Parser) PrevStmtCmts(stmt Node) []span.Range {
 	return p.prevStmtCmts[stmt]
 }
 
-func (p *Parser) BtmStmtCmts() []*span.Range {
+func (p *Parser) BtmStmtCmts() []span.Range {
 	return p.lexer.takePrevCmts()
 }
 
@@ -282,7 +282,7 @@ func (p *Parser) checkExp(exps []*ExportDec) error {
 	for _, exp := range exps {
 		var subnames []Node
 		if exp.def != nil {
-			subnames = []Node{&Ident{N_NAME, exp.def, "default", false, false, nil, true, p.newTypInfo()}}
+			subnames = []Node{&Ident{N_NAME, exp.def, "default", false, false, nil, true, p.newTypInfo(N_NAME)}}
 		} else if exp.dec != nil {
 			subnames = p.namesInNode(exp.dec)
 		} else {
@@ -386,7 +386,7 @@ func (p *Parser) stmt() (node Node, err error) {
 		}
 	} else if p.aheadIsAsync(tok, false, false) {
 		if tok.ContainsEscape() {
-			return nil, p.errorAt(tok.value, &tok.begin, ERR_ESCAPE_IN_KEYWORD)
+			return nil, p.errorAt(tok.value, tok.begin, ERR_ESCAPE_IN_KEYWORD)
 		}
 		node, err = p.fnDec(false, tok, false)
 	} else if p.aheadIsLabel(tok) {
@@ -459,7 +459,7 @@ func (p *Parser) exportDec() (Node, error) {
 
 	var err error
 	node := &ExportDec{N_STMT_EXPORT, nil, false, nil, nil, nil, nil, false}
-	specs := make([]Node, 0)
+	specs := make([]Node, 0, 3)
 	tok = p.lexer.Peek()
 	tv := tok.value
 	if tv == T_MUL || tv == T_BRACE_L {
@@ -485,7 +485,7 @@ func (p *Parser) exportDec() (Node, error) {
 		}
 	} else if p.aheadIsAsync(tok, false, false) {
 		if tok.ContainsEscape() {
-			return nil, p.errorAt(tv, &tok.begin, ERR_ESCAPE_IN_KEYWORD)
+			return nil, p.errorAt(tv, tok.begin, ERR_ESCAPE_IN_KEYWORD)
 		}
 		node.dec, err = p.fnDec(false, tok, false)
 		if err != nil {
@@ -505,7 +505,7 @@ func (p *Parser) exportDec() (Node, error) {
 			node.dec, err = p.fnDec(false, nil, true)
 		} else if p.aheadIsAsync(tok, false, false) {
 			if tok.ContainsEscape() {
-				return nil, p.errorAt(tv, &tok.begin, ERR_ESCAPE_IN_KEYWORD)
+				return nil, p.errorAt(tv, tok.begin, ERR_ESCAPE_IN_KEYWORD)
 			}
 			node.dec, err = p.fnDec(false, tok, true)
 		} else if tv == T_CLASS {
@@ -692,7 +692,7 @@ func (p *Parser) exportFrom(typ bool) ([]Node, bool, Node, error) {
 }
 
 func (p *Parser) exportNamed(typ bool) ([]Node, error) {
-	specs := make([]Node, 0)
+	specs := make([]Node, 0, 3)
 	for {
 		tok := p.lexer.Peek()
 		if tok.value == T_BRACE_R {
@@ -730,7 +730,7 @@ func (p *Parser) identWithKw(scope *Scope, binding bool) (Node, error) {
 	if ahead.IsKw() {
 		p.lexer.Next()
 		str := TokenKinds[ahead.value].Name
-		return &Ident{N_NAME, p.finLoc(p.locFromTok(ahead)), str, false, false, nil, true, p.newTypInfo()}, nil
+		return &Ident{N_NAME, p.finLoc(p.locFromTok(ahead)), str, false, false, nil, true, p.newTypInfo(N_NAME)}, nil
 	}
 	return p.ident(scope, binding)
 }
@@ -754,14 +754,14 @@ func (p *Parser) exportSpec(typ bool) (Node, error) {
 
 		// `export { type as as } from "./mod.js";`
 		if local.Type() == N_NAME && local.(*Ident).Text() == "as" {
-			_, _, canProp := p.lexer.Peek().CanBePropKey()
+			_, canProp := p.lexer.Peek().CanBePropKey()
 			ahead2nd := p.lexer.Peek2nd()
 
 			// if `canProp2` is true, then the stmt may match:
 			// `export { type as as if };`
-			_, _, canProp2 := ahead2nd.CanBePropKey()
+			_, canProp2 := ahead2nd.CanBePropKey()
 			if canProp && !canProp2 {
-				local = &Ident{N_NAME, typLoc, "type", false, false, nil, false, p.newTypInfo()}
+				local = &Ident{N_NAME, typLoc, "type", false, false, nil, false, p.newTypInfo(N_NAME)}
 				id, err := p.identWithKw(nil, false)
 				if err != nil {
 					return nil, err
@@ -780,7 +780,7 @@ func (p *Parser) exportSpec(typ bool) (Node, error) {
 	if p.aheadIsName("as") {
 		tok := p.lexer.Next()
 		if tok.ContainsEscape() {
-			return nil, p.errorAt(tok.value, &tok.begin, ERR_ESCAPE_IN_KEYWORD)
+			return nil, p.errorAt(tok.value, tok.begin, ERR_ESCAPE_IN_KEYWORD)
 		}
 		id, err = p.identWithKw(nil, false)
 		if err != nil {
@@ -807,7 +807,7 @@ func (p *Parser) importDec() (Node, error) {
 
 	p.lexer.Next() // consume `import`
 
-	specs := make([]Node, 0)
+	specs := make([]Node, 0, 5)
 	tok := p.lexer.Peek()
 	node := &ImportDec{N_STMT_IMPORT, nil, specs, nil, false}
 
@@ -962,14 +962,14 @@ func (p *Parser) importSpec(typ bool) (Node, error) {
 
 		// `export { type as as } from "./mod.js";`
 		if binding.Type() == N_NAME && binding.(*Ident).Text() == "as" {
-			_, _, canProp := p.lexer.Peek().CanBePropKey()
+			_, canProp := p.lexer.Peek().CanBePropKey()
 			ahead2nd := p.lexer.Peek2nd()
 
 			// if `canProp2` is true, then the stmt may match:
 			// `export { type as as if };`
-			_, _, canProp2 := ahead2nd.CanBePropKey()
+			_, canProp2 := ahead2nd.CanBePropKey()
 			if canProp && !canProp2 {
-				binding = &Ident{N_NAME, typLoc, "type", false, false, nil, false, p.newTypInfo()}
+				binding = &Ident{N_NAME, typLoc, "type", false, false, nil, false, p.newTypInfo(N_NAME)}
 				id, err := p.identWithKw(nil, false)
 				if err != nil {
 					return nil, err
@@ -1005,7 +1005,7 @@ func (p *Parser) importSpec(typ bool) (Node, error) {
 func (p *Parser) importNamed(typ bool) ([]Node, error) {
 	p.lexer.Next()
 
-	specs := make([]Node, 0)
+	specs := make([]Node, 0, 5)
 	for {
 		tok := p.lexer.Peek()
 		if tok.value == T_BRACE_R {
@@ -1067,11 +1067,12 @@ func (p *Parser) classDec(expr bool, canNameOmitted bool, declare bool, abstract
 	var err error
 	ahead := p.lexer.Peek()
 	av := ahead.value
-	ti := p.newTypInfo()
+	ti := p.newTypInfo(N_STMT_CLASS)
 
 	var ds []Node
 	if len(p.hangingDecorators) > 0 {
 		ds = p.hangingDecorators
+		loc = ds[0].Loc().Clone()
 		p.hangingDecorators = nil
 		ti.decorators = ds
 	}
@@ -1456,11 +1457,11 @@ func (p *Parser) classElem(inDeclare bool) (Node, error) {
 			return blk, nil
 		}
 		if p.aheadIsArgList(ahead) {
-			key := &Ident{N_NAME, fieldLoc, fieldName, false, escape, nil, true, p.newTypInfo()}
+			key := &Ident{N_NAME, fieldLoc, fieldName, false, escape, nil, true, p.newTypInfo(N_STMT_CLASS)}
 			return p.method(beginLoc, key, accMod, nil, false, PK_METHOD, false, false, false, true, false, beginLoc, false, false, false, nil)
 		}
 	} else if isField {
-		ti := p.newTypInfo()
+		ti := p.newTypInfo(N_STMT_CLASS)
 		key := &Ident{N_NAME, fieldLoc, fieldName, false, escape, nil, true, ti}
 		if ti != nil {
 			ti.ques, ti.not = p.tsAdvanceHook(true)
@@ -1473,11 +1474,11 @@ func (p *Parser) classElem(inDeclare bool) (Node, error) {
 			return nil, p.errorAtLoc(readonlyLoc, ERR_METHOD_CANNOT_READONLY)
 		}
 		if ahead.ContainsEscape() {
-			return nil, p.errorAt(ahead.value, &ahead.begin, ERR_ESCAPE_IN_KEYWORD)
+			return nil, p.errorAt(ahead.value, ahead.begin, ERR_ESCAPE_IN_KEYWORD)
 		}
 		return p.method(beginLoc, nil, accMod, nil, false, PK_METHOD, false, true, true, true, static, beginLoc, declare, abstract, override, nil)
 	} else if p.aheadIsArgList(ahead) {
-		key := &Ident{N_NAME, fieldLoc, fieldName, false, escape, nil, true, p.newTypInfo()}
+		key := &Ident{N_NAME, fieldLoc, fieldName, false, escape, nil, true, p.newTypInfo(N_STMT_CLASS)}
 		return p.method(beginLoc, key, accMod, nil, false, PK_METHOD, false, false, false, true, false, beginLoc, false, false, false, nil)
 	} else if ahead.value == T_MUL {
 		if !isField && readonlyLoc != nil {
@@ -1502,7 +1503,7 @@ func (p *Parser) classElem(inDeclare bool) (Node, error) {
 			key = &Ident{N_NAME, p.finLoc(propLoc.Clone()), name, false, ahead.ContainsEscape(), nil, kw, nil}
 		}
 
-		ti := p.newTypInfo()
+		ti := p.newTypInfo(N_STMT_CLASS)
 		if ti != nil {
 			ques, not := p.tsAdvanceHook(true)
 			if ques != nil && key.Type() == N_TS_THIS {
@@ -1591,7 +1592,7 @@ func (p *Parser) field(key Node, begin, static *Loc, accMod ACC_MOD, beginLoc, a
 		if err != nil {
 			return nil, err
 		}
-		ti = p.newTypInfo()
+		ti = p.newTypInfo(N_FIELD)
 		if ti != nil {
 			// computed prop can also be optional in ts, eg:
 			// `class C { [Symbol.iterator]?(): void; }`
@@ -1683,6 +1684,7 @@ func (p *Parser) field(key Node, begin, static *Loc, accMod ACC_MOD, beginLoc, a
 	var ds []Node
 	if len(p.hangingDecorators) > 0 {
 		ds = p.hangingDecorators
+		loc = ds[0].Loc().Clone()
 		p.hangingDecorators = nil
 		ti.decorators = ds
 	}
@@ -1698,7 +1700,7 @@ func (p *Parser) staticBlock(static *Loc) (Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &StaticBlock{N_STATIC_BLOCK, p.finLoc(static), block.body, p.newTypInfo()}, nil
+	return &StaticBlock{N_STATIC_BLOCK, p.finLoc(static), block.body, p.newTypInfo(N_STATIC_BLOCK)}, nil
 }
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-statements-and-declarations.html#prod-EmptyStatement
@@ -2050,7 +2052,7 @@ func (p *Parser) switchStmt() (Node, error) {
 		return nil, err
 	}
 
-	cases := make([]Node, 0)
+	cases := make([]Node, 0, 3)
 	if _, err := p.nextMustTok(T_BRACE_L); err != nil {
 		return nil, err
 	}
@@ -2069,7 +2071,7 @@ func (p *Parser) switchStmt() (Node, error) {
 			return nil, p.errorTok(tok)
 		}
 		if tok.value == T_DEFAULT && metDefault {
-			return nil, p.errorAt(tok.value, &tok.begin, ERR_MULTI_DEFAULT)
+			return nil, p.errorAt(tok.value, tok.begin, ERR_MULTI_DEFAULT)
 		}
 
 		caseClause, err := p.switchCase(tok)
@@ -2108,7 +2110,7 @@ func (p *Parser) switchCase(tok *Token) (*SwitchCase, error) {
 		return nil, err
 	}
 
-	cons := make([]Node, 0)
+	cons := make([]Node, 0, 3)
 	for {
 		tok := p.lexer.PeekStmtBegin()
 		if tok.value == T_CASE || tok.value == T_DEFAULT || tok.value == T_BRACE_R {
@@ -2318,7 +2320,7 @@ func (p *Parser) forStmt() (Node, error) {
 
 	if await && !isOf {
 		if isIn {
-			return nil, p.errorAt(T_IN, &tok.begin, "")
+			return nil, p.errorAt(T_IN, tok.begin, "")
 		}
 		return nil, p.errorTok(tok)
 	} else if isOf && !await && init.Type() == N_NAME && init.(*Ident).val == "async" {
@@ -2477,7 +2479,7 @@ func (p *Parser) aheadIsAsync(tok *Token, prop bool, pvt bool) bool {
 			ahead.value == T_MUL {
 			return true
 		}
-		_, _, canProp := ahead.CanBePropKey()
+		_, canProp := ahead.CanBePropKey()
 		if prop && (ahead.value == T_BRACKET_L || ahead.value == T_NAME || ahead.value == T_STRING || canProp) {
 			return true
 		}
@@ -2610,7 +2612,7 @@ func (p *Parser) fnDec(expr bool, async *Token, canNameOmitted bool) (Node, erro
 	if err != nil {
 		return nil, err
 	}
-	ti := p.newTypInfo()
+	ti := p.newTypInfo(N_STMT_FN)
 	if ti != nil {
 		ti.SetTypAnnot(typAnnot)
 	}
@@ -2686,7 +2688,7 @@ func (p *Parser) fnDec(expr bool, async *Token, canNameOmitted bool) (Node, erro
 		// this branch means the input is callExpr like:
 		// `async ({a: b = c})` callExpr
 		// `async* ({a: b = c})` binExpr
-		lhs := &Ident{N_NAME, asyncLoc, "async", false, asyncHasEscape, nil, true, p.newTypInfo()}
+		lhs := &Ident{N_NAME, asyncLoc, "async", false, asyncHasEscape, nil, true, p.newTypInfo(N_NAME)}
 
 		var exp Node
 		if generator {
@@ -2704,7 +2706,7 @@ func (p *Parser) fnDec(expr bool, async *Token, canNameOmitted bool) (Node, erro
 			if err := p.checkArgs(args, false, true); err != nil {
 				return nil, err
 			}
-			ti := p.newTypInfo()
+			ti := p.newTypInfo(N_EXPR_CALL)
 			if ti != nil {
 				// typArgs is produced by `argList` in this branch, so it's required
 				// to do a typeParam to typeArg transformation
@@ -2826,7 +2828,7 @@ func (p *Parser) fnDec(expr bool, async *Token, canNameOmitted bool) (Node, erro
 }
 
 func (p *Parser) collectNames(nodes []Node) (names []Node, firstComplicated *Loc, err error) {
-	names = make([]Node, 0)
+	names = make([]Node, 0, 5)
 	var ns []Node
 	for _, param := range nodes {
 		if firstComplicated == nil && param.Type() != N_NAME {
@@ -2879,26 +2881,21 @@ func (p *Parser) checkParams(names []Node, firstComplicated *Loc, isStrict bool,
 
 // `kw` means whether the name of node can be keyword or not
 func (p *Parser) namesInPattern(node Node, kw bool) ([]Node, error) {
-	out := make([]Node, 0)
+	out := make([]Node, 0, 10)
 	if node == nil {
 		return out, nil
 	}
 	switch node.Type() {
-	case N_PAT_ARRAY:
-		elems := node.(*ArrPat).elems
-		for _, node := range elems {
-			names, err := p.namesInPattern(node, false)
-			if err != nil {
-				return nil, err
+	case N_NAME:
+		id := node.(*Ident)
+		if !kw && id.kw {
+			em := ERR_TPL_UNEXPECTED_TOKEN_TYPE
+			if id.Text() == "eval" {
+				em = ERR_TPL_BINDING_RESERVED_WORD
 			}
-			out = append(out, names...)
+			return nil, p.errorAtLoc(node.Loc(), fmt.Sprintf(em, id.Text()))
 		}
-	case N_PAT_ASSIGN:
-		names, err := p.namesInPattern(node.(*AssignPat).lhs, kw)
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, names...)
+		out = append(out, node)
 	case N_PAT_OBJ:
 		props := node.(*ObjPat).props
 		for _, node := range props {
@@ -2917,22 +2914,27 @@ func (p *Parser) namesInPattern(node Node, kw bool) ([]Node, error) {
 			}
 			out = append(out, names...)
 		}
+	case N_PAT_ARRAY:
+		elems := node.(*ArrPat).elems
+		for _, node := range elems {
+			names, err := p.namesInPattern(node, false)
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, names...)
+		}
+	case N_PAT_ASSIGN:
+		names, err := p.namesInPattern(node.(*AssignPat).lhs, kw)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, names...)
 	case N_PAT_REST:
 		names, errLoc := p.namesInPattern(node.(*RestPat).arg, kw)
 		if errLoc != nil {
 			return nil, errLoc
 		}
 		out = append(out, names...)
-	case N_NAME:
-		id := node.(*Ident)
-		if !kw && id.kw {
-			em := ERR_TPL_UNEXPECTED_TOKEN_TYPE
-			if id.Text() == "eval" {
-				em = ERR_TPL_BINDING_RESERVED_WORD
-			}
-			return nil, p.errorAtLoc(node.Loc(), fmt.Sprintf(em, id.Text()))
-		}
-		out = append(out, node)
 	}
 	return out, nil
 }
@@ -2968,10 +2970,8 @@ func (p *Parser) enterStrict(lex bool) *Scope {
 }
 
 func (p *Parser) stmts(terminal TokenValue) ([]Node, error) {
-	stmts := make([]Node, 0)
-	// the index in above `stmts` contains the last
-	// stmt in Directive Prologue
-	prologue := 0
+	stmts := make([]Node, 0, 20)
+	prologue := 0 // the index in above `stmts` contains the last stmt in Directive Prologue
 
 	scope := p.scope()
 	for {
@@ -3129,7 +3129,7 @@ func (p *Parser) varDecStmt(kind TokenValue, asExpr bool) (Node, error) {
 	loc := p.loc()
 	p.lexer.Next()
 
-	node := &VarDecStmt{N_STMT_VAR_DEC, nil, T_ILLEGAL, make([]Node, 0, 1), nil}
+	node := &VarDecStmt{N_STMT_VAR_DEC, nil, T_ILLEGAL, make([]Node, 0, 5), nil}
 
 	isConst := false
 	node.kind = kind
@@ -3145,7 +3145,7 @@ func (p *Parser) varDecStmt(kind TokenValue, asExpr bool) (Node, error) {
 		return p.tsEnum(loc, isConst)
 	}
 
-	lvs := make([]Node, 0)
+	lvs := make([]Node, 0, 5)
 	for {
 		dec, err := p.varDec(bindKind != BK_VAR)
 		if err != nil {
@@ -3286,7 +3286,7 @@ func (p *Parser) identStrict(scope *Scope, forceStrict bool, binding bool) (Node
 		}
 	}
 
-	return &Ident{N_NAME, loc, name, false, tok.ContainsEscape(), nil, tok.IsKw(), p.newTypInfo()}, nil
+	return &Ident{N_NAME, loc, name, false, tok.ContainsEscape(), nil, tok.IsKw(), p.newTypInfo(N_NAME)}, nil
 }
 
 func (p *Parser) ident(scope *Scope, binding bool) (*Ident, error) {
@@ -3329,7 +3329,7 @@ func (p *Parser) roughParam(ctor bool) (Node, error) {
 
 	var name Node
 	if isField {
-		name = &Ident{N_NAME, fieldLoc, fieldName, false, escape, nil, false, p.newTypInfo()}
+		name = &Ident{N_NAME, fieldLoc, fieldName, false, escape, nil, false, p.newTypInfo(N_NAME)}
 	} else {
 		if p.ts && !ctor {
 			if accMod != ACC_MOD_NONE {
@@ -3355,15 +3355,17 @@ func (p *Parser) roughParam(ctor bool) (Node, error) {
 		return nil, err
 	}
 
-	ti := p.newTypInfo()
-	ti.SetTypAnnot(typAnnot)
-	ti.SetAccMod(accMod)
-	ti.SetBeginLoc(beginLoc)
-	ti.SetReadonly(readonlyLoc != nil)
-	ti.SetOverride(overrideLoc != nil)
-	ti.SetDeclare(declareLoc != nil)
-	ti.SetAbstract(abstract != nil)
-	ti.SetQues(ques)
+	ti := p.newTypInfo(N_NAME)
+	if ti != nil {
+		ti.SetTypAnnot(typAnnot)
+		ti.SetAccMod(accMod)
+		ti.SetBeginLoc(beginLoc)
+		ti.SetReadonly(readonlyLoc != nil)
+		ti.SetOverride(overrideLoc != nil)
+		ti.SetDeclare(declareLoc != nil)
+		ti.SetAbstract(abstract != nil)
+		ti.SetQues(ques)
+	}
 
 	var colonLoc *Loc
 	if typAnnot != nil {
@@ -3381,7 +3383,7 @@ func (p *Parser) param(methodKind PropKind) (Node, error) {
 	var binding Node
 	var this bool
 	if isField {
-		binding = &Ident{N_NAME, fieldLoc, fieldName, false, escape, nil, false, p.newTypInfo()}
+		binding = &Ident{N_NAME, fieldLoc, fieldName, false, escape, nil, false, p.newTypInfo(N_NAME)}
 	} else {
 		if p.ts {
 			if accMod != ACC_MOD_NONE {
@@ -3405,10 +3407,10 @@ func (p *Parser) param(methodKind PropKind) (Node, error) {
 		this = p.scope().IsKind(SPK_METHOD) && ahead.value == T_THIS
 		if this {
 			if methodKind == PK_GETTER || methodKind == PK_SETTER {
-				return nil, p.errorAt(ahead.value, &ahead.begin, ERR_GETTER_SETTER_WITH_THIS_PARAM)
+				return nil, p.errorAt(ahead.value, ahead.begin, ERR_GETTER_SETTER_WITH_THIS_PARAM)
 			}
 			loc := p.locFromTok(p.lexer.Next())
-			binding = &Ident{N_NAME, p.finLoc(loc), "this", false, false, nil, true, p.newTypInfo()}
+			binding = &Ident{N_NAME, p.finLoc(loc), "this", false, false, nil, true, p.newTypInfo(N_NAME)}
 		} else {
 			binding, err = p.bindingPattern()
 			if err != nil {
@@ -3461,7 +3463,7 @@ func (p *Parser) param(methodKind PropKind) (Node, error) {
 			loc: p.finLoc(loc),
 			lhs: binding,
 			rhs: value,
-			ti:  p.newTypInfo(),
+			ti:  p.newTypInfo(N_PAT_ASSIGN),
 		}
 		if p.ts {
 			ap.hoistTypInfo()
@@ -3498,7 +3500,7 @@ func (p *Parser) paramList(firstRough bool, methodKind PropKind, typParams bool)
 	}
 	parenLoc := p.locFromTok(parenL)
 
-	params := make([]Node, 0)
+	params := make([]Node, 0, 5)
 	i := 0
 	for {
 		tok := p.lexer.Peek()
@@ -3556,7 +3558,7 @@ func (p *Parser) paramList(firstRough bool, methodKind PropKind, typParams bool)
 				if ahead.value != T_PAREN_R {
 					msg = ERR_REST_ELEM_MUST_LAST
 				}
-				return nil, nil, nil, p.errorAt(tok.value, &tok.begin, msg)
+				return nil, nil, nil, p.errorAt(tok.value, tok.begin, msg)
 			}
 		} else if av != T_PAREN_R {
 			return nil, nil, nil, p.errorTok(ahead)
@@ -3603,7 +3605,7 @@ func (p *Parser) patternObj() (Node, error) {
 	loc := p.loc()
 	p.lexer.Next()
 
-	props := make([]Node, 0, 1)
+	props := make([]Node, 0, 5)
 	for {
 		if p.lexer.Peek().value == T_BRACE_R {
 			p.lexer.Next()
@@ -3624,7 +3626,7 @@ func (p *Parser) patternObj() (Node, error) {
 		tok := p.lexer.Peek()
 		if node.Type() == N_PAT_REST && tok.value != T_BRACE_R {
 			if tok.value == T_COMMA {
-				return nil, p.errorAt(tok.value, &tok.begin, ERR_REST_ELEM_MUST_LAST)
+				return nil, p.errorAt(tok.value, tok.begin, ERR_REST_ELEM_MUST_LAST)
 			}
 			return nil, p.errorTok(tok)
 		}
@@ -3639,7 +3641,7 @@ func (p *Parser) patternObj() (Node, error) {
 			return nil, p.errorTok(tok)
 		}
 	}
-	return &ObjPat{N_PAT_OBJ, p.finLoc(loc), props, nil, p.newTypInfo()}, nil
+	return &ObjPat{N_PAT_OBJ, p.finLoc(loc), props, nil, p.newTypInfo(N_PAT_OBJ)}, nil
 }
 
 func (p *Parser) patternProp() (Node, error) {
@@ -3729,19 +3731,20 @@ func (p *Parser) propName(allowNamePVT bool, maybeMethod bool, tsRough bool) (No
 	var key Node
 	tok := p.lexer.Next()
 	loc := p.locFromTok(tok)
-	keyName, kw, ok := tok.CanBePropKey()
+	kw, ok := tok.CanBePropKey()
+	keyName := tok.Text()
 
 	scope := p.scope()
 	var computeLoc *Loc
 	tv := tok.value
 	if allowNamePVT && tv == T_NAME_PVT {
-		key = &Ident{N_NAME, p.finLoc(loc), tok.Text(), true, tok.ContainsEscape(), nil, false, p.newTypInfo()}
+		key = &Ident{N_NAME, p.finLoc(loc), tok.Text(), true, tok.ContainsEscape(), nil, false, p.newTypInfo(N_NAME)}
 	} else if tv == T_STRING {
 		legacyOctalEscapeSeq := tok.HasLegacyOctalEscapeSeq()
 		if p.scope().IsKind(SPK_STRICT) && legacyOctalEscapeSeq {
 			return nil, nil, p.errorAtLoc(p.locFromTok(tok), ERR_LEGACY_OCTAL_ESCAPE_IN_STRICT_MODE)
 		}
-		key = &StrLit{N_LIT_STR, p.finLoc(loc), tok.Text(), tok.HasLegacyOctalEscapeSeq(), nil, p.newTypInfo()}
+		key = &StrLit{N_LIT_STR, p.finLoc(loc), tok.Text(), tok.HasLegacyOctalEscapeSeq(), nil, p.newTypInfo(N_LIT_STR)}
 	} else if tv == T_NUM {
 		key = &NumLit{N_LIT_NUM, p.finLoc(loc), nil}
 	} else if tv == T_BRACKET_L {
@@ -3767,7 +3770,7 @@ func (p *Parser) propName(allowNamePVT bool, maybeMethod bool, tsRough bool) (No
 				return nil, nil, p.errorAtLoc(loc, fmt.Sprintf(ERR_TPL_FORBIDDEN_LEXICAL_NAME, keyName))
 			}
 		}
-		key = &Ident{N_NAME, p.finLoc(loc), keyName, false, tok.ContainsEscape(), nil, kw, p.newTypInfo()}
+		key = &Ident{N_NAME, p.finLoc(loc), keyName, false, tok.ContainsEscape(), nil, kw, p.newTypInfo(N_NAME)}
 	} else {
 		return nil, nil, p.errorTok(tok)
 	}
@@ -3782,7 +3785,7 @@ func (p *Parser) propName(allowNamePVT bool, maybeMethod bool, tsRough bool) (No
 	loc = loc.Clone()
 	if getter {
 		if tok.ContainsEscape() {
-			return nil, nil, p.errorAt(tok.value, &tok.begin, ERR_ESCAPE_IN_KEYWORD)
+			return nil, nil, p.errorAt(tok.value, tok.begin, ERR_ESCAPE_IN_KEYWORD)
 		}
 		if ahead.value != T_PAREN_L {
 			key = nil
@@ -3805,7 +3808,7 @@ func (p *Parser) patternArr() (Node, error) {
 	loc := p.loc()
 	p.lexer.Next()
 
-	elems := make([]Node, 0, 1)
+	elems := make([]Node, 0, 5)
 	for {
 		elems = append(elems, p.elision()...)
 		if p.lexer.Peek().value == T_BRACKET_R {
@@ -3833,11 +3836,11 @@ func (p *Parser) patternArr() (Node, error) {
 			return nil, p.errorTok(tok)
 		}
 	}
-	return &ArrPat{N_PAT_ARRAY, p.finLoc(loc), elems, nil, p.newTypInfo()}, nil
+	return &ArrPat{N_PAT_ARRAY, p.finLoc(loc), elems, nil, p.newTypInfo(N_PAT_ARRAY)}, nil
 }
 
 func (p *Parser) elision() []Node {
-	ret := make([]Node, 0, 1)
+	ret := make([]Node, 0, 5)
 	for {
 		if p.lexer.Peek().value == T_COMMA {
 			p.lexer.Next()
@@ -3890,7 +3893,7 @@ func (p *Parser) patternAssign(ident Node, asProp bool) (Node, error) {
 	}
 
 	loc := ident.Loc()
-	val := &AssignPat{N_PAT_ASSIGN, p.finLoc(loc.Clone()), ident, init, nil, p.newTypInfo()}
+	val := &AssignPat{N_PAT_ASSIGN, p.finLoc(loc.Clone()), ident, init, nil, p.newTypInfo(N_PAT_ASSIGN)}
 	if !asProp {
 		return val, nil
 	}
@@ -3910,7 +3913,7 @@ func (p *Parser) patternRest(arrPat bool, allowNotLast bool) (Node, error) {
 	av := ahead.value
 	if av != T_NAME && (!arrPat || av != T_BRACKET_L && av != T_BRACE_L) {
 		if av == T_BRACKET_L || av == T_BRACE_L {
-			return nil, p.errorAt(ahead.value, &ahead.begin, ERR_REST_ARG_NOT_BINDING_PATTERN)
+			return nil, p.errorAt(ahead.value, ahead.begin, ERR_REST_ARG_NOT_BINDING_PATTERN)
 		}
 		return nil, p.errorTok(ahead)
 	}
@@ -3930,11 +3933,11 @@ func (p *Parser) patternRest(arrPat bool, allowNotLast bool) (Node, error) {
 	if !allowNotLast && !p.ts {
 		tok = p.lexer.Peek()
 		if tok.value == T_COMMA {
-			return nil, p.errorAt(tok.value, &tok.begin, ERR_REST_ELEM_MUST_LAST)
+			return nil, p.errorAt(tok.value, tok.begin, ERR_REST_ELEM_MUST_LAST)
 		}
 	}
 
-	rest := &RestPat{N_PAT_REST, p.finLoc(loc), arg, nil, p.newTypInfo()}
+	rest := &RestPat{N_PAT_REST, p.finLoc(loc), arg, nil, p.newTypInfo(N_PAT_REST)}
 	if p.ts {
 		rest.hoistTypInfo()
 	}
@@ -3981,7 +3984,7 @@ func (p *Parser) seqExpr(expr Node, notGT bool) (Node, error) {
 	}
 
 	loc := expr.Loc().Clone()
-	exprs := make([]Node, 0)
+	exprs := make([]Node, 0, 5)
 	exprs = append(exprs, expr)
 	for {
 		tok := p.lexer.Peek()
@@ -4017,7 +4020,7 @@ func (p *Parser) yieldExpr() (Node, error) {
 	tok := p.lexer.Next()
 
 	if p.scope().IsKind(SPK_FORMAL_PARAMS) {
-		return nil, p.errorAt(tok.value, &tok.begin, ERR_YIELD_IN_FORMAL_PARAMS)
+		return nil, p.errorAt(tok.value, tok.begin, ERR_YIELD_IN_FORMAL_PARAMS)
 	}
 
 	tok = p.lexer.Peek()
@@ -4098,7 +4101,7 @@ func (p *Parser) assignExpr(checkLhs bool, notGT bool, notHook bool, notColon bo
 		return nil, err
 	}
 
-	node := &AssignExpr{N_EXPR_ASSIGN, p.finLoc(loc), op, opLoc, lhs, rhs, nil, p.newTypInfo()}
+	node := &AssignExpr{N_EXPR_ASSIGN, p.finLoc(loc), op, opLoc, lhs, rhs, nil, p.newTypInfo(N_EXPR_ASSIGN)}
 	return node, nil
 }
 
@@ -4219,18 +4222,18 @@ func (p *Parser) awaitExpr(tok *Token) (Node, error) {
 			if ahead.value == T_PAREN_R || ahead.value == T_COMMA {
 				return nil, p.errorAtLoc(loc, fmt.Sprintf(ERR_TPL_BINDING_RESERVED_WORD, "await"))
 			} else if !scope.IsKind(SPK_ASYNC) {
-				return nil, p.errorAt(tok.value, &tok.begin, ERR_AWAIT_OUTSIDE_ASYNC)
+				return nil, p.errorAt(tok.value, tok.begin, ERR_AWAIT_OUTSIDE_ASYNC)
 			}
 			return nil, p.errorTok(ahead)
 		}
-		return &Ident{N_NAME, p.finLoc(loc), "await", false, tok.ContainsEscape(), nil, true, p.newTypInfo()}, nil
+		return &Ident{N_NAME, p.finLoc(loc), "await", false, tok.ContainsEscape(), nil, true, p.newTypInfo(N_NAME)}, nil
 	}
 
 	if scope.IsKind(SPK_FORMAL_PARAMS) {
-		return nil, p.errorAt(tok.value, &tok.begin, ERR_AWAIT_IN_FORMAL_PARAMS)
+		return nil, p.errorAt(tok.value, tok.begin, ERR_AWAIT_IN_FORMAL_PARAMS)
 	}
 	if !scope.IsKind(SPK_ASYNC) {
-		return nil, p.errorAt(tok.value, &tok.begin, ERR_AWAIT_OUTSIDE_ASYNC)
+		return nil, p.errorAt(tok.value, tok.begin, ERR_AWAIT_OUTSIDE_ASYNC)
 	}
 
 	arg, err := p.unaryExpr(nil, nil, false)
@@ -4417,7 +4420,7 @@ func (p *Parser) newExpr() (Node, error) {
 	scope := p.scope()
 	tok := p.lexer.Peek()
 	if tok.value == T_DOT && p.feat&FEAT_META_PROPERTY != 0 {
-		meta := &Ident{N_NAME, p.finLoc(p.locFromTok(new)), "new", false, new.ContainsEscape(), nil, true, p.newTypInfo()}
+		meta := &Ident{N_NAME, p.finLoc(p.locFromTok(new)), "new", false, new.ContainsEscape(), nil, true, p.newTypInfo(N_NAME)}
 		p.lexer.Next() // consume dot
 
 		id, err := p.ident(nil, false)
@@ -4451,7 +4454,7 @@ func (p *Parser) newExpr() (Node, error) {
 
 	var args []Node
 	var typArgs Node
-	ti := p.newTypInfo()
+	ti := p.newTypInfo(N_EXPR_NEW)
 	ahead := p.lexer.Peek()
 	if p.aheadIsArgList(ahead) {
 		p.pushState()
@@ -4632,7 +4635,7 @@ func (p *Parser) callExpr(callee Node, root bool, directOpt bool, opt *Loc, notC
 				return callee, nil, nil
 			}
 
-			ti := p.newTypInfo()
+			ti := p.newTypInfo(N_EXPR_CALL)
 			if ti != nil {
 				if err = p.tsCheckTypArgs(typArgs); err != nil {
 					return nil, nil, err
@@ -4689,7 +4692,7 @@ func (p *Parser) importCall(tok *Token) (Node, error) {
 	}
 	loc := p.locFromTok(tok)
 
-	meta := &Ident{N_NAME, p.finLoc(p.locFromTok(tok)), tok.Text(), false, tok.ContainsEscape(), nil, false, p.newTypInfo()}
+	meta := &Ident{N_NAME, p.finLoc(p.locFromTok(tok)), tok.Text(), false, tok.ContainsEscape(), nil, false, p.newTypInfo(N_NAME)}
 
 	ahead := p.lexer.Peek()
 	if ahead.value == T_DOT && p.feat&FEAT_META_PROPERTY != 0 {
@@ -4752,7 +4755,7 @@ func (p *Parser) tplExpr(tag Node, ts bool) (Node, error) {
 	}
 
 	var loc *Loc
-	elems := make([]Node, 0)
+	elems := make([]Node, 0, 5)
 	for {
 		tok := p.lexer.Peek()
 		if loc == nil {
@@ -4772,9 +4775,9 @@ func (p *Parser) tplExpr(tag Node, ts bool) (Node, error) {
 
 			loc := &Loc{
 				src:   ext.strRng.Src,
-				begin: ext.strBegin.Clone(),
-				end:   ext.strEnd.Clone(),
-				rng:   &Range{ext.strRng.Lo, ext.strRng.Hi},
+				begin: ext.strBegin,
+				end:   ext.strEnd,
+				rng:   Range{ext.strRng.Lo, ext.strRng.Hi},
 			}
 			p.lexer.Next()
 			str := &StrLit{N_LIT_STR, loc, cooked, false, nil, nil}
@@ -5009,7 +5012,7 @@ func (p *Parser) argToParam(arg Node, depth int, prop bool, destruct bool, inPar
 				loc: n.loc,
 				lhs: n.key,
 				rhs: n.value,
-				ti:  p.newTypInfo(),
+				ti:  p.newTypInfo(N_PAT_ASSIGN),
 			}
 		}
 		return n, nil
@@ -5360,7 +5363,7 @@ func (p *Parser) argList(check bool, incall bool, asyncLoc *Loc, noJsx bool) ([]
 	p.lexer.Next()
 
 	var tailingComma *Loc
-	args := make([]Node, 0)
+	args := make([]Node, 0, 5)
 	for {
 		tok := p.lexer.Peek()
 		if tok.value == T_PAREN_R {
@@ -5386,7 +5389,7 @@ func (p *Parser) argList(check bool, incall bool, asyncLoc *Loc, noJsx bool) ([]
 				if ahead.value != T_PAREN_R {
 					msg = ERR_REST_ELEM_MUST_LAST
 				}
-				return nil, tailingComma, nil, nil, p.errorAt(tok.value, &tok.begin, msg)
+				return nil, tailingComma, nil, nil, p.errorAt(tok.value, tok.begin, msg)
 			}
 			if tailingComma == nil && ahead.value == T_PAREN_R {
 				tailingComma = p.locFromTok(tok)
@@ -5629,12 +5632,12 @@ func (p *Parser) memberExprPropDot(obj Node, opt bool) (Node, error) {
 	loc := p.loc()
 	tok := p.lexer.Next()
 	tv := tok.value
-	_, kw, ok := tok.CanBePropKey()
+	kw, ok := tok.CanBePropKey()
 
 	var prop Node
 	if (ok && tv != T_NUM) || tv == T_NAME_PVT {
 		pvt := tv == T_NAME_PVT
-		id := &Ident{N_NAME, p.finLoc(loc), tok.Text(), pvt, tok.ContainsEscape(), nil, kw, p.newTypInfo()}
+		id := &Ident{N_NAME, p.finLoc(loc), tok.Text(), pvt, tok.ContainsEscape(), nil, kw, p.newTypInfo(N_NAME)}
 		if pvt {
 			scope := p.scope().UpperCls()
 			if scope == nil {
@@ -5657,13 +5660,14 @@ func (p *Parser) memberExprPropDot(obj Node, opt bool) (Node, error) {
 
 func (p *Parser) primaryExpr(notColon bool) (Node, error) {
 	tok := p.lexer.Peek()
-	loc := p.locFromTok(tok)
 
 	switch tok.value {
 	case T_NUM:
+		loc := p.locFromTok(tok)
 		p.lexer.Next()
 		return &NumLit{N_LIT_NUM, p.finLoc(loc), nil}, nil
 	case T_STRING:
+		loc := p.locFromTok(tok)
 		p.lexer.Next()
 		legacyOctalEscapeSeq := tok.HasLegacyOctalEscapeSeq()
 		if p.scope().IsKind(SPK_STRICT) && legacyOctalEscapeSeq {
@@ -5671,15 +5675,18 @@ func (p *Parser) primaryExpr(notColon bool) (Node, error) {
 		}
 		return &StrLit{N_LIT_STR, p.finLoc(loc), tok.Text(), legacyOctalEscapeSeq, nil, nil}, nil
 	case T_NULL:
+		loc := p.locFromTok(tok)
 		p.lexer.Next()
 		return &NullLit{N_LIT_NULL, p.finLoc(loc), nil, nil}, nil
 	case T_TRUE, T_FALSE:
+		loc := p.locFromTok(tok)
 		p.lexer.Next()
 		return &BoolLit{N_LIT_BOOL, p.finLoc(loc), tok.Text() == "true", nil, nil}, nil
 	case T_NAME:
+		loc := p.locFromTok(tok)
 		if p.aheadIsAsync(tok, false, false) {
 			if tok.ContainsEscape() {
-				return nil, p.errorAt(tok.value, &tok.begin, ERR_ESCAPE_IN_KEYWORD)
+				return nil, p.errorAt(tok.value, tok.begin, ERR_ESCAPE_IN_KEYWORD)
 			}
 			return p.fnDec(true, tok, false)
 		}
@@ -5702,8 +5709,9 @@ func (p *Parser) primaryExpr(notColon bool) (Node, error) {
 			return nil, p.errorAtLoc(p.finLoc(loc), fmt.Sprintf(ERR_TPL_UNEXPECTED_TOKEN_TYPE, name))
 		}
 		kw := p.isProhibitedName(nil, name, true, false, false, false)
-		return &Ident{N_NAME, p.finLoc(loc), name, false, tok.ContainsEscape(), nil, kw, p.newTypInfo()}, nil
+		return &Ident{N_NAME, p.finLoc(loc), name, false, tok.ContainsEscape(), nil, kw, p.newTypInfo(N_NAME)}, nil
 	case T_THIS:
+		loc := p.locFromTok(tok)
 		p.lexer.Next()
 		return &ThisExpr{N_EXPR_THIS, p.finLoc(loc), nil, nil}, nil
 	case T_PAREN_L:
@@ -5715,12 +5723,14 @@ func (p *Parser) primaryExpr(notColon bool) (Node, error) {
 	case T_FUNC:
 		return p.fnDec(true, nil, false)
 	case T_REGEXP:
+		loc := p.locFromTok(tok)
 		p.lexer.Next()
 		ext := tok.ext.(*TokExtRegexp)
 		return &RegLit{N_LIT_REGEXP, p.finLoc(loc), tok.Text(), ext.Pattern(), ext.Flags(), nil, nil}, nil
 	case T_CLASS:
 		return p.classDec(true, false, false, false)
 	case T_SUPER:
+		loc := p.locFromTok(tok)
 		scope := p.scope()
 		sup := p.lexer.Next()
 
@@ -5798,7 +5808,7 @@ func (p *Parser) arrowFn(loc *Loc, args []Node, params []Node, ti *TypInfo) (Nod
 		if err != nil {
 			return nil, err
 		}
-		ti = p.newTypInfo()
+		ti = p.newTypInfo(N_EXPR_ARROW)
 		if ti != nil {
 			ti.SetTypAnnot(typAnnot)
 		}
@@ -5876,7 +5886,7 @@ func (p *Parser) parenExpr(typArgs Node, notColon bool) (Node, error) {
 		}
 	}
 
-	ti := p.newTypInfo()
+	ti := p.newTypInfo(N_EXPR_PAREN)
 	if ti != nil {
 		ti.SetTypAnnot(typAnnot)
 		ti.SetTypArgs(typArgs)
@@ -5903,7 +5913,7 @@ func (p *Parser) parenExpr(typArgs Node, notColon bool) (Node, error) {
 
 	argsLen := len(args)
 	if argsLen == 0 {
-		return nil, p.errorAt(p.lexer.state.prtVal, &p.lexer.state.prtBegin, "")
+		return nil, p.errorAt(p.lexer.state.prtVal, p.lexer.state.prtBegin, "")
 	}
 
 	if err := p.checkArgs(args, false, true); err != nil {
@@ -5925,7 +5935,7 @@ func (p *Parser) parenExpr(typArgs Node, notColon bool) (Node, error) {
 	seqLoc := args[0].Loc().Clone()
 	end := args[argsLen-1].Loc()
 	seqLoc.rng.end = end.rng.end
-	seqLoc.end = end.end.Clone()
+	seqLoc.end = end.end
 	seq := &SeqExpr{N_EXPR_SEQ, seqLoc, args, nil}
 	pe := &ParenExpr{N_EXPR_PAREN, p.finLoc(loc), seq, nil}
 	if ti == nil {
@@ -5955,7 +5965,7 @@ func (p *Parser) arrLit() (Node, error) {
 	loc := p.loc()
 	p.lexer.Next()
 
-	elems := make([]Node, 0, 1)
+	elems := make([]Node, 0, 5)
 	for {
 		elems = append(elems, p.elision()...)
 		if p.lexer.Peek().value == T_BRACKET_R {
@@ -5983,7 +5993,7 @@ func (p *Parser) arrLit() (Node, error) {
 			return nil, p.errorTok(tok)
 		}
 	}
-	return &ArrLit{N_LIT_ARR, p.finLoc(loc), elems, nil, p.newTypInfo()}, nil
+	return &ArrLit{N_LIT_ARR, p.finLoc(loc), elems, nil, p.newTypInfo(N_LIT_ARR)}, nil
 }
 
 func (p *Parser) arrElem() (Node, error) {
@@ -6030,7 +6040,7 @@ func (p *Parser) objLit() (Node, error) {
 	loc := p.loc()
 	p.lexer.Next()
 
-	props := make([]Node, 0, 1)
+	props := make([]Node, 0, 5)
 	p.checkName = false
 	for {
 		tok := p.lexer.Peek()
@@ -6057,7 +6067,7 @@ func (p *Parser) objLit() (Node, error) {
 		}
 	}
 	p.checkName = true
-	return &ObjLit{N_LIT_OBJ, p.finLoc(loc), props, nil, p.newTypInfo()}, nil
+	return &ObjLit{N_LIT_OBJ, p.finLoc(loc), props, nil, p.newTypInfo(N_LIT_OBJ)}, nil
 }
 
 func (p *Parser) objProp() (Node, error) {
@@ -6073,7 +6083,7 @@ func (p *Parser) objProp() (Node, error) {
 		return p.method(nil, nil, ACC_MOD_NONE, nil, false, PK_INIT, true, false, false, false, false, nil, false, false, false, nil)
 	} else if p.aheadIsAsync(tok, true, false) {
 		if tok.ContainsEscape() {
-			return nil, p.errorAt(tok.value, &tok.begin, ERR_ESCAPE_IN_KEYWORD)
+			return nil, p.errorAt(tok.value, tok.begin, ERR_ESCAPE_IN_KEYWORD)
 		}
 		return p.method(nil, nil, ACC_MOD_NONE, nil, false, PK_INIT, false, true, false, false, false, nil, false, false, false, nil)
 	}
@@ -6108,7 +6118,7 @@ func (p *Parser) propData() (Node, error) {
 	} else if p.aheadIsArgList(tok) {
 		return p.method(loc, key, ACC_MOD_NONE, compute, false, PK_INIT, false, false, false, false, false, nil, false, false, false, nil)
 	} else if compute != nil {
-		return nil, p.errorAt(tok.value, &tok.begin, ERR_COMPUTE_PROP_MISSING_INIT)
+		return nil, p.errorAt(tok.value, tok.begin, ERR_COMPUTE_PROP_MISSING_INIT)
 	}
 
 	shorthand := assign
@@ -6160,7 +6170,7 @@ func (p *Parser) method(loc *Loc, key Node, accMode ACC_MOD, compute *Loc, short
 
 	var err error
 	if ti == nil {
-		ti = p.newTypInfo()
+		ti = p.newTypInfo(N_METHOD)
 	}
 	if key == nil {
 		if inclass {
@@ -6323,7 +6333,7 @@ func (p *Parser) method(loc *Loc, key Node, accMode ACC_MOD, compute *Loc, short
 				}
 			}
 		} else {
-			return nil, p.errorAt(ahead.value, &ahead.begin, ERR_UNEXPECTED_TOKEN)
+			return nil, p.errorAt(ahead.value, ahead.begin, ERR_UNEXPECTED_TOKEN)
 		}
 	} else if err = p.tsIsFnImplValid(key); err != nil {
 		return nil, err
@@ -6337,6 +6347,7 @@ func (p *Parser) method(loc *Loc, key Node, accMode ACC_MOD, compute *Loc, short
 		var ds []Node
 		if len(p.hangingDecorators) > 0 {
 			ds = p.hangingDecorators
+			loc = ds[0].Loc().Clone()
 			p.hangingDecorators = nil
 			ti.decorators = ds
 		}
@@ -6363,7 +6374,7 @@ func (p *Parser) decorator() (Node, error) {
 }
 
 func (p *Parser) decorators() ([]Node, error) {
-	ds := make([]Node, 0, 1)
+	ds := make([]Node, 0, 5)
 	for {
 		d, err := p.decorator()
 		if err != nil {
@@ -6412,7 +6423,7 @@ func (p *Parser) isExprOpening(raise bool) (*Token, error) {
 				errMsg = msg.Error()
 			}
 		}
-		return nil, p.errorAt(tok.value, &tok.begin, errMsg)
+		return nil, p.errorAt(tok.value, tok.begin, errMsg)
 	}
 	return tok, nil
 }
@@ -6443,7 +6454,7 @@ func (p *Parser) nextMustName(name string, canContainsEscape bool) (*Token, erro
 		return nil, p.errorTok(tok)
 	}
 	if !canContainsEscape && tok.ContainsEscape() {
-		return nil, p.errorAt(tok.value, &tok.begin, ERR_ESCAPE_IN_KEYWORD)
+		return nil, p.errorAt(tok.value, tok.begin, ERR_ESCAPE_IN_KEYWORD)
 	}
 	return tok, nil
 }
@@ -6476,9 +6487,9 @@ func (p *Parser) loc() *Loc {
 func (p *Parser) locFromTok(tok *Token) *Loc {
 	return &Loc{
 		src:   tok.raw.Src,
-		begin: tok.begin.Clone(),
-		end:   tok.end.Clone(),
-		rng:   &Range{tok.raw.Lo, tok.raw.Hi},
+		begin: tok.begin,
+		end:   tok.end,
+		rng:   Range{tok.raw.Lo, tok.raw.Hi},
 	}
 }
 
@@ -6494,7 +6505,7 @@ func (p *Parser) errorTok(tok *Token) *ParserError {
 	return newParserError(tok.ErrMsg(), p.lexer.src.Path, tok.begin.Line, tok.begin.Col)
 }
 
-func (p *Parser) errorAt(tok TokenValue, pos *span.Pos, errMsg string) *ParserError {
+func (p *Parser) errorAt(tok TokenValue, pos span.Pos, errMsg string) *ParserError {
 	if tok != T_ILLEGAL && errMsg == "" {
 		return newParserError(fmt.Sprintf(ERR_TPL_UNEXPECTED_TOKEN_TYPE, TokenKinds[tok].Name),
 			p.lexer.src.Path, pos.Line, pos.Col)

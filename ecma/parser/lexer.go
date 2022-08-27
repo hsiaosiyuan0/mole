@@ -8,6 +8,7 @@ import (
 	"unicode/utf8"
 
 	span "github.com/hsiaosiyuan0/mole/span"
+	"github.com/hsiaosiyuan0/mole/util"
 )
 
 type LexerModeKind int
@@ -140,13 +141,13 @@ type Lexer struct {
 
 	lastCmtLine uint32
 	lastCmtCol  uint32
-	comments    map[uint32]map[uint32]*span.Range // line => col => range
+	comments    map[uint32]map[uint32]span.Range // line => col => range
 
 	// aggregate all the comments met by the lexer process,
 	// caller can take this content to use as the prev comments
 	// of the stmt then reset the slice, the later comments will
 	// be collected again
-	prevCmts []*span.Range
+	prevCmts []span.Range
 
 	state LexerState
 	ss    []LexerState // state stack
@@ -168,7 +169,7 @@ func NewLexer(src *span.Source) *Lexer {
 		src:         src,
 		state:       newLexerState(),
 		ss:          make([]LexerState, 0),
-		comments:    make(map[uint32]map[uint32]*span.Range),
+		comments:    make(map[uint32]map[uint32]span.Range),
 		maybeLshPos: map[uint64]bool{},
 		lshPos:      map[uint64]bool{},
 	}
@@ -271,8 +272,8 @@ func (l *Lexer) PrevTok() TokenValue {
 	return l.state.prtVal
 }
 
-func (l *Lexer) PrevTokBegin() *span.Pos {
-	return &l.state.prtBegin
+func (l *Lexer) PrevTokBegin() span.Pos {
+	return l.state.prtBegin
 }
 
 func (l *Lexer) PushState() {
@@ -332,9 +333,9 @@ func (l *Lexer) IsMode(mode LexerModeKind) bool {
 	return l.CurMode().kind&mode > 0
 }
 
-func (l *Lexer) takePrevCmts() []*span.Range {
+func (l *Lexer) takePrevCmts() []span.Range {
 	cmts := l.prevCmts
-	l.prevCmts = []*span.Range{}
+	l.prevCmts = []span.Range{}
 	return cmts
 }
 
@@ -433,17 +434,17 @@ func (l *Lexer) readTokWithComment() *Token {
 	return l.readJSXTxt()
 }
 
-func (l *Lexer) Comments() map[uint32]map[uint32]*span.Range {
+func (l *Lexer) Comments() map[uint32]map[uint32]span.Range {
 	return l.comments
 }
 
-func (l *Lexer) lastComment() *span.Range {
+func (l *Lexer) lastComment() span.Range {
 	line := l.comments[l.lastCmtLine]
 	if line == nil {
-		return nil
+		return span.InvalidRange
 	}
 	if len(line) == 0 {
-		return nil
+		return span.InvalidRange
 	}
 	return line[l.lastCmtCol]
 }
@@ -452,10 +453,11 @@ func (l *Lexer) appendCmt(tok *Token) {
 	l.lastCmtLine = tok.begin.Line
 	line := l.comments[tok.begin.Line]
 	if line == nil {
-		line = make(map[uint32]*span.Range, 0)
+		line = make(map[uint32]span.Range, 1)
 		l.comments[tok.begin.Line] = line
 	}
-	line[tok.begin.Col] = tok.raw.Clone()
+
+	line[tok.begin.Col] = tok.raw
 	l.lastCmtCol = tok.begin.Col
 }
 
@@ -470,7 +472,7 @@ func (l *Lexer) lexTok() *Token {
 			}
 			return tok
 		}
-		l.prevCmts = append(l.prevCmts, tok.raw.Clone())
+		l.prevCmts = append(l.prevCmts, tok.raw)
 		l.appendCmt(tok)
 		prt = tok.value
 		prtExt = tok.ext // indicates whether the comment is multiline or not
@@ -561,9 +563,9 @@ func (l *Lexer) readTplSpan() *Token {
 	return span
 }
 
-func (l *Lexer) readTplChs() (text []rune, fin bool, line, col, ofst, pos uint32,
+func (l *Lexer) readTplChs() (text []byte, fin bool, line, col, ofst, pos uint32,
 	err string, legacyOctalEscapeSeq bool, errEscape string, errEscapeLine, errEscapeCol uint32) {
-	text = make([]rune, 0, 10)
+	text = make([]byte, 0, 10)
 	for {
 		line = l.src.Line()
 		col = l.src.Col()
@@ -578,7 +580,7 @@ func (l *Lexer) readTplChs() (text []rune, fin bool, line, col, ofst, pos uint32
 				l.PushMode(LM_TEMPLATE, true)
 				break
 			}
-			text = append(text, c)
+			text = utf8.AppendRune(text, c)
 		} else if c == '\\' {
 			l.src.Read()
 			nc := l.src.Peek()
@@ -616,7 +618,7 @@ func (l *Lexer) readTplChs() (text []rune, fin bool, line, col, ofst, pos uint32
 				err = ERR_UNTERMINATED_TPL
 				return
 			}
-			text = append(text, r)
+			text = utf8.AppendRune(text, r)
 		} else if c == utf8.RuneError {
 			errEscape = ERR_BAD_RUNE
 		} else if c == span.EOF {
@@ -627,7 +629,7 @@ func (l *Lexer) readTplChs() (text []rune, fin bool, line, col, ofst, pos uint32
 			fin = true
 			break
 		} else {
-			text = append(text, l.src.Read())
+			text = utf8.AppendRune(text, l.src.Read())
 		}
 	}
 	return
@@ -637,12 +639,16 @@ func (l *Lexer) readTplChs() (text []rune, fin bool, line, col, ofst, pos uint32
 func (l *Lexer) readName(jsx bool) *Token {
 	tok := l.newToken()
 
-	runes := make([]rune, 0, 10)
 	r, escapeInStart, err := l.readIdStart()
 	if r == utf8.RuneError || err != "" {
 		return l.errToken(tok, err)
 	}
-	runes = append(runes, r)
+
+	var byt []byte
+	if escapeInStart {
+		byt = make([]byte, 0, 20)
+		byt = utf8.AppendRune(byt, r)
+	}
 
 	col := l.src.Col()
 	idPart, escapeInPart, err := l.readIdPart(jsx)
@@ -650,11 +656,25 @@ func (l *Lexer) readName(jsx bool) *Token {
 		tok.begin.Col = col
 		return l.errToken(tok, err)
 	}
-	runes = append(runes, idPart...)
-	text := string(runes)
+
+	if escapeInPart && byt == nil {
+		byt = make([]byte, 0, 20)
+		byt = utf8.AppendRune(byt, r)
+	}
+	if byt != nil {
+		byt = append(byt, idPart...)
+	}
 
 	containsEscape := escapeInStart || escapeInPart
 	tok.ext = &TokExtIdent{containsEscape}
+
+	if containsEscape {
+		tok.text = util.Bytes2str(&byt)
+	} else {
+		tok.raw.Hi = l.src.Ofst() // for getting the substring of the tok in source code
+	}
+
+	text := tok.Text()
 	if IsKeyword(text) {
 		if containsEscape {
 			return l.errToken(tok, ERR_ESCAPE_IN_KEYWORD)
@@ -670,8 +690,6 @@ func (l *Lexer) readName(jsx bool) *Token {
 			return l.finToken(tok, T_AWAIT)
 		}
 	}
-
-	tok.text = text
 	return l.finToken(tok, T_NAME)
 }
 
@@ -1086,7 +1104,7 @@ func (l *Lexer) readRegexp(tok *Token) *Token {
 	flags := l.src.NewOpenRange()
 	i := 0
 	var err string
-	var fs []rune
+	var fs []byte
 	if l.aheadIsIdPart(false) {
 		col := l.src.Col()
 		fs, _, err = l.readIdPart(false)
@@ -1099,14 +1117,14 @@ func (l *Lexer) readRegexp(tok *Token) *Token {
 
 	if l.feat&FEAT_CHK_REGEXP_FLAGS != 0 {
 		for _, f := range fs {
-			if !l.isLegalFlag(f) {
+			if !l.isLegalFlag(rune(f)) {
 				return l.errToken(tok, ERR_INVALID_REGEXP_FLAG)
 			}
 		}
 	}
 
 	if i == 0 {
-		flags = nil
+		flags = span.InvalidRange
 	} else {
 		flags.Hi = l.src.Ofst()
 	}
@@ -1139,16 +1157,28 @@ func (l *Lexer) IsLineTerminator(c rune) bool {
 func (l *Lexer) readStr() *Token {
 	tok := l.newToken()
 	open := l.src.Read()
-	text := make([]rune, 0, 10)
+
+	tok.txt.Lo = l.src.Ofst()
 	legacyOctalEscapeSeq := false
 
+	var buf []byte
+	start := tok.txt.Lo
 	for {
 		c := l.src.Read()
 		if c == span.EOF {
 			return l.errToken(tok, ERR_UNTERMINATED_STR)
 		} else if c == '\\' {
+			ofst := l.src.Ofst() - 1
 			nc := l.src.Peek()
 			if span.IsLineTerminator(nc) {
+				if buf == nil {
+					// copy the byte before the lineTerm if it's the first occurrence
+					if ofst != start {
+						buf = []byte(l.src.Text(start, ofst))
+					} else {
+						buf = make([]byte, 0, 20)
+					}
+				}
 				l.readLineTerm() // LineContinuation
 			} else {
 				line := l.src.Line()
@@ -1167,37 +1197,57 @@ func (l *Lexer) readStr() *Token {
 				if r == span.EOF {
 					return l.errToken(tok, ERR_UNTERMINATED_STR)
 				}
-				text = append(text, r)
+
+				if buf == nil {
+					// copy the byte before the escape if it's the first occurrence
+					if ofst != start {
+						buf = []byte(l.src.Text(start, ofst))
+					} else {
+						buf = make([]byte, 0, 20)
+					}
+				}
+
+				buf = utf8.AppendRune(buf, r)
 			}
 		} else if l.IsLineTerminator(c) {
 			return l.errToken(tok, ERR_UNTERMINATED_STR)
 		} else if c == open {
+			tok.txt.Hi = l.src.Ofst() - 1
 			break
 		} else {
-			text = append(text, c)
+			if buf != nil {
+				buf = utf8.AppendRune(buf, c)
+			}
 		}
 	}
-	tok.text = string(text)
+
+	if buf != nil {
+		tok.text = util.Bytes2str(&buf)
+	}
+
 	tok.ext = &TokExtStr{open, legacyOctalEscapeSeq}
 	return l.finToken(tok, T_STRING)
+}
+
+func (l *Lexer) newRng() *span.Range {
+	return &span.Range{Src: l.src, Lo: 0, Hi: 0}
 }
 
 func (l *Lexer) readJsxStr() *Token {
 	tok := l.newToken()
 	open := l.src.Read()
-	text := make([]rune, 0, 10)
 
+	tok.txt.Lo = l.src.Ofst()
 	for {
 		c := l.src.Read()
 		if c == span.EOF {
 			return l.errToken(tok, ERR_UNTERMINATED_STR)
 		} else if c == open {
+			tok.txt.Hi = l.src.Ofst() - 1
 			break
-		} else {
-			text = append(text, c)
 		}
 	}
-	tok.text = string(text)
+
 	tok.ext = &TokExtStr{open, false}
 	return l.finToken(tok, T_STRING)
 }
@@ -1585,8 +1635,8 @@ func (l *Lexer) readIdStart() (r rune, containsEscape bool, errMsg string) {
 	return l.readUnicodeEscape(c, true)
 }
 
-func (l *Lexer) readIdPart(jsx bool) (rs []rune, containsEscape bool, errMsg string) {
-	runes := make([]rune, 0, 10)
+func (l *Lexer) readIdPart(jsx bool) (rs []byte, containsEscape bool, errMsg string) {
+	rs = make([]byte, 0, 10)
 	for {
 		c := l.src.Peek()
 		if IsIdStart(c) || IsIdPart(c) || (jsx && c == '-') {
@@ -1596,15 +1646,16 @@ func (l *Lexer) readIdPart(jsx bool) (rs []rune, containsEscape bool, errMsg str
 			}
 			if err != "" {
 				return nil, escape, err
-			} else if c == '\\' {
+			}
+			if c == '\\' {
 				return nil, escape, ERR_EXPECTING_UNICODE_ESCAPE
 			}
-			runes = append(runes, c)
+			rs = utf8.AppendRune(rs, c)
 		} else {
 			break
 		}
 	}
-	return runes, containsEscape, ""
+	return rs, containsEscape, ""
 }
 
 func (l *Lexer) readUnicodeEscape(c rune, id bool) (r rune, containsEscape bool, errMsg string) {
@@ -1688,10 +1739,10 @@ func (l *Lexer) readJSXTxt() *Token {
 		tok.raw.Lo = prevWs.raw.Lo
 	}
 
-	rs := make([]rune, 0)
+	rs := make([]byte, 0)
 
 	i := 0
-	entity := make([]rune, 0, MaxHTMLEntityName)
+	entity := make([]byte, 0, MaxHTMLEntityName)
 
 	// loc of the first `&`
 	var ampLine, ampCol uint32
@@ -1714,11 +1765,11 @@ func (l *Lexer) readJSXTxt() *Token {
 			l.src.Read()
 
 			i += 1
-			entity = append(entity, c)
+			entity = utf8.AppendRune(entity, c)
 			if c == ';' {
 				key := string(entity[0:i])
 				if ed, ok := HTMLEntities[key]; ok {
-					rs = append(rs, ed.CodePoints...)
+					rs = append(rs, ed.Bytes...)
 				} else {
 					tok.begin.Line = ampLine
 					tok.begin.Col = ampCol
@@ -1727,11 +1778,11 @@ func (l *Lexer) readJSXTxt() *Token {
 				i = 0
 			}
 		} else {
-			rs = append(rs, l.src.Read())
+			rs = utf8.AppendRune(rs, l.src.Read())
 		}
 	}
 
-	tok.ext = preWs + string(rs)
+	tok.ext = preWs + util.Bytes2str(&rs)
 	return l.finToken(tok, T_JSX_TXT)
 }
 
@@ -1778,6 +1829,7 @@ func (l *Lexer) newToken() *Token {
 	tok.value = T_ILLEGAL
 	tok.text = ""
 	l.src.OpenRange(&tok.raw)
+	l.src.OpenRange(&tok.txt)
 
 	line := l.src.Line()
 	col := l.src.Col()

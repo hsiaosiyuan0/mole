@@ -25,51 +25,44 @@ type Range struct {
 	end   uint32
 }
 
-func (r *Range) Start() uint32 {
+func (r Range) Start() uint32 {
 	return r.start
 }
 
-func (r *Range) End() uint32 {
+func (r Range) End() uint32 {
 	return r.end
 }
 
-func (r *Range) SetStart(n uint32) {
+func (r Range) SetStart(n uint32) {
 	r.start = n
 }
 
-func (r *Range) SetEnd(n uint32) {
+func (r Range) SetEnd(n uint32) {
 	r.end = n
-}
-
-func (r *Range) Clone() *Range {
-	return &Range{
-		start: r.start,
-		end:   r.end,
-	}
 }
 
 type Loc struct {
 	src   *span.Source
-	begin *span.Pos
-	end   *span.Pos
-	rng   *Range
+	begin span.Pos
+	end   span.Pos
+	rng   Range
 }
 
 func NewLoc() *Loc {
 	return &Loc{
 		src:   nil,
-		begin: &span.Pos{},
-		end:   &span.Pos{},
-		rng:   &Range{},
+		begin: span.Pos{},
+		end:   span.Pos{},
+		rng:   Range{},
 	}
 }
 
 func NewLocFromSpan(start, end Node) *Loc {
 	return &Loc{
 		src:   start.Loc().src,
-		begin: start.Loc().begin.Clone(),
-		end:   end.Loc().end.Clone(),
-		rng: &Range{
+		begin: start.Loc().begin,
+		end:   end.Loc().end,
+		rng: Range{
 			start: start.Loc().rng.start,
 			end:   end.Loc().rng.end,
 		},
@@ -80,28 +73,28 @@ func (l *Loc) Source() string {
 	return l.src.Path
 }
 
-func (l *Loc) Begin() *span.Pos {
+func (l *Loc) Begin() span.Pos {
 	return l.begin
 }
 
-func (l *Loc) SetBegin(begin *span.Pos) {
+func (l *Loc) SetBegin(begin span.Pos) {
 	l.begin = begin
 }
 
-func (l *Loc) End() *span.Pos {
+func (l *Loc) End() span.Pos {
 	return l.end
 }
 
-func (l *Loc) Range() *Range {
+func (l *Loc) Range() Range {
 	return l.rng
 }
 
 func (l *Loc) Clone() *Loc {
 	return &Loc{
 		src:   l.src,
-		begin: l.begin.Clone(),
-		end:   l.end.Clone(),
-		rng:   l.rng.Clone(),
+		begin: l.begin,
+		end:   l.end,
+		rng:   l.rng,
 	}
 }
 
@@ -1206,7 +1199,7 @@ func (n *TplExpr) LocWithTag() *Loc {
 	loc := n.loc.Clone()
 	if n.tag != nil {
 		tl := n.tag.Loc()
-		loc.begin = tl.begin.Clone()
+		loc.begin = tl.begin
 		loc.rng.start = tl.rng.start
 	}
 	return loc

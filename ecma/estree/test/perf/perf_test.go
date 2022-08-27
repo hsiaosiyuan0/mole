@@ -14,7 +14,8 @@ import (
 
 func compileToESTree(code string, toEstree bool) error {
 	s := span.NewSource("", code)
-	p := parser.NewParser(s, parser.NewParserOpts())
+	opts := parser.NewParserOpts()
+	p := parser.NewParser(s, opts)
 	ast, err := p.Prog()
 	if err != nil {
 		return err
@@ -27,7 +28,7 @@ func compileToESTree(code string, toEstree bool) error {
 }
 
 func BenchmarkParsingToESTree(t *testing.B) {
-	libs := []struct {
+	libs := []*struct {
 		name string
 		code string
 	}{
@@ -61,7 +62,7 @@ func BenchmarkParsingToESTree(t *testing.B) {
 }
 
 func BenchmarkParsing(t *testing.B) {
-	libs := []struct {
+	libs := []*struct {
 		name string
 		code string
 	}{

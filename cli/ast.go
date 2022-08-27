@@ -5,13 +5,17 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/hsiaosiyuan0/mole/ecma/estree"
 	"github.com/hsiaosiyuan0/mole/ecma/parser"
 	"github.com/hsiaosiyuan0/mole/span"
+
+	_runtime "runtime/pprof"
 )
 
 type AstInspector struct {
@@ -33,7 +37,7 @@ func (a *AstInspector) Process(opts *Options) bool {
 	}
 
 	if opts.ast && strings.HasSuffix(opts.file, ".js") {
-		printJsAst(string(src), opts.file)
+		printJsAst(string(src), opts.file, opts.perf)
 	}
 
 	return true
@@ -47,11 +51,38 @@ func assembleOutFile(file string, tag string) string {
 	return filepath.Join(dir, nf)
 }
 
-func printJsAst(src, file string) (string, error) {
+func printJsAst(src, file string, perf bool) (string, error) {
 	opts := parser.NewParserOpts()
 	s := span.NewSource("", src)
 	p := parser.NewParser(s, opts)
-	ast, err := p.Prog()
+
+	var ast parser.Node
+	var err error
+	if perf {
+		cpuProf, err := os.Create("cpu.prof")
+		if err != nil {
+			return "", err
+		}
+		defer cpuProf.Close()
+
+		heap, err := os.Create("heap.out")
+		if err != nil {
+			return "", err
+		}
+		defer cpuProf.Close()
+
+		_runtime.StartCPUProfile(cpuProf)
+		ast, err = p.Prog()
+		_runtime.StopCPUProfile()
+		_runtime.WriteHeapProfile(heap)
+
+	} else {
+		start := time.Now()
+		ast, err = p.Prog()
+		elapsed := time.Since(start)
+		fmt.Printf("Parsed in %dμs\n", elapsed.Microseconds())
+	}
+
 	if err != nil {
 		return "", err
 	}
@@ -64,7 +95,6 @@ func printJsAst(src, file string) (string, error) {
 	json.Indent(&out, b, "", "  ")
 
 	output := out.String()
-	fmt.Println(output)
 
 	outFile := assembleOutFile(file, "_ast")
 	ioutil.WriteFile(outFile, out.Bytes(), 0644)

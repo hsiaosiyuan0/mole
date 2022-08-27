@@ -4,13 +4,16 @@ import "github.com/hsiaosiyuan0/mole/span"
 
 type Token struct {
 	value TokenValue
-	text  string
-	raw   span.Range
+
 	begin span.Pos
 	end   span.Pos
 
-	// len of the codepoints in token. during the token is processing,
-	// it will store the begin pos of that token
+	raw  span.Range // range encapsulates the whole stuffs, for string the quotes are included
+	txt  span.Range // range encapsulates the contents, for string the quotes are excluded
+	text string     // the in-place cache to avoid copy the source string more than once
+
+	// len of the codepoints in token. it may also store the
+	// begin pos of that token during the token is processing
 	len uint32
 
 	// whether the token is after a line terminator or not
@@ -52,18 +55,18 @@ func (t *Token) IsKw() bool {
 		v == T_DELETE || v == T_IN || v == T_INSTANCE_OF
 }
 
-func (t *Token) CanBePropKey() (string, bool, bool) {
+func (t *Token) CanBePropKey() (bool, bool) {
 	v := t.value
 	if v == T_NAME {
-		return t.text, false, true
+		return false, true
 	}
 	if v == T_NUM {
-		return t.raw.Text(), false, true
+		return false, true
 	}
 	if t.IsKw() {
-		return TokenKinds[v].Name, true, true
+		return true, true
 	}
-	return "", false, false
+	return false, false
 }
 
 func (t *Token) IsLegal() bool {
@@ -75,13 +78,20 @@ func (t *Token) RawText() string {
 }
 
 func (t *Token) Text() string {
-	if t.text != "" || t.value == T_STRING {
+	if t.text != "" {
 		return t.text
 	}
-	if name, _, ok := t.CanBePropKey(); ok {
-		return name
+
+	if t.IsKw() {
+		return TokenKinds[t.value].Name
 	}
-	return t.RawText()
+
+	if !t.txt.Empty() && t.value != T_ILLEGAL {
+		t.text = t.txt.Text()
+	} else {
+		t.text = t.raw.Text()
+	}
+	return t.text
 }
 
 func (t *Token) IsBin(notIn bool, ts bool) TokenValue {
@@ -174,19 +184,19 @@ type TokExtTplSpan struct {
 }
 
 type TokExtRegexp struct {
-	pattern *span.Range
-	flags   *span.Range
+	pattern span.Range
+	flags   span.Range
 }
 
 func (t *TokExtRegexp) Pattern() string {
-	if t.pattern == nil {
+	if t.pattern == span.InvalidRange {
 		return ""
 	}
 	return t.pattern.Text()
 }
 
 func (t *TokExtRegexp) Flags() string {
-	if t.flags == nil {
+	if t.flags == span.InvalidRange {
 		return ""
 	}
 	return t.flags.Text()

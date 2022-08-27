@@ -10,9 +10,9 @@ type Position struct {
 }
 
 type SrcLoc struct {
-	Source string    `json:"source"`
-	Start  *Position `json:"start"`
-	End    *Position `json:"end"`
+	Source string   `json:"source"`
+	Start  Position `json:"start"`
+	End    Position `json:"end"`
 }
 
 // https://github.com/estree/estree/blob/master/es5.md#programs

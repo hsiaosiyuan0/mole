@@ -37,8 +37,8 @@ var errTypArgMissingGT = &ErrTypArgMissingGT{}
 // indicates the current position should be re-entered as `jsx`. produced in `tsTypArgs`
 var errTypArgMaybeJsx = errors.New("maybe jsx")
 
-func (p *Parser) newTypInfo() *TypInfo {
-	if p.ts || p.feat&FEAT_DECORATOR != 0 {
+func (p *Parser) newTypInfo(typ NodeType) *TypInfo {
+	if p.ts || (p.feat&FEAT_DECORATOR != 0 && (typ == N_STMT_CLASS || typ == N_METHOD)) {
 		return NewTypInfo()
 	}
 	return nil
@@ -314,7 +314,7 @@ func (p *Parser) tsRoughParamToParam(node Node) (Node, error) {
 	switch n.Type() {
 	case N_TS_ANY, N_TS_NUM, N_TS_BOOL, N_TS_STR, N_TS_SYM:
 		d := n.(*TsPredef)
-		ti := p.newTypInfo()
+		ti := p.newTypInfo(N_TS_ANY)
 		ti.SetQues(d.ques)
 		return &Ident{N_NAME, d.loc, d.loc.Text(), false, false, nil, false, ti}, nil
 	case N_TS_VOID:
@@ -334,7 +334,7 @@ func (p *Parser) tsRoughParamToParam(node Node) (Node, error) {
 				return nil, err
 			}
 		}
-		return &ObjPat{N_PAT_OBJ, o.loc, props, nil, p.newTypInfo()}, nil
+		return &ObjPat{N_PAT_OBJ, o.loc, props, nil, p.newTypInfo(N_PAT_OBJ)}, nil
 	case N_TS_PROP:
 		pn := n.(*TsProp)
 		if pn.computeLoc != nil {
@@ -366,12 +366,12 @@ func (p *Parser) tsRoughParamToParam(node Node) (Node, error) {
 				return nil, err
 			}
 		}
-		return &ArrPat{N_PAT_ARRAY, t.loc, elems, nil, p.newTypInfo()}, nil
+		return &ArrPat{N_PAT_ARRAY, t.loc, elems, nil, p.newTypInfo(N_PAT_ARRAY)}, nil
 	case N_TS_PAREN:
 		return nil, p.errorAtLoc(n.Loc(), ERR_UNEXPECTED_TOKEN)
 	case N_TS_THIS:
 		t := n.(*TsThis)
-		return &Ident{N_NAME, t.loc, t.loc.Text(), false, false, nil, true, p.newTypInfo()}, nil
+		return &Ident{N_NAME, t.loc, t.loc.Text(), false, false, nil, true, p.newTypInfo(N_NAME)}, nil
 	case N_TS_NS_NAME:
 		s := n.(*TsNsName)
 		return nil, p.errorAtLoc(s.dot, ERR_UNEXPECTED_TOKEN)
@@ -399,7 +399,7 @@ func (p *Parser) tsRoughParamToParam(node Node) (Node, error) {
 		if name.Type() != N_NAME {
 			return nil, p.errorAtLoc(name.Loc(), ERR_UNEXPECTED_TOKEN)
 		}
-		return &RestPat{N_PAT_REST, n.loc, n.arg, nil, p.newTypInfo()}, nil
+		return &RestPat{N_PAT_REST, n.loc, n.arg, nil, p.newTypInfo(N_PAT_REST)}, nil
 	}
 	return node, nil
 }
@@ -705,7 +705,7 @@ func (p *Parser) tsToBeTupleLabel(node Node) Node {
 		}
 	}
 	if pd, ok := node.(*TsPredef); ok {
-		return &Ident{N_NAME, pd.loc, pd.loc.Text(), false, false, nil, true, p.newTypInfo()}
+		return &Ident{N_NAME, pd.loc, pd.loc.Text(), false, false, nil, true, p.newTypInfo(N_NAME)}
 	}
 	return nil
 }
@@ -851,7 +851,7 @@ func (p *Parser) tsPredefOrRef(tok *Token) (Node, error) {
 	}
 
 	if name == "intrinsic" && !p.scope().IsKind(SPK_TS_MAY_INTRINSIC) {
-		node = &Ident{N_NAME, node.Loc(), "intrinsic", false, tok.ContainsEscape(), nil, tok.IsKw(), p.newTypInfo()}
+		node = &Ident{N_NAME, node.Loc(), "intrinsic", false, tok.ContainsEscape(), nil, tok.IsKw(), p.newTypInfo(N_NAME)}
 	} else if typ, ok := builtinTyp[name]; ok {
 		// predef
 		if p.lexer.Peek().value != T_DOT {
@@ -1040,10 +1040,10 @@ func (p *Parser) tsImport() (Node, error) {
 	}
 	tok, err := p.nextMustTok(T_STRING)
 	if err != nil {
-		return nil, p.errorAt(tok.value, &tok.begin, ERR_IMPORT_ARG_SHOULD_BE_STR)
+		return nil, p.errorAt(tok.value, tok.begin, ERR_IMPORT_ARG_SHOULD_BE_STR)
 	}
 	strLoc := p.locFromTok(tok)
-	arg := &StrLit{N_LIT_STR, p.finLoc(strLoc), tok.Text(), tok.HasLegacyOctalEscapeSeq(), nil, p.newTypInfo()}
+	arg := &StrLit{N_LIT_STR, p.finLoc(strLoc), tok.Text(), tok.HasLegacyOctalEscapeSeq(), nil, p.newTypInfo(N_LIT_STR)}
 	if _, err := p.nextMustTok(T_PAREN_R); err != nil {
 		return nil, err
 	}
@@ -1317,7 +1317,7 @@ func (p *Parser) tsPropReadonly(ahead *Token) *Loc {
 		p.lexer.Next()
 		return loc
 	}
-	if _, _, ok := ahead2nd.CanBePropKey(); ok {
+	if _, ok := ahead2nd.CanBePropKey(); ok {
 		return loc
 	}
 	return nil
@@ -1499,9 +1499,10 @@ func (p *Parser) tsPropName() (Node, error) {
 	case T_NAME:
 		return p.ident(nil, false)
 	}
-	if keyName, kw, ok := tok.CanBePropKey(); ok {
+	if kw, ok := tok.CanBePropKey(); ok {
+		keyName := tok.Text()
 		p.lexer.Next()
-		return &Ident{N_NAME, p.finLoc(loc), keyName, false, tok.ContainsEscape(), nil, kw, p.newTypInfo()}, nil
+		return &Ident{N_NAME, p.finLoc(loc), keyName, false, tok.ContainsEscape(), nil, kw, p.newTypInfo(N_NAME)}, nil
 	}
 	return nil, p.errorTok(tok)
 }
@@ -1651,7 +1652,7 @@ func (p *Parser) tsTryTypArgs(asyncLoc *Loc, noJsx bool) (Node, error) {
 // for avoiding lookbehind the process should accept the input as seqExpr then try to
 // transform the subtree of seqExpr to typArgs if its followed by `>`
 func (p *Parser) tsTryTypArgsAfterAsync(asyncLoc *Loc) (Node, error) {
-	name := &Ident{N_NAME, asyncLoc, asyncLoc.Text(), false, false, nil, true, p.newTypInfo()}
+	name := &Ident{N_NAME, asyncLoc, asyncLoc.Text(), false, false, nil, true, p.newTypInfo(N_NAME)}
 	binExpr, err := p.binExpr(name, 0, false, false, true, false)
 	if err != nil {
 		return nil, err
@@ -1873,7 +1874,7 @@ func (p *Parser) tsTypDec(loc *Loc, skipDec bool) (Node, error) {
 		return nil, err
 	}
 
-	ti := p.newTypInfo()
+	ti := p.newTypInfo(N_TS_TYP_DEC)
 	if skipDec {
 		return name, nil
 	}
@@ -2280,7 +2281,7 @@ func (p *Parser) tsModDec() (*TsDec, error) {
 		str = true
 		name = &StrLit{N_LIT_STR, p.finLoc(p.locFromTok(tok)), tok.Text(), tok.HasLegacyOctalEscapeSeq(), nil, nil}
 	} else if global {
-		name = &Ident{N_NAME, p.finLoc(loc.Clone()), "global", false, false, nil, true, p.newTypInfo()}
+		name = &Ident{N_NAME, p.finLoc(loc.Clone()), "global", false, false, nil, true, p.newTypInfo(N_NAME)}
 	} else {
 		name, err = p.identStrict(nil, false, false)
 		if err != nil {
@@ -2338,9 +2339,9 @@ func (p *Parser) tsDec() (Node, error) {
 		}
 	} else if p.aheadIsAsync(tok, false, false) {
 		if tok.ContainsEscape() {
-			return nil, p.errorAt(tv, &tok.begin, ERR_ESCAPE_IN_KEYWORD)
+			return nil, p.errorAt(tv, tok.begin, ERR_ESCAPE_IN_KEYWORD)
 		}
-		return nil, p.errorAt(tv, &tok.begin, ERR_ASYNC_IN_AMBIENT)
+		return nil, p.errorAt(tv, tok.begin, ERR_ASYNC_IN_AMBIENT)
 	} else if tv == T_CLASS {
 		dec.inner, err = p.classDec(false, false, true, false)
 		typ = N_TS_DEC_CLASS
@@ -2369,7 +2370,7 @@ func (p *Parser) tsDec() (Node, error) {
 		dec.inner, err = p.classDec(false, false, true, true)
 		typ = N_TS_DEC_CLASS
 	} else {
-		return nil, p.errorAt(tok.value, &tok.begin, ERR_EXPORT_DECLARE_MISSING_DECLARATION)
+		return nil, p.errorAt(tok.value, tok.begin, ERR_EXPORT_DECLARE_MISSING_DECLARATION)
 	}
 
 	if err != nil {
@@ -2436,7 +2437,7 @@ func (p *Parser) tsAheadIsAbstract(tok *Token, prop bool, pvt bool, new bool) (b
 			av == T_MUL {
 			return true, av == T_INTERFACE, av == T_NEW
 		}
-		_, _, canProp := ahead.CanBePropKey()
+		_, canProp := ahead.CanBePropKey()
 		if prop && (av == T_BRACKET_L || av == T_NAME || av == T_STRING || canProp) {
 			return true, false, false
 		}

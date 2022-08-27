@@ -395,7 +395,7 @@ console.log(a == b); /* 6 */
 
 	ctx := NewWalkCtx(ast, symtab)
 
-	cmts := []*span.Range{}
+	cmts := []span.Range{}
 	for nt := range StmtNodeTypes {
 		AddNodeBeforeListener(&ctx.Listeners, nt, &Listener{
 			Id: "BeforeListener",

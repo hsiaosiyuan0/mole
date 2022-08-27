@@ -16,7 +16,7 @@ import (
 type Unit interface {
 	Lang() string
 	Config() *Config
-	HasCommentInSpan(*span.Pos, *span.Pos) bool
+	HasCommentInSpan(span.Pos, span.Pos) bool
 	Report(*Diagnosis)
 }
 
@@ -71,7 +71,7 @@ func (u *JsUnit) Report(dig *Diagnosis) {
 	u.linter.report(dig)
 }
 
-func (u *JsUnit) HasCommentInSpan(begin, end *span.Pos) bool {
+func (u *JsUnit) HasCommentInSpan(begin, end span.Pos) bool {
 	lexer := u.parser.Lexer()
 	cmts := lexer.Comments()
 
@@ -163,7 +163,7 @@ func (u *JsUnit) parseCmtPrefix(c string) (string, []string) {
 	return p, rules
 }
 
-func (u *JsUnit) parseCmt(cs *span.Range) *CmtCmd {
+func (u *JsUnit) parseCmt(cs span.Range) *CmtCmd {
 	cmt := cs.Text()
 	if strings.HasPrefix(cmt, "/*") {
 		cmt = regexp.MustCompile(`^/\*\s*|\s*\*/`).ReplaceAllString(cmt, "")
@@ -197,7 +197,7 @@ func (u *JsUnit) parseCmt(cs *span.Range) *CmtCmd {
 	return nil
 }
 
-func (u *JsUnit) handCmt(c *span.Range) {
+func (u *JsUnit) handCmt(c span.Range) {
 	cmd := u.parseCmt(c)
 	if cmd == nil {
 		return

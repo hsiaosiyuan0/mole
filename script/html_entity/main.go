@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"text/template"
+	"unicode/utf8"
 
 	"github.com/hsiaosiyuan0/mole/util"
 )
@@ -67,6 +68,14 @@ func main() {
 		if _, ok := entities[cs]; ok {
 			continue
 		}
+
+		cps := val["codepoints"].([]interface{})
+		var byt []byte
+		for _, cp := range cps {
+			byt = utf8.AppendRune(byt, rune(cp.(float64)))
+		}
+		val["bytes"] = byt
+
 		entities[key] = val
 
 		qk := strconv.Quote(cs)
@@ -83,13 +92,18 @@ package parser
 type HTMLEntity struct {
 	Name       string
 	CodePoints []rune
+  Bytes      []byte
 }
 
 var MaxHTMLEntityName int = {{ .MaxKeyLen }}
 
 var HTMLEntities = map[string]HTMLEntity{
   {{- range $key, $value := .Entities }}
-  "{{ $key }}": {"{{ $key }}", []rune{ {{ range $v := $value.codepoints }} {{ $v }}, {{ end }} }},
+  "{{ $key }}": {
+    "{{ $key }}",
+    []rune{ {{ range $v := $value.codepoints }} {{ $v }}, {{ end }} },
+    []byte{ {{ range $v := $value.bytes }} {{ $v }}, {{ end }} },
+  },
   {{- end }}
 }
 

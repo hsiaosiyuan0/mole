@@ -9,3 +9,6 @@ lint.exe
 *.so
 /test.go
 /.vscode/launch.json
+cpu.out
+mem.out
+trace.out

@@ -5,6 +5,7 @@ import (
 	"strings"
 	"unicode"
 	"unicode/utf8"
+	"unsafe"
 )
 
 // remove comments in json, for keeping the loc of error is meaningful, the comments
@@ -131,4 +132,10 @@ func RemoveJsonComments(str string) ([]byte, error) {
 		pr = r
 	}
 	return []byte(sb.String()), nil
+}
+
+// cast `[]byte` to string by zero-copy, caller should to ensure
+// the `b` will NOT be changed in the subsequent processes
+func Bytes2str(b *[]byte) string {
+	return *(*string)(unsafe.Pointer(b))
 }

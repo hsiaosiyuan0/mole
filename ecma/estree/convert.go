@@ -5,8 +5,8 @@ import (
 	"github.com/hsiaosiyuan0/mole/span"
 )
 
-func pos(p *span.Pos) *Position {
-	return &Position{Line: int(p.Line), Column: int(p.Col)}
+func pos(p span.Pos) Position {
+	return Position{Line: int(p.Line), Column: int(p.Col)}
 }
 
 func loc(s *parser.Loc) *SrcLoc {
@@ -334,7 +334,7 @@ func LocWithDecorator(node parser.Node, ds []parser.Node) *parser.Loc {
 	}
 	loc := node.Loc().Clone()
 	d := ds[0]
-	loc.SetBegin(d.Loc().Begin().Clone())
+	loc.SetBegin(d.Loc().Begin())
 	loc.Range().SetStart(d.Loc().Range().Start())
 	return loc
 }

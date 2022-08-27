@@ -1,6 +1,7 @@
 package span
 
 import (
+	"math"
 	"unicode"
 	"unicode/utf8"
 )
@@ -153,7 +154,7 @@ func (s *Source) Read() rune {
 		r = EOL
 		s.state.line += 1
 		s.state.col = 0
-	} else {
+	} else if r != EOF {
 		s.state.col += 1
 	}
 	return r
@@ -202,19 +203,18 @@ func (s *Source) MetLineTerm() bool {
 	return s.state.metLineTerm
 }
 
-func (s *Source) NewOpenRange() *Range {
-	return &Range{
+func (s *Source) NewOpenRange() Range {
+	return Range{
 		Src: s,
 		Lo:  s.Ofst(),
 		Hi:  s.Ofst(),
 	}
 }
 
-func (s *Source) OpenRange(rng *Range) *Range {
+func (s *Source) OpenRange(rng *Range) {
 	rng.Src = s
 	rng.Lo = s.Ofst()
-	rng.Hi = s.Ofst()
-	return rng
+	rng.Hi = math.MaxUint32
 }
 
 func (s *Source) SkipSpace() *Source {
@@ -243,26 +243,17 @@ type Range struct {
 	Hi  uint32
 }
 
-func (r *Range) Text() string {
-	return r.Src.code[r.Lo:r.Hi]
+var InvalidRange = Range{}
+
+func (r Range) Empty() bool {
+	return r.Hi == math.MaxUint32
 }
 
-func (r *Range) Clone() *Range {
-	return &Range{
-		Src: r.Src,
-		Lo:  r.Lo,
-		Hi:  r.Hi,
-	}
+func (r Range) Text() string {
+	return r.Src.Text(r.Lo, r.Hi)
 }
 
 type Pos struct {
 	Line uint32
 	Col  uint32
-}
-
-func (p *Pos) Clone() *Pos {
-	return &Pos{
-		Line: p.Line,
-		Col:  p.Col,
-	}
 }

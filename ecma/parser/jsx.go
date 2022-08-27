@@ -13,7 +13,7 @@ func (p *Parser) jsxMember(obj Node, path string) (Node, string, error) {
 				return nil, "", err
 			}
 			path = path + "." + prop.Text()
-			obj = &JsxMember{N_JSX_MEMBER, p.finLoc(obj.Loc().Clone()), obj, prop, p.newTypInfo()}
+			obj = &JsxMember{N_JSX_MEMBER, p.finLoc(obj.Loc().Clone()), obj, prop, p.newTypInfo(N_JSX_MEMBER)}
 		} else {
 			break
 		}
@@ -41,7 +41,7 @@ func (p *Parser) jsxId() (Node, string, error) {
 	}
 
 	t := tok.Text()
-	return &JsxIdent{N_JSX_ID, p.finLoc(loc), t, nil, p.newTypInfo()}, t, nil
+	return &JsxIdent{N_JSX_ID, p.finLoc(loc), t, nil, p.newTypInfo(N_JSX_ID)}, t, nil
 }
 
 func (p *Parser) jsxName() (Node, string, error) {
@@ -262,8 +262,8 @@ func (p *Parser) jsxWsTxt() Node {
 
 	loc := p.loc()
 	prevWs := &p.lexer.state.prevWs
-	loc.begin = prevWs.begin.Clone()
-	loc.end = prevWs.end.Clone()
+	loc.begin = prevWs.begin
+	loc.end = prevWs.end
 	loc.rng.start = prevWs.raw.Lo
 	loc.rng.end = prevWs.raw.Hi
 	prevWs.len = 0
@@ -281,7 +281,7 @@ func (p *Parser) jsx(root bool, opening bool) (Node, error) {
 	ahead := p.lexer.Peek()
 	if ahead.value == T_DIV {
 		if !opening {
-			return nil, p.errorAt(ahead.value, &ahead.begin, ERR_UNEXPECTED_TOKEN)
+			return nil, p.errorAt(ahead.value, ahead.begin, ERR_UNEXPECTED_TOKEN)
 		}
 		return p.jsxClose(loc)
 	}
@@ -372,7 +372,7 @@ func (p *Parser) jsx(root bool, opening bool) (Node, error) {
 	// however if we combined the `is root` condition with is `is LI` then we can report the error `ERR_JSX_ADJACENT_ELEM_SHOULD_BE_WRAPPED`
 	// correctly since the root jsx element must stand alone
 	if ahead.value == T_LT && root {
-		return nil, p.errorAt(ahead.value, &ahead.begin, ERR_JSX_ADJACENT_ELEM_SHOULD_BE_WRAPPED)
+		return nil, p.errorAt(ahead.value, ahead.begin, ERR_JSX_ADJACENT_ELEM_SHOULD_BE_WRAPPED)
 	}
 	return &JsxElem{N_JSX_ELEM, p.finLoc(open.Loc().Clone()), open, close, children}, nil
 }
