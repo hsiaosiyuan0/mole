@@ -11,7 +11,7 @@ import (
 )
 
 func TestParseDep(t *testing.T) {
-	deps, err := parseDep("", `
+	deps, _, _, err := parseDep("", `
   require('a.js')
 `, nil, nil, nil, false)
 	if err != nil {
@@ -22,7 +22,7 @@ func TestParseDep(t *testing.T) {
 }
 
 func TestParseDepRebound(t *testing.T) {
-	deps, err := parseDep("", `
+	deps, _, _, err := parseDep("", `
   require = a
   require('a.js')
 `, nil, nil, nil, false)
@@ -34,7 +34,7 @@ func TestParseDepRebound(t *testing.T) {
 }
 
 func TestParseDepValShadow(t *testing.T) {
-	deps, err := parseDep("", `
+	deps, _, _, err := parseDep("", `
 function f() {
   var require = a
   require('a.js')
@@ -48,7 +48,7 @@ function f() {
 }
 
 func TestParseDepAfterValShadow(t *testing.T) {
-	deps, err := parseDep("", `
+	deps, _, _, err := parseDep("", `
 function f() {
   var require = a
   require('a.js')
@@ -63,7 +63,7 @@ require('a.js')
 }
 
 func TestParseDepImport(t *testing.T) {
-	deps, err := parseDep("", `
+	deps, _, _, err := parseDep("", `
 import('a.js')
 `, nil, nil, nil, false)
 	if err != nil {
@@ -82,7 +82,7 @@ func TestParseCondImport1(t *testing.T) {
 		},
 	}
 
-	deps, err := parseDep("", `
+	deps, _, _, err := parseDep("", `
 if (process.env.NODE_ENV === 'production') {
   // DCE check should happen before ReactDOM bundle executes so that
   // DevTools can report bad minification during injection.
@@ -109,7 +109,7 @@ func TestParseCondImport2(t *testing.T) {
 		},
 	}
 
-	deps, err := parseDep("", `
+	deps, _, _, err := parseDep("", `
 if (process.env.NODE_ENV === 'production') {
   // DCE check should happen before ReactDOM bundle executes so that
   // DevTools can report bad minification during injection.

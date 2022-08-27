@@ -121,7 +121,10 @@ type JsModule struct {
 	outlets     []*Relation
 	outletsLock sync.Mutex
 
-	iptStk []*ImportFrame
+	stk []*ImportFrame
+
+	parseTime int64
+	walkTime  int64
 }
 
 func (m *JsModule) setId(id int64) {
@@ -233,35 +236,47 @@ func (m *JsModule) Outlets() []*Relation {
 }
 
 func (m *JsModule) setImportStk(s []*ImportFrame) {
-	m.iptStk = s
+	m.stk = s
 }
 
 func (m *JsModule) ImportStk() []*ImportFrame {
-	return m.iptStk
+	return m.stk
+}
+
+func (m *JsModule) setParseTime(t int64) {
+	m.parseTime = t
+}
+
+func (m *JsModule) setWalkTime(t int64) {
+	m.walkTime = t
 }
 
 func (m *JsModule) MarshalJSON() ([]byte, error) {
 	return json.Marshal(&struct {
-		ID       int64       `json:"id"`
-		Name     string      `json:"name"`
-		Version  string      `json:"version"`
-		File     string      `json:"file"`
-		Size     int64       `json:"size"`
-		Strict   bool        `json:"strict"`
-		Entry    bool        `json:"entry"`
-		Umbrella int64       `json:"umbrella"`
-		Inlets   []*Relation `json:"inlets"`
-		Outlets  []*Relation `json:"outlets"`
+		ID        int64       `json:"id"`
+		Name      string      `json:"name"`
+		Version   string      `json:"version"`
+		File      string      `json:"file"`
+		Size      int64       `json:"size"`
+		Strict    bool        `json:"strict"`
+		Entry     bool        `json:"entry"`
+		Umbrella  int64       `json:"umbrella"`
+		Inlets    []*Relation `json:"inlets"`
+		Outlets   []*Relation `json:"outlets"`
+		ParseTime int64       `json:"parseTime"`
+		WalkTime  int64       `json:"walkTime"`
 	}{
-		ID:       m.id,
-		Name:     m.name,
-		Version:  m.version,
-		File:     m.file,
-		Size:     m.size,
-		Strict:   m.strict,
-		Entry:    m.entry,
-		Umbrella: m.umbrella,
-		Inlets:   m.inlets,
-		Outlets:  m.outlets,
+		ID:        m.id,
+		Name:      m.name,
+		Version:   m.version,
+		File:      m.file,
+		Size:      m.size,
+		Strict:    m.strict,
+		Entry:     m.entry,
+		Umbrella:  m.umbrella,
+		Inlets:    m.inlets,
+		Outlets:   m.outlets,
+		ParseTime: m.parseTime,
+		WalkTime:  m.walkTime,
 	})
 }

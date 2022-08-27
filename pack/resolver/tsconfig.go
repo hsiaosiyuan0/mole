@@ -1,4 +1,4 @@
-package pack
+package resolver
 
 import (
 	"encoding/json"
@@ -35,11 +35,10 @@ type TsConfig struct {
 }
 
 func fixRelativePath(thePath, dir string) string {
-	if path.IsAbs(thePath) {
-		return filepath.Join(pathSplit(thePath)...)
+	if filepath.IsAbs(thePath) {
+		return thePath
 	}
-	parts := pathSplit(thePath)
-	return filepath.Join(append([]string{dir}, parts...)...)
+	return filepath.Join(dir, thePath)
 }
 
 func fixRelativePaths(thePath interface{}, dir string) interface{} {
@@ -108,6 +107,11 @@ func NewTsConfig(dir string, file string) (*TsConfig, error) {
 	cd := dir
 
 	// load the base config
+
+	fileLoader := NewFileLoader(2048, 128)
+	pkgLoader := NewPjsonLoader(fileLoader)
+	r := NewModResolver(true, nil, nil, DefaultJsExts, nil, "", nil, pkgLoader)
+
 	for cc["extends"] != nil {
 		extFile := cc["extends"].(string)
 		delete(cc, "extends")
@@ -115,15 +119,17 @@ func NewTsConfig(dir string, file string) (*TsConfig, error) {
 		if strings.HasPrefix(extFile, ".") || strings.HasPrefix(extFile, "/") {
 			extFile = filepath.Join(cd, extFile)
 		} else {
-			fileLoader := NewFileLoader(1024, 10)
-			pkgLoader := NewPkginfoLoader(fileLoader)
-			r := NewNodeResolver(nil, nil, nil, nil, pkgLoader, true, nil)
 
-			files, _, err := r.Resolve(extFile, cd)
+			t, err := r.NewTask(extFile, cd, nil, nil)
 			if err != nil {
 				return nil, err
 			}
-			extFile = files[0]
+
+			rd, err := t.Resolve()
+			if err != nil {
+				return nil, err
+			}
+			extFile = rd.File
 		}
 
 		cd = filepath.Dir(extFile)
@@ -158,18 +164,17 @@ func NewTsConfig(dir string, file string) (*TsConfig, error) {
 
 	bu := c.CompilerOptions.BaseUrl
 	if bu != "" && !path.IsAbs(bu) {
-		u := pathSplit(bu)
-		c.CompilerOptions.BaseUrl = filepath.Join(dir, filepath.Join(u...))
+		c.CompilerOptions.BaseUrl = filepath.Join(dir, bu)
+	}
+
+	c.pathMaps, err = NewPathMaps(c.CompilerOptions.BaseUrl, c.CompilerOptions.Paths)
+	if err != nil {
+		return nil, err
 	}
 
 	return c, nil
 }
 
-func (c *TsConfig) PathMaps() (*PathMaps, error) {
-	if c.pathMaps != nil {
-		return c.pathMaps, nil
-	}
-	var err error
-	c.pathMaps, err = NewPathMaps(c.CompilerOptions.BaseUrl, c.CompilerOptions.Paths)
-	return c.pathMaps, err
+func (c *TsConfig) PathMaps() *PathMaps {
+	return c.pathMaps
 }

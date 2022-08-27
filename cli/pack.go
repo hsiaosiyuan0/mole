@@ -10,6 +10,7 @@ import (
 
 	"github.com/hsiaosiyuan0/mole/ecma/parser"
 	"github.com/hsiaosiyuan0/mole/pack"
+	"github.com/hsiaosiyuan0/mole/pack/resolver"
 	"github.com/hsiaosiyuan0/mole/util"
 )
 
@@ -181,7 +182,8 @@ func (a *PkgAnalysis) Process(opts *Options) bool {
 		switch e := err.(type) {
 		case *parser.ParserError, *parser.LexerError:
 			res.ParserErrors = append(res.ParserErrors, e)
-		case *pack.NoModErr:
+		case *resolver.NoModErr, *resolver.FileExtErr,
+			*resolver.InvalidPkgCfgErr, *resolver.InvalidSpecifierErr:
 			res.ResolveErrors = append(res.ResolveErrors, e)
 		case *pack.FileReqTimeoutErr:
 			res.TimeoutErrors = append(res.TimeoutErrors, e)

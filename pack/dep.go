@@ -15,6 +15,7 @@ import (
 	"github.com/hsiaosiyuan0/mole/ecma/astutil"
 	"github.com/hsiaosiyuan0/mole/ecma/parser"
 	"github.com/hsiaosiyuan0/mole/ecma/walk"
+	"github.com/hsiaosiyuan0/mole/pack/resolver"
 	"github.com/hsiaosiyuan0/mole/span"
 	"github.com/hsiaosiyuan0/mole/util"
 )
@@ -52,7 +53,7 @@ type DepScannerOpts struct {
 	concurrent int
 	unitFacts  map[string]DepUnitFact
 
-	TsConfig   *TsConfig
+	TsConfig   *resolver.TsConfig
 	Ts         bool
 	ParserOpts map[string]interface{}
 }
@@ -71,9 +72,9 @@ func NewDepScannerOpts() *DepScannerOpts {
 
 func (s *DepScannerOpts) ResolveBuiltin() {
 	if s.target == TGT_NODE {
-		s.Builtin = nodeBuiltin
+		s.Builtin = resolver.NodeBuiltin
 	} else if s.target == TGT_RN {
-		s.Builtin = rnBuiltin
+		s.Builtin = resolver.RnBuiltin
 	}
 }
 
@@ -83,25 +84,35 @@ func (s *DepScannerOpts) SerVars(vars map[string]interface{}) {
 
 func (s *DepScannerOpts) SetTsconfig(dir string, file string, ts bool) error {
 	var err error
-	s.TsConfig, err = NewTsConfig(dir, file)
-	if err != nil {
-		return err
-	}
-
-	_, err = s.TsConfig.PathMaps()
-	if err != nil {
-		return err
-	}
 
 	s.Ts = ts
+
+	s.TsConfig, err = resolver.NewTsConfig(dir, file)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
-func (s *DepScannerOpts) pathMaps() *PathMaps {
-	if s.TsConfig == nil {
-		return nil
+func (s *DepScannerOpts) FillDefault() {
+	if len(s.Exports) == 0 {
+		s.Exports = [][]string{{"browser", "require"}}
 	}
-	return s.TsConfig.pathMaps
+	if len(s.Imports) == 0 {
+		s.Imports = [][]string{{"browser", "require"}}
+	}
+
+	s.Exports = append(s.Exports, []string{"default"})
+	s.Imports = append(s.Imports, []string{"default"})
+
+	if s.Extensions == nil {
+		if s.Ts {
+			s.Extensions = resolver.DefaultTsExts
+		} else {
+			s.Extensions = resolver.DefaultJsExts
+		}
+	}
 }
 
 func (s *DepScannerOpts) regUnitFact(u DepUnitFact) *DepScannerOpts {
@@ -114,8 +125,9 @@ func (s *DepScannerOpts) regUnitFact(u DepUnitFact) *DepScannerOpts {
 type DepScanner struct {
 	opts *DepScannerOpts
 
-	fileLoader *FileLoader
-	pkgLoader  *PkginfoLoader
+	fileLoader  *resolver.FileLoader
+	pkgLoader   *resolver.PjsonLoader
+	modResolver *resolver.ModResolver
 
 	mId         int64
 	allModules  map[int64]Module
@@ -141,13 +153,13 @@ type DepScanner struct {
 }
 
 func NewDepScanner(opts *DepScannerOpts) *DepScanner {
-	fileLoader := NewFileLoader(1024, 10)
+	fileLoader := resolver.NewFileLoader(2048, 128)
 
 	s := &DepScanner{
 		opts: opts,
 
 		fileLoader: fileLoader,
-		pkgLoader:  NewPkginfoLoader(fileLoader),
+		pkgLoader:  resolver.NewPjsonLoader(fileLoader),
 
 		allModules:  map[int64]Module{},
 		fileModules: map[string]Module{},
@@ -170,7 +182,17 @@ func NewDepScanner(opts *DepScannerOpts) *DepScanner {
 		minors: []error{},
 	}
 
-	s.pkgLoader.setBrowser(opts.target != TGT_NODE)
+	browser := opts.target != TGT_NODE
+	s.pkgLoader.SetBrowser(browser)
+
+	baseUrl := ""
+	var pathMaps *resolver.PathMaps
+	if opts.TsConfig != nil {
+		baseUrl = opts.TsConfig.CompilerOptions.BaseUrl
+		pathMaps = opts.TsConfig.PathMaps()
+	}
+
+	s.modResolver = resolver.NewModResolver(browser, opts.Imports, opts.Exports, opts.Extensions, opts.Builtin, baseUrl, pathMaps, s.pkgLoader)
 
 	return s.initWorkers()
 }
@@ -312,7 +334,7 @@ func (s *DepScanner) newModule(file string) Module {
 	return m
 }
 
-func (s *DepScanner) getOrNewUmbrella(pi *Pkginfo) Module {
+func (s *DepScanner) getOrNewUmbrella(pi *resolver.PkgJson) Module {
 	s.umbrellasLock.Lock()
 	defer s.umbrellasLock.Unlock()
 
@@ -379,13 +401,18 @@ func (s *DepScanner) prepareEntries() error {
 		}
 	}
 
+	sc := s.modResolver.LookupPkgScope(dir)
+	if sc == nil {
+		return errors.New("no package.json detected under " + dir)
+	}
+
 	for _, file := range entries {
 		m := s.newModule(file)
 		m.setAsEntry()
 		s.fileModules[file] = m
 		s.allModules[m.Id()] = m
 
-		req := &DepFileReq{[]*ImportFrame{}, nil, file, dir, filepath.Ext(file)}
+		req := &DepFileReq{true, sc, []*ImportFrame{}, nil, file, dir, filepath.Ext(file)}
 		s.addNewJob(req)
 	}
 	return nil
@@ -414,7 +441,9 @@ type ImportFrame struct {
 }
 
 type DepFileReq struct {
-	iptStk []*ImportFrame
+	entry  bool
+	sc     *resolver.PkgJson
+	stk    []*ImportFrame
 	parent Module
 	target string
 	cw     string
@@ -424,15 +453,7 @@ type DepFileReq struct {
 type JsUnitFact struct{}
 
 func (j *JsUnitFact) New(s *DepScanner, req *DepFileReq) DepUnit {
-	opts := s.opts
-	r := NewNodeResolver(
-		opts.Exports, opts.Imports, opts.Extensions, opts.Builtin, s.pkgLoader, opts.Ts, opts.pathMaps())
-
-	if s.opts.TsConfig != nil {
-		r.baseUrl = s.opts.TsConfig.CompilerOptions.BaseUrl
-	}
-
-	return &JsUnit{s, req, r}
+	return &JsUnit{s, req}
 }
 
 func (j *JsUnitFact) Lang() []string {
@@ -452,7 +473,6 @@ func (j *JsUnitFact) NewModule(file string) Module {
 type JsUnit struct {
 	s   *DepScanner
 	req *DepFileReq
-	r   *NodeResolver
 }
 
 type importPoint struct {
@@ -466,9 +486,9 @@ func isFlow(code string) bool {
 	return len(re.Find([]byte(code))) > 0
 }
 
-func parseDep(file, code string, vars map[string]interface{}, parserOpts map[string]interface{}, m *JsModule, skipFlow bool) ([]*importPoint, error) {
+func parseDep(file, code string, vars map[string]interface{}, parserOpts map[string]interface{}, m *JsModule, skipFlow bool) ([]*importPoint, int64, int64, error) {
 	if skipFlow && isFlow(code) {
-		return []*importPoint{}, nil
+		return []*importPoint{}, 0, 0, nil
 	}
 
 	s := span.NewSource(file, code)
@@ -497,9 +517,12 @@ func parseDep(file, code string, vars map[string]interface{}, parserOpts map[str
 
 	p := parser.NewParser(s, opts)
 
+	start := time.Now()
 	ast, err := p.Prog()
+	parseTime := time.Since(start)
+
 	if err != nil {
-		return nil, err
+		return nil, 0, 0, err
 	}
 
 	if m != nil {
@@ -574,7 +597,9 @@ func parseDep(file, code string, vars map[string]interface{}, parserOpts map[str
 	})
 
 	// do the collecting processes mentioned above
+	start = time.Now()
 	walk.VisitNode(ast, "", ctx.VisitorCtx())
+	walkTime := time.Since(start)
 
 	// find the all call exprs in the true branches
 	interests := []parser.NodeType{parser.N_IMPORT_CALL}
@@ -599,27 +624,14 @@ func parseDep(file, code string, vars map[string]interface{}, parserOpts map[str
 		}
 	}
 
-	return derived, nil
+	return derived, parseTime.Nanoseconds(), walkTime.Nanoseconds(), nil
 }
 
 func (j *JsUnit) load(m Module) ([]byte, error) {
-	f, err := j.s.fileLoader.Load(m.File())
-	if err != nil {
-		return nil, err
-	}
+	c := j.s.fileLoader.Load(m.File())
 
-	switch fv := f.(type) {
-	case []byte: // done
-		return fv, nil
-	case chan *FileLoadResult:
-		f := <-fv // wait
-		if f.err != nil {
-			return nil, err
-		}
-		return f.raw, nil
-	}
-
-	panic("unreachable")
+	f := <-c // wait
+	return f.Raw, f.Err
 }
 
 func (j *JsUnit) scan(m Module) ([]*importPoint, error) {
@@ -632,31 +644,44 @@ func (j *JsUnit) scan(m Module) ([]*importPoint, error) {
 	jm.size = int64(len(f))
 	jm.scanned = true
 
-	return parseDep(jm.file, string(f), j.s.opts.Vars, j.s.opts.ParserOpts, jm, j.s.opts.target == TGT_RN)
+	stk, parseTime, walkTime, err := parseDep(jm.file, string(f), j.s.opts.Vars, j.s.opts.ParserOpts, jm, j.s.opts.target == TGT_RN)
+	if err != nil {
+		return nil, err
+	}
+
+	jm.setParseTime(parseTime)
+	jm.setWalkTime(walkTime)
+	return stk, nil
 }
 
 func (j *JsUnit) Load() error {
 	req := j.req
-	file, pi, err := j.r.Resolve(req.target, req.cw)
+	t, err := j.s.modResolver.NewTask(req.target, req.cw, req.sc, nil)
+
 	if err != nil {
 		return err
 	}
 
-	if len(file) == 0 {
+	r, err := t.Resolve()
+	if err != nil {
+		return err
+	}
+
+	if r == nil {
 		return nil // builtin module or ignored
 	}
 
-	m := j.s.getOrNewModule(file[0])
+	m := j.s.getOrNewModule(r.File)
 	if m == nil {
-		return errors.New("unsupported file: " + file[0])
+		return errors.New("unsupported file: " + r.File)
 	}
-	m.setImportStk(req.iptStk)
+	m.setImportStk(req.stk)
 
 	if req.parent != nil {
 		link(req.parent, m)
 	}
 
-	umb := j.s.getOrNewUmbrella(pi)
+	umb := j.s.getOrNewUmbrella(r.Pjson)
 	m.setUmbrella(umb.Id())
 
 	if jm, ok := m.(*JsModule); ok && !m.Scanned() {
@@ -666,25 +691,25 @@ func (j *JsUnit) Load() error {
 				return err
 			}
 
-			curLang := filepath.Ext(file[0])
-			cw := filepath.Dir(file[0])
+			curLang := filepath.Ext(r.File)
+			cw := filepath.Dir(r.File)
 			for _, d := range derived {
 				frame := &ImportFrame{m.Id(), d.line, d.col, d.ipt}
-				stk := util.Copy(req.iptStk)
+				stk := util.Copy(req.stk)
 				lang := filepath.Ext(d.file)
 				if lang == "" {
 					// if there is no ext in the importing target use
 					// the host file ext instead
 					lang = curLang
 				}
-				j.s.addNewJob(&DepFileReq{append(stk, frame), m, d.file, cw, lang})
+				j.s.addNewJob(&DepFileReq{false, req.sc, append(stk, frame), m, d.file, cw, lang})
 			}
 
 			umb.addSize(m.Size())
 		} else if !jm.IsUmbrella() {
 			jm.scanned = true
 
-			s, err := os.Stat(file[0])
+			s, err := os.Stat(r.File)
 			if err != nil {
 				return err
 			}
@@ -699,10 +724,7 @@ func (j *JsUnit) Load() error {
 type JsonUnitFact struct{}
 
 func (j *JsonUnitFact) New(s *DepScanner, req *DepFileReq) DepUnit {
-	opts := s.opts
-	r := NewNodeResolver(
-		opts.Exports, opts.Imports, opts.Extensions, opts.Builtin, s.pkgLoader, opts.Ts, opts.pathMaps())
-	return &JsonUnit{s, req, r}
+	return &JsonUnit{s, req}
 }
 
 func (j *JsonUnitFact) Lang() []string {
@@ -720,7 +742,6 @@ func (j *JsonUnitFact) NewModule(file string) Module {
 type JsonUnit struct {
 	s   *DepScanner
 	req *DepFileReq
-	r   *NodeResolver
 }
 
 func (j *JsonUnit) Load() error {

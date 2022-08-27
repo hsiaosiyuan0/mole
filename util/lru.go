@@ -10,9 +10,11 @@ type LruCache[K comparable, V any] struct {
 	lock sync.RWMutex
 }
 
+// - cap, the capacity of the store, normally the max number elements can be stored
+// - clear, the number of elements to be cleared when the store is full, default is 1/3 of capacity
 func NewLruCache[K comparable, V any](cap int, clear int) *LruCache[K, V] {
 	if clear == 0 || clear > cap {
-		clear = cap
+		clear = cap / 3
 	}
 	return &LruCache[K, V]{
 		cap:   cap,
@@ -50,6 +52,7 @@ func (c *LruCache[K, V]) Set(key K, val V) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
+	// clear the store if it's full
 	if c.store.list.Len()+1 > c.cap {
 		for i := 0; i < c.clear; i++ {
 			elem := c.store.list.Front()

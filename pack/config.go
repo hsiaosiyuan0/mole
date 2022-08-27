@@ -45,6 +45,7 @@ func (c *Config) NewDepScannerOpts() *DepScannerOpts {
 
 	o.SerVars(c.DefinedVars)
 	o.ParserOpts = c.ParserOptions
+	o.FillDefault()
 
 	return o
 }

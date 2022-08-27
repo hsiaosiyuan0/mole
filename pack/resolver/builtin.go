@@ -1,37 +1,67 @@
-package pack
+package resolver
 
-var nodeBuiltin = map[string]bool{
-	"assert":         true,
-	"buffer":         true,
-	"child_process":  true,
-	"cluster":        true,
-	"crypto":         true,
-	"dgram":          true,
-	"dns":            true,
-	"domain":         true,
-	"events":         true,
-	"fs":             true,
-	"http":           true,
-	"https":          true,
-	"net":            true,
-	"os":             true,
-	"path":           true,
+var NodeBuiltin = map[string]bool{
+	"assert":        true,
+	"assert/strict": true,
+
+	"dns":          true,
+	"dns/promises": true,
+
+	"fs":         true,
+	"fs/promise": true,
+
+	"stream":           true,
+	"stream/consumers": true,
+	"stream/promises":  true,
+	"stream/web":       true,
+
+	"timers":          true,
+	"timers/promises": true,
+
+	"async_hooks":         true,
+	"buffer":              true,
+	"child_process":       true,
+	"cluster":             true,
+	"console":             true,
+	"constants":           true,
+	"crypto":              true,
+	"dgram":               true,
+	"diagnostics_channel": true,
+	"domain":              true,
+	"events":              true,
+	"http":                true,
+	"http2":               true,
+	"https":               true,
+	"inspector":           true,
+	"module":              true,
+	"net":                 true,
+	"os":                  true,
+
+	"path":       true,
+	"path/posix": true,
+	"path/win32": true,
+
+	"perf_hooks":     true,
+	"process":        true,
+	"punycode":       true,
 	"querystring":    true,
 	"readline":       true,
-	"stream":         true,
+	"repl":           true,
 	"string_decoder": true,
-	"timers":         true,
-	"tls":            true,
+	"trace_events":   true,
 	"tty":            true,
 	"url":            true,
 	"util":           true,
+	"util/types":     true,
 	"v8":             true,
 	"vm":             true,
+	"wasi":           true,
+	"worker_threads": true,
 	"zlib":           true,
 }
 
 // refer: https://github.com/facebook/metro/blob/main/packages/metro-react-native-babel-preset/src/configs/lazy-imports.js
-var rnBuiltin = map[string]bool{
+var RnBuiltin = map[string]bool{
 	"AccessibilityInfo":        true,
 	"ActivityIndicator":        true,
 	"Button":                   true,

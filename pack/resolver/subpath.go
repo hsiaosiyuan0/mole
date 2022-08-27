@@ -1,4 +1,4 @@
-package pack
+package resolver
 
 import (
 	"errors"
@@ -39,6 +39,12 @@ func NewSubpath(src string, cond interface{}) (*Subpath, error) {
 		}
 		return &Subpath{pat, cv}, nil
 
+	case []interface{}:
+		if len(cv) == 0 {
+			return nil, errors.New(fmt.Sprintf("deformed condition: %v", cond))
+		}
+		return NewSubpath(src, cv[0])
+
 	case nil, bool:
 		// the browser spec use `false` to indicate the module should be ignored:
 		//
@@ -57,14 +63,14 @@ func NewSubpath(src string, cond interface{}) (*Subpath, error) {
 	}
 }
 
-func (m *Subpath) Match(nom string, conditions [][]string) (bool, string) {
+func (m *Subpath) Match(t string, conditions [][]string) (bool, string) {
 	mc := false
 	var mcs []string
 	switch v := m.pat.(type) {
 	case string:
-		mc = nom == v
+		mc = t == v
 	case *regexp.Regexp:
-		mcs = v.FindStringSubmatch(nom)
+		mcs = v.FindStringSubmatch(t)
 		mc = len(mcs) > 0
 	}
 	if !mc {
@@ -219,19 +225,24 @@ func NewSubpathGrp(c interface{}) (*SubpathGrp, error) {
 	return sg, nil
 }
 
-func (sg *SubpathGrp) Match(nom string, conditions [][]string) (pos, neg bool, m string) {
+func (sg *SubpathGrp) IsEmpty() bool {
+	return len(sg.pos) == 0 && len(sg.neg) == 0
+}
+
+func (sg *SubpathGrp) Match(t string, conditions [][]string) (pos, neg bool, m string) {
 	for _, s := range sg.neg {
-		ok, _ := s.Match(nom, conditions)
+		ok, _ := s.Match(t, conditions)
 		if ok {
 			neg = true
 			return
 		}
 	}
 	for _, s := range sg.pos {
-		ok, mm := s.Match(nom, conditions)
+		ok, mm := s.Match(t, conditions)
 		if ok {
 			pos = true
 			m = mm
+			break
 		}
 	}
 	return
