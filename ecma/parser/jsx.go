@@ -1,6 +1,10 @@
 package parser
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/hsiaosiyuan0/mole/span"
+)
 
 func (p *Parser) jsxMember(obj Node, path string) (Node, string, error) {
 	for {
@@ -12,8 +16,8 @@ func (p *Parser) jsxMember(obj Node, path string) (Node, string, error) {
 			if err != nil {
 				return nil, "", err
 			}
-			path = path + "." + prop.Text()
-			obj = &JsxMember{N_JSX_MEMBER, p.finLoc(obj.Loc().Clone()), obj, prop, p.newTypInfo(N_JSX_MEMBER)}
+			path = path + "." + prop.val
+			obj = &JsxMember{N_JSX_MEMBER, p.finRng(obj.Range()), obj, prop, p.newTypInfo(N_JSX_MEMBER)}
 		} else {
 			break
 		}
@@ -29,19 +33,18 @@ func (p *Parser) jsxNsExpr(ns Node, path string) (Node, string, error) {
 	if err != nil {
 		return nil, "", err
 	}
-	return &JsxNsName{N_JSX_NS, p.finLoc(ns.Loc().Clone()), ns, name}, path + ":" + pth, nil
+	return &JsxNsName{N_JSX_NS, p.finRng(ns.Range()), ns, name}, path + ":" + pth, nil
 }
 
 func (p *Parser) jsxId() (Node, string, error) {
 	tok := p.lexer.Next()
-	loc := p.locFromTok(tok)
 	tv := tok.value
 	if tv != T_NAME {
 		return nil, "", p.errorTok(tok)
 	}
 
-	t := tok.Text()
-	return &JsxIdent{N_JSX_ID, p.finLoc(loc), t, nil, p.newTypInfo(N_JSX_ID)}, t, nil
+	t := p.tokText(tok)
+	return &JsxIdent{N_JSX_ID, p.finRng(tok.rng), t, span.Range{}, p.newTypInfo(N_JSX_ID)}, t, nil
 }
 
 func (p *Parser) jsxName() (Node, string, error) {
@@ -69,7 +72,7 @@ func (p *Parser) jsxName() (Node, string, error) {
 		name = id
 		pth = jsxName
 	}
-	typArgs, err := p.tsTryTypArgs(nil, true)
+	typArgs, err := p.tsTryTypArgs(span.Range{}, true)
 	if err != nil {
 		return nil, "", err
 	}
@@ -79,7 +82,7 @@ func (p *Parser) jsxName() (Node, string, error) {
 			ti.SetTypArgs(typArgs)
 		}
 	} else if typArgs != nil {
-		return nil, "", p.errorAtLoc(typArgs.Loc(), ERR_UNEXPECTED_TOKEN)
+		return nil, "", p.errorAtLoc(typArgs.Range(), ERR_UNEXPECTED_TOKEN)
 	}
 
 	return name, pth, nil
@@ -89,15 +92,14 @@ func (p *Parser) jsxAttr() (Node, error) {
 	ahead := p.lexer.Peek()
 	if ahead.value == T_BRACE_L {
 		tok := p.lexer.Next()
-		loc := p.locFromTok(tok)
-		val, err := p.jsxExpr(loc.Clone())
+		val, err := p.jsxExpr(tok.rng)
 		if err != nil {
 			return nil, err
 		}
 		if val.Type() != N_SPREAD {
-			return nil, p.errorAtLoc(val.Loc(), ERR_UNEXPECTED_TOKEN)
+			return nil, p.errorAtLoc(tok.rng, ERR_UNEXPECTED_TOKEN)
 		}
-		return &JsxSpreadAttr{N_JSX_ATTR_SPREAD, p.finLoc(loc), val}, nil
+		return &JsxSpreadAttr{N_JSX_ATTR_SPREAD, p.finRng(tok.rng), val}, nil
 	}
 
 	id, name, err := p.jsxName()
@@ -105,7 +107,7 @@ func (p *Parser) jsxAttr() (Node, error) {
 		return nil, err
 	}
 	p.lexer.PushMode(LM_JSX_ATTR, true)
-	attr := &JsxAttr{N_JSX_ATTR, p.finLoc(id.Loc().Clone()), id, name, nil}
+	attr := &JsxAttr{N_JSX_ATTR, p.finRng(id.Range()), id, name, nil}
 	if p.lexer.Peek().value != T_ASSIGN {
 		p.lexer.PopMode()
 		return attr, nil
@@ -117,22 +119,20 @@ func (p *Parser) jsxAttr() (Node, error) {
 	var val Node
 	if av == T_BRACE_L {
 		tok := p.lexer.Next()
-		loc := p.locFromTok(tok)
-		val, err = p.jsxExpr(loc)
+		val, err = p.jsxExpr(tok.rng)
 		if err != nil {
 			return nil, err
 		}
 	} else if av == T_STRING {
 		tok := p.lexer.Next()
-		loc := p.locFromTok(tok)
-		val = &StrLit{N_LIT_STR, p.finLoc(loc), tok.Text(), tok.HasLegacyOctalEscapeSeq(), nil, nil}
+		val = &StrLit{N_LIT_STR, p.finRng(tok.rng), p.tokText(tok), tok.HasLegacyOctalEscapeSeq(), span.Range{}, nil}
 	} else if av == T_LT {
 		val, err = p.jsx(true, false)
 		if err != nil {
 			return nil, err
 		}
 	}
-	p.finLoc(attr.loc)
+	p.finRng(attr.rng)
 	attr.val = val
 	p.lexer.PopMode()
 	return attr, nil
@@ -156,12 +156,10 @@ func (p *Parser) jsxAttrs() ([]Node, error) {
 }
 
 func (p *Parser) jsxOpen(tok *Token) (Node, error) {
-	loc := p.locFromTok(tok)
-
 	// fragment
 	if p.lexer.Peek().value == T_GT {
 		p.lexer.Next()
-		return &JsxOpen{N_JSX_OPEN, p.finLoc(loc), nil, "", nil, false}, nil
+		return &JsxOpen{N_JSX_OPEN, p.finRng(tok.rng), nil, "", nil, false}, nil
 	}
 
 	id, name, err := p.jsxName()
@@ -179,13 +177,13 @@ func (p *Parser) jsxOpen(tok *Token) (Node, error) {
 	if _, err := p.nextMustTok(T_GT); err != nil {
 		return nil, err
 	}
-	return &JsxOpen{N_JSX_OPEN, p.finLoc(loc), id, name, attrs, closed}, nil
+	return &JsxOpen{N_JSX_OPEN, p.finRng(tok.rng), id, name, attrs, closed}, nil
 }
 
-func (p *Parser) jsxExpr(loc *Loc) (Node, error) {
+func (p *Parser) jsxExpr(rng span.Range) (Node, error) {
 	p.lexer.PushMode(LM_NONE, true)
 
-	locAfterBrace := p.loc()
+	locAfterBrace := p.rng()
 
 	var expr Node
 	var empty Node
@@ -204,11 +202,9 @@ func (p *Parser) jsxExpr(loc *Loc) (Node, error) {
 	} else if av == T_BRACE_R {
 		tok := p.lexer.Next()
 		// adjust loc of the empty node
-		locAfterBrace.end.Line = tok.begin.Line
-		locAfterBrace.end.Col = tok.begin.Col - 1
-		locAfterBrace.rng.end = tok.raw.Lo
+		locAfterBrace.Lo = tok.rng.Lo
 		empty = &JsxEmpty{N_JSX_EMPTY, locAfterBrace}
-		expr = &JsxExprSpan{N_JSX_EXPR_SPAN, p.finLoc(loc), empty}
+		expr = &JsxExprSpan{N_JSX_EXPR_SPAN, p.finRng(rng), empty}
 	} else {
 		if expr, err = p.expr(); err != nil {
 			return nil, err
@@ -216,21 +212,21 @@ func (p *Parser) jsxExpr(loc *Loc) (Node, error) {
 		if _, err := p.nextMustTok(T_BRACE_R); err != nil {
 			return nil, err
 		}
-		expr = &JsxExprSpan{N_JSX_EXPR_SPAN, p.finLoc(loc), expr}
+		expr = &JsxExprSpan{N_JSX_EXPR_SPAN, p.finRng(rng), expr}
 	}
 
 	p.lexer.PopMode()
 	return expr, nil
 }
 
-func (p *Parser) jsxClose(loc *Loc) (Node, error) {
+func (p *Parser) jsxClose(rng span.Range) (Node, error) {
 	p.lexer.Next() // `/`
 
 	// fragment
 	if p.lexer.Peek().value == T_GT {
 		p.lexer.Next()
 		p.lexer.PopMode()
-		return &JsxClose{N_JSX_CLOSE, p.finLoc(loc), nil, ""}, nil
+		return &JsxClose{N_JSX_CLOSE, p.finRng(rng), nil, ""}, nil
 	}
 
 	id, name, err := p.jsxName()
@@ -242,7 +238,7 @@ func (p *Parser) jsxClose(loc *Loc) (Node, error) {
 	}
 	// balance the `pushMode` at the beginning of the `p.jsx()`
 	p.lexer.PopMode()
-	return &JsxClose{N_JSX_CLOSE, p.finLoc(loc), id, name}, nil
+	return &JsxClose{N_JSX_CLOSE, p.finRng(rng), id, name}, nil
 }
 
 func (p *Parser) isCloseTag(open Node, close Node) bool {
@@ -260,30 +256,27 @@ func (p *Parser) jsxWsTxt() Node {
 		return nil
 	}
 
-	loc := p.loc()
+	rng := p.rng()
 	prevWs := &p.lexer.state.prevWs
-	loc.begin = prevWs.begin
-	loc.end = prevWs.end
-	loc.rng.start = prevWs.raw.Lo
-	loc.rng.end = prevWs.raw.Hi
+	rng.Lo = prevWs.rng.Lo
+	rng.Hi = prevWs.rng.Hi
 	prevWs.len = 0
-	return &JsxText{N_JSX_TXT, loc, loc.Text()}
+	return &JsxText{N_JSX_TXT, rng, p.rngText(rng)}
 }
 
 // `opening` indicates the opening of the tag has presented, so the
 // closing tag is deserved to be appearing
 func (p *Parser) jsx(root bool, opening bool) (Node, error) {
 	tok := p.lexer.Next() // `<`
-	loc := p.locFromTok(tok)
 
 	p.lexer.PushMode(LM_JSX, true)
 
 	ahead := p.lexer.Peek()
 	if ahead.value == T_DIV {
 		if !opening {
-			return nil, p.errorAt(ahead.value, ahead.begin, ERR_UNEXPECTED_TOKEN)
+			return nil, p.errorAt(ahead.value, ahead.rng, ERR_UNEXPECTED_TOKEN)
 		}
-		return p.jsxClose(loc)
+		return p.jsxClose(tok.rng)
 	}
 
 	open, err := p.jsxOpen(tok)
@@ -307,15 +300,13 @@ func (p *Parser) jsx(root bool, opening bool) (Node, error) {
 				}
 
 				tok := p.lexer.Next() // `{`
-				loc := p.locFromTok(tok)
-
-				child, err = p.jsxExpr(p.locFromTok(tok))
+				child, err = p.jsxExpr(tok.rng)
 				if err != nil {
 					return nil, err
 				}
 				if child.Type() == N_SPREAD {
 					s := child.(*Spread)
-					child = &JsxSpreadChild{N_JSX_CHILD_SPREAD, p.finLoc(loc), s.arg}
+					child = &JsxSpreadChild{N_JSX_CHILD_SPREAD, p.finRng(tok.rng), s.arg}
 				}
 				children = append(children, child)
 
@@ -340,7 +331,7 @@ func (p *Parser) jsx(root bool, opening bool) (Node, error) {
 						close = tag
 						break
 					}
-					return nil, p.errorAtLoc(tag.Loc(), fmt.Sprintf(ERR_TPL_UNBALANCED_JSX_TAG, openTag.nameStr))
+					return nil, p.errorAtLoc(tag.Range(), fmt.Sprintf(ERR_TPL_UNBALANCED_JSX_TAG, openTag.nameStr))
 				}
 				children = append(children, tag)
 
@@ -354,10 +345,10 @@ func (p *Parser) jsx(root bool, opening bool) (Node, error) {
 				}
 			} else if av == T_JSX_TXT {
 				tok := p.lexer.Next()
-				child := &JsxText{N_JSX_TXT, p.finLoc(p.locFromTok(tok)), tok.ext.(string)}
+				child := &JsxText{N_JSX_TXT, p.finRng(tok.rng), tok.ext.(string)}
 				children = append(children, child)
 			} else if av == T_EOF {
-				return nil, p.errorAtLoc(p.locFromTok(ahead), ERR_UNTERMINATED_JSX_CONTENTS)
+				return nil, p.errorAtLoc(ahead.rng, ERR_UNTERMINATED_JSX_CONTENTS)
 			} else if av == T_ILLEGAL {
 				return nil, p.errorTok(ahead)
 			}
@@ -372,7 +363,7 @@ func (p *Parser) jsx(root bool, opening bool) (Node, error) {
 	// however if we combined the `is root` condition with is `is LI` then we can report the error `ERR_JSX_ADJACENT_ELEM_SHOULD_BE_WRAPPED`
 	// correctly since the root jsx element must stand alone
 	if ahead.value == T_LT && root {
-		return nil, p.errorAt(ahead.value, ahead.begin, ERR_JSX_ADJACENT_ELEM_SHOULD_BE_WRAPPED)
+		return nil, p.errorAt(ahead.value, ahead.rng, ERR_JSX_ADJACENT_ELEM_SHOULD_BE_WRAPPED)
 	}
-	return &JsxElem{N_JSX_ELEM, p.finLoc(open.Loc().Clone()), open, close, children}, nil
+	return &JsxElem{N_JSX_ELEM, p.finRng(open.Range()), open, close, children}, nil
 }

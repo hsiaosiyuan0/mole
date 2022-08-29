@@ -2,6 +2,7 @@ package util
 
 import (
 	"errors"
+	"reflect"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -136,6 +137,14 @@ func RemoveJsonComments(str string) ([]byte, error) {
 
 // cast `[]byte` to string by zero-copy, caller should to ensure
 // the `b` will NOT be changed in the subsequent processes
+// refer: https://github.com/golang/go/blob/a6219737e3eb062282e6483a915c395affb30c69/src/strings/builder.go#L48
 func Bytes2str(b *[]byte) string {
 	return *(*string)(unsafe.Pointer(b))
+}
+
+// refer: https://stackoverflow.com/questions/59209493/how-to-use-unsafe-get-a-byte-slice-from-a-string-without-memory-copy#answer-66218124
+func Str2bytes(s string) []byte {
+	var buf = *(*[]byte)(unsafe.Pointer(&s))
+	(*reflect.SliceHeader)(unsafe.Pointer(&buf)).Cap = len(s)
+	return buf
 }

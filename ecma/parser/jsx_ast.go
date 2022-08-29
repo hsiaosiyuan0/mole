@@ -1,29 +1,31 @@
 package parser
 
+import span "github.com/hsiaosiyuan0/mole/span"
+
 // grammar: https://facebook.github.io/jsx/
 
 type JsxIdent struct {
-	typ        NodeType
-	loc        *Loc
-	val        string
-	outerParen *Loc
-	ti         *TypInfo
+	typ NodeType
+	rng span.Range
+	val string
+	opa span.Range
+	ti  *TypInfo
 }
 
 func (n *JsxIdent) Type() NodeType {
 	return n.typ
 }
 
-func (n *JsxIdent) Loc() *Loc {
-	return n.loc
+func (n *JsxIdent) Range() span.Range {
+	return n.rng
 }
 
-func (n *JsxIdent) OuterParen() *Loc {
-	return n.outerParen
+func (n *JsxIdent) OuterParen() span.Range {
+	return n.opa
 }
 
-func (n *JsxIdent) SetOuterParen(loc *Loc) {
-	n.outerParen = loc
+func (n *JsxIdent) SetOuterParen(rng span.Range) {
+	n.opa = rng
 }
 
 func (n *JsxIdent) Text() string {
@@ -40,7 +42,7 @@ func (n *JsxIdent) SetTypInfo(ti *TypInfo) {
 
 type JsxNsName struct {
 	typ  NodeType
-	loc  *Loc
+	rng  span.Range
 	ns   Node
 	name Node
 }
@@ -49,8 +51,8 @@ func (n *JsxNsName) Type() NodeType {
 	return n.typ
 }
 
-func (n *JsxNsName) Loc() *Loc {
-	return n.loc
+func (n *JsxNsName) Range() span.Range {
+	return n.rng
 }
 
 func (n *JsxNsName) NS() string {
@@ -64,7 +66,7 @@ func (n *JsxNsName) Name() string {
 // #[visitor(Obj,Prop)]
 type JsxMember struct {
 	typ  NodeType
-	loc  *Loc
+	rng  span.Range
 	obj  Node
 	prop Node
 	ti   *TypInfo
@@ -74,8 +76,8 @@ func (n *JsxMember) Type() NodeType {
 	return n.typ
 }
 
-func (n *JsxMember) Loc() *Loc {
-	return n.loc
+func (n *JsxMember) Range() span.Range {
+	return n.rng
 }
 
 func (n *JsxMember) Obj() Node {
@@ -97,7 +99,7 @@ func (n *JsxMember) SetTypInfo(ti *TypInfo) {
 // #[visitor(Name,Attrs)]
 type JsxOpen struct {
 	typ NodeType
-	loc *Loc
+	rng span.Range
 	// JsxIdentifier | JsxMemberExpression | JsxNamespacedName
 	// `JsxNamespacedName` is a part of the Jsx spec though it's
 	// not used in the React implementation: https://github.com/facebook/jsx/issues/13
@@ -111,8 +113,8 @@ func (n *JsxOpen) Type() NodeType {
 	return n.typ
 }
 
-func (n *JsxOpen) Loc() *Loc {
-	return n.loc
+func (n *JsxOpen) Range() span.Range {
+	return n.rng
 }
 
 func (n *JsxOpen) Name() Node {
@@ -130,7 +132,7 @@ func (n *JsxOpen) Closed() bool {
 // #[visitor(Name)]
 type JsxClose struct {
 	typ     NodeType
-	loc     *Loc
+	rng     span.Range
 	name    Node
 	nameStr string
 }
@@ -139,8 +141,8 @@ func (n *JsxClose) Type() NodeType {
 	return n.typ
 }
 
-func (n *JsxClose) Loc() *Loc {
-	return n.loc
+func (n *JsxClose) Range() span.Range {
+	return n.rng
 }
 
 func (n *JsxClose) Name() Node {
@@ -149,7 +151,7 @@ func (n *JsxClose) Name() Node {
 
 type JsxText struct {
 	typ NodeType
-	loc *Loc
+	rng span.Range
 	val string
 }
 
@@ -157,22 +159,18 @@ func (n *JsxText) Type() NodeType {
 	return n.typ
 }
 
-func (n *JsxText) Loc() *Loc {
-	return n.loc
+func (n *JsxText) Range() span.Range {
+	return n.rng
 }
 
 func (n *JsxText) Val() string {
 	return n.val
 }
 
-func (n *JsxText) Raw() string {
-	return n.loc.Text()
-}
-
 // #[visitor(Name,Val)]
 type JsxAttr struct {
 	typ     NodeType
-	loc     *Loc
+	rng     span.Range
 	name    Node
 	nameStr string
 	val     Node
@@ -182,8 +180,8 @@ func (n *JsxAttr) Type() NodeType {
 	return n.typ
 }
 
-func (n *JsxAttr) Loc() *Loc {
-	return n.loc
+func (n *JsxAttr) Range() span.Range {
+	return n.rng
 }
 
 func (n *JsxAttr) Name() Node {
@@ -201,7 +199,7 @@ func (n *JsxAttr) Val() Node {
 // #[visitor(Arg)]
 type JsxSpreadAttr struct {
 	typ NodeType
-	loc *Loc
+	rng span.Range
 	arg Node
 }
 
@@ -209,8 +207,8 @@ func (n *JsxSpreadAttr) Type() NodeType {
 	return n.typ
 }
 
-func (n *JsxSpreadAttr) Loc() *Loc {
-	return n.loc
+func (n *JsxSpreadAttr) Range() span.Range {
+	return n.rng
 }
 
 func (n *JsxSpreadAttr) Arg() Node {
@@ -220,7 +218,7 @@ func (n *JsxSpreadAttr) Arg() Node {
 // #[visitor(Expr)]
 type JsxSpreadChild struct {
 	typ  NodeType
-	loc  *Loc
+	rng  span.Range
 	expr Node
 }
 
@@ -228,8 +226,8 @@ func (n *JsxSpreadChild) Type() NodeType {
 	return n.typ
 }
 
-func (n *JsxSpreadChild) Loc() *Loc {
-	return n.loc
+func (n *JsxSpreadChild) Range() span.Range {
+	return n.rng
 }
 
 func (n *JsxSpreadChild) Expr() Node {
@@ -238,15 +236,15 @@ func (n *JsxSpreadChild) Expr() Node {
 
 type JsxEmpty struct {
 	typ NodeType
-	loc *Loc
+	rng span.Range
 }
 
 func (n *JsxEmpty) Type() NodeType {
 	return n.typ
 }
 
-func (n *JsxEmpty) Loc() *Loc {
-	return n.loc
+func (n *JsxEmpty) Range() span.Range {
+	return n.rng
 }
 
 // https://github.com/facebook/jsx/blob/main/AST.md#jsx-element
@@ -254,7 +252,7 @@ func (n *JsxEmpty) Loc() *Loc {
 // #[visitor(Open,Children,Close)]
 type JsxElem struct {
 	typ      NodeType
-	loc      *Loc
+	rng      span.Range
 	open     Node
 	close    Node
 	children []Node // [ JsxText | JsxExpressionContainer | JsxSpreadChild | JsxElement | JsxFragment ]
@@ -264,8 +262,8 @@ func (n *JsxElem) Type() NodeType {
 	return n.typ
 }
 
-func (n *JsxElem) Loc() *Loc {
-	return n.loc
+func (n *JsxElem) Range() span.Range {
+	return n.rng
 }
 
 func (n *JsxElem) Open() Node {
@@ -287,7 +285,7 @@ func (n *JsxElem) IsFragment() bool {
 // #[visitor(Expr)]
 type JsxExprSpan struct {
 	typ  NodeType
-	loc  *Loc
+	rng  span.Range
 	expr Node
 }
 
@@ -295,8 +293,8 @@ func (n *JsxExprSpan) Type() NodeType {
 	return n.typ
 }
 
-func (n *JsxExprSpan) Loc() *Loc {
-	return n.loc
+func (n *JsxExprSpan) Range() span.Range {
+	return n.rng
 }
 
 func (n *JsxExprSpan) Expr() Node {

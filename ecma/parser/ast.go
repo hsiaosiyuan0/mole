@@ -1,13 +1,7 @@
 package parser
 
 import (
-	"math"
-	"math/big"
-	"strconv"
-	"strings"
-
 	span "github.com/hsiaosiyuan0/mole/span"
-	"github.com/hsiaosiyuan0/mole/util"
 )
 
 // AST nodes are referred to [ESTree](https://github.com/estree/estree/blob/master/es5.md) with some variants:
@@ -17,122 +11,33 @@ import (
 //   to do the transformation
 type Node interface {
 	Type() NodeType
-	Loc() *Loc
-}
-
-type Range struct {
-	start uint32
-	end   uint32
-}
-
-func (r Range) Start() uint32 {
-	return r.start
-}
-
-func (r Range) End() uint32 {
-	return r.end
-}
-
-func (r Range) SetStart(n uint32) {
-	r.start = n
-}
-
-func (r Range) SetEnd(n uint32) {
-	r.end = n
-}
-
-type Loc struct {
-	src   *span.Source
-	begin span.Pos
-	end   span.Pos
-	rng   Range
-}
-
-func NewLoc() *Loc {
-	return &Loc{
-		src:   nil,
-		begin: span.Pos{},
-		end:   span.Pos{},
-		rng:   Range{},
-	}
-}
-
-func NewLocFromSpan(start, end Node) *Loc {
-	return &Loc{
-		src:   start.Loc().src,
-		begin: start.Loc().begin,
-		end:   end.Loc().end,
-		rng: Range{
-			start: start.Loc().rng.start,
-			end:   end.Loc().rng.end,
-		},
-	}
-}
-
-func (l *Loc) Source() string {
-	return l.src.Path
-}
-
-func (l *Loc) Begin() span.Pos {
-	return l.begin
-}
-
-func (l *Loc) SetBegin(begin span.Pos) {
-	l.begin = begin
-}
-
-func (l *Loc) End() span.Pos {
-	return l.end
-}
-
-func (l *Loc) Range() Range {
-	return l.rng
-}
-
-func (l *Loc) Clone() *Loc {
-	return &Loc{
-		src:   l.src,
-		begin: l.begin,
-		end:   l.end,
-		rng:   l.rng,
-	}
-}
-
-func (l *Loc) Text() string {
-	return l.src.Text(l.rng.start, l.rng.end)
-}
-
-func (l *Loc) Before(b *Loc) bool {
-	return l.rng.end < b.rng.start
+	Range() span.Range
 }
 
 // #[visitor(Body)]
 type Prog struct {
-	typ   NodeType
-	loc   *Loc
+	typ NodeType
+	rng span.Range
+
 	stmts []Node
-}
-
-func (n *Prog) Body() []Node {
-	return n.stmts
-}
-
-func NewProg() *Prog {
-	return &Prog{N_PROG, &Loc{}, make([]Node, 0)}
 }
 
 func (n *Prog) Type() NodeType {
 	return n.typ
 }
 
-func (n *Prog) Loc() *Loc {
-	return n.loc
+func (n *Prog) Range() span.Range {
+	return n.rng
+}
+
+func (n *Prog) Body() []Node {
+	return n.stmts
 }
 
 // #[visitor(Expr)]
 type ExprStmt struct {
 	typ  NodeType
-	loc  *Loc
+	rng  span.Range
 	expr Node
 	dir  bool
 }
@@ -141,18 +46,12 @@ func (n *ExprStmt) Type() NodeType {
 	return n.typ
 }
 
-func (n *ExprStmt) Loc() *Loc {
-	return n.loc
+func (n *ExprStmt) Range() span.Range {
+	return n.rng
 }
 
 func (n *ExprStmt) Dir() bool {
 	return n.dir
-}
-
-func (n *ExprStmt) DirStr() string {
-	s := n.expr.(*StrLit)
-	raw := s.Raw()
-	return s.Raw()[1 : len(raw)-1]
 }
 
 func (n *ExprStmt) Expr() Node {
@@ -161,52 +60,44 @@ func (n *ExprStmt) Expr() Node {
 
 type EmptyStmt struct {
 	typ NodeType
-	loc *Loc
+	rng span.Range
 }
 
 func (n *EmptyStmt) Type() NodeType {
 	return n.typ
 }
 
-func (n *EmptyStmt) Loc() *Loc {
-	return n.loc
+func (n *EmptyStmt) Range() span.Range {
+	return n.rng
 }
 
 type InParenNode interface {
-	OuterParen() *Loc
-	SetOuterParen(*Loc)
+	OuterParen() span.Range
+	SetOuterParen(span.Range)
 }
 
 func IsNodeInParen(node Node) bool {
 	n, ok := node.(InParenNode)
-	return ok && n.OuterParen() != nil
+	return ok && !n.OuterParen().Empty()
 }
 
 type NullLit struct {
-	typ        NodeType
-	loc        *Loc
-	outerParen *Loc
-	ti         *TypInfo
+	typ NodeType
+	rng span.Range
+	opa span.Range
+	ti  *TypInfo
 }
 
 func (n *NullLit) Type() NodeType {
 	return n.typ
 }
 
-func (n *NullLit) Loc() *Loc {
-	return n.loc
+func (n *NullLit) Range() span.Range {
+	return n.rng
 }
 
-func (n *NullLit) Text() string {
-	return "null"
-}
-
-func (n *NullLit) OuterParen() *Loc {
-	return n.outerParen
-}
-
-func (n *NullLit) SetOuterParen(loc *Loc) {
-	n.outerParen = loc
+func (n *NullLit) SetOuterParen(rng span.Range) {
+	n.opa = rng
 }
 
 func (n *NullLit) TypInfo() *TypInfo {
@@ -218,38 +109,31 @@ func (n *NullLit) SetTypInfo(ti *TypInfo) {
 }
 
 type BoolLit struct {
-	typ        NodeType
-	loc        *Loc
-	val        bool
-	outerParen *Loc
-	ti         *TypInfo
-}
-
-func (n *BoolLit) Val() bool {
-	return n.val
+	typ NodeType
+	rng span.Range
+	val bool
+	opa span.Range
+	ti  *TypInfo
 }
 
 func (n *BoolLit) Type() NodeType {
 	return n.typ
 }
 
-func (n *BoolLit) Loc() *Loc {
-	return n.loc
+func (n *BoolLit) Range() span.Range {
+	return n.rng
 }
 
-func (n *BoolLit) Text() string {
-	if n.val {
-		return "true"
-	}
-	return "false"
+func (n *BoolLit) Val() bool {
+	return n.val
 }
 
-func (n *BoolLit) OuterParen() *Loc {
-	return n.outerParen
+func (n *BoolLit) OuterParen() span.Range {
+	return n.opa
 }
 
-func (n *BoolLit) SetOuterParen(loc *Loc) {
-	n.outerParen = loc
+func (n *BoolLit) SetOuterParen(rng span.Range) {
+	n.opa = rng
 }
 
 func (n *BoolLit) TypInfo() *TypInfo {
@@ -261,148 +145,50 @@ func (n *BoolLit) SetTypInfo(ti *TypInfo) {
 }
 
 type NumLit struct {
-	typ        NodeType
-	loc        *Loc
-	outerParen *Loc
+	typ NodeType
+	rng span.Range
+	opa span.Range
 }
 
 func (n *NumLit) Type() NodeType {
 	return n.typ
 }
 
-func (n *NumLit) Loc() *Loc {
-	return n.loc
+func (n *NumLit) Range() span.Range {
+	return n.rng
 }
 
-func (n *NumLit) Text() string {
-	return n.loc.Text()
+func (n *NumLit) OuterParen() span.Range {
+	return n.opa
 }
 
-func (n *NumLit) IsBigint() bool {
-	t := n.loc.Text()
-	return t[len(t)-1] == 'n'
-}
-
-// unsafe method, use `IsBigint` before this method
-func (n *NumLit) ToBigint() *big.Int {
-	t := n.loc.Text()
-	t = strings.ReplaceAll(t[:len(t)-1], "_", "")
-
-	if strings.HasPrefix(t, "0x") || strings.HasPrefix(t, "0X") {
-		i := big.NewInt(0)
-		i.SetString(t[2:], 16)
-		return i
-	}
-	if strings.HasPrefix(t, "0o") || strings.HasPrefix(t, "0O") {
-		i := big.NewInt(0)
-		i.SetString(t[2:], 8)
-		return i
-	}
-	if strings.HasPrefix(t, "0b") || strings.HasPrefix(t, "0B") {
-		i := big.NewInt(0)
-		i.SetString(t[2:], 2)
-		return i
-	}
-	if strings.HasPrefix(t, "0") && len(t) > 1 {
-		t = strings.TrimLeft(t, "0")
-		i := big.NewInt(0)
-		i.SetString(t, 8)
-		return i
-	}
-	i := big.NewInt(0)
-	i.SetString(t, 10)
-	return i
-}
-
-// unsafe method, use `IsBigint` before this method
-func (n *NumLit) ToFloat() float64 {
-	t := n.loc.Text()
-	t = strings.ReplaceAll(t, "_", "")
-
-	if strings.HasPrefix(t, "0x") || strings.HasPrefix(t, "0X") {
-		f, _ := strconv.ParseUint(t[2:], 16, 32)
-		return float64(f)
-	}
-	if strings.HasPrefix(t, "0o") || strings.HasPrefix(t, "0O") {
-		f, _ := strconv.ParseUint(t[2:], 8, 32)
-		return float64(f)
-	}
-	if strings.HasPrefix(t, "0b") || strings.HasPrefix(t, "0B") {
-		f, _ := strconv.ParseUint(t[2:], 2, 32)
-		return float64(f)
-	}
-	if strings.HasPrefix(t, "0") && len(t) > 1 {
-		t = strings.TrimLeft(t, "0")
-		f, _ := strconv.ParseUint(t, 8, 32)
-		return float64(f)
-	}
-	f, _ := strconv.ParseFloat(t, 64)
-	return f
-}
-
-// unsafe method, use `IsBigint` before this method
-// return the numerical value if it's safe to be represented in JSON as number
-// otherwise zero is returned
-func (n *NumLit) Float() float64 {
-	if n.IsBigint() {
-		i := n.ToBigint()
-		f := big.NewFloat(0)
-		f.SetInt(i)
-		max := big.NewFloat(0)
-		max.SetUint64(math.MaxInt)
-		c := f.Cmp(max)
-		if c == -1 || c == 0 {
-			ff, _ := f.Float64()
-			return ff
-		}
-		return 0
-	}
-	f := n.ToFloat()
-	if f > math.MaxFloat64 {
-		return 0
-	}
-	return f
-}
-
-func (n *NumLit) OuterParen() *Loc {
-	return n.outerParen
-}
-
-func (n *NumLit) SetOuterParen(loc *Loc) {
-	n.outerParen = loc
+func (n *NumLit) SetOuterParen(rng span.Range) {
+	n.opa = rng
 }
 
 type StrLit struct {
-	typ                  NodeType
-	loc                  *Loc
-	val                  string
-	legacyOctalEscapeSeq bool
-	outerParen           *Loc
-	ti                   *TypInfo
+	typ   NodeType
+	rng   span.Range
+	val   string
+	loSeq bool
+	opa   span.Range
+	ti    *TypInfo
 }
 
 func (n *StrLit) Type() NodeType {
 	return n.typ
 }
 
-func (n *StrLit) Loc() *Loc {
-	return n.loc
+func (n *StrLit) Range() span.Range {
+	return n.rng
 }
 
-func (n *StrLit) Text() string {
-	return n.val
+func (n *StrLit) OuterParen() span.Range {
+	return n.opa
 }
 
-func (n *StrLit) Raw() string {
-	return n.loc.Text()
-}
-
-func (n *StrLit) OuterParen() *Loc {
-	return n.outerParen
-}
-
-func (n *StrLit) SetOuterParen(loc *Loc) {
-	n.outerParen = loc
+func (n *StrLit) SetOuterParen(rng span.Range) {
+	n.opa = rng
 }
 
 func (n *StrLit) TypInfo() *TypInfo {
@@ -414,21 +200,21 @@ func (n *StrLit) SetTypInfo(ti *TypInfo) {
 }
 
 type RegLit struct {
-	typ        NodeType
-	loc        *Loc
-	val        string
-	pattern    string
-	flags      string
-	outerParen *Loc
-	ti         *TypInfo
+	typ     NodeType
+	rng     span.Range
+	val     string
+	pattern string
+	flags   string
+	opa     span.Range
+	ti      *TypInfo
 }
 
 func (n *RegLit) Type() NodeType {
 	return n.typ
 }
 
-func (n *RegLit) Loc() *Loc {
-	return n.loc
+func (n *RegLit) Range() span.Range {
+	return n.rng
 }
 
 func (n *RegLit) Pattern() string {
@@ -439,12 +225,12 @@ func (n *RegLit) Flags() string {
 	return n.flags
 }
 
-func (n *RegLit) OuterParen() *Loc {
-	return n.outerParen
+func (n *RegLit) OuterParen() span.Range {
+	return n.opa
 }
 
-func (n *RegLit) SetOuterParen(loc *Loc) {
-	n.outerParen = loc
+func (n *RegLit) SetOuterParen(rng span.Range) {
+	n.opa = rng
 }
 
 func (n *RegLit) TypInfo() *TypInfo {
@@ -457,31 +243,31 @@ func (n *RegLit) SetTypInfo(ti *TypInfo) {
 
 // #[visitor(Elems)]
 type ArrLit struct {
-	typ        NodeType
-	loc        *Loc
-	elems      []Node
-	outerParen *Loc
-	ti         *TypInfo
+	typ   NodeType
+	rng   span.Range
+	elems []Node
+	opa   span.Range
+	ti    *TypInfo
 }
 
 func (n *ArrLit) Type() NodeType {
 	return n.typ
 }
 
-func (n *ArrLit) Loc() *Loc {
-	return n.loc
+func (n *ArrLit) Range() span.Range {
+	return n.rng
 }
 
 func (n *ArrLit) Elems() []Node {
 	return n.elems
 }
 
-func (n *ArrLit) OuterParen() *Loc {
-	return n.outerParen
+func (n *ArrLit) OuterParen() span.Range {
+	return n.opa
 }
 
-func (n *ArrLit) SetOuterParen(loc *Loc) {
-	n.outerParen = loc
+func (n *ArrLit) SetOuterParen(rng span.Range) {
+	n.opa = rng
 }
 
 func (n *ArrLit) TypInfo() *TypInfo {
@@ -494,32 +280,32 @@ func (n *ArrLit) SetTypInfo(ti *TypInfo) {
 
 // #[visitor(Arg)]
 type Spread struct {
-	typ              NodeType
-	loc              *Loc
-	arg              Node
-	trailingCommaLoc *Loc
-	outerParen       *Loc
-	ti               *TypInfo
-}
-
-func (n *Spread) Arg() Node {
-	return n.arg
+	typ   NodeType
+	rng   span.Range
+	arg   Node
+	tcLoc span.Range // range of the trailing comma
+	opa   span.Range
+	ti    *TypInfo
 }
 
 func (n *Spread) Type() NodeType {
 	return n.typ
 }
 
-func (n *Spread) Loc() *Loc {
-	return n.loc
+func (n *Spread) Range() span.Range {
+	return n.rng
 }
 
-func (n *Spread) OuterParen() *Loc {
-	return n.outerParen
+func (n *Spread) Arg() Node {
+	return n.arg
 }
 
-func (n *Spread) SetOuterParen(loc *Loc) {
-	n.outerParen = loc
+func (n *Spread) OuterParen() span.Range {
+	return n.opa
+}
+
+func (n *Spread) SetOuterParen(rng span.Range) {
+	n.opa = rng
 }
 
 func (n *Spread) TypInfo() *TypInfo {
@@ -532,31 +318,31 @@ func (n *Spread) SetTypInfo(ti *TypInfo) {
 
 // #[visitor(Props)]
 type ObjLit struct {
-	typ        NodeType
-	loc        *Loc
-	props      []Node
-	outerParen *Loc
-	ti         *TypInfo
-}
-
-func (n *ObjLit) Props() []Node {
-	return n.props
+	typ   NodeType
+	rng   span.Range
+	props []Node
+	opa   span.Range
+	ti    *TypInfo
 }
 
 func (n *ObjLit) Type() NodeType {
 	return n.typ
 }
 
-func (n *ObjLit) Loc() *Loc {
-	return n.loc
+func (n *ObjLit) Range() span.Range {
+	return n.rng
 }
 
-func (n *ObjLit) OuterParen() *Loc {
-	return n.outerParen
+func (n *ObjLit) Props() []Node {
+	return n.props
 }
 
-func (n *ObjLit) SetOuterParen(loc *Loc) {
-	n.outerParen = loc
+func (n *ObjLit) OuterParen() span.Range {
+	return n.opa
+}
+
+func (n *ObjLit) SetOuterParen(rng span.Range) {
+	n.opa = rng
 }
 
 func (n *ObjLit) TypInfo() *TypInfo {
@@ -593,80 +379,13 @@ type NodeWithTypInfo interface {
 	SetTypInfo(*TypInfo)
 }
 
-func locOfNode(node Node) *Loc {
-	if util.IsNilPtr(node) {
-		return nil
-	}
-	return node.Loc()
-}
-
-func startOf(locs ...*Loc) *Loc {
-	start := 0
-	line := uint32(math.MaxUint32)
-	col := uint32(math.MaxUint32)
-	for i, loc := range locs {
-		if loc == nil {
-			continue
-		}
-		if loc.begin.Line < line || (loc.begin.Line == line && loc.begin.Col < col) {
-			line = loc.begin.Line
-			col = loc.begin.Col
-			start = i
-		}
-	}
-	return locs[start]
-}
-
-func endOf(locs ...*Loc) *Loc {
-	end := 0
-	line := uint32(0)
-	col := uint32(0)
-	for i, loc := range locs {
-		if loc == nil {
-			continue
-		}
-		if loc.end.Line > line || (loc.end.Line == line && loc.end.Col > col) {
-			line = loc.end.Line
-			col = loc.end.Col
-			end = i
-		}
-	}
-	return locs[end]
-}
-
-func LocWithTypeInfo(node Node, includeParamProp bool) *Loc {
-	nw, ok := node.(NodeWithTypInfo)
-	if !ok {
-		return node.Loc()
-	}
-
-	ti := nw.TypInfo()
-	loc := node.Loc().Clone()
-
-	starLocList := []*Loc{locOfNode(ti.TypParams()), locOfNode(node)}
-	if includeParamProp {
-		starLocList = append(starLocList, []*Loc{ti.BeginLoc()}...)
-	}
-	start := startOf(starLocList...)
-	loc.begin.Line = start.begin.Line
-	loc.begin.Col = start.begin.Col
-	loc.rng.start = start.rng.start
-
-	end := endOf(locOfNode(ti.TypAnnot()), ti.Ques(), locOfNode(node))
-	loc.end.Line = end.end.Line
-	loc.end.Col = end.end.Col
-	loc.rng.end = end.rng.end
-
-	return loc
-}
-
 type Ident struct {
 	typ            NodeType
-	loc            *Loc
+	rng            span.Range
 	val            string
 	pvt            bool
 	containsEscape bool
-	outerParen     *Loc
+	opa            span.Range
 
 	// consider below statements:
 	// `export { if } from "a"` is legal
@@ -684,12 +403,8 @@ func (n *Ident) Type() NodeType {
 	return n.typ
 }
 
-func (n *Ident) Loc() *Loc {
-	return n.loc
-}
-
-func (n *Ident) Text() string {
-	return n.val
+func (n *Ident) Range() span.Range {
+	return n.rng
 }
 
 func (n *Ident) IsPrivate() bool {
@@ -700,12 +415,12 @@ func (n *Ident) ContainsEscape() bool {
 	return n.containsEscape
 }
 
-func (n *Ident) OuterParen() *Loc {
-	return n.outerParen
+func (n *Ident) OuterParen() span.Range {
+	return n.opa
 }
 
-func (n *Ident) SetOuterParen(loc *Loc) {
-	n.outerParen = loc
+func (n *Ident) SetOuterParen(rng span.Range) {
+	n.opa = rng
 }
 
 func (n *Ident) TypInfo() *TypInfo {
@@ -718,20 +433,20 @@ func (n *Ident) SetTypInfo(ti *TypInfo) {
 
 // #[visitor(Callee,Args)]
 type NewExpr struct {
-	typ        NodeType
-	loc        *Loc
-	callee     Node
-	args       []Node
-	outerParen *Loc
-	ti         *TypInfo
+	typ    NodeType
+	rng    span.Range
+	callee Node
+	args   []Node
+	opa    span.Range
+	ti     *TypInfo
 }
 
 func (n *NewExpr) Type() NodeType {
 	return n.typ
 }
 
-func (n *NewExpr) Loc() *Loc {
-	return n.loc
+func (n *NewExpr) Range() span.Range {
+	return n.rng
 }
 
 func (n *NewExpr) Callee() Node {
@@ -742,12 +457,12 @@ func (n *NewExpr) Args() []Node {
 	return n.args
 }
 
-func (n *NewExpr) OuterParen() *Loc {
-	return n.outerParen
+func (n *NewExpr) OuterParen() span.Range {
+	return n.opa
 }
 
-func (n *NewExpr) SetOuterParen(loc *Loc) {
-	n.outerParen = loc
+func (n *NewExpr) SetOuterParen(rng span.Range) {
+	n.opa = rng
 }
 
 func (n *NewExpr) TypInfo() *TypInfo {
@@ -760,13 +475,21 @@ func (n *NewExpr) SetTypInfo(ti *TypInfo) {
 
 // #[visitor(Obj,Prop)]
 type MemberExpr struct {
-	typ        NodeType
-	loc        *Loc
-	obj        Node
-	prop       Node
-	compute    bool
-	optional   bool
-	outerParen *Loc
+	typ      NodeType
+	rng      span.Range
+	obj      Node
+	prop     Node
+	compute  bool
+	optional bool
+	opa      span.Range
+}
+
+func (n *MemberExpr) Type() NodeType {
+	return n.typ
+}
+
+func (n *MemberExpr) Range() span.Range {
+	return n.rng
 }
 
 func (n *MemberExpr) Obj() Node {
@@ -785,31 +508,31 @@ func (n *MemberExpr) Optional() bool {
 	return n.optional
 }
 
-func (n *MemberExpr) Type() NodeType {
-	return n.typ
+func (n *MemberExpr) OuterParen() span.Range {
+	return n.opa
 }
 
-func (n *MemberExpr) Loc() *Loc {
-	return n.loc
-}
-
-func (n *MemberExpr) OuterParen() *Loc {
-	return n.outerParen
-}
-
-func (n *MemberExpr) SetOuterParen(loc *Loc) {
-	n.outerParen = loc
+func (n *MemberExpr) SetOuterParen(rng span.Range) {
+	n.opa = rng
 }
 
 // #[visitor(Callee,Args)]
 type CallExpr struct {
-	typ        NodeType
-	loc        *Loc
-	callee     Node
-	args       []Node
-	optional   bool
-	outerParen *Loc
-	ti         *TypInfo
+	typ      NodeType
+	rng      span.Range
+	callee   Node
+	args     []Node
+	optional bool
+	opa      span.Range
+	ti       *TypInfo
+}
+
+func (n *CallExpr) Type() NodeType {
+	return n.typ
+}
+
+func (n *CallExpr) Range() span.Range {
+	return n.rng
 }
 
 func (n *CallExpr) Callee() Node {
@@ -824,20 +547,12 @@ func (n *CallExpr) Optional() bool {
 	return n.optional
 }
 
-func (n *CallExpr) Type() NodeType {
-	return n.typ
+func (n *CallExpr) OuterParen() span.Range {
+	return n.opa
 }
 
-func (n *CallExpr) Loc() *Loc {
-	return n.loc
-}
-
-func (n *CallExpr) OuterParen() *Loc {
-	return n.outerParen
-}
-
-func (n *CallExpr) SetOuterParen(loc *Loc) {
-	n.outerParen = loc
+func (n *CallExpr) SetOuterParen(rng span.Range) {
+	n.opa = rng
 }
 
 func (n *CallExpr) TypInfo() *TypInfo {
@@ -850,13 +565,21 @@ func (n *CallExpr) SetTypInfo(ti *TypInfo) {
 
 // #[visitor(Lhs,Rhs)]
 type BinExpr struct {
-	typ        NodeType
-	loc        *Loc
-	op         TokenValue
-	opLoc      *Loc
-	lhs        Node
-	rhs        Node
-	outerParen *Loc
+	typ   NodeType
+	rng   span.Range
+	op    TokenValue
+	opLoc span.Range
+	lhs   Node
+	rhs   Node
+	opa   span.Range
+}
+
+func (n *BinExpr) Type() NodeType {
+	return n.typ
+}
+
+func (n *BinExpr) Range() span.Range {
+	return n.rng
 }
 
 func (n *BinExpr) Op() TokenValue {
@@ -875,29 +598,29 @@ func (n *BinExpr) Rhs() Node {
 	return n.rhs
 }
 
-func (n *BinExpr) Type() NodeType {
-	return n.typ
+func (n *BinExpr) OuterParen() span.Range {
+	return n.opa
 }
 
-func (n *BinExpr) Loc() *Loc {
-	return n.loc
-}
-
-func (n *BinExpr) OuterParen() *Loc {
-	return n.outerParen
-}
-
-func (n *BinExpr) SetOuterParen(loc *Loc) {
-	n.outerParen = loc
+func (n *BinExpr) SetOuterParen(rng span.Range) {
+	n.opa = rng
 }
 
 // #[visitor(Arg)]
 type UnaryExpr struct {
-	typ        NodeType
-	loc        *Loc
-	op         TokenValue
-	arg        Node
-	outerParen *Loc
+	typ NodeType
+	rng span.Range
+	op  TokenValue
+	arg Node
+	opa span.Range
+}
+
+func (n *UnaryExpr) Type() NodeType {
+	return n.typ
+}
+
+func (n *UnaryExpr) Range() span.Range {
+	return n.rng
 }
 
 func (n *UnaryExpr) Arg() Node {
@@ -912,30 +635,34 @@ func (n *UnaryExpr) OpText() string {
 	return TokenKinds[n.op].Name
 }
 
-func (n *UnaryExpr) Type() NodeType {
-	return n.typ
+func (n *UnaryExpr) OpName() string {
+	return TokenKinds[n.op].Name
 }
 
-func (n *UnaryExpr) Loc() *Loc {
-	return n.loc
+func (n *UnaryExpr) OuterParen() span.Range {
+	return n.opa
 }
 
-func (n *UnaryExpr) OuterParen() *Loc {
-	return n.outerParen
-}
-
-func (n *UnaryExpr) SetOuterParen(loc *Loc) {
-	n.outerParen = loc
+func (n *UnaryExpr) SetOuterParen(rng span.Range) {
+	n.opa = rng
 }
 
 // #[visitor(Arg)]
 type UpdateExpr struct {
-	typ        NodeType
-	loc        *Loc
-	op         TokenValue
-	prefix     bool
-	arg        Node
-	outerParen *Loc
+	typ    NodeType
+	rng    span.Range
+	op     TokenValue
+	prefix bool
+	arg    Node
+	opa    span.Range
+}
+
+func (n *UpdateExpr) Type() NodeType {
+	return n.typ
+}
+
+func (n *UpdateExpr) Range() span.Range {
+	return n.rng
 }
 
 func (n *UpdateExpr) Arg() Node {
@@ -954,30 +681,30 @@ func (n *UpdateExpr) OpText() string {
 	return TokenKinds[n.op].Name
 }
 
-func (n *UpdateExpr) Type() NodeType {
-	return n.typ
+func (n *UpdateExpr) OuterParen() span.Range {
+	return n.opa
 }
 
-func (n *UpdateExpr) Loc() *Loc {
-	return n.loc
-}
-
-func (n *UpdateExpr) OuterParen() *Loc {
-	return n.outerParen
-}
-
-func (n *UpdateExpr) SetOuterParen(loc *Loc) {
-	n.outerParen = loc
+func (n *UpdateExpr) SetOuterParen(rng span.Range) {
+	n.opa = rng
 }
 
 // #[visitor(Test,Cons,Alt)]
 type CondExpr struct {
-	typ        NodeType
-	loc        *Loc
-	test       Node
-	cons       Node
-	alt        Node
-	outerParen *Loc
+	typ  NodeType
+	rng  span.Range
+	test Node
+	cons Node
+	alt  Node
+	opa  span.Range
+}
+
+func (n *CondExpr) Type() NodeType {
+	return n.typ
+}
+
+func (n *CondExpr) Range() span.Range {
+	return n.rng
 }
 
 func (n *CondExpr) Test() Node {
@@ -992,39 +719,39 @@ func (n *CondExpr) Alt() Node {
 	return n.alt
 }
 
-func (n *CondExpr) Type() NodeType {
-	return n.typ
+func (n *CondExpr) OuterParen() span.Range {
+	return n.opa
 }
 
-func (n *CondExpr) Loc() *Loc {
-	return n.loc
-}
-
-func (n *CondExpr) OuterParen() *Loc {
-	return n.outerParen
-}
-
-func (n *CondExpr) SetOuterParen(loc *Loc) {
-	n.outerParen = loc
+func (n *CondExpr) SetOuterParen(rng span.Range) {
+	n.opa = rng
 }
 
 // #[visitor(Lhs,Rhs)]
 type AssignExpr struct {
-	typ        NodeType
-	loc        *Loc
-	op         TokenValue
-	opLoc      *Loc
-	lhs        Node
-	rhs        Node
-	outerParen *Loc
-	ti         *TypInfo
+	typ   NodeType
+	rng   span.Range
+	op    TokenValue
+	opLoc span.Range
+	lhs   Node
+	rhs   Node
+	opa   span.Range
+	ti    *TypInfo
+}
+
+func (n *AssignExpr) Type() NodeType {
+	return n.typ
+}
+
+func (n *AssignExpr) Range() span.Range {
+	return n.rng
 }
 
 func (n *AssignExpr) Op() TokenValue {
 	return n.op
 }
 
-func (n *AssignExpr) OpText() string {
+func (n *AssignExpr) OpName() string {
 	return TokenKinds[n.op].Name
 }
 
@@ -1036,20 +763,12 @@ func (n *AssignExpr) Rhs() Node {
 	return n.rhs
 }
 
-func (n *AssignExpr) Type() NodeType {
-	return n.typ
+func (n *AssignExpr) OuterParen() span.Range {
+	return n.opa
 }
 
-func (n *AssignExpr) Loc() *Loc {
-	return n.loc
-}
-
-func (n *AssignExpr) OuterParen() *Loc {
-	return n.outerParen
-}
-
-func (n *AssignExpr) SetOuterParen(loc *Loc) {
-	n.outerParen = loc
+func (n *AssignExpr) SetOuterParen(rng span.Range) {
+	n.opa = rng
 }
 
 func (n *AssignExpr) TypInfo() *TypInfo {
@@ -1061,26 +780,26 @@ func (n *AssignExpr) SetTypInfo(ti *TypInfo) {
 }
 
 type ThisExpr struct {
-	typ        NodeType
-	loc        *Loc
-	outerParen *Loc
-	ti         *TypInfo
+	typ NodeType
+	rng span.Range
+	opa span.Range
+	ti  *TypInfo
 }
 
 func (n *ThisExpr) Type() NodeType {
 	return n.typ
 }
 
-func (n *ThisExpr) Loc() *Loc {
-	return n.loc
+func (n *ThisExpr) Range() span.Range {
+	return n.rng
 }
 
-func (n *ThisExpr) OuterParen() *Loc {
-	return n.outerParen
+func (n *ThisExpr) OuterParen() span.Range {
+	return n.opa
 }
 
-func (n *ThisExpr) SetOuterParen(loc *Loc) {
-	n.outerParen = loc
+func (n *ThisExpr) SetOuterParen(rng span.Range) {
+	n.opa = rng
 }
 
 func (n *ThisExpr) TypInfo() *TypInfo {
@@ -1093,38 +812,46 @@ func (n *ThisExpr) SetTypInfo(ti *TypInfo) {
 
 // #[visitor(Elems)]
 type SeqExpr struct {
-	typ        NodeType
-	loc        *Loc
-	elems      []Node
-	outerParen *Loc
-}
-
-func (n *SeqExpr) Elems() []Node {
-	return n.elems
+	typ   NodeType
+	rng   span.Range
+	elems []Node
+	opa   span.Range
 }
 
 func (n *SeqExpr) Type() NodeType {
 	return n.typ
 }
 
-func (n *SeqExpr) Loc() *Loc {
-	return n.loc
+func (n *SeqExpr) Range() span.Range {
+	return n.rng
 }
 
-func (n *SeqExpr) OuterParen() *Loc {
-	return n.outerParen
+func (n *SeqExpr) Elems() []Node {
+	return n.elems
 }
 
-func (n *SeqExpr) SetOuterParen(loc *Loc) {
-	n.outerParen = loc
+func (n *SeqExpr) OuterParen() span.Range {
+	return n.opa
+}
+
+func (n *SeqExpr) SetOuterParen(rng span.Range) {
+	n.opa = rng
 }
 
 // #[visitor(Expr)]
 type ParenExpr struct {
-	typ        NodeType
-	loc        *Loc
-	expr       Node
-	outerParen *Loc
+	typ  NodeType
+	rng  span.Range
+	expr Node
+	opa  span.Range
+}
+
+func (n *ParenExpr) Type() NodeType {
+	return n.typ
+}
+
+func (n *ParenExpr) Range() span.Range {
+	return n.rng
 }
 
 func (n *ParenExpr) Expr() Node {
@@ -1139,20 +866,12 @@ func (n *ParenExpr) Expr() Node {
 	return expr
 }
 
-func (n *ParenExpr) Type() NodeType {
-	return n.typ
+func (n *ParenExpr) OuterParen() span.Range {
+	return n.opa
 }
 
-func (n *ParenExpr) Loc() *Loc {
-	return n.loc
-}
-
-func (n *ParenExpr) OuterParen() *Loc {
-	return n.outerParen
-}
-
-func (n *ParenExpr) SetOuterParen(loc *Loc) {
-	n.outerParen = loc
+func (n *ParenExpr) SetOuterParen(rng span.Range) {
+	n.opa = rng
 }
 
 // there is no information kept to describe the program order of the quasis and expressions
@@ -1163,15 +882,19 @@ func (n *ParenExpr) SetOuterParen(loc *Loc) {
 //
 // #[visitor(Tag,Elems)]
 type TplExpr struct {
-	typ        NodeType
-	loc        *Loc
-	tag        Node
-	elems      []Node
-	outerParen *Loc
+	typ   NodeType
+	rng   span.Range
+	tag   Node
+	elems []Node
+	opa   span.Range
 }
 
 func (n *TplExpr) Tag() Node {
 	return n.tag
+}
+
+func (n *TplExpr) Range() span.Range {
+	return n.rng
 }
 
 func (n *TplExpr) Elems() []Node {
@@ -1182,50 +905,35 @@ func (n *TplExpr) Type() NodeType {
 	return n.typ
 }
 
-// loc without the `tag`
-func (n *TplExpr) Loc() *Loc {
-	return n.loc
+func (n *TplExpr) OuterParen() span.Range {
+	return n.opa
 }
 
-func (n *TplExpr) OuterParen() *Loc {
-	return n.outerParen
-}
-
-func (n *TplExpr) SetOuterParen(loc *Loc) {
-	n.outerParen = loc
-}
-
-func (n *TplExpr) LocWithTag() *Loc {
-	loc := n.loc.Clone()
-	if n.tag != nil {
-		tl := n.tag.Loc()
-		loc.begin = tl.begin
-		loc.rng.start = tl.rng.start
-	}
-	return loc
+func (n *TplExpr) SetOuterParen(rng span.Range) {
+	n.opa = rng
 }
 
 type Super struct {
-	typ        NodeType
-	loc        *Loc
-	outerParen *Loc
-	ti         *TypInfo
+	typ NodeType
+	rng span.Range
+	opa span.Range
+	ti  *TypInfo
 }
 
 func (n *Super) Type() NodeType {
 	return n.typ
 }
 
-func (n *Super) Loc() *Loc {
-	return n.loc
+func (n *Super) Range() span.Range {
+	return n.rng
 }
 
-func (n *Super) OuterParen() *Loc {
-	return n.outerParen
+func (n *Super) OuterParen() span.Range {
+	return n.opa
 }
 
-func (n *Super) SetOuterParen(loc *Loc) {
-	n.outerParen = loc
+func (n *Super) SetOuterParen(rng span.Range) {
+	n.opa = rng
 }
 
 func (n *Super) TypInfo() *TypInfo {
@@ -1238,39 +946,47 @@ func (n *Super) SetTypInfo(ti *TypInfo) {
 
 // #[visitor(Src)]
 type ImportCall struct {
-	typ        NodeType
-	loc        *Loc
-	src        Node
-	outerParen *Loc
-}
-
-func (n *ImportCall) Src() Node {
-	return n.src
+	typ NodeType
+	rng span.Range
+	src Node
+	opa span.Range
 }
 
 func (n *ImportCall) Type() NodeType {
 	return n.typ
 }
 
-func (n *ImportCall) Loc() *Loc {
-	return n.loc
+func (n *ImportCall) Range() span.Range {
+	return n.rng
 }
 
-func (n *ImportCall) OuterParen() *Loc {
-	return n.outerParen
+func (n *ImportCall) Src() Node {
+	return n.src
 }
 
-func (n *ImportCall) SetOuterParen(loc *Loc) {
-	n.outerParen = loc
+func (n *ImportCall) OuterParen() span.Range {
+	return n.opa
+}
+
+func (n *ImportCall) SetOuterParen(rng span.Range) {
+	n.opa = rng
 }
 
 // #[visitor(Arg)]
 type YieldExpr struct {
-	typ        NodeType
-	loc        *Loc
-	delegate   bool
-	arg        Node
-	outerParen *Loc
+	typ      NodeType
+	rng      span.Range
+	delegate bool
+	arg      Node
+	opa      span.Range
+}
+
+func (n *YieldExpr) Type() NodeType {
+	return n.typ
+}
+
+func (n *YieldExpr) Range() span.Range {
+	return n.rng
 }
 
 func (n *YieldExpr) Delegate() bool {
@@ -1281,49 +997,41 @@ func (n *YieldExpr) Arg() Node {
 	return n.arg
 }
 
-func (n *YieldExpr) Type() NodeType {
-	return n.typ
+func (n *YieldExpr) OuterParen() span.Range {
+	return n.opa
 }
 
-func (n *YieldExpr) Loc() *Loc {
-	return n.loc
-}
-
-func (n *YieldExpr) OuterParen() *Loc {
-	return n.outerParen
-}
-
-func (n *YieldExpr) SetOuterParen(loc *Loc) {
-	n.outerParen = loc
+func (n *YieldExpr) SetOuterParen(rng span.Range) {
+	n.opa = rng
 }
 
 // #[visitor(Elems)]
 type ArrPat struct {
-	typ        NodeType
-	loc        *Loc
-	elems      []Node
-	outerParen *Loc
-	ti         *TypInfo
+	typ   NodeType
+	rng   span.Range
+	elems []Node
+	opa   span.Range
+	ti    *TypInfo
 }
 
 func (n *ArrPat) Type() NodeType {
 	return n.typ
 }
 
-func (n *ArrPat) Loc() *Loc {
-	return n.loc
+func (n *ArrPat) Range() span.Range {
+	return n.rng
 }
 
 func (n *ArrPat) Elems() []Node {
 	return n.elems
 }
 
-func (n *ArrPat) OuterParen() *Loc {
-	return n.outerParen
+func (n *ArrPat) OuterParen() span.Range {
+	return n.opa
 }
 
-func (n *ArrPat) SetOuterParen(loc *Loc) {
-	n.outerParen = loc
+func (n *ArrPat) SetOuterParen(rng span.Range) {
+	n.opa = rng
 }
 
 func (n *ArrPat) TypInfo() *TypInfo {
@@ -1336,12 +1044,20 @@ func (n *ArrPat) SetTypInfo(ti *TypInfo) {
 
 // #[visitor(Lhs,Rhs)]
 type AssignPat struct {
-	typ        NodeType
-	loc        *Loc
-	lhs        Node
-	rhs        Node
-	outerParen *Loc
-	ti         *TypInfo
+	typ NodeType
+	rng span.Range
+	lhs Node
+	rhs Node
+	opa span.Range
+	ti  *TypInfo
+}
+
+func (n *AssignPat) Type() NodeType {
+	return n.typ
+}
+
+func (n *AssignPat) Range() span.Range {
+	return n.rng
 }
 
 func (n *AssignPat) Lhs() Node {
@@ -1352,16 +1068,8 @@ func (n *AssignPat) Rhs() Node {
 	return n.rhs
 }
 
-func (n *AssignPat) Type() NodeType {
-	return n.typ
-}
-
-func (n *AssignPat) Loc() *Loc {
-	return n.loc
-}
-
-func (n *AssignPat) OuterParen() *Loc {
-	return n.outerParen
+func (n *AssignPat) OuterParen() span.Range {
+	return n.opa
 }
 
 func (n *AssignPat) TypInfo() *TypInfo {
@@ -1380,31 +1088,31 @@ func (n *AssignPat) hoistTypInfo() {
 
 // #[visitor(Arg)]
 type RestPat struct {
-	typ        NodeType
-	loc        *Loc
-	arg        Node
-	outerParen *Loc
-	ti         *TypInfo
-}
-
-func (n *RestPat) Arg() Node {
-	return n.arg
+	typ NodeType
+	rng span.Range
+	arg Node
+	opa span.Range
+	ti  *TypInfo
 }
 
 func (n *RestPat) Type() NodeType {
 	return n.typ
 }
 
-func (n *RestPat) Loc() *Loc {
-	return n.loc
+func (n *RestPat) Range() span.Range {
+	return n.rng
 }
 
-func (n *RestPat) OuterParen() *Loc {
-	return n.outerParen
+func (n *RestPat) Arg() Node {
+	return n.arg
 }
 
-func (n *RestPat) SetOuterParen(loc *Loc) {
-	n.outerParen = loc
+func (n *RestPat) OuterParen() span.Range {
+	return n.opa
+}
+
+func (n *RestPat) SetOuterParen(rng span.Range) {
+	n.opa = rng
 }
 
 func (n *RestPat) TypInfo() *TypInfo {
@@ -1412,7 +1120,7 @@ func (n *RestPat) TypInfo() *TypInfo {
 }
 
 func (n *RestPat) Optional() bool {
-	return n.ti.Ques() != nil
+	return !n.ti.Ques().Empty()
 }
 
 func (n *RestPat) hoistTypInfo() {
@@ -1424,31 +1132,31 @@ func (n *RestPat) hoistTypInfo() {
 
 // #[visitor(Props)]
 type ObjPat struct {
-	typ        NodeType
-	loc        *Loc
-	props      []Node
-	outerParen *Loc
-	ti         *TypInfo
-}
-
-func (n *ObjPat) Props() []Node {
-	return n.props
+	typ   NodeType
+	rng   span.Range
+	props []Node
+	opa   span.Range
+	ti    *TypInfo
 }
 
 func (n *ObjPat) Type() NodeType {
 	return n.typ
 }
 
-func (n *ObjPat) Loc() *Loc {
-	return n.loc
+func (n *ObjPat) Range() span.Range {
+	return n.rng
 }
 
-func (n *ObjPat) OuterParen() *Loc {
-	return n.outerParen
+func (n *ObjPat) Props() []Node {
+	return n.props
 }
 
-func (n *ObjPat) SetOuterParen(loc *Loc) {
-	n.outerParen = loc
+func (n *ObjPat) OuterParen() span.Range {
+	return n.opa
+}
+
+func (n *ObjPat) SetOuterParen(rng span.Range) {
+	n.opa = rng
 }
 
 func (n *ObjPat) TypInfo() *TypInfo {
@@ -1490,19 +1198,26 @@ func (pk PropKind) ToString() string {
 // #[visitor(Key,Val)]
 type Prop struct {
 	typ      NodeType
-	loc      *Loc
+	rng      span.Range
 	key      Node
-	opLoc    *Loc
+	opLoc    span.Range
 	value    Node
 	computed bool
 	method   bool
 
 	shorthand bool
-	// it's `true` if the prop value is in assign pattern
-	assign bool
+	assign    bool // it's `true` if the prop value is in assign pattern
 
 	kind    PropKind
 	accMode ACC_MOD
+}
+
+func (n *Prop) Type() NodeType {
+	return n.typ
+}
+
+func (n *Prop) Range() span.Range {
+	return n.rng
 }
 
 func (n *Prop) PropKind() PropKind {
@@ -1533,26 +1248,26 @@ func (n *Prop) Shorthand() bool {
 	return n.shorthand
 }
 
-func (n *Prop) Type() NodeType {
+// #[visitor(Id,PUSH_SCOPE,Params,Body)]
+type FnDec struct {
+	typ       NodeType
+	rng       span.Range
+	id        Node
+	generator bool
+	async     bool
+	params    []Node
+	body      Node
+	rets      []Node
+	opa       span.Range
+	ti        *TypInfo
+}
+
+func (n *FnDec) Type() NodeType {
 	return n.typ
 }
 
-func (n *Prop) Loc() *Loc {
-	return n.loc
-}
-
-// #[visitor(Id,PUSH_SCOPE,Params,Body)]
-type FnDec struct {
-	typ        NodeType
-	loc        *Loc
-	id         Node
-	generator  bool
-	async      bool
-	params     []Node
-	body       Node
-	rets       []Node
-	outerParen *Loc
-	ti         *TypInfo
+func (n *FnDec) Range() span.Range {
+	return n.rng
 }
 
 func (n *FnDec) Id() Node {
@@ -1583,24 +1298,16 @@ func (n *FnDec) ExpRet() bool {
 	return len(n.rets) > 0
 }
 
-func (n *FnDec) Type() NodeType {
-	return n.typ
-}
-
-func (n *FnDec) Loc() *Loc {
-	return n.loc
-}
-
 func (n *FnDec) IsSig() bool {
 	return n.body == nil
 }
 
-func (n *FnDec) OuterParen() *Loc {
-	return n.outerParen
+func (n *FnDec) OuterParen() span.Range {
+	return n.opa
 }
 
-func (n *FnDec) SetOuterParen(loc *Loc) {
-	n.outerParen = loc
+func (n *FnDec) SetOuterParen(rng span.Range) {
+	n.opa = rng
 }
 
 func (n *FnDec) TypInfo() *TypInfo {
@@ -1613,16 +1320,24 @@ func (n *FnDec) SetTypInfo(ti *TypInfo) {
 
 // #[visitor(PUSH_SCOPE,Params,Body)]
 type ArrowFn struct {
-	typ        NodeType
-	loc        *Loc
-	arrowLoc   *Loc
-	async      bool
-	params     []Node
-	body       Node
-	expr       bool
-	rets       []Node
-	outerParen *Loc
-	ti         *TypInfo
+	typ      NodeType
+	rng      span.Range
+	arrowLoc span.Range
+	async    bool
+	params   []Node
+	body     Node
+	expr     bool
+	rets     []Node
+	opa      span.Range
+	ti       *TypInfo
+}
+
+func (n *ArrowFn) Type() NodeType {
+	return n.typ
+}
+
+func (n *ArrowFn) Range() span.Range {
+	return n.rng
 }
 
 func (n *ArrowFn) Async() bool {
@@ -1645,20 +1360,12 @@ func (n *ArrowFn) Body() Node {
 	return n.body
 }
 
-func (n *ArrowFn) Type() NodeType {
-	return n.typ
+func (n *ArrowFn) OuterParen() span.Range {
+	return n.opa
 }
 
-func (n *ArrowFn) Loc() *Loc {
-	return n.loc
-}
-
-func (n *ArrowFn) OuterParen() *Loc {
-	return n.outerParen
-}
-
-func (n *ArrowFn) SetOuterParen(loc *Loc) {
-	n.outerParen = loc
+func (n *ArrowFn) SetOuterParen(rng span.Range) {
+	n.opa = rng
 }
 
 func (n *ArrowFn) Expr() bool {
@@ -1676,10 +1383,18 @@ func (n *ArrowFn) SetTypInfo(ti *TypInfo) {
 // #[visitor(DecList)]
 type VarDecStmt struct {
 	typ     NodeType
-	loc     *Loc
+	rng     span.Range
 	kind    TokenValue
 	decList []Node
 	names   []Node
+}
+
+func (n *VarDecStmt) Type() NodeType {
+	return n.typ
+}
+
+func (n *VarDecStmt) Range() span.Range {
+	return n.rng
 }
 
 func (n *VarDecStmt) Names() []Node {
@@ -1694,20 +1409,20 @@ func (n *VarDecStmt) DecList() []Node {
 	return n.decList
 }
 
-func (n *VarDecStmt) Type() NodeType {
-	return n.typ
-}
-
-func (n *VarDecStmt) Loc() *Loc {
-	return n.loc
-}
-
 // #[visitor(Id,Init)]
 type VarDec struct {
 	typ  NodeType
-	loc  *Loc
+	rng  span.Range
 	id   Node
 	init Node
+}
+
+func (n *VarDec) Type() NodeType {
+	return n.typ
+}
+
+func (n *VarDec) Range() span.Range {
+	return n.rng
 }
 
 func (n *VarDec) Id() Node {
@@ -1718,32 +1433,23 @@ func (n *VarDec) Init() Node {
 	return n.init
 }
 
-func (n *VarDec) Type() NodeType {
-	return n.typ
-}
-
-func (n *VarDec) Loc() *Loc {
-	return n.loc
-}
-
 // #[visitor(PUSH_SCOPE,Body)]
 type BlockStmt struct {
 	typ      NodeType
-	loc      *Loc
+	rng      span.Range
 	body     []Node
 	newScope bool // whether or not to introduce a new scope
-}
-
-func (n *BlockStmt) Body() []Node {
-	return n.body
 }
 
 func (n *BlockStmt) Type() NodeType {
 	return n.typ
 }
+func (n *BlockStmt) Range() span.Range {
+	return n.rng
+}
 
-func (n *BlockStmt) Loc() *Loc {
-	return n.loc
+func (n *BlockStmt) Body() []Node {
+	return n.body
 }
 
 func (n *BlockStmt) NewScope() bool {
@@ -1753,9 +1459,17 @@ func (n *BlockStmt) NewScope() bool {
 // #[visitor(PUSH_SCOPE,Body,Test)]
 type DoWhileStmt struct {
 	typ  NodeType
-	loc  *Loc
+	rng  span.Range
 	test Node
 	body Node
+}
+
+func (n *DoWhileStmt) Type() NodeType {
+	return n.typ
+}
+
+func (n *DoWhileStmt) Range() span.Range {
+	return n.rng
 }
 
 func (n *DoWhileStmt) Test() Node {
@@ -1766,20 +1480,20 @@ func (n *DoWhileStmt) Body() Node {
 	return n.body
 }
 
-func (n *DoWhileStmt) Type() NodeType {
-	return n.typ
-}
-
-func (n *DoWhileStmt) Loc() *Loc {
-	return n.loc
-}
-
 // #[visitor(PUSH_SCOPE,Test,Body)]
 type WhileStmt struct {
 	typ  NodeType
-	loc  *Loc
+	rng  span.Range
 	test Node
 	body Node
+}
+
+func (n *WhileStmt) Type() NodeType {
+	return n.typ
+}
+
+func (n *WhileStmt) Range() span.Range {
+	return n.rng
 }
 
 func (n *WhileStmt) Test() Node {
@@ -1790,22 +1504,22 @@ func (n *WhileStmt) Body() Node {
 	return n.body
 }
 
-func (n *WhileStmt) Type() NodeType {
-	return n.typ
-}
-
-func (n *WhileStmt) Loc() *Loc {
-	return n.loc
-}
-
 // #[visitor(PUSH_SCOPE,Init,Test,Update,Body)]
 type ForStmt struct {
 	typ    NodeType
-	loc    *Loc
+	rng    span.Range
 	init   Node
 	test   Node
 	update Node
 	body   Node
+}
+
+func (n *ForStmt) Type() NodeType {
+	return n.typ
+}
+
+func (n *ForStmt) Range() span.Range {
+	return n.rng
 }
 
 func (n *ForStmt) Init() Node {
@@ -1824,23 +1538,23 @@ func (n *ForStmt) Body() Node {
 	return n.body
 }
 
-func (n *ForStmt) Type() NodeType {
-	return n.typ
-}
-
-func (n *ForStmt) Loc() *Loc {
-	return n.loc
-}
-
 // #[visitor(Left,Right,Body)]
 type ForInOfStmt struct {
 	typ   NodeType
-	loc   *Loc
+	rng   span.Range
 	in    bool
 	await bool
 	left  Node
 	right Node
 	body  Node
+}
+
+func (n *ForInOfStmt) Type() NodeType {
+	return n.typ
+}
+
+func (n *ForInOfStmt) Range() span.Range {
+	return n.rng
 }
 
 func (n *ForInOfStmt) In() bool {
@@ -1863,21 +1577,21 @@ func (n *ForInOfStmt) Body() Node {
 	return n.body
 }
 
-func (n *ForInOfStmt) Type() NodeType {
-	return n.typ
-}
-
-func (n *ForInOfStmt) Loc() *Loc {
-	return n.loc
-}
-
 // #[visitor(Test,Cons,Alt)]
 type IfStmt struct {
 	typ  NodeType
-	loc  *Loc
+	rng  span.Range
 	test Node
 	cons Node
 	alt  Node
+}
+
+func (n *IfStmt) Type() NodeType {
+	return n.typ
+}
+
+func (n *IfStmt) Range() span.Range {
+	return n.rng
 }
 
 func (n *IfStmt) Test() Node {
@@ -1892,20 +1606,20 @@ func (n *IfStmt) Alt() Node {
 	return n.alt
 }
 
-func (n *IfStmt) Type() NodeType {
-	return n.typ
-}
-
-func (n *IfStmt) Loc() *Loc {
-	return n.loc
-}
-
 // #[visitor(PUSH_SCOPE,Test,Cases)]
 type SwitchStmt struct {
 	typ   NodeType
-	loc   *Loc
+	rng   span.Range
 	test  Node
 	cases []Node
+}
+
+func (n *SwitchStmt) Type() NodeType {
+	return n.typ
+}
+
+func (n *SwitchStmt) Range() span.Range {
+	return n.rng
 }
 
 func (n *SwitchStmt) Cases() []Node {
@@ -1916,20 +1630,20 @@ func (n *SwitchStmt) Test() Node {
 	return n.test
 }
 
-func (n *SwitchStmt) Type() NodeType {
-	return n.typ
-}
-
-func (n *SwitchStmt) Loc() *Loc {
-	return n.loc
-}
-
 // #[visitor(Test,Cons)]
 type SwitchCase struct {
 	typ  NodeType
-	loc  *Loc
+	rng  span.Range
 	test Node // nil in default clause
 	cons []Node
+}
+
+func (n *SwitchCase) Type() NodeType {
+	return n.typ
+}
+
+func (n *SwitchCase) Range() span.Range {
+	return n.rng
 }
 
 func (n *SwitchCase) Test() Node {
@@ -1940,20 +1654,20 @@ func (n *SwitchCase) Cons() []Node {
 	return n.cons
 }
 
-func (n *SwitchCase) Type() NodeType {
-	return n.typ
-}
-
-func (n *SwitchCase) Loc() *Loc {
-	return n.loc
-}
-
 // #[visitor(Label)]
 type BrkStmt struct {
 	typ    NodeType
-	loc    *Loc
+	rng    span.Range
 	label  Node
 	target Node
+}
+
+func (n *BrkStmt) Type() NodeType {
+	return n.typ
+}
+
+func (n *BrkStmt) Range() span.Range {
+	return n.rng
 }
 
 func (n *BrkStmt) Label() Node {
@@ -1964,20 +1678,20 @@ func (n *BrkStmt) Target() Node {
 	return n.target
 }
 
-func (n *BrkStmt) Type() NodeType {
-	return n.typ
-}
-
-func (n *BrkStmt) Loc() *Loc {
-	return n.loc
-}
-
 // #[visitor(Label)]
 type ContStmt struct {
 	typ    NodeType
-	loc    *Loc
+	rng    span.Range
 	label  Node
 	target Node
+}
+
+func (n *ContStmt) Type() NodeType {
+	return n.typ
+}
+
+func (n *ContStmt) Range() span.Range {
+	return n.rng
 }
 
 func (n *ContStmt) Label() Node {
@@ -1988,21 +1702,21 @@ func (n *ContStmt) Target() Node {
 	return n.target
 }
 
-func (n *ContStmt) Type() NodeType {
-	return n.typ
-}
-
-func (n *ContStmt) Loc() *Loc {
-	return n.loc
-}
-
 // #[visitor(Label,Body)]
 type LabelStmt struct {
 	typ   NodeType
-	loc   *Loc
+	rng   span.Range
 	label Node
 	body  Node
 	used  bool
+}
+
+func (n *LabelStmt) Type() NodeType {
+	return n.typ
+}
+
+func (n *LabelStmt) Range() span.Range {
+	return n.rng
 }
 
 func (n *LabelStmt) Label() Node {
@@ -2017,39 +1731,39 @@ func (n *LabelStmt) Used() bool {
 	return n.used
 }
 
-func (n *LabelStmt) Type() NodeType {
-	return n.typ
-}
-
-func (n *LabelStmt) Loc() *Loc {
-	return n.loc
-}
-
 // #[visitor(Arg)]
 type RetStmt struct {
 	typ NodeType
-	loc *Loc
+	rng span.Range
 	arg Node
-}
-
-func (n *RetStmt) Arg() Node {
-	return n.arg
 }
 
 func (n *RetStmt) Type() NodeType {
 	return n.typ
 }
 
-func (n *RetStmt) Loc() *Loc {
-	return n.loc
+func (n *RetStmt) Range() span.Range {
+	return n.rng
+}
+
+func (n *RetStmt) Arg() Node {
+	return n.arg
 }
 
 // #[visitor(Arg)]
 type ThrowStmt struct {
 	typ    NodeType
-	loc    *Loc
+	rng    span.Range
 	arg    Node
 	target Node
+}
+
+func (n *ThrowStmt) Type() NodeType {
+	return n.typ
+}
+
+func (n *ThrowStmt) Range() span.Range {
+	return n.rng
 }
 
 func (n *ThrowStmt) Arg() Node {
@@ -2060,20 +1774,20 @@ func (n *ThrowStmt) Target() Node {
 	return n.target
 }
 
-func (n *ThrowStmt) Type() NodeType {
-	return n.typ
-}
-
-func (n *ThrowStmt) Loc() *Loc {
-	return n.loc
-}
-
 // #[visitor(PUSH_SCOPE,Param,Body)]
 type Catch struct {
 	typ   NodeType
-	loc   *Loc
+	rng   span.Range
 	param Node
 	body  Node
+}
+
+func (n *Catch) Type() NodeType {
+	return n.typ
+}
+
+func (n *Catch) Range() span.Range {
+	return n.rng
 }
 
 func (n *Catch) Param() Node {
@@ -2084,21 +1798,21 @@ func (n *Catch) Body() Node {
 	return n.body
 }
 
-func (n *Catch) Type() NodeType {
-	return n.typ
-}
-
-func (n *Catch) Loc() *Loc {
-	return n.loc
-}
-
 // #[visitor(Try,Catch,Fin)]
 type TryStmt struct {
 	typ   NodeType
-	loc   *Loc
+	rng   span.Range
 	try   Node
 	catch Node
 	fin   Node
+}
+
+func (n *TryStmt) Type() NodeType {
+	return n.typ
+}
+
+func (n *TryStmt) Range() span.Range {
+	return n.rng
 }
 
 func (n *TryStmt) Try() Node {
@@ -2113,33 +1827,33 @@ func (n *TryStmt) Fin() Node {
 	return n.fin
 }
 
-func (n *TryStmt) Type() NodeType {
-	return n.typ
-}
-
-func (n *TryStmt) Loc() *Loc {
-	return n.loc
-}
-
 type DebugStmt struct {
 	typ NodeType
-	loc *Loc
+	rng span.Range
 }
 
 func (n *DebugStmt) Type() NodeType {
 	return n.typ
 }
 
-func (n *DebugStmt) Loc() *Loc {
-	return n.loc
+func (n *DebugStmt) Range() span.Range {
+	return n.rng
 }
 
 // #[visitor(Expr,Body)]
 type WithStmt struct {
 	typ  NodeType
-	loc  *Loc
+	rng  span.Range
 	expr Node
 	body Node
+}
+
+func (n *WithStmt) Type() NodeType {
+	return n.typ
+}
+
+func (n *WithStmt) Range() span.Range {
+	return n.rng
 }
 
 func (n *WithStmt) Expr() Node {
@@ -2150,23 +1864,23 @@ func (n *WithStmt) Body() Node {
 	return n.body
 }
 
-func (n *WithStmt) Type() NodeType {
-	return n.typ
-}
-
-func (n *WithStmt) Loc() *Loc {
-	return n.loc
-}
-
 // #[visitor(Id,Super,Body)]
 type ClassDec struct {
 	typ     NodeType
-	loc     *Loc
+	rng     span.Range
 	id      Node
 	super   Node
 	body    Node
 	declare bool
 	ti      *TypInfo
+}
+
+func (n *ClassDec) Type() NodeType {
+	return n.typ
+}
+
+func (n *ClassDec) Range() span.Range {
+	return n.rng
 }
 
 func (n *ClassDec) Declare() bool {
@@ -2185,14 +1899,6 @@ func (n *ClassDec) Body() Node {
 	return n.body
 }
 
-func (n *ClassDec) Type() NodeType {
-	return n.typ
-}
-
-func (n *ClassDec) Loc() *Loc {
-	return n.loc
-}
-
 func (n *ClassDec) TypInfo() *TypInfo {
 	return n.ti
 }
@@ -2204,32 +1910,40 @@ func (n *ClassDec) SetTypInfo(ti *TypInfo) {
 // #[visitor(PUSH_SCOPE,Elems)]
 type ClassBody struct {
 	typ   NodeType
-	loc   *Loc
+	rng   span.Range
 	elems []Node
-}
-
-func (n *ClassBody) Elems() []Node {
-	return n.elems
 }
 
 func (n *ClassBody) Type() NodeType {
 	return n.typ
 }
 
-func (n *ClassBody) Loc() *Loc {
-	return n.loc
+func (n *ClassBody) Range() span.Range {
+	return n.rng
+}
+
+func (n *ClassBody) Elems() []Node {
+	return n.elems
 }
 
 // #[visitor(Key,Val)]
 type Method struct {
 	typ      NodeType
-	loc      *Loc
+	rng      span.Range
 	key      Node
 	static   bool
 	computed bool
 	kind     PropKind
 	val      Node
 	ti       *TypInfo
+}
+
+func (n *Method) Type() NodeType {
+	return n.typ
+}
+
+func (n *Method) Range() span.Range {
+	return n.rng
 }
 
 func (n *Method) PropKind() PropKind {
@@ -2260,14 +1974,6 @@ func (n *Method) Static() bool {
 	return n.static
 }
 
-func (n *Method) Type() NodeType {
-	return n.typ
-}
-
-func (n *Method) Loc() *Loc {
-	return n.loc
-}
-
 func (n *Method) Declare() bool {
 	fn := n.val.(*FnDec)
 	return fn.body == nil
@@ -2284,12 +1990,20 @@ func (n *Method) SetTypInfo(ti *TypInfo) {
 // #[visitor(Key,Val)]
 type Field struct {
 	typ      NodeType
-	loc      *Loc
+	rng      span.Range
 	key      Node
 	static   bool
 	computed bool
 	val      Node
 	ti       *TypInfo
+}
+
+func (n *Field) Type() NodeType {
+	return n.typ
+}
+
+func (n *Field) Range() span.Range {
+	return n.rng
 }
 
 func (n *Field) Key() Node {
@@ -2308,14 +2022,6 @@ func (n *Field) Computed() bool {
 	return n.computed
 }
 
-func (n *Field) Type() NodeType {
-	return n.typ
-}
-
-func (n *Field) Loc() *Loc {
-	return n.loc
-}
-
 func (n *Field) TypInfo() *TypInfo {
 	return n.ti
 }
@@ -2327,7 +2033,7 @@ func (n *Field) SetTypInfo(ti *TypInfo) {
 // #[visitor(Body)]
 type StaticBlock struct {
 	typ  NodeType
-	loc  *Loc
+	rng  span.Range
 	body []Node
 	ti   *TypInfo
 }
@@ -2336,8 +2042,8 @@ func (n *StaticBlock) Type() NodeType {
 	return n.typ
 }
 
-func (n *StaticBlock) Loc() *Loc {
-	return n.loc
+func (n *StaticBlock) Range() span.Range {
+	return n.rng
 }
 
 func (n *StaticBlock) Body() []Node {
@@ -2355,9 +2061,17 @@ func (n *StaticBlock) SetTypInfo(ti *TypInfo) {
 // #[visitor(Meta,Prop)]
 type MetaProp struct {
 	typ  NodeType
-	loc  *Loc
+	rng  span.Range
 	meta Node
 	prop Node
+}
+
+func (n *MetaProp) Type() NodeType {
+	return n.typ
+}
+
+func (n *MetaProp) Range() span.Range {
+	return n.rng
 }
 
 func (n *MetaProp) Meta() Node {
@@ -2368,21 +2082,21 @@ func (n *MetaProp) Prop() Node {
 	return n.prop
 }
 
-func (n *MetaProp) Type() NodeType {
-	return n.typ
-}
-
-func (n *MetaProp) Loc() *Loc {
-	return n.loc
-}
-
 // #[visitor(Specs,Src)]
 type ImportDec struct {
 	typ   NodeType
-	loc   *Loc
+	rng   span.Range
 	specs []Node
 	src   Node
 	tsTyp bool
+}
+
+func (n *ImportDec) Type() NodeType {
+	return n.typ
+}
+
+func (n *ImportDec) Range() span.Range {
+	return n.rng
 }
 
 func (n *ImportDec) TsTyp() bool {
@@ -2404,23 +2118,23 @@ func (n *ImportDec) Src() Node {
 	return n.src
 }
 
-func (n *ImportDec) Type() NodeType {
-	return n.typ
-}
-
-func (n *ImportDec) Loc() *Loc {
-	return n.loc
-}
-
 // #[visitor(Local,Id)]
 type ImportSpec struct {
 	typ   NodeType
-	loc   *Loc
+	rng   span.Range
 	def   bool
 	ns    bool
 	local Node
 	id    Node
 	tsTyp bool // if represents the ts type
+}
+
+func (n *ImportSpec) Type() NodeType {
+	return n.typ
+}
+
+func (n *ImportSpec) Range() span.Range {
+	return n.rng
 }
 
 func (n *ImportSpec) TsTyp() bool {
@@ -2450,24 +2164,24 @@ func (n *ImportSpec) Id() Node {
 	return n.id
 }
 
-func (n *ImportSpec) Type() NodeType {
-	return n.typ
-}
-
-func (n *ImportSpec) Loc() *Loc {
-	return n.loc
-}
-
 // #[visitor(Dec,Specs,Src)]
 type ExportDec struct {
 	typ   NodeType
-	loc   *Loc
+	rng   span.Range
 	all   bool
-	def   *Loc
+	def   span.Range
 	dec   Node
 	specs []Node
 	src   Node
 	tsTyp bool
+}
+
+func (n *ExportDec) Type() NodeType {
+	return n.typ
+}
+
+func (n *ExportDec) Range() span.Range {
+	return n.rng
 }
 
 func (n *ExportDec) TsTyp() bool {
@@ -2486,7 +2200,7 @@ func (n *ExportDec) All() bool {
 }
 
 func (n *ExportDec) Default() bool {
-	return n.def != nil
+	return !n.def.Empty()
 }
 
 func (n *ExportDec) Dec() Node {
@@ -2501,22 +2215,22 @@ func (n *ExportDec) Src() Node {
 	return n.src
 }
 
-func (n *ExportDec) Type() NodeType {
-	return n.typ
-}
-
-func (n *ExportDec) Loc() *Loc {
-	return n.loc
-}
-
 // #[visitor(Local,Id)]
 type ExportSpec struct {
 	typ   NodeType
-	loc   *Loc
+	rng   span.Range
 	ns    bool
 	local Node
 	id    Node // exported
 	tsTyp bool // if represents the ts type
+}
+
+func (n *ExportSpec) Type() NodeType {
+	return n.typ
+}
+
+func (n *ExportSpec) Range() span.Range {
+	return n.rng
 }
 
 func (n *ExportSpec) Kind() string {
@@ -2542,18 +2256,10 @@ func (n *ExportSpec) Id() Node {
 	return n.id
 }
 
-func (n *ExportSpec) Type() NodeType {
-	return n.typ
-}
-
-func (n *ExportSpec) Loc() *Loc {
-	return n.loc
-}
-
 // #[visitor(Expr)]
 type ChainExpr struct {
 	typ  NodeType
-	loc  *Loc
+	rng  span.Range
 	expr Node
 }
 
@@ -2561,8 +2267,8 @@ func (n *ChainExpr) Type() NodeType {
 	return n.typ
 }
 
-func (n *ChainExpr) Loc() *Loc {
-	return n.loc
+func (n *ChainExpr) Range() span.Range {
+	return n.rng
 }
 
 func (n *ChainExpr) Expr() Node {
@@ -2572,18 +2278,18 @@ func (n *ChainExpr) Expr() Node {
 // #[visitor(Expr)]
 type Decorator struct {
 	typ  NodeType
-	loc  *Loc
+	rng  span.Range
 	expr Node
-}
-
-func (n *Decorator) Expr() Node {
-	return n.expr
 }
 
 func (n *Decorator) Type() NodeType {
 	return n.typ
 }
 
-func (n *Decorator) Loc() *Loc {
-	return n.loc
+func (n *Decorator) Range() span.Range {
+	return n.rng
+}
+
+func (n *Decorator) Expr() Node {
+	return n.expr
 }

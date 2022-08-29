@@ -451,7 +451,7 @@ func IsOneOfNs(r1, r2 *Ref) bool {
 }
 
 func (s *Scope) DelLocal(ref *Ref) {
-	s.Refs[ref.Def.Text()] = nil
+	s.Refs[ref.Def.val] = nil
 }
 
 func (s *Scope) BindingOf(name string) *Ref {

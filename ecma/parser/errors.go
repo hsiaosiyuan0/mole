@@ -3,6 +3,8 @@ package parser
 import (
 	"encoding/json"
 	"fmt"
+
+	"github.com/hsiaosiyuan0/mole/span"
 )
 
 type LexerError struct {
@@ -12,12 +14,13 @@ type LexerError struct {
 	col  uint32
 }
 
-func newLexerError(msg, file string, line, col uint32) *LexerError {
+func newLexerError(msg, file string, ofst uint32, s *span.Source) *LexerError {
+	loc := s.OfstLineCol(ofst)
 	return &LexerError{
 		msg:  msg,
 		file: file,
-		line: line,
-		col:  col,
+		line: loc.Line,
+		col:  loc.Col,
 	}
 }
 

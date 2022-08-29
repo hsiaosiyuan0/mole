@@ -1,9 +1,11 @@
 package span
 
 import (
-	"math"
+	"regexp"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/hsiaosiyuan0/mole/util"
 )
 
 type Runes struct {
@@ -30,22 +32,19 @@ type SourceState struct {
 	runes       Runes
 	ofst        uint32 // ofst base on byte
 	pos         uint32 // pos base on rune
-	line        uint32 // 1-based line number
-	col         uint32 // 0-based column number
 	metLineTerm bool   // whether line terminator appeared
 }
 
 func newSourceState(code string) SourceState {
 	s := SourceState{}
 	s.runes.raw = code
-	s.line = 1
 	return s
 }
 
-// process the utf8 encoded source file, it will panic if:
+// process the utf8 encoded source file
 //
-// the returned rune will be `utf8.RuneError` if the position
-// is not well encoded in utf8
+// the return value of below methods which return rune will be
+// `utf8.RuneError` if the given position is not well encoded in utf8
 //
 // `\r`, `\r\n` will be unified to `\n` which has an alias `span.EOL`
 type Source struct {
@@ -152,10 +151,6 @@ func (s *Source) Read() rune {
 	}
 	if r == '\r' || r == '\n' {
 		r = EOL
-		s.state.line += 1
-		s.state.col = 0
-	} else if r != EOF {
-		s.state.col += 1
 	}
 	return r
 }
@@ -191,30 +186,19 @@ func (s *Source) Pos() uint32 {
 	return s.state.pos
 }
 
-func (s *Source) Line() uint32 {
-	return s.state.line
-}
-
-func (s *Source) Col() uint32 {
-	return s.state.col
-}
-
 func (s *Source) MetLineTerm() bool {
 	return s.state.metLineTerm
 }
 
 func (s *Source) NewOpenRange() Range {
 	return Range{
-		Src: s,
-		Lo:  s.Ofst(),
-		Hi:  s.Ofst(),
+		Lo: s.Ofst(),
+		Hi: s.Ofst(),
 	}
 }
 
 func (s *Source) OpenRange(rng *Range) {
-	rng.Src = s
 	rng.Lo = s.Ofst()
-	rng.Hi = math.MaxUint32
 }
 
 func (s *Source) SkipSpace() *Source {
@@ -237,20 +221,96 @@ func (s *Source) Text(start, end uint32) string {
 	return s.code[start:end]
 }
 
-type Range struct {
-	Src *Source
-	Lo  uint32
-	Hi  uint32
+func (s *Source) RngText(rng Range) string {
+	return s.code[rng.Lo:rng.Hi]
 }
 
-var InvalidRange = Range{}
+var linefeed = regexp.MustCompile("(?m)\r\n?|\n|\u2028|\u2029")
+
+// line-column is useful for developer can figure out where the errors occur, however
+// it will pressure memory footprint if we directly store them in Node, this method is
+// inspired by `acorn` to defer restore the line-column by the given source range
+//
+// refer: https://github.com/acornjs/acorn/blob/ee1ce3766fe484926b84f29182f140d21e25fc6f/acorn/src/locutil.js#L31
+func (s *Source) LineCol(rng Range) (from, to Pos) {
+	start, end := rng.Lo, rng.Hi
+	buf := util.Str2bytes(s.code)
+
+	pos := &from
+	prev := 0
+	cur := 0
+	ofst := int(start)
+
+	line := 1
+	i := 1
+
+RESTORE:
+	for {
+		span := linefeed.FindIndex(buf[cur:])
+		if span != nil {
+			prev = cur
+			cur += span[1]
+
+			if cur <= ofst {
+				line += 1
+				continue
+			}
+		}
+
+		pos.Line = uint32(line)
+		pos.Col = uint32(ofst - prev)
+		cur = prev
+		break
+	}
+
+	if i != 2 {
+		i += 1
+		ofst = int(end)
+		pos = &to
+		goto RESTORE
+	}
+
+	return
+}
+
+func (s *Source) OfstLineCol(ofst uint32) (pos Pos) {
+	buf := util.Str2bytes(s.code)
+
+	prev := 0
+	cur := 0
+	end := int(ofst)
+
+	line := 1
+
+	for {
+		span := linefeed.FindIndex(buf[cur:])
+		if span != nil {
+			prev = cur
+			cur += span[1]
+
+			if cur <= end {
+				line += 1
+				continue
+			}
+		}
+
+		pos.Line = uint32(line)
+		pos.Col = uint32(end - prev)
+		return
+	}
+}
+
+type Range struct {
+	Lo uint32
+	Hi uint32
+}
+
+func (r Range) Before(rng Range) bool {
+	return r.Hi < rng.Lo
+}
 
 func (r Range) Empty() bool {
-	return r.Hi == math.MaxUint32
-}
-
-func (r Range) Text() string {
-	return r.Src.Text(r.Lo, r.Hi)
+	return r.Lo == 0 && r.Hi == 0
 }
 
 type Pos struct {

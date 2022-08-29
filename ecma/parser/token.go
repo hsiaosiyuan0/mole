@@ -5,10 +5,7 @@ import "github.com/hsiaosiyuan0/mole/span"
 type Token struct {
 	value TokenValue
 
-	begin span.Pos
-	end   span.Pos
-
-	raw  span.Range // range encapsulates the whole stuffs, for string the quotes are included
+	rng  span.Range // range encapsulates the whole stuffs, for string the quotes are included
 	txt  span.Range // range encapsulates the contents, for string the quotes are excluded
 	text string     // the in-place cache to avoid copy the source string more than once
 
@@ -20,14 +17,6 @@ type Token struct {
 	afterLineTerm bool
 
 	ext interface{}
-}
-
-func (t *Token) Begin() *span.Pos {
-	return &t.begin
-}
-
-func (t *Token) End() *span.Pos {
-	return &t.end
 }
 
 func (t *Token) Len() uint32 {
@@ -71,27 +60,6 @@ func (t *Token) CanBePropKey() (bool, bool) {
 
 func (t *Token) IsLegal() bool {
 	return t.value != T_ILLEGAL
-}
-
-func (t *Token) RawText() string {
-	return t.raw.Text()
-}
-
-func (t *Token) Text() string {
-	if t.text != "" {
-		return t.text
-	}
-
-	if t.IsKw() {
-		return TokenKinds[t.value].Name
-	}
-
-	if !t.txt.Empty() && t.value != T_ILLEGAL {
-		t.text = t.txt.Text()
-	} else {
-		t.text = t.raw.Text()
-	}
-	return t.text
 }
 
 func (t *Token) IsBin(notIn bool, ts bool) TokenValue {
@@ -162,16 +130,14 @@ type TokExtIdent struct {
 
 type IllegalEscapeInfo struct {
 	Err string
-	Loc *Loc
+	Rng span.Range
 }
 
 type TokExtTplSpan struct {
 	// store the internal string
-	str      string
-	strLen   uint32
-	strRng   span.Range
-	strBegin span.Pos
-	strEnd   span.Pos
+	str    string
+	strLen uint32
+	strRng span.Range
 
 	Plain bool
 
@@ -186,20 +152,6 @@ type TokExtTplSpan struct {
 type TokExtRegexp struct {
 	pattern span.Range
 	flags   span.Range
-}
-
-func (t *TokExtRegexp) Pattern() string {
-	if t.pattern == span.InvalidRange {
-		return ""
-	}
-	return t.pattern.Text()
-}
-
-func (t *TokExtRegexp) Flags() string {
-	if t.flags == span.InvalidRange {
-		return ""
-	}
-	return t.flags.Text()
 }
 
 type TokenValue int
@@ -607,7 +559,8 @@ func IsStrictKeyword(str string) bool {
 }
 
 func IsName(tok *Token, name string, canContainsEscape bool) bool {
-	matched := tok.value == T_NAME && tok.Text() == name
+	tt := TokText(tok, nil)
+	matched := tok.value == T_NAME && tt == name
 	if !matched {
 		return false
 	}
