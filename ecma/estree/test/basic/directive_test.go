@@ -819,7 +819,7 @@ func TestDirective16(t *testing.T) {
         "value": "use strict",
         "raw": "\"\\u0075se strict\""
       },
-      "directive": "\\u0075se strict"
+      "directive": "use strict"
     }
   ]
 }

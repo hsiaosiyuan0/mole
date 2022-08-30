@@ -95,7 +95,6 @@
                 "start": 1,
                 "end": 2,
                 "loc": {
-                  "source": "",
                   "start": {
                     "line": 1,
                     "column": 1

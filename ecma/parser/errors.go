@@ -29,26 +29,28 @@ func (e *LexerError) Error() string {
 }
 
 type ParserError struct {
+	p    *Parser
 	msg  string
 	file string
-	line uint32
-	col  uint32
+	ofst uint32
 }
 
-func newParserError(msg, file string, line, col uint32) *ParserError {
+func newParserError(p *Parser, msg, file string, ofst uint32) *ParserError {
 	return &ParserError{
+		p:    p,
 		msg:  msg,
 		file: file,
-		line: line,
-		col:  col,
+		ofst: ofst,
 	}
 }
 
 func (e *ParserError) Error() string {
-	return fmt.Sprintf("%s at %s(%d:%d)", e.msg, e.file, e.line, e.col)
+	loc := e.p.lexer.src.OfstLineCol(e.ofst)
+	return fmt.Sprintf("%s at %s(%d:%d)", e.msg, e.file, loc.Line, loc.Col)
 }
 
 func (e *ParserError) MarshalJSON() ([]byte, error) {
+	loc := e.p.lexer.src.OfstLineCol(e.ofst)
 	return json.Marshal(&struct {
 		Msg  string `json:"msg"`
 		File string `json:"file"`
@@ -57,8 +59,8 @@ func (e *ParserError) MarshalJSON() ([]byte, error) {
 	}{
 		Msg:  e.msg,
 		File: e.file,
-		Line: e.line,
-		Col:  e.col,
+		Line: loc.Line,
+		Col:  loc.Col,
 	})
 }
 

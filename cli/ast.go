@@ -36,7 +36,7 @@ func (a *AstInspector) Process(opts *Options) bool {
 		panic(err)
 	}
 
-	if opts.ast && strings.HasSuffix(opts.file, ".js") {
+	if opts.ast {
 		printJsAst(string(src), opts.file, opts.perf)
 	}
 
@@ -75,7 +75,6 @@ func printJsAst(src, file string, perf bool) (string, error) {
 		ast, err = p.Prog()
 		_runtime.StopCPUProfile()
 		_runtime.WriteHeapProfile(heap)
-
 	} else {
 		start := time.Now()
 		ast, err = p.Prog()
@@ -87,7 +86,9 @@ func printJsAst(src, file string, perf bool) (string, error) {
 		return "", err
 	}
 
-	b, err := json.Marshal(estree.ConvertProg(ast.(*parser.Prog), estree.NewConvertCtx()))
+	ctx := estree.NewConvertCtx(p)
+	ctx.LineCol = false
+	b, err := json.Marshal(estree.ConvertProg(ast.(*parser.Prog), ctx))
 	if err != nil {
 		return "", err
 	}

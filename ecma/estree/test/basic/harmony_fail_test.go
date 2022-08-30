@@ -869,7 +869,7 @@ func TestHarmonyFail196(t *testing.T) {
 }
 
 func TestHarmonyFail197(t *testing.T) {
-	TestFail(t, "/\\u{110000}/u", "Code point out of bounds at (1:3)", nil)
+	TestFail(t, "/\\u{110000}/u", "Code point out of bounds at (1:11)", nil)
 }
 
 func TestHarmonyFail198(t *testing.T) {

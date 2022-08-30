@@ -89,12 +89,12 @@
                 "params": [],
                 "returnType": {
                   "type": "TSTypeAnnotation",
-                  "start": 23,
+                  "start": 26,
                   "end": 30,
                   "loc": {
                     "start": {
                       "line": 1,
-                      "column": 23
+                      "column": 26
                     },
                     "end": {
                       "line": 1,

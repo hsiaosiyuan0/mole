@@ -90,7 +90,6 @@
                   "start": 14,
                   "end": 17,
                   "loc": {
-                    "source": "",
                     "start": {
                       "line": 1,
                       "column": 14
@@ -105,7 +104,6 @@
                     "start": 14,
                     "end": 17,
                     "loc": {
-                      "source": "",
                       "start": {
                         "line": 1,
                         "column": 14
@@ -120,7 +118,6 @@
                       "start": 14,
                       "end": 15,
                       "loc": {
-                        "source": "",
                         "start": {
                           "line": 1,
                           "column": 14
@@ -139,7 +136,6 @@
                       "start": 16,
                       "end": 17,
                       "loc": {
-                        "source": "",
                         "start": {
                           "line": 1,
                           "column": 16

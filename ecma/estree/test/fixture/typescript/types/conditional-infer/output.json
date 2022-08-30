@@ -77,7 +77,6 @@
               "start": 13,
               "end": 14,
               "loc": {
-                "source": "",
                 "start": {
                   "line": 1,
                   "column": 13
@@ -200,7 +199,6 @@
                   "start": 35,
                   "end": 36,
                   "loc": {
-                    "source": "",
                     "start": {
                       "line": 1,
                       "column": 35

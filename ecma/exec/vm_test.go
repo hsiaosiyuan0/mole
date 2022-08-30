@@ -26,12 +26,12 @@ func compile(code string, opts *parser.ParserOpts) (*parser.Parser, parser.Node,
 }
 
 func TestExecExprAdd(t *testing.T) {
-	_, ast, _, err := compile(`
+	p, ast, _, err := compile(`
   1 + 2
   `, nil)
 	util.AssertEqual(t, nil, err, "should pass")
 
-	ee := NewExprEvaluator(ast)
+	ee := NewExprEvaluator(ast, p)
 	res, err := ee.Exec(nil).GetResult()
 	if err != nil {
 		t.Fatal(err)
@@ -41,12 +41,12 @@ func TestExecExprAdd(t *testing.T) {
 }
 
 func TestExecNull(t *testing.T) {
-	_, ast, _, err := compile(`
+	p, ast, _, err := compile(`
   null
   `, nil)
 	util.AssertEqual(t, nil, err, "should pass")
 
-	ee := NewExprEvaluator(ast)
+	ee := NewExprEvaluator(ast, p)
 	res, err := ee.Exec(nil).GetResult()
 	if err != nil {
 		t.Fatal(err)
@@ -56,23 +56,23 @@ func TestExecNull(t *testing.T) {
 }
 
 func TestExecUndef(t *testing.T) {
-	_, ast, _, err := compile(`
+	p, ast, _, err := compile(`
   undefined
   `, nil)
 	util.AssertEqual(t, nil, err, "should pass")
 
-	ee := NewExprEvaluator(ast)
+	ee := NewExprEvaluator(ast, p)
 	res, _ := ee.Exec(nil).GetResult()
 	util.AssertEqual(t, nil, res, "should be ok")
 }
 
 func TestExecExprAddStr(t *testing.T) {
-	_, ast, _, err := compile(`
+	p, ast, _, err := compile(`
   1 + '2'
   `, nil)
 	util.AssertEqual(t, nil, err, "should pass")
 
-	ee := NewExprEvaluator(ast)
+	ee := NewExprEvaluator(ast, p)
 	res, err := ee.Exec(nil).GetResult()
 	if err != nil {
 		t.Fatal(err)
@@ -82,12 +82,12 @@ func TestExecExprAddStr(t *testing.T) {
 }
 
 func TestExecExprEqual(t *testing.T) {
-	_, ast, _, err := compile(`
+	p, ast, _, err := compile(`
   1 + 2 == 3
   `, nil)
 	util.AssertEqual(t, nil, err, "should pass")
 
-	ee := NewExprEvaluator(ast)
+	ee := NewExprEvaluator(ast, p)
 	res, err := ee.Exec(nil).GetResult()
 	if err != nil {
 		t.Fatal(err)
@@ -97,12 +97,12 @@ func TestExecExprEqual(t *testing.T) {
 }
 
 func TestExecExprMemExpr(t *testing.T) {
-	_, ast, _, err := compile(`
+	p, ast, _, err := compile(`
   process.env.ENV
   `, nil)
 	util.AssertEqual(t, nil, err, "should pass")
 
-	ee := NewExprEvaluator(ast)
+	ee := NewExprEvaluator(ast, p)
 	res, err := ee.Exec(map[string]interface{}{
 		"process": map[string]interface{}{
 			"env": map[string]interface{}{
@@ -119,12 +119,12 @@ func TestExecExprMemExpr(t *testing.T) {
 }
 
 func TestExecExprMemExpr2(t *testing.T) {
-	_, ast, _, err := compile(`
+	p, ast, _, err := compile(`
   process['env']['ENV']
   `, nil)
 	util.AssertEqual(t, nil, err, "should pass")
 
-	ee := NewExprEvaluator(ast)
+	ee := NewExprEvaluator(ast, p)
 	res, err := ee.Exec(map[string]interface{}{
 		"process": map[string]interface{}{
 			"env": map[string]interface{}{
@@ -141,12 +141,12 @@ func TestExecExprMemExpr2(t *testing.T) {
 }
 
 func TestExecExprMemExprEqual(t *testing.T) {
-	_, ast, _, err := compile(`
+	p, ast, _, err := compile(`
   process['env']['ENV'] === 'development'
   `, nil)
 	util.AssertEqual(t, nil, err, "should pass")
 
-	ee := NewExprEvaluator(ast)
+	ee := NewExprEvaluator(ast, p)
 	res, err := ee.Exec(map[string]interface{}{
 		"process": map[string]interface{}{
 			"env": map[string]interface{}{
@@ -162,12 +162,12 @@ func TestExecExprMemExprEqual(t *testing.T) {
 }
 
 func TestExecExprToBool(t *testing.T) {
-	_, ast, _, err := compile(`
+	p, ast, _, err := compile(`
   !(process['env']['ENV'] === 'development')
   `, nil)
 	util.AssertEqual(t, nil, err, "should pass")
 
-	ee := NewExprEvaluator(ast)
+	ee := NewExprEvaluator(ast, p)
 	res, err := ee.Exec(map[string]interface{}{
 		"process": map[string]interface{}{
 			"env": map[string]interface{}{
@@ -183,12 +183,12 @@ func TestExecExprToBool(t *testing.T) {
 }
 
 func TestExecExprToBool2(t *testing.T) {
-	_, ast, _, err := compile(`
+	p, ast, _, err := compile(`
   !process['not set']
   `, nil)
 	util.AssertEqual(t, nil, err, "should pass")
 
-	ee := NewExprEvaluator(ast)
+	ee := NewExprEvaluator(ast, p)
 	res, err := ee.Exec(nil).GetResult()
 	if err != nil {
 		t.Fatal(err)
@@ -198,12 +198,12 @@ func TestExecExprToBool2(t *testing.T) {
 }
 
 func TestExecBool(t *testing.T) {
-	_, ast, _, err := compile(`
+	p, ast, _, err := compile(`
   true
   `, nil)
 	util.AssertEqual(t, nil, err, "should pass")
 
-	ee := NewExprEvaluator(ast)
+	ee := NewExprEvaluator(ast, p)
 	res, err := ee.Exec(nil).GetResult()
 	if err != nil {
 		t.Fatal(err)
@@ -213,13 +213,13 @@ func TestExecBool(t *testing.T) {
 }
 
 func TestExecLogic(t *testing.T) {
-	_, ast, _, err := compile(`
+	p, ast, _, err := compile(`
   process.env.ENV === 'development' || process.env.ENV === 'production'
   `, nil)
 	util.AssertEqual(t, nil, err, "should pass")
 
 	// 1
-	ee := NewExprEvaluator(ast)
+	ee := NewExprEvaluator(ast, p)
 	res, err := ee.Exec(map[string]interface{}{
 		"process": map[string]interface{}{
 			"env": map[string]interface{}{
@@ -249,12 +249,12 @@ func TestExecLogic(t *testing.T) {
 }
 
 func TestExecArrLit(t *testing.T) {
-	_, ast, _, err := compile(`
+	p, ast, _, err := compile(`
   [1, 2]
   `, nil)
 	util.AssertEqual(t, nil, err, "should pass")
 
-	ee := NewExprEvaluator(ast)
+	ee := NewExprEvaluator(ast, p)
 	res, err := ee.Exec(nil).GetResult()
 	if err != nil {
 		t.Fatal(err)
@@ -264,12 +264,12 @@ func TestExecArrLit(t *testing.T) {
 }
 
 func TestExecArrLitIdx(t *testing.T) {
-	_, ast, _, err := compile(`
+	p, ast, _, err := compile(`
   [1, 2][0] == 1
   `, nil)
 	util.AssertEqual(t, nil, err, "should pass")
 
-	ee := NewExprEvaluator(ast)
+	ee := NewExprEvaluator(ast, p)
 	res, err := ee.Exec(nil).GetResult()
 	if err != nil {
 		t.Fatal(err)
@@ -279,12 +279,12 @@ func TestExecArrLitIdx(t *testing.T) {
 }
 
 func TestExecArrLitNoIdx(t *testing.T) {
-	_, ast, _, err := compile(`
+	p, ast, _, err := compile(`
   [1, 2][3] == null
   `, nil)
 	util.AssertEqual(t, nil, err, "should pass")
 
-	ee := NewExprEvaluator(ast)
+	ee := NewExprEvaluator(ast, p)
 	res, err := ee.Exec(nil).GetResult()
 	if err != nil {
 		t.Fatal(err)
@@ -294,12 +294,12 @@ func TestExecArrLitNoIdx(t *testing.T) {
 }
 
 func TestExecArrIncludes(t *testing.T) {
-	_, ast, _, err := compile(`
+	p, ast, _, err := compile(`
   [1, 2].includes(1)
   `, nil)
 	util.AssertEqual(t, nil, err, "should pass")
 
-	ee := NewExprEvaluator(ast)
+	ee := NewExprEvaluator(ast, p)
 	res, err := ee.Exec(nil).GetResult()
 	if err != nil {
 		t.Fatal(err)
@@ -309,13 +309,13 @@ func TestExecArrIncludes(t *testing.T) {
 }
 
 func TestExecArrIncludes2(t *testing.T) {
-	_, ast, _, err := compile(`
+	p, ast, _, err := compile(`
   ["REG", "ONLINE"].includes(process.env.ENV)
   `, nil)
 	util.AssertEqual(t, nil, err, "should pass")
 
 	// 1
-	ee := NewExprEvaluator(ast)
+	ee := NewExprEvaluator(ast, p)
 	res, err := ee.Exec(map[string]interface{}{
 		"process": map[string]interface{}{
 			"env": map[string]interface{}{

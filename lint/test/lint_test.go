@@ -156,21 +156,21 @@ func TestIgnore(t *testing.T) {
 	r := mkrLinter(t, "ignore").Process()
 	util.AssertEqual(t, 0, len(r.Abnormals), "should be ok")
 	util.AssertEqual(t, 1, len(r.Diagnoses), "should be ok")
-	util.AssertEqual(t, true, strings.HasSuffix(r.Diagnoses[0].Loc.Source(), "test1.js"), "should be ok")
+	util.AssertEqual(t, true, strings.HasSuffix(r.Diagnoses[0].File(), "test1.js"), "should be ok")
 }
 
 func TestIgnoreFile(t *testing.T) {
 	r := mkrLinter(t, "ignore_file").Process()
 	util.AssertEqual(t, 0, len(r.Abnormals), "should be ok")
 	util.AssertEqual(t, 1, len(r.Diagnoses), "should be ok")
-	util.AssertEqual(t, true, strings.HasSuffix(r.Diagnoses[0].Loc.Source(), "test1.js"), "should be ok")
+	util.AssertEqual(t, true, strings.HasSuffix(r.Diagnoses[0].File(), "test1.js"), "should be ok")
 }
 
 func TestIgnoreRoot(t *testing.T) {
 	r := mkrLinter(t, "ignore_root").Process()
 	util.AssertEqual(t, 0, len(r.Abnormals), "should be ok")
 	util.AssertEqual(t, 1, len(r.Diagnoses), "should be ok")
-	util.AssertEqual(t, true, strings.HasSuffix(r.Diagnoses[0].Loc.Source(), "a/test.js"), "should be ok")
+	util.AssertEqual(t, true, strings.HasSuffix(r.Diagnoses[0].File(), "a/test.js"), "should be ok")
 }
 
 func TestIgnoreNestOverride(t *testing.T) {
@@ -178,7 +178,7 @@ func TestIgnoreNestOverride(t *testing.T) {
 	r := mkrLinter(t, "ignore_nested").Process()
 	util.AssertEqual(t, 0, len(r.Abnormals), "should be ok")
 	util.AssertEqual(t, 1, len(r.Diagnoses), "should be ok")
-	util.AssertEqual(t, true, strings.HasSuffix(r.Diagnoses[0].Loc.Source(), "a/test.js"), "should be ok")
+	util.AssertEqual(t, true, strings.HasSuffix(r.Diagnoses[0].File(), "a/test.js"), "should be ok")
 }
 
 func TestDisableAll(t *testing.T) {

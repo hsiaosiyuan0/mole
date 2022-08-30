@@ -16,7 +16,7 @@ import (
 type Unit interface {
 	Lang() string
 	Config() *Config
-	HasCommentInSpan(span.Pos, span.Pos) bool
+	HasCommentInSpan(span.Range) bool
 	Report(*Diagnosis)
 }
 
@@ -54,7 +54,7 @@ func NewJsUnit(file string, code string, cfg *Config) (*JsUnit, error) {
 	}
 
 	u.parser = p
-	u.ana = analysis.NewAnalysis(ast, u.parser.Symtab())
+	u.ana = analysis.NewAnalysis(ast, u.parser.Symtab(), p.Source())
 
 	return u, nil
 }
@@ -71,34 +71,11 @@ func (u *JsUnit) Report(dig *Diagnosis) {
 	u.linter.report(dig)
 }
 
-func (u *JsUnit) HasCommentInSpan(begin, end span.Pos) bool {
-	lexer := u.parser.Lexer()
-	cmts := lexer.Comments()
+var hasCmtReg = regexp.MustCompile("(?s)//.*?\n|/\\*.*?\\*/")
 
-	bl := begin.Line
-	el := end.Line
-	if bl != el {
-		for i := bl; i <= el; i++ {
-			if _, ok := cmts[i]; ok {
-				return true
-			}
-		}
-		return false
-	}
-
-	line := cmts[bl]
-	if len(line) == 0 {
-		return false
-	}
-
-	bc := begin.Col
-	ec := end.Col
-	for i := bc; i <= ec; i++ {
-		if _, ok := line[i]; ok {
-			return true
-		}
-	}
-	return false
+func (u *JsUnit) HasCommentInSpan(rng span.Range) bool {
+	str := u.parser.RngText(rng)
+	return hasCmtReg.FindIndex([]byte(str)) != nil
 }
 
 func isJsFile(f string) bool {
@@ -125,7 +102,7 @@ func (u *JsUnit) Analysis() *analysis.Analysis {
 func (u *JsUnit) initRules() *JsUnit {
 	lang := path.Ext(u.file)
 	for _, rf := range u.cfg.ruleFactsLang[lang] {
-		ctx := &RuleCtx{u, rf}
+		ctx := &RuleCtx{u.parser.Source(), u, rf}
 		rule := &Rule{rf, map[parser.NodeType]*walk.Listener{}}
 		for nt, fn := range rf.Create(ctx) {
 			id := fmt.Sprintf("_%s_%s_%d", lang, rf.Name(), nt)
@@ -163,12 +140,15 @@ func (u *JsUnit) parseCmtPrefix(c string) (string, []string) {
 	return p, rules
 }
 
+var startCmtReg = regexp.MustCompile(`^/\*\s*|\s*\*/`)
+var cmtReg = regexp.MustCompile(`^//\s*|\s*$`)
+
 func (u *JsUnit) parseCmt(cs span.Range) *CmtCmd {
-	cmt := cs.Text()
+	cmt := u.parser.RngText(cs)
 	if strings.HasPrefix(cmt, "/*") {
-		cmt = regexp.MustCompile(`^/\*\s*|\s*\*/`).ReplaceAllString(cmt, "")
+		cmt = startCmtReg.ReplaceAllString(cmt, "")
 	} else {
-		cmt = regexp.MustCompile(`^//\s*|\s*$`).ReplaceAllString(cmt, "")
+		cmt = cmtReg.ReplaceAllString(cmt, "")
 	}
 
 	switch cmt {
@@ -197,7 +177,7 @@ func (u *JsUnit) parseCmt(cs span.Range) *CmtCmd {
 	return nil
 }
 
-func (u *JsUnit) handCmt(c span.Range) {
+func (u *JsUnit) handleCmt(c span.Range) {
 	cmd := u.parseCmt(c)
 	if cmd == nil {
 		return
@@ -296,9 +276,9 @@ func (u *JsUnit) setupCmtHandles() *JsUnit {
 		walk.AddNodeBeforeListener(&u.ana.WalkCtx.Listeners, nt, &walk.Listener{
 			Id: "_linter_cmt_BeforeStmtListener",
 			Handle: func(node parser.Node, key string, ctx *walk.VisitorCtx) {
-				if cs := u.parser.PrevStmtCmts(node); cs != nil {
+				if cs := u.parser.PrevCmts(node); cs != nil {
 					for _, c := range cs {
-						u.handCmt(c)
+						u.handleCmt(c)
 					}
 				}
 			},

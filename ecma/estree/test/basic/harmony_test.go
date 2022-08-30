@@ -30454,7 +30454,6 @@ func TestHarmony313(t *testing.T) {
   "start": 0,
   "end": 13,
   "loc": {
-    "source": "",
     "start": {
       "line": 1,
       "column": 0
@@ -30471,7 +30470,6 @@ func TestHarmony313(t *testing.T) {
       "start": 0,
       "end": 13,
       "loc": {
-        "source": "",
         "start": {
           "line": 1,
           "column": 0
@@ -30488,7 +30486,6 @@ func TestHarmony313(t *testing.T) {
           "start": 4,
           "end": 12,
           "loc": {
-            "source": "",
             "start": {
               "line": 1,
               "column": 4
@@ -30503,7 +30500,6 @@ func TestHarmony313(t *testing.T) {
             "start": 4,
             "end": 12,
             "loc": {
-              "source": "",
               "start": {
                 "line": 1,
                 "column": 4

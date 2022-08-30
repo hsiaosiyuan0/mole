@@ -435,9 +435,10 @@ func (s *DepScanner) Fin() chan bool {
 }
 
 type ImportFrame struct {
-	Mid       int64
-	Line, Col uint32
-	Import    bool
+	S      *span.Source
+	Mid    int64
+	Rng    span.Range
+	Import bool
 }
 
 type DepFileReq struct {
@@ -476,14 +477,16 @@ type JsUnit struct {
 }
 
 type importPoint struct {
-	file      string
-	line, col uint32
-	ipt       bool
+	s    *span.Source
+	file string
+	rng  span.Range
+	ipt  bool
 }
 
+var isFlowReg = regexp.MustCompile(`(?s)/\*.*?\*\s*@flow.*?\*/`)
+
 func isFlow(code string) bool {
-	re := regexp.MustCompile(`(?s)/\*.*?\*\s*@flow.*?\*/`)
-	return len(re.Find([]byte(code))) > 0
+	return len(isFlowReg.Find([]byte(code))) > 0
 }
 
 func parseDep(file, code string, vars map[string]interface{}, parserOpts map[string]interface{}, m *JsModule, skipFlow bool) ([]*importPoint, int64, int64, error) {
@@ -537,8 +540,7 @@ func parseDep(file, code string, vars map[string]interface{}, parserOpts map[str
 		Id: "parseDep",
 		Handle: func(node parser.Node, key string, ctx *walk.VisitorCtx) {
 			n := node.(*parser.ImportDec)
-			loc := n.Loc().Begin()
-			derived = append(derived, &importPoint{n.Src().(*parser.StrLit).Text(), loc.Line, loc.Col, true})
+			derived = append(derived, &importPoint{p.Source(), n.Src().(*parser.StrLit).Val(), n.Range(), true})
 		},
 	})
 
@@ -547,9 +549,8 @@ func parseDep(file, code string, vars map[string]interface{}, parserOpts map[str
 		Id: "parseDep",
 		Handle: func(node parser.Node, key string, ctx *walk.VisitorCtx) {
 			n := node.(*parser.ExportDec)
-			loc := n.Loc().Begin()
 			if n.Src() != nil {
-				derived = append(derived, &importPoint{n.Src().(*parser.StrLit).Text(), loc.Line, loc.Col, true})
+				derived = append(derived, &importPoint{p.Source(), n.Src().(*parser.StrLit).Val(), n.Range(), true})
 			}
 		},
 	})
@@ -606,7 +607,7 @@ func parseDep(file, code string, vars map[string]interface{}, parserOpts map[str
 	if !reqRebound {
 		interests = append(interests, parser.N_EXPR_CALL)
 	}
-	nodes := astutil.CollectNodesInTrueBranches(ast, interests, vars)
+	nodes := astutil.CollectNodesInTrueBranches(ast, interests, vars, p)
 
 	// filter out the dead require calls
 	for _, node := range nodes {
@@ -614,12 +615,10 @@ func parseDep(file, code string, vars map[string]interface{}, parserOpts map[str
 			switch it.Type() {
 			case parser.N_EXPR_CALL:
 				n := node.(*parser.CallExpr)
-				loc := n.Loc().Begin()
-				derived = append(derived, &importPoint{n.Args()[0].(*parser.StrLit).Text(), loc.Line, loc.Col, false})
+				derived = append(derived, &importPoint{p.Source(), n.Args()[0].(*parser.StrLit).Val(), n.Range(), false})
 			case parser.N_IMPORT_CALL:
 				n := node.(*parser.ImportCall)
-				loc := n.Loc().Begin()
-				derived = append(derived, &importPoint{n.Src().(*parser.StrLit).Text(), loc.Line, loc.Col, true})
+				derived = append(derived, &importPoint{p.Source(), n.Src().(*parser.StrLit).Val(), n.Range(), true})
 			}
 		}
 	}
@@ -694,7 +693,7 @@ func (j *JsUnit) Load() error {
 			curLang := filepath.Ext(r.File)
 			cw := filepath.Dir(r.File)
 			for _, d := range derived {
-				frame := &ImportFrame{m.Id(), d.line, d.col, d.ipt}
+				frame := &ImportFrame{d.s, m.Id(), d.rng, d.ipt}
 				stk := util.Copy(req.stk)
 				lang := filepath.Ext(d.file)
 				if lang == "" {

@@ -229,7 +229,8 @@ func findImportPoints(main pack.Module, modules map[int64]pack.Module) []*Import
 		stk := []string{}
 		for _, frame := range c.ImportStk() {
 			fm := modules[frame.Mid]
-			stk = append(stk, fmt.Sprintf("%s(%d:%d)", fm.File(), frame.Line, frame.Col))
+			loc := frame.S.OfstLineCol(frame.Rng.Lo)
+			stk = append(stk, fmt.Sprintf("%s(%d:%d)", fm.File(), loc.Line, loc.Col))
 		}
 		ret = append(ret, &ImportPoint{c.File(), stk})
 	}

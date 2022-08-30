@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/hsiaosiyuan0/mole/ecma/parser"
+	"github.com/hsiaosiyuan0/mole/span"
 	"github.com/hsiaosiyuan0/mole/util"
 )
 
@@ -285,7 +286,7 @@ func (b *Block) FindOutEdge(k EdgeKind, t EdgeTag, create bool) *Edge {
 }
 
 func (b *Block) Dot() string {
-	return fmt.Sprintf("%s[label=\"%s\"];\n", b.DotId(), nodesToString(b.Nodes))
+	return fmt.Sprintf("%s[label=\"%s\"];\n", b.DotId(), nodesToString(b.Nodes, b.graph.s))
 }
 
 func (b *Block) onlySeqIn() bool {
@@ -569,42 +570,34 @@ func (b *Block) IsOutCut(to *Block) bool {
 	return cutEdge != nil && cutEdge.Dst == to
 }
 
-func nodeToString(node parser.Node) string {
+func nodeToString(node parser.Node, s *span.Source) string {
 	switch node.Type() {
-	case parser.N_NAME, parser.N_LIT_NUM:
-		return fmt.Sprintf("%s(%s)", node.Type().String(), node.Loc().Text())
+	case parser.N_NAME:
+		return fmt.Sprintf("%s(%s)", node.Type().String(), node.(*parser.Ident).Val())
+	case parser.N_LIT_NUM:
+		return fmt.Sprintf("%s(%s)", node.Type().String(), parser.NodeText(node, s))
 	case parser.N_JSX_ID:
 		n := node.(*parser.JsxIdent)
-		return fmt.Sprintf("%s(%s)", node.Type().String(), n.Text())
+		return fmt.Sprintf("%s(%s)", node.Type().String(), n.Val())
 	case N_CFG_DEBUG:
 		return node.(*InfoNode).String()
 	}
 	return node.Type().String()
 }
 
-func nodesToString(nodes []parser.Node) string {
+func nodesToString(nodes []parser.Node, s *span.Source) string {
 	var b strings.Builder
 	for _, node := range nodes {
-		b.WriteString(nodeToString(node) + "\\n")
+		b.WriteString(nodeToString(node, s) + "\\n")
 	}
 	return b.String()
 }
 
-func IdOfAstNode(node parser.Node) string {
-	pos := node.Loc().Begin()
-	i := ""
-	if node.Type() == N_CFG_DEBUG {
-		if node.(*InfoNode).enter {
-			i = "_0"
-		} else {
-			i = "_1"
-		}
-	}
-	return fmt.Sprintf("loc%d_%d_%d%s", pos.Line, pos.Col, node.Type(), i)
-}
-
 type Graph struct {
-	Id     string
+	Id string
+
+	s *span.Source
+
 	Head   *Block
 	Parent *Graph
 
@@ -878,8 +871,8 @@ func (n *InfoNode) Type() parser.NodeType {
 	return N_CFG_DEBUG
 }
 
-func (n *InfoNode) Loc() *parser.Loc {
-	return n.astNode.Loc()
+func (n *InfoNode) Range() span.Range {
+	return n.astNode.Range()
 }
 
 type LinkFlag uint16

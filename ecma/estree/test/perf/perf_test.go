@@ -22,7 +22,7 @@ func compileToESTree(code string, toEstree bool) error {
 	}
 
 	if toEstree {
-		estree.ConvertProg(ast.(*parser.Prog), estree.NewConvertCtx())
+		estree.ConvertProg(ast.(*parser.Prog), estree.NewConvertCtx(p))
 	}
 	return nil
 }
@@ -88,7 +88,7 @@ func BenchmarkParsing(t *testing.B) {
 			for i := 0; i < b.N; i++ {
 				err := compileToESTree(lib.code, false)
 				if err != nil {
-					t.Fatal(err)
+					b.Fatal(err)
 				}
 			}
 		})

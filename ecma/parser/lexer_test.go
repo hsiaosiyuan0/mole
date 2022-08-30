@@ -308,48 +308,47 @@ func TestReadTplOctalEscape(t *testing.T) {
 	AssertEqual(t, 1, len(l.state.mode), "mode should be balanced")
 }
 
-// FIXME:
-// func TestReadComment(t *testing.T) {
-// 	s := span.NewSource("", `
-//   //
-//   `)
-// 	l := NewLexer(s)
-// 	l.Next()
-// 	AssertEqual(t, "//", l.lastComment().Text(), "should be tok comment //")
+func TestReadComment(t *testing.T) {
+	s := span.NewSource("", `
+  //
+  `)
+	l := NewLexer(s)
+	l.Next()
+	AssertEqual(t, "//", s.RngText(l.stmtCmts[0]), "should be tok comment //")
 
-// 	s = span.NewSource("", `
-//   // comment1
-//   `)
-// 	l = NewLexer(s)
-// 	l.Next()
-// 	AssertEqual(t, "// comment1", l.lastComment().Text(), "should be tok // comment1")
+	s = span.NewSource("", `
+  // comment1
+  `)
+	l = NewLexer(s)
+	l.Next()
+	AssertEqual(t, "// comment1", s.RngText(l.stmtCmts[0]), "should be tok // comment1")
 
-// 	s = span.NewSource("", `
-//   /**/
-//   `)
-// 	l = NewLexer(s)
-// 	l.Next()
-// 	AssertEqual(t, "/**/", l.lastComment().Text(), "should be tok /**/")
+	s = span.NewSource("", `
+  /**/
+  `)
+	l = NewLexer(s)
+	l.Next()
+	AssertEqual(t, "/**/", s.RngText(l.stmtCmts[0]), "should be tok /**/")
 
-// 	s = span.NewSource("", `
-//   /* comment2 */
-//   `)
-// 	l = NewLexer(s)
-// 	l.Next()
-// 	AssertEqual(t, "/* comment2 */", l.lastComment().Text(), "should be tok /* comment2 */")
+	s = span.NewSource("", `
+  /* comment2 */
+  `)
+	l = NewLexer(s)
+	l.Next()
+	AssertEqual(t, "/* comment2 */", s.RngText(l.stmtCmts[0]), "should be tok /* comment2 */")
 
-// 	s = span.NewSource("", `/**
+	s = span.NewSource("", `/**
 
-//   comment 3
-//   **/
-//   `)
-// 	l = NewLexer(s)
-// 	l.Next()
-// 	AssertEqual(t, `/**
+  comment 3
+  **/
+  `)
+	l = NewLexer(s)
+	l.Next()
+	AssertEqual(t, `/**
 
-//   comment 3
-//   **/`, l.lastComment().Text(), "should be tok comment3")
-// }
+  comment 3
+  **/`, s.RngText(l.stmtCmts[0]), "should be tok comment3")
+}
 
 func TestAfterLineTerminator(t *testing.T) {
 	s := span.NewSource("", "a\n1")

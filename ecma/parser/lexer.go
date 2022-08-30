@@ -140,7 +140,9 @@ type Lexer struct {
 	// aggregate all the comments met by the lexer process, caller can
 	// take this content to use as the prev comments of the stmt then
 	// reset the slice, the later comments will be collected again
-	cmts []span.Range
+	exprCmts []span.Range
+	stmtCmts []span.Range
+	// cmtGrp []int
 
 	state LexerState
 	ss    []LexerState // state stack
@@ -160,6 +162,8 @@ type Lexer struct {
 func NewLexer(src *span.Source) *Lexer {
 	lexer := &Lexer{
 		src:         src,
+		exprCmts:    make([]span.Range, 0, 20),
+		stmtCmts:    make([]span.Range, 0, 20),
 		state:       newLexerState(),
 		ss:          make([]LexerState, 0),
 		maybeLshPos: map[uint32]bool{},
@@ -227,8 +231,10 @@ func (l *Lexer) Rng() span.Range {
 	if l.state.tb.readable() {
 		tok := l.state.tb.cur()
 		rng.Lo = tok.rng.Lo
+		rng.Hi = rng.Lo
 	} else {
 		rng.Lo = l.src.Pos()
+		rng.Hi = rng.Lo
 	}
 	return rng
 }
@@ -306,13 +312,6 @@ func (l *Lexer) EraseMode(mode LexerModeKind) {
 func (l *Lexer) IsMode(mode LexerModeKind) bool {
 	return l.CurMode().kind&mode > 0
 }
-
-// FIXME:
-// func (l *Lexer) takePrevCmts() []span.Range {
-// 	cmts := l.prevCmts
-// 	l.prevCmts = []span.Range{}
-// 	return cmts
-// }
 
 func (l *Lexer) skipSpace() *span.Source {
 	if l.feat&FEAT_JSX == 0 {
@@ -399,39 +398,17 @@ func (l *Lexer) readTokWithComment() *Token {
 		if l.aheadIsIdStart() {
 			return l.readName(true)
 		}
-		return l.errToken(l.newToken(), ERR_UNEXPECTED_TOKEN)
+		return l.errTokMsg(l.newToken(), ERR_UNEXPECTED_TOKEN)
 	}
 
 	// in child
 	return l.readJSXTxt()
 }
 
-// func (l *Lexer) lastComment() span.Range {
-// 	line := l.comments[l.lastCmtLine]
-// 	if line == nil {
-// 		return span.InvalidRange
-// 	}
-// 	if len(line) == 0 {
-// 		return span.InvalidRange
-// 	}
-// 	return line[l.lastCmtCol]
-// }
-
-// func (l *Lexer) appendCmt(tok *Token) {
-// 	l.lastCmtLine = tok.begin.Line
-// 	line := l.comments[tok.begin.Line]
-// 	if line == nil {
-// 		line = make(map[uint32]span.Range, 1)
-// 		l.comments[tok.begin.Line] = line
-// 	}
-
-// 	line[tok.begin.Col] = tok.raw
-// 	l.lastCmtCol = tok.begin.Col
-// }
-
 func (l *Lexer) lexTok() *Token {
 	prt := T_ILLEGAL
-	var prtExt interface{}
+	prtAtm := false
+	prtExt := false
 	for {
 		tok := l.readTokWithComment()
 		if tok.value != T_COMMENT {
@@ -440,12 +417,35 @@ func (l *Lexer) lexTok() *Token {
 			}
 			return tok
 		}
-		// FIXME:
-		// l.prevCmts = append(l.prevCmts, tok.raw)
-		// l.appendCmt(tok)
+		if tok.afterLineTerm || (prt == T_COMMENT && prtAtm) || tok.rng.Lo == 0 {
+			l.stmtCmts = append(l.stmtCmts, tok.rng)
+		} else {
+			l.exprCmts = append(l.exprCmts, tok.rng)
+		}
 		prt = tok.value
-		prtExt = tok.ext // indicates whether the comment is multiline or not
+		prtAtm = tok.afterLineTerm
+		prtExt = tok.ext.(bool) // indicates whether the comment is multiline or not
 	}
+}
+
+func (l *Lexer) takeExprCmts() []span.Range {
+	if len(l.exprCmts) == 0 {
+		return nil
+	}
+	cmts := make([]span.Range, len(l.exprCmts))
+	copy(cmts, l.exprCmts)
+	l.exprCmts = l.exprCmts[:0]
+	return cmts
+}
+
+func (l *Lexer) takeStmtCmts() []span.Range {
+	if len(l.stmtCmts) == 0 {
+		return nil
+	}
+	cmts := make([]span.Range, len(l.stmtCmts))
+	copy(cmts, l.stmtCmts)
+	l.stmtCmts = l.stmtCmts[:0]
+	return cmts
 }
 
 func (l *Lexer) advance() *Token {
@@ -492,7 +492,7 @@ func (l *Lexer) readTplSpan() *Token {
 
 	if err == ERR_UNTERMINATED_TPL {
 		l.PopMode()
-		return l.errToken(span, err)
+		return l.errTokMsg(span, err)
 	}
 
 	if errEscape != "" {
@@ -595,8 +595,11 @@ func (l *Lexer) readName(jsx bool) *Token {
 	tok := l.newToken()
 
 	r, escapeInStart, err := l.readIdStart()
-	if r == utf8.RuneError || err != "" {
-		return l.errToken(tok, err)
+
+	if err != nil {
+		return l.errTokOfst(tok, err.msg, err.ofst)
+	} else if r == utf8.RuneError {
+		return l.errTok(tok)
 	}
 
 	var byt []byte
@@ -606,8 +609,8 @@ func (l *Lexer) readName(jsx bool) *Token {
 	}
 
 	idPart, escapeInPart, err := l.readIdPart(jsx)
-	if err != "" {
-		return l.errToken(tok, err)
+	if err != nil {
+		return l.errTokOfst(tok, err.msg, err.ofst)
 	}
 
 	if escapeInPart && byt == nil {
@@ -621,16 +624,17 @@ func (l *Lexer) readName(jsx bool) *Token {
 	containsEscape := escapeInStart || escapeInPart
 	tok.ext = &TokExtIdent{containsEscape}
 
+	tok.rng.Hi = l.src.Ofst()
 	if containsEscape {
 		tok.text = util.Bytes2str(&byt)
 	} else {
-		tok.rng.Hi = l.src.Ofst()
+		tok.text = TokText(tok, l.src)
 	}
 
-	text := TokText(tok, l.src)
+	text := tok.text
 	if IsKeyword(text) {
 		if containsEscape {
-			return l.errToken(tok, ERR_ESCAPE_IN_KEYWORD)
+			return l.errTokMsg(tok, ERR_ESCAPE_IN_KEYWORD)
 		}
 		return l.finToken(tok, Keywords[text])
 	} else if l.IsMode(LM_STRICT) && IsStrictKeyword(text) {
@@ -638,7 +642,7 @@ func (l *Lexer) readName(jsx bool) *Token {
 	} else if text == "await" {
 		if l.feat&FEAT_MODULE != 0 || (l.feat&FEAT_ASYNC_AWAIT != 0 && l.IsMode(LM_ASYNC)) {
 			if containsEscape {
-				return l.errToken(tok, ERR_ESCAPE_IN_KEYWORD)
+				return l.errTokMsg(tok, ERR_ESCAPE_IN_KEYWORD)
 			}
 			return l.finToken(tok, T_AWAIT)
 		}
@@ -841,7 +845,7 @@ func (l *Lexer) readSymbol() *Token {
 				val = T_POW
 			}
 			if l.feat&FEAT_POW == 0 {
-				return l.errToken(tok, ERR_UNEXPECTED_TOKEN)
+				return l.errTokMsg(tok, ERR_UNEXPECTED_TOKEN)
 			}
 		} else if l.src.AheadIsCh('=') {
 			l.src.Read()
@@ -927,13 +931,13 @@ func (l *Lexer) readSymbol() *Token {
 	}
 
 	if val == T_DOT_TRI && (l.feat&FEAT_SPREAD == 0 || l.feat&FEAT_BINDING_REST_ELEM == 0) {
-		return l.errToken(tok, ERR_UNEXPECTED_TOKEN)
+		return l.errTokMsg(tok, ERR_UNEXPECTED_TOKEN)
 	} else if val == T_OPT_CHAIN && l.feat&FEAT_OPT_EXPR == 0 {
-		return l.errToken(tok, ERR_UNEXPECTED_TOKEN)
+		return l.errTokMsg(tok, ERR_UNEXPECTED_TOKEN)
 	} else if val == T_NULLISH && l.feat&FEAT_NULLISH == 0 {
-		return l.errToken(tok, ERR_UNEXPECTED_TOKEN)
+		return l.errTokMsg(tok, ERR_UNEXPECTED_TOKEN)
 	} else if (val == T_ASSIGN_NULLISH || val == T_ASSIGN_AND || val == T_ASSIGN_OR) && l.feat&FEAT_LOGIC_ASSIGN == 0 {
-		return l.errToken(tok, ERR_UNEXPECTED_TOKEN)
+		return l.errTokMsg(tok, ERR_UNEXPECTED_TOKEN)
 	}
 
 	return l.finToken(tok, val)
@@ -952,7 +956,7 @@ func (l *Lexer) readMultilineComment(tok *Token) *Token {
 		} else if span.IsLineTerminator(c) {
 			multiline = true
 		} else if c == span.EOF {
-			return l.errToken(tok, ERR_UNTERMINATED_COMMENT)
+			return l.errTokMsg(tok, ERR_UNTERMINATED_COMMENT)
 		}
 	}
 	l.finToken(tok, T_COMMENT)
@@ -969,6 +973,7 @@ func (l *Lexer) readSinglelineComment(tok *Token) *Token {
 		}
 		l.src.Read()
 	}
+	tok.ext = false
 	return l.finToken(tok, T_COMMENT)
 }
 
@@ -987,18 +992,19 @@ func (l *Lexer) readRegexp(tok *Token) *Token {
 	for {
 		c := l.src.Peek()
 		if c == utf8.RuneError {
-			return l.errToken(tok, "")
+			return l.errTok(tok)
 		} else if span.IsLineTerminator(c) {
-			return l.errToken(nil, ERR_UNTERMINATED_REGEXP)
+			return l.errTokMsg(nil, ERR_UNTERMINATED_REGEXP)
 		}
 		if c == '\\' {
+			ofst := l.src.Ofst()
 			l.src.Read()
 			nc := l.src.Peek()
 			if nc == 'u' {
 				l.src.Read()
-				_, errMsg := l.readUnicodeEscapeSeq(false)
-				if errMsg != "" {
-					return l.errToken(tok, errMsg)
+				_, err := l.readUnicodeEscapeSeq(false, ofst)
+				if err != nil {
+					return l.errTokOfst(tok, err.msg, err.ofst)
 				}
 			} else if !span.IsLineTerminator(nc) {
 				l.src.Read()
@@ -1012,7 +1018,7 @@ func (l *Lexer) readRegexp(tok *Token) *Token {
 		} else if (c == ')' && !rng) || (c == ']' && rngLen > 0) {
 			last := couples.Back()
 			if last == nil && c == ')' { // `]` doest not own the exception
-				return l.errToken(tok, ERR_UNTERMINATED_REGEXP)
+				return l.errTokMsg(tok, ERR_UNTERMINATED_REGEXP)
 			}
 			lhs := utf8.RuneError
 			if last != nil {
@@ -1024,12 +1030,12 @@ func (l *Lexer) readRegexp(tok *Token) *Token {
 					rng = false
 				}
 			} else if c == ')' { // `]` doest not own the exception
-				l.errToken(tok, ERR_UNTERMINATED_REGEXP)
+				l.errTokMsg(tok, ERR_UNTERMINATED_REGEXP)
 			}
 		} else if c == '/' && couples.Len() == 0 {
 			break
 		} else if c == span.EOF {
-			return l.errToken(tok, ERR_UNTERMINATED_REGEXP)
+			return l.errTokMsg(tok, ERR_UNTERMINATED_REGEXP)
 		}
 
 		if rng {
@@ -1042,12 +1048,12 @@ func (l *Lexer) readRegexp(tok *Token) *Token {
 
 	flags := l.src.NewOpenRange()
 	i := 0
-	var err string
+	var err *FixedOfstErr
 	var fs []byte
 	if l.aheadIsIdPart(false) {
 		fs, _, err = l.readIdPart(false)
-		if err != "" {
-			return l.errToken(nil, err)
+		if err != nil {
+			return l.errTokOfst(nil, err.msg, err.ofst)
 		}
 		i = len(fs)
 	}
@@ -1055,7 +1061,7 @@ func (l *Lexer) readRegexp(tok *Token) *Token {
 	if l.feat&FEAT_CHK_REGEXP_FLAGS != 0 {
 		for _, f := range fs {
 			if !l.isLegalFlag(rune(f)) {
-				return l.errToken(tok, ERR_INVALID_REGEXP_FLAG)
+				return l.errTokMsg(tok, ERR_INVALID_REGEXP_FLAG)
 			}
 		}
 	}
@@ -1103,15 +1109,15 @@ func (l *Lexer) readStr() *Token {
 	for {
 		c := l.src.Read()
 		if c == span.EOF {
-			return l.errToken(tok, ERR_UNTERMINATED_STR)
+			return l.errTokMsg(tok, ERR_UNTERMINATED_STR)
 		} else if c == '\\' {
-			ofst := l.src.Ofst() - 1
+			ofst := l.src.Ofst()
 			nc := l.src.Peek()
 			if span.IsLineTerminator(nc) {
 				if buf == nil {
 					// copy the byte before the lineTerm if it's the first occurrence
 					if ofst != start {
-						buf = []byte(l.src.Text(start, ofst))
+						buf = []byte(l.src.Text(start, ofst-1))
 					} else {
 						buf = make([]byte, 0, 20)
 					}
@@ -1123,18 +1129,18 @@ func (l *Lexer) readStr() *Token {
 					legacyOctalEscapeSeq = lo
 				}
 				if err != "" {
-					return l.errToken(tok, err)
+					return l.errTokOfst(tok, err, ofst)
 				}
 				// allow `utf8.RuneError` to represent "Unicode replacement character"
 				// in string literal
 				if r == span.EOF {
-					return l.errToken(tok, ERR_UNTERMINATED_STR)
+					return l.errTokMsg(tok, ERR_UNTERMINATED_STR)
 				}
 
 				if buf == nil {
 					// copy the byte before the escape if it's the first occurrence
 					if ofst != start {
-						buf = []byte(l.src.Text(start, ofst))
+						buf = []byte(l.src.Text(start, ofst-1))
 					} else {
 						buf = make([]byte, 0, 20)
 					}
@@ -1143,7 +1149,7 @@ func (l *Lexer) readStr() *Token {
 				buf = utf8.AppendRune(buf, r)
 			}
 		} else if l.IsLineTerminator(c) {
-			return l.errToken(tok, ERR_UNTERMINATED_STR)
+			return l.errTokMsg(tok, ERR_UNTERMINATED_STR)
 		} else if c == open {
 			tok.txt.Hi = l.src.Ofst() - 1
 			break
@@ -1170,7 +1176,7 @@ func (l *Lexer) readJsxStr() *Token {
 	for {
 		c := l.src.Read()
 		if c == span.EOF {
-			return l.errToken(tok, ERR_UNTERMINATED_STR)
+			return l.errTokMsg(tok, ERR_UNTERMINATED_STR)
 		} else if c == open {
 			tok.txt.Hi = l.src.Ofst() - 1
 			break
@@ -1211,7 +1217,11 @@ func (l *Lexer) readEscapeSeq() (r rune, errMsg string, octalEscapeSeq bool) {
 		r, errMsg = l.readHexEscapeSeq()
 		return
 	case 'u':
-		r, errMsg = l.readUnicodeEscapeSeq(false)
+		var err *FixedOfstErr
+		r, err = l.readUnicodeEscapeSeq(false, l.src.Ofst())
+		if err != nil {
+			errMsg = err.msg
+		}
 		return
 	}
 	r = c
@@ -1267,18 +1277,20 @@ func (l *Lexer) readLineTerm() {
 }
 
 func (l *Lexer) readNamePvt() *Token {
+	ofst := l.src.Ofst()
 	l.src.Read()
 	if !l.aheadIsIdStart() {
-		return l.errToken(l.newToken(), ERR_UNEXPECTED_CHAR)
+		return l.errTokMsg(l.newToken(), ERR_UNEXPECTED_CHAR)
 	}
 	tok := l.readName(false)
+	tok.rng.Lo = ofst
 	if tok.value != T_NAME {
 		return tok
 	}
 	tok.value = T_NAME_PVT
 	if l.feat&FEAT_CLASS_PRV == 0 {
 		tok.value = T_ILLEGAL
-		return l.errToken(tok, ERR_UNEXPECTED_CHAR)
+		return l.errTokOfst(tok, ERR_UNEXPECTED_CHAR, ofst)
 	}
 	return tok
 }
@@ -1300,12 +1312,12 @@ func (l *Lexer) readNum() *Token {
 		if IsDecimalDigit(nc) {
 			if IsOctalDigit(nc) {
 				if l.IsMode(LM_STRICT) {
-					return l.errToken(tok, ERR_LEGACY_OCTAL_IN_STRICT_MODE)
+					return l.errTokMsg(tok, ERR_LEGACY_OCTAL_IN_STRICT_MODE)
 				} else {
 					return l.readOctalNum(tok, 1)
 				}
 			} else {
-				return l.errToken(tok, ERR_INVALID_NUMBER)
+				return l.errTokMsg(tok, ERR_INVALID_NUMBER)
 			}
 		}
 	}
@@ -1316,14 +1328,14 @@ func (l *Lexer) readDecimalNum(tok *Token, first rune) *Token {
 	if first != '.' && first != '0' {
 		c := l.src.Peek()
 		if c != 'e' && c != 'E' && c != 'n' && IsIdStart(c) {
-			return l.errToken(nil, ERR_IDENT_AFTER_NUMBER)
+			return l.errTokOfst(nil, ERR_IDENT_AFTER_NUMBER, l.src.Ofst())
 		}
 		if err := l.readDecimalDigits(true); err != "" {
 			if err == ERR_NUM_SEP_END {
 				tok := l.newToken()
-				return l.errToken(tok, err)
+				return l.errTokOfst(tok, err, l.src.Ofst()-1)
 			}
-			return l.errToken(nil, err)
+			return l.errTokMsg(nil, err)
 		}
 	}
 
@@ -1337,27 +1349,27 @@ func (l *Lexer) readDecimalNum(tok *Token, first rune) *Token {
 		if err := l.readDecimalDigits(true); err != "" {
 			if err == ERR_NUM_SEP_END {
 				tok := l.newToken()
-				return l.errToken(tok, err)
+				return l.errTokMsg(tok, err)
 			}
-			return l.errToken(nil, err)
+			return l.errTokMsg(nil, err)
 		}
 	}
 
 	exp := false
 	if l.src.AheadIsChOr('e', 'E') {
 		if err := l.readExpPart(); err != "" {
-			return l.errToken(nil, err)
+			return l.errTokMsg(nil, err)
 		}
 		exp = true
 	}
 
 	if first != '.' && !float && !exp {
 		if tok := l.bigintSuffix(); tok != nil {
-			return l.errToken(tok, ERR_IDENT_AFTER_NUMBER)
+			return l.errTokMsg(tok, ERR_IDENT_AFTER_NUMBER)
 		}
 	}
 	if IsIdStart(l.src.Peek()) {
-		return l.errToken(nil, ERR_IDENT_AFTER_NUMBER)
+		return l.errTokMsg(nil, ERR_IDENT_AFTER_NUMBER)
 	}
 	return l.finToken(tok, T_NUM)
 }
@@ -1365,6 +1377,7 @@ func (l *Lexer) readDecimalNum(tok *Token, first rune) *Token {
 func (l *Lexer) bigintSuffix() *Token {
 	if l.src.AdvanceIf('n') && l.feat&FEAT_BIGINT == 0 {
 		tok := l.newToken()
+		tok.rng.Lo -= 1
 		return tok
 	}
 	return nil
@@ -1423,12 +1436,12 @@ func (l *Lexer) readBinaryNum(tok *Token) *Token {
 		if c == '0' || c == '1' || c == '_' {
 			if c == '_' {
 				if l.feat&FEAT_NUM_SEP == 0 {
-					return l.errToken(nil, ERR_IDENT_AFTER_NUMBER)
+					return l.errTokMsg(nil, ERR_IDENT_AFTER_NUMBER)
 				}
 				if i == 0 {
-					return l.errToken(nil, ERR_NUM_SEP_BEGIN)
+					return l.errTokMsg(nil, ERR_NUM_SEP_BEGIN)
 				} else if last == '_' && c == '_' {
-					return l.errToken(nil, ERR_NUM_SEP_DUP)
+					return l.errTokMsg(nil, ERR_NUM_SEP_DUP)
 				}
 			}
 			last = c
@@ -1438,24 +1451,24 @@ func (l *Lexer) readBinaryNum(tok *Token) *Token {
 			if c == 'n' && l.feat&FEAT_BIGINT != 0 {
 				break
 			}
-			return l.errToken(nil, ERR_IDENT_AFTER_NUMBER)
+			return l.errTokMsg(nil, ERR_IDENT_AFTER_NUMBER)
 		} else {
 			break
 		}
 	}
 	if last == '_' {
 		tok := l.newToken()
-		return l.errToken(tok, ERR_NUM_SEP_END)
+		return l.errTokOfst(tok, ERR_NUM_SEP_END, l.src.Ofst()-1)
 	}
 	if i == 0 {
-		return l.errToken(tok, fmt.Sprintf(ERR_TPL_EXPECT_NUM_RADIX, "2"))
+		return l.errTokOfst(tok, fmt.Sprintf(ERR_TPL_EXPECT_NUM_RADIX, "2"), l.src.Ofst())
 	}
 
 	if tok := l.bigintSuffix(); tok != nil {
-		return l.errToken(tok, ERR_IDENT_AFTER_NUMBER)
+		return l.errTokMsg(tok, ERR_IDENT_AFTER_NUMBER)
 	}
 	if IsIdStart(l.src.Peek()) {
-		return l.errToken(nil, ERR_IDENT_AFTER_NUMBER)
+		return l.errTokMsg(nil, ERR_IDENT_AFTER_NUMBER)
 	}
 	return l.finToken(tok, T_NUM)
 }
@@ -1469,14 +1482,14 @@ func (l *Lexer) readOctalNum(tok *Token, i int) *Token {
 		if c >= '0' && c <= '7' || c == '_' {
 			if c == '_' {
 				if l.feat&FEAT_NUM_SEP == 0 {
-					return l.errToken(nil, ERR_IDENT_AFTER_NUMBER)
+					return l.errTokMsg(nil, ERR_IDENT_AFTER_NUMBER)
 				}
 				if i == 0 {
-					return l.errToken(nil, ERR_NUM_SEP_BEGIN)
+					return l.errTokMsg(nil, ERR_NUM_SEP_BEGIN)
 				} else if legacy {
-					return l.errToken(nil, ERR_NUM_SEP_IN_LEGACY_OCTAL)
+					return l.errTokMsg(nil, ERR_NUM_SEP_IN_LEGACY_OCTAL)
 				} else if last == '_' && c == '_' {
-					return l.errToken(nil, ERR_NUM_SEP_DUP)
+					return l.errTokMsg(nil, ERR_NUM_SEP_DUP)
 				}
 			}
 			last = c
@@ -1488,19 +1501,19 @@ func (l *Lexer) readOctalNum(tok *Token, i int) *Token {
 	}
 	if last == '_' {
 		tok := l.newToken()
-		return l.errToken(tok, ERR_NUM_SEP_END)
+		return l.errTokOfst(tok, ERR_NUM_SEP_END, l.src.Ofst()-1)
 	}
 	if i == 0 {
-		return l.errToken(tok, fmt.Sprintf(ERR_TPL_EXPECT_NUM_RADIX, "8"))
+		return l.errTokOfst(tok, fmt.Sprintf(ERR_TPL_EXPECT_NUM_RADIX, "8"), l.src.Ofst())
 	}
 
 	if !legacy {
 		if tok := l.bigintSuffix(); tok != nil {
-			return l.errToken(tok, ERR_IDENT_AFTER_NUMBER)
+			return l.errTokMsg(tok, ERR_IDENT_AFTER_NUMBER)
 		}
 	}
 	if IsIdStart(l.src.Peek()) {
-		return l.errToken(nil, ERR_IDENT_AFTER_NUMBER)
+		return l.errTokMsg(nil, ERR_IDENT_AFTER_NUMBER)
 	}
 	return l.finToken(tok, T_NUM)
 }
@@ -1514,12 +1527,12 @@ func (l *Lexer) readHexNum(tok *Token) *Token {
 		if IsHexDigit(c) || c == '_' {
 			if c == '_' {
 				if l.feat&FEAT_NUM_SEP == 0 {
-					return l.errToken(nil, ERR_IDENT_AFTER_NUMBER)
+					return l.errTokMsg(nil, ERR_IDENT_AFTER_NUMBER)
 				}
 				if i == 0 {
-					return l.errToken(nil, ERR_NUM_SEP_BEGIN)
+					return l.errTokMsg(nil, ERR_NUM_SEP_BEGIN)
 				} else if last == '_' && c == '_' {
-					return l.errToken(nil, ERR_NUM_SEP_DUP)
+					return l.errTokMsg(nil, ERR_NUM_SEP_DUP)
 				}
 			}
 			last = c
@@ -1530,28 +1543,33 @@ func (l *Lexer) readHexNum(tok *Token) *Token {
 		}
 	}
 	if i == 0 {
-		return l.errToken(nil, "Expected number in radix 16")
+		return l.errTokOfst(nil, fmt.Sprintf(ERR_TPL_EXPECT_NUM_RADIX, "16"), l.src.Ofst())
 	}
 	if last == '_' {
 		tok := l.newToken()
-		return l.errToken(tok, ERR_NUM_SEP_BEGIN)
+		return l.errTokOfst(tok, ERR_NUM_SEP_BEGIN, l.src.Ofst()-1)
 	}
 
 	if tok := l.bigintSuffix(); tok != nil {
-		return l.errToken(tok, ERR_IDENT_AFTER_NUMBER)
+		return l.errTokMsg(tok, ERR_IDENT_AFTER_NUMBER)
 	}
 	if IsIdStart(l.src.Peek()) {
-		return l.errToken(nil, ERR_IDENT_AFTER_NUMBER)
+		return l.errTokMsg(nil, ERR_IDENT_AFTER_NUMBER)
 	}
 	return l.finToken(tok, T_NUM)
 }
 
-func (l *Lexer) readIdStart() (r rune, containsEscape bool, errMsg string) {
+type FixedOfstErr struct {
+	msg  string
+	ofst uint32
+}
+
+func (l *Lexer) readIdStart() (rune, bool, *FixedOfstErr) {
 	c := l.src.Read()
 	return l.readUnicodeEscape(c, true)
 }
 
-func (l *Lexer) readIdPart(jsx bool) (rs []byte, containsEscape bool, errMsg string) {
+func (l *Lexer) readIdPart(jsx bool) (rs []byte, containsEscape bool, err *FixedOfstErr) {
 	rs = make([]byte, 0, 10)
 	for {
 		c := l.src.Peek()
@@ -1560,87 +1578,88 @@ func (l *Lexer) readIdPart(jsx bool) (rs []byte, containsEscape bool, errMsg str
 			if escape && !containsEscape {
 				containsEscape = escape
 			}
-			if err != "" {
+			if err != nil {
 				return nil, escape, err
 			}
 			if c == '\\' {
-				return nil, escape, ERR_EXPECTING_UNICODE_ESCAPE
+				return nil, escape, &FixedOfstErr{ERR_EXPECTING_UNICODE_ESCAPE, l.src.Ofst()}
+
 			}
 			rs = utf8.AppendRune(rs, c)
 		} else {
 			break
 		}
 	}
-	return rs, containsEscape, ""
+	return rs, containsEscape, nil
 }
 
-func (l *Lexer) readUnicodeEscape(c rune, id bool) (r rune, containsEscape bool, errMsg string) {
+func (l *Lexer) readUnicodeEscape(c rune, id bool) (r rune, containsEscape bool, e *FixedOfstErr) {
 	if c == '\\' {
+		ofst := l.src.Ofst()
 		if l.src.AheadIsCh('u') {
 			l.src.Read()
 			containsEscape = true
-			r, errMsg = l.readUnicodeEscapeSeq(id)
+			r, e = l.readUnicodeEscapeSeq(id, ofst-1)
 			return
-		} else {
-			return utf8.RuneError, false, ERR_EXPECTING_UNICODE_ESCAPE
 		}
+		return utf8.RuneError, false, &FixedOfstErr{ERR_EXPECTING_UNICODE_ESCAPE, ofst - 1}
 	}
-	return c, false, ""
+	return c, false, nil
 }
 
-func (l *Lexer) readUnicodeEscapeSeq(id bool) (rune, string) {
+func (l *Lexer) readUnicodeEscapeSeq(id bool, start uint32) (rune, *FixedOfstErr) {
 	if l.src.AheadIsCh('{') {
 		return l.readCodepoint()
 	}
-	return l.readHex4Digits(id)
+	return l.readHex4Digits(id, start)
 }
 
-func (l *Lexer) readCodepoint() (rune, string) {
+func (l *Lexer) readCodepoint() (rune, *FixedOfstErr) {
 	hex := make([]byte, 0, 4)
 	l.src.Read() // consume `{`
 	for {
 		if l.src.AdvanceIf('}') {
 			break
 		} else if l.src.AheadIsEOF() {
-			return utf8.RuneError, ERR_BAD_ESCAPE_SEQ
+			return utf8.RuneError, &FixedOfstErr{ERR_BAD_ESCAPE_SEQ, l.src.Ofst()}
 		} else {
 			c := l.src.Peek()
 			if c == utf8.RuneError || !IsHexDigit(c) {
-				return utf8.RuneError, ERR_BAD_ESCAPE_SEQ
+				return utf8.RuneError, &FixedOfstErr{ERR_BAD_ESCAPE_SEQ, l.src.Ofst()}
 			}
 			hex = append(hex, byte(l.src.Read()))
 		}
 	}
 	r, err := strconv.ParseInt(string(hex), 16, 32)
 	if r > unicode.MaxRune {
-		return utf8.RuneError, ERR_CODEPOINT_OUT_OF_BOUNDS
+		return utf8.RuneError, &FixedOfstErr{ERR_CODEPOINT_OUT_OF_BOUNDS, l.src.Ofst()}
 	}
 	if err != nil {
-		return utf8.RuneError, ERR_BAD_ESCAPE_SEQ
+		return utf8.RuneError, &FixedOfstErr{ERR_BAD_ESCAPE_SEQ, l.src.Ofst()}
 	}
-	return rune(r), ""
+	return rune(r), nil
 }
 
-func (l *Lexer) readHex4Digits(id bool) (rune, string) {
+func (l *Lexer) readHex4Digits(id bool, start uint32) (rune, *FixedOfstErr) {
 	hex := [4]byte{0}
 	for i := 0; i < 4; i++ {
 		c := l.src.Peek()
 		if c == utf8.RuneError || !IsHexDigit(c) {
-			return utf8.RuneError, ERR_BAD_ESCAPE_SEQ
+			return utf8.RuneError, &FixedOfstErr{ERR_BAD_ESCAPE_SEQ, start}
 		}
 		hex[i] = byte(l.src.Read())
 	}
 	r, err := strconv.ParseInt(string(hex[:]), 16, 32)
 	if err != nil {
-		return utf8.RuneError, ERR_BAD_ESCAPE_SEQ
+		return utf8.RuneError, &FixedOfstErr{ERR_BAD_ESCAPE_SEQ, start}
 	}
 	rr := rune(r)
 	if id {
 		if !IsIdStart(rr) && !IsIdPart(rr) || rr == '\\' {
-			return utf8.RuneError, ERR_INVALID_UNICODE_ESCAPE
+			return utf8.RuneError, &FixedOfstErr{ERR_INVALID_UNICODE_ESCAPE, start}
 		}
 	}
-	return rr, ""
+	return rr, nil
 }
 
 func (l *Lexer) readJSXTxt() *Token {
@@ -1679,7 +1698,7 @@ func (l *Lexer) readJSXTxt() *Token {
 				if ed, ok := HTMLEntities[key]; ok {
 					rs = append(rs, ed.Bytes...)
 				} else {
-					return l.errToken(tok, fmt.Sprintf(ERR_TPL_JSX_UNDEFINED_HTML_ENTITY, key))
+					return l.errTokMsg(tok, fmt.Sprintf(ERR_TPL_JSX_UNDEFINED_HTML_ENTITY, key))
 				}
 				i = 0
 			}
@@ -1735,6 +1754,7 @@ func (l *Lexer) newToken() *Token {
 	tok.value = T_ILLEGAL
 	tok.text = ""
 	l.src.OpenRange(&tok.rng)
+	tok.txt = span.Range{}
 	tok.len = l.src.Pos()
 	return tok
 }
@@ -1747,17 +1767,27 @@ func (l *Lexer) finToken(tok *Token, value TokenValue) *Token {
 	return tok
 }
 
-func (l *Lexer) errToken(tok *Token, msg string) *Token {
+func (l *Lexer) errTokOfst(tok *Token, msg string, ofst uint32) *Token {
 	if tok == nil {
 		tok = l.newToken()
 	}
-	tok.rng.Hi = l.src.Ofst()
-	if msg != "" {
-		tok.ext = msg
-	} else {
-		tok.ext = l.errCharError()
-	}
+	tok.rng.Lo = ofst
+	tok.ext = msg
 	return tok
+}
+
+func (l *Lexer) errTokMsg(tok *Token, msg string) *Token {
+	if tok == nil {
+		tok = l.newToken()
+	}
+	return l.errTokOfst(tok, msg, tok.rng.Lo)
+}
+
+func (l *Lexer) errTok(tok *Token) *Token {
+	if tok == nil {
+		tok = l.newToken()
+	}
+	return l.errTokOfst(tok, l.errCharError().Error(), l.src.Ofst())
 }
 
 func IsIdStart(c rune) bool {

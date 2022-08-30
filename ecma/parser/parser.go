@@ -55,8 +55,9 @@ type Parser struct {
 	// the root node after process is finished
 	prog Node
 
-	// stmt node => the comments before to that stmt
-	prevStmtCmts map[Node][]span.Range
+	// node => comments
+	prevCmts map[Node][]span.Range
+	postCmts map[Node][]span.Range
 
 	errTypArgMissingGT ErrTypArgMissingGT
 }
@@ -132,7 +133,8 @@ func (p *Parser) Setup(src *span.Source, opts *ParserOpts) {
 	p.loopStk = []Node{}
 	p.retsStk = [][]Node{}
 	p.tryStk = []Node{}
-	p.prevStmtCmts = map[Node][]span.Range{}
+	p.prevCmts = map[Node][]span.Range{}
+	p.postCmts = map[Node][]span.Range{}
 
 	p.lexer = NewLexer(src)
 	p.lexer.ver = opts.Version
@@ -188,20 +190,24 @@ func (p *Parser) Symtab() *SymTab {
 	return p.symtab
 }
 
-func (p *Parser) PrevStmtCmts(stmt Node) []span.Range {
-	return p.prevStmtCmts[stmt]
+func (p *Parser) PrevCmts(stmt Node) []span.Range {
+	return p.prevCmts[stmt]
 }
 
-func (p *Parser) BtmStmtCmts() []span.Range {
-	return p.lexer.takePrevCmts()
+func (p *Parser) PostCmts(stmt Node) []span.Range {
+	return p.postCmts[stmt]
 }
 
-func (p *Parser) Ast() Node {
-	return p.prog
+func (p *Parser) Source() *span.Source {
+	return p.lexer.src
 }
 
 func (p *Parser) Lexer() *Lexer {
 	return p.lexer
+}
+
+func (p *Parser) Ast() Node {
+	return p.prog
 }
 
 func (p *Parser) Prog() (Node, error) {
@@ -282,7 +288,7 @@ func (p *Parser) checkExp(exps []*ExportDec) error {
 	for _, exp := range exps {
 		var subnames []Node
 		if !exp.def.Empty() {
-			subnames = []Node{&Ident{N_NAME, exp.Range(), "default", false, false, span.Range{}, true, p.newTypInfo(N_NAME)}}
+			subnames = []Node{&Ident{N_NAME, exp.def, "default", false, false, span.Range{}, true, p.newTypInfo(N_NAME)}}
 		} else if exp.dec != nil {
 			subnames = p.namesInNode(exp.dec)
 		} else {
@@ -376,7 +382,7 @@ func (p *Parser) stmt() (node Node, err error) {
 			node, err = p.exprStmt()
 		}
 		if p.aheadIsTsEnum(tok) {
-			node, err = p.tsEnum(span.Range{}, false)
+			node, err = p.tsEnum(span.Range{Lo: 1, Hi: 0}, false)
 		}
 	} else if tok.value == T_BRACE_L {
 		node, err = p.blockStmt(true, SPK_NONE)
@@ -576,7 +582,7 @@ func (p *Parser) exportDec() (Node, error) {
 			}
 		}
 	} else if p.aheadIsTsEnum(tok) {
-		node.dec, err = p.tsEnum(span.Range{}, false)
+		node.dec, err = p.tsEnum(span.Range{Lo: 1, Hi: 0}, false)
 		if err != nil {
 			return nil, err
 		}
@@ -677,7 +683,7 @@ func (p *Parser) exportFrom(typ bool) ([]Node, bool, Node, error) {
 		if err != nil {
 			return nil, false, nil, err
 		}
-		src = &StrLit{N_LIT_STR, p.finRng(str.rng), p.tokText(str), str.HasLegacyOctalEscapeSeq(), span.Range{}, nil}
+		src = &StrLit{N_LIT_STR, p.finRng(str.rng), p.TokText(str), str.HasLegacyOctalEscapeSeq(), span.Range{}, nil}
 	} else {
 		// `export { default } from "a"` is legal
 		// `export { default }` is illegal
@@ -909,7 +915,7 @@ func (p *Parser) importDec() (Node, error) {
 		return nil, p.errorAtLoc(str.rng, ERR_LEGACY_OCTAL_ESCAPE_IN_STRICT_MODE)
 	}
 
-	node.src = &StrLit{N_LIT_STR, p.finRng(str.rng), p.tokText(str), legacyOctalEscapeSeq, span.Range{}, nil}
+	node.src = &StrLit{N_LIT_STR, p.finRng(str.rng), p.TokText(str), legacyOctalEscapeSeq, span.Range{}, nil}
 	node.specs = specs
 	if err := p.advanceIfSemi(true); err != nil {
 		return nil, err
@@ -1328,7 +1334,7 @@ func (p *Parser) modifiers() (begin, static, access, abstract, readonly, overrid
 				begin = static
 			}
 			escape = tok.ContainsEscape()
-			name = p.tokText(tok)
+			name = p.TokText(tok)
 			isField, ahead = p.isField(true, false)
 			fieldLoc = static
 			if isField {
@@ -1353,7 +1359,7 @@ func (p *Parser) modifiers() (begin, static, access, abstract, readonly, overrid
 					begin = access
 				}
 				escape = tok.ContainsEscape()
-				name = p.tokText(tok)
+				name = p.TokText(tok)
 				isField, ahead = p.isField(false, false)
 				fieldLoc = access
 				if isField {
@@ -1369,7 +1375,7 @@ func (p *Parser) modifiers() (begin, static, access, abstract, readonly, overrid
 				begin = abstract
 			}
 			escape = tok.ContainsEscape()
-			name = p.tokText(tok)
+			name = p.TokText(tok)
 			isField, ahead = p.isField(false, false)
 			fieldLoc = abstract
 			if isField {
@@ -1384,7 +1390,7 @@ func (p *Parser) modifiers() (begin, static, access, abstract, readonly, overrid
 				begin = readonly
 			}
 			escape = tok.ContainsEscape()
-			name = p.tokText(tok)
+			name = p.TokText(tok)
 			isField, ahead = p.isField(false, false)
 			fieldLoc = readonly
 			if isField {
@@ -1399,7 +1405,7 @@ func (p *Parser) modifiers() (begin, static, access, abstract, readonly, overrid
 				begin = override
 			}
 			escape = tok.ContainsEscape()
-			name = p.tokText(tok)
+			name = p.TokText(tok)
 			isField, ahead = p.isField(false, false)
 			fieldLoc = override
 			if isField {
@@ -1414,7 +1420,7 @@ func (p *Parser) modifiers() (begin, static, access, abstract, readonly, overrid
 				begin = declare
 			}
 			escape = tok.ContainsEscape()
-			name = p.tokText(tok)
+			name = p.TokText(tok)
 			isField, ahead = p.isField(false, false)
 			fieldLoc = declare
 			if isField {
@@ -1494,7 +1500,7 @@ func (p *Parser) classElem(inDeclare bool) (Node, error) {
 	kw := ahead.IsKw()
 	if ahead.value == T_NAME || ahead.value == T_STRING || kw {
 		ahead = p.lexer.Next()
-		name := p.tokText(ahead)
+		name := p.TokText(ahead)
 
 		var key Node
 		if ahead.value == T_STRING {
@@ -2953,7 +2959,7 @@ func (p *Parser) isDirective(stmt Node) (bool, bool) {
 	}
 	expr := stmt.(*ExprStmt).expr
 	if expr.Type() == N_LIT_STR {
-		str := p.rngText(expr.Range())
+		str := p.RngText(expr.Range())
 		if str == "\"use strict\"" || str == "'use strict'" {
 			return true, true
 		}
@@ -2986,7 +2992,7 @@ func (p *Parser) stmts(terminal TokenValue) ([]Node, error) {
 		} else if tok.value == T_EOF {
 			break
 		}
-		cmts := p.lexer.takePrevCmts()
+		cmts := p.lexer.takeStmtCmts()
 		stmt, err := p.stmt()
 		if err != nil {
 			return nil, err
@@ -3029,7 +3035,8 @@ func (p *Parser) stmts(terminal TokenValue) ([]Node, error) {
 					prologue += 1
 				}
 			}
-			p.prevStmtCmts[stmt] = cmts
+			p.prevCmts[stmt] = cmts
+			p.postCmts[stmt] = p.lexer.takeExprCmts()
 			stmts = append(stmts, stmt)
 		}
 	}
@@ -3269,7 +3276,7 @@ func (p *Parser) identStrict(scope *Scope, forceStrict bool, binding bool) (Node
 		return nil, p.errorTok(tok)
 	}
 
-	name := p.tokText(tok)
+	name := p.TokText(tok)
 	rng := p.finRng(tok.rng)
 
 	if p.isProhibitedName(scope, name, true, false, false, forceStrict) {
@@ -3731,19 +3738,19 @@ func (p *Parser) propName(allowNamePVT bool, maybeMethod bool, tsRough bool) (No
 	tok := p.lexer.Next()
 	rng := tok.rng
 	kw, ok := tok.CanBePropKey()
-	keyName := p.tokText(tok)
+	keyName := p.TokText(tok)
 
 	scope := p.scope()
 	var computeLoc span.Range
 	tv := tok.value
 	if allowNamePVT && tv == T_NAME_PVT {
-		key = &Ident{N_NAME, p.finRng(rng), p.tokText(tok), true, tok.ContainsEscape(), span.Range{}, false, p.newTypInfo(N_NAME)}
+		key = &Ident{N_NAME, p.finRng(rng), p.TokText(tok), true, tok.ContainsEscape(), span.Range{}, false, p.newTypInfo(N_NAME)}
 	} else if tv == T_STRING {
 		legacyOctalEscapeSeq := tok.HasLegacyOctalEscapeSeq()
 		if p.scope().IsKind(SPK_STRICT) && legacyOctalEscapeSeq {
 			return nil, span.Range{}, p.errorAtLoc(tok.rng, ERR_LEGACY_OCTAL_ESCAPE_IN_STRICT_MODE)
 		}
-		key = &StrLit{N_LIT_STR, p.finRng(rng), p.tokText(tok), tok.HasLegacyOctalEscapeSeq(), span.Range{}, p.newTypInfo(N_LIT_STR)}
+		key = &StrLit{N_LIT_STR, p.finRng(rng), p.TokText(tok), tok.HasLegacyOctalEscapeSeq(), span.Range{}, p.newTypInfo(N_LIT_STR)}
 	} else if tv == T_NUM {
 		key = &NumLit{N_LIT_NUM, p.finRng(rng), span.Range{}}
 	} else if tv == T_BRACKET_L {
@@ -4009,7 +4016,7 @@ func (p *Parser) aheadIsYield() bool {
 	}
 	ahead := p.lexer.Peek()
 	av := ahead.value
-	return av == T_YIELD || av == T_NAME && p.rngText(ahead.rng) == "yield"
+	return av == T_YIELD || av == T_NAME && p.RngText(ahead.rng) == "yield"
 }
 
 // https://tc39.es/ecma262/multipage/ecmascript-language-functions-and-classes.html#prod-YieldExpression
@@ -4462,7 +4469,7 @@ func (p *Parser) newExpr() (Node, error) {
 			if err == p.errTypArgMissingGT {
 				p.popState()
 
-				e := err.(*ErrTypArgMissingGT)
+				e := err.(ErrTypArgMissingGT)
 				p.addLtTok(e.rng.Lo)
 				return &NewExpr{N_EXPR_NEW, p.finRng(rng), expr, nil, span.Range{}, ti}, nil
 			}
@@ -4602,11 +4609,11 @@ func (p *Parser) callExpr(callee Node, root bool, directOpt bool, opt span.Range
 			// `superTypArgs` is used to represent expr like `(class extends f()<T> {})`
 			args, _, typArgs, superTypArgs, err := p.argList(true, true, span.Range{}, true)
 			if err != nil {
-				if err == p.errTypArgMissingGT && !firstOpt.Empty() {
+				if err == p.errTypArgMissingGT && firstOpt.Empty() {
 					p.popState()
 
-					e := err.(*ErrTypArgMissingGT)
-					if p.lexer.lsh(e.rng.Lo) {
+					e := err.(ErrTypArgMissingGT)
+					if p.lexer.maybeLsh(e.rng.Lo) {
 						p.lexer.tryLsh(e.rng.Lo)
 					} else {
 						p.addLtTok(e.rng.Lo)
@@ -4683,7 +4690,7 @@ func (p *Parser) importCall(tok *Token) (Node, error) {
 	}
 	rng := tok.rng
 
-	meta := &Ident{N_NAME, p.finRng(tok.rng), p.tokText(tok), false, tok.ContainsEscape(), span.Range{}, false, p.newTypInfo(N_NAME)}
+	meta := &Ident{N_NAME, p.finRng(tok.rng), p.TokText(tok), false, tok.ContainsEscape(), span.Range{}, false, p.newTypInfo(N_NAME)}
 
 	ahead := p.lexer.Peek()
 	if ahead.value == T_DOT && p.feat&FEAT_META_PROPERTY != 0 {
@@ -4765,7 +4772,7 @@ func (p *Parser) tplExpr(tag Node, ts bool) (Node, error) {
 			}
 
 			p.lexer.Next()
-			str := &StrLit{N_LIT_STR, span.Range{ext.strRng.Lo, ext.strRng.Hi}, cooked, false, span.Range{}, nil}
+			str := &StrLit{N_LIT_STR, span.Range{Lo: ext.strRng.Lo, Hi: ext.strRng.Hi}, cooked, false, span.Range{}, nil}
 			elems = append(elems, str)
 
 			if tok.value == T_TPL_TAIL || tok.IsPlainTpl() {
@@ -5604,11 +5611,11 @@ func (p *Parser) memberExprPropDot(obj Node, opt bool) (Node, error) {
 	var prop Node
 	if (ok && tv != T_NUM) || tv == T_NAME_PVT {
 		pvt := tv == T_NAME_PVT
-		id := &Ident{N_NAME, p.finRng(loc), p.tokText(tok), pvt, tok.ContainsEscape(), span.Range{}, kw, p.newTypInfo(N_NAME)}
+		id := &Ident{N_NAME, p.finRng(loc), p.TokText(tok), pvt, tok.ContainsEscape(), span.Range{}, kw, p.newTypInfo(N_NAME)}
 		if pvt {
 			scope := p.scope().UpperCls()
 			if scope == nil {
-				return nil, p.errorAtLoc(loc, fmt.Sprintf(ERR_TPL_ALONE_PVT_FIELD, "#"+p.tokText(tok)))
+				return nil, p.errorAtLoc(loc, fmt.Sprintf(ERR_TPL_ALONE_PVT_FIELD, "#"+p.TokText(tok)))
 			}
 			ref := NewRef()
 			ref.Def = id
@@ -5640,7 +5647,7 @@ func (p *Parser) primaryExpr(notColon bool) (Node, error) {
 		if p.scope().IsKind(SPK_STRICT) && legacyOctalEscapeSeq {
 			return nil, p.errorAtLoc(p.finRng(loc), ERR_LEGACY_OCTAL_ESCAPE_IN_STRICT_MODE)
 		}
-		return &StrLit{N_LIT_STR, p.finRng(loc), p.tokText(tok), legacyOctalEscapeSeq, span.Range{}, nil}, nil
+		return &StrLit{N_LIT_STR, p.finRng(loc), p.TokText(tok), legacyOctalEscapeSeq, span.Range{}, nil}, nil
 	case T_NULL:
 		loc := tok.rng
 		p.lexer.Next()
@@ -5648,7 +5655,7 @@ func (p *Parser) primaryExpr(notColon bool) (Node, error) {
 	case T_TRUE, T_FALSE:
 		loc := tok.rng
 		p.lexer.Next()
-		return &BoolLit{N_LIT_BOOL, p.finRng(loc), p.tokText(tok) == "true", span.Range{}, nil}, nil
+		return &BoolLit{N_LIT_BOOL, p.finRng(loc), p.TokText(tok) == "true", span.Range{}, nil}, nil
 	case T_NAME:
 		loc := tok.rng
 		if p.aheadIsAsync(tok, false, false) {
@@ -5665,7 +5672,7 @@ func (p *Parser) primaryExpr(notColon bool) (Node, error) {
 		}
 
 		p.lexer.Next()
-		name := p.tokText(tok)
+		name := p.TokText(tok)
 		ahead := p.lexer.Peek()
 		// `ahead.value != T_ARROW` is used to skip checking name when it appears in the param list of arrow expr
 		// for `eval => 42` we should report binding-reserved-word error instead of unexpected-reserved-word error
@@ -5693,7 +5700,7 @@ func (p *Parser) primaryExpr(notColon bool) (Node, error) {
 		loc := tok.rng
 		p.lexer.Next()
 		ext := tok.ext.(*TokExtRegexp)
-		return &RegLit{N_LIT_REGEXP, p.finRng(loc), p.tokText(tok), p.rngText(ext.pattern), p.rngText(ext.flags), span.Range{}, nil}, nil
+		return &RegLit{N_LIT_REGEXP, p.finRng(loc), p.TokText(tok), p.RngText(ext.pattern), p.RngText(ext.flags), span.Range{}, nil}, nil
 	case T_CLASS:
 		return p.classDec(true, false, false, false)
 	case T_SUPER:
@@ -6359,7 +6366,12 @@ func (p *Parser) nameOfNode(node Node) string {
 	}
 	switch node.Type() {
 	case N_NAME:
-		return node.(*Ident).val
+		id := node.(*Ident)
+		v := id.val
+		if id.pvt {
+			return "#" + v
+		}
+		return v
 	case N_LIT_STR:
 		return node.(*StrLit).val
 	case N_LIT_NULL:
@@ -6372,7 +6384,7 @@ func (p *Parser) nameOfNode(node Node) string {
 		return "false"
 	case N_LIT_NUM:
 		n := node.(*NumLit)
-		return p.nodeText(n)
+		return p.NodeText(n)
 	}
 	return ""
 }
@@ -6385,8 +6397,6 @@ func (p *Parser) isExprOpening(raise bool) (*Token, error) {
 		if tok.value == T_ILLEGAL {
 			if msg, ok := tok.ext.(string); ok {
 				errMsg = msg
-			} else if msg, ok := tok.ext.(*LexerError); ok {
-				errMsg = msg.Error()
 			}
 		}
 		return nil, p.errorAt(tok.value, tok.rng, errMsg)
@@ -6416,7 +6426,7 @@ func (p *Parser) nextMustTok(val TokenValue) (*Token, error) {
 
 func (p *Parser) nextMustName(name string, canContainsEscape bool) (*Token, error) {
 	tok := p.lexer.Next()
-	if tok.value != T_NAME || p.tokText(tok) != name {
+	if tok.value != T_NAME || p.TokText(tok) != name {
 		return nil, p.errorTok(tok)
 	}
 	if !canContainsEscape && tok.ContainsEscape() {
@@ -6450,15 +6460,15 @@ func (p *Parser) rng() span.Range {
 	return p.lexer.Rng()
 }
 
-func (p *Parser) rngText(rng span.Range) string {
+func (p *Parser) RngText(rng span.Range) string {
 	return p.lexer.src.RngText(rng)
 }
 
-func (p *Parser) tokText(t *Token) string {
+func (p *Parser) TokText(t *Token) string {
 	return TokText(t, p.lexer.src)
 }
 
-func (p *Parser) nodeText(n Node) string {
+func (p *Parser) NodeText(n Node) string {
 	return NodeText(n, p.lexer.src)
 }
 
@@ -6467,24 +6477,21 @@ func (p *Parser) finRng(rng span.Range) span.Range {
 }
 
 func (p *Parser) errorTok(tok *Token) *ParserError {
-	loc := p.lexer.src.OfstLineCol(tok.rng.Lo)
 	if tok.value != T_ILLEGAL {
-		return newParserError(fmt.Sprintf(ERR_TPL_UNEXPECTED_TOKEN_TYPE, TokenKinds[tok.value].Name),
-			p.lexer.src.Path, loc.Line, loc.Col)
+		return newParserError(p, fmt.Sprintf(ERR_TPL_UNEXPECTED_TOKEN_TYPE, TokenKinds[tok.value].Name),
+			p.lexer.src.Path, tok.rng.Lo)
 	}
-	return newParserError(tok.ErrMsg(), p.lexer.src.Path, loc.Line, loc.Col)
+	return newParserError(p, tok.ErrMsg(), p.lexer.src.Path, tok.rng.Lo)
 }
 
 func (p *Parser) errorAt(tok TokenValue, pos span.Range, errMsg string) *ParserError {
-	loc := p.lexer.src.OfstLineCol(pos.Lo)
 	if tok != T_ILLEGAL && errMsg == "" {
-		return newParserError(fmt.Sprintf(ERR_TPL_UNEXPECTED_TOKEN_TYPE, TokenKinds[tok].Name),
-			p.lexer.src.Path, loc.Line, loc.Col)
+		return newParserError(p, fmt.Sprintf(ERR_TPL_UNEXPECTED_TOKEN_TYPE, TokenKinds[tok].Name),
+			p.lexer.src.Path, pos.Lo)
 	}
-	return newParserError(errMsg, p.lexer.src.Path, loc.Line, loc.Col)
+	return newParserError(p, errMsg, p.lexer.src.Path, pos.Lo)
 }
 
 func (p *Parser) errorAtLoc(rng span.Range, errMsg string) *ParserError {
-	loc := p.lexer.src.OfstLineCol(rng.Lo)
-	return newParserError(errMsg, p.lexer.src.Path, loc.Line, loc.Col)
+	return newParserError(p, errMsg, p.lexer.src.Path, rng.Lo)
 }

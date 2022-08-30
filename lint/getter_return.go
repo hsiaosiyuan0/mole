@@ -59,7 +59,7 @@ func isGetter(node parser.Node, ctx *walk.VisitorCtx) (bool, parser.Node) {
 
 	if pt == parser.N_PROP &&
 		parent.(*parser.Prop).Key().Type() == parser.N_NAME &&
-		parent.(*parser.Prop).Key().(*parser.Ident).Text() == "get" &&
+		parent.(*parser.Prop).Key().(*parser.Ident).Val() == "get" &&
 		ctx.Parent.Parent.Node.Type() == parser.N_LIT_OBJ {
 
 		// process `Object.defineProperty`

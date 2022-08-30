@@ -90,8 +90,8 @@ func (l *Linter) report(dig *Diagnosis) {
 	l.diagsLock.Lock()
 	defer l.diagsLock.Unlock()
 
-	file := dig.Loc.Source()
-	line := dig.Loc.Begin().Line
+	file := dig.S.Path
+	line := dig.Rng.Lo
 
 	list := l.diags[file]
 	if list == nil {

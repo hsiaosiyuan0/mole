@@ -88,7 +88,6 @@ func Test2(t *testing.T) {
 {
   "type": "Program",
   "loc": {
-    "source": "",
     "start": {
       "line": 1,
       "column": 0
@@ -103,7 +102,6 @@ func Test2(t *testing.T) {
     {
       "type": "ExpressionStatement",
       "loc": {
-        "source": "",
         "start": {
           "line": 1,
           "column": 0
@@ -116,7 +114,6 @@ func Test2(t *testing.T) {
       "expression": {
         "type": "ThisExpression",
         "loc": {
-          "source": "",
           "start": {
             "line": 1,
             "column": 0
@@ -141,7 +138,6 @@ func Test3(t *testing.T) {
 {
   "type": "Program",
   "loc": {
-    "source": "",
     "start": {
       "line": 1,
       "column": 0
@@ -156,7 +152,6 @@ func Test3(t *testing.T) {
     {
       "type": "ExpressionStatement",
       "loc": {
-        "source": "",
         "start": {
           "line": 1,
           "column": 0
@@ -169,7 +164,6 @@ func Test3(t *testing.T) {
       "expression": {
         "type": "Literal",
         "loc": {
-          "source": "",
           "start": {
             "line": 1,
             "column": 0
@@ -195,7 +189,6 @@ func Test4(t *testing.T) {
 {
   "type": "Program",
   "loc": {
-    "source": "",
     "start": {
       "line": 1,
       "column": 0
@@ -210,7 +203,6 @@ func Test4(t *testing.T) {
     {
       "type": "ExpressionStatement",
       "loc": {
-        "source": "",
         "start": {
           "line": 2,
           "column": 4
@@ -223,7 +215,6 @@ func Test4(t *testing.T) {
       "expression": {
         "type": "Literal",
         "loc": {
-          "source": "",
           "start": {
             "line": 2,
             "column": 4
@@ -249,7 +240,6 @@ func Test5(t *testing.T) {
 {
   "type": "Program",
   "loc": {
-    "source": "",
     "start": {
       "line": 1,
       "column": 0
@@ -264,7 +254,6 @@ func Test5(t *testing.T) {
     {
       "type": "ExpressionStatement",
       "loc": {
-        "source": "",
         "start": {
           "line": 1,
           "column": 0
@@ -277,7 +266,6 @@ func Test5(t *testing.T) {
       "expression": {
         "type": "Literal",
         "loc": {
-          "source": "",
           "start": {
             "line": 1,
             "column": 0
@@ -307,7 +295,6 @@ func Test6(t *testing.T) {
 {
   "type": "Program",
   "loc": {
-    "source": "",
     "start": {
       "line": 1,
       "column": 0
@@ -322,7 +309,6 @@ func Test6(t *testing.T) {
     {
       "type": "ExpressionStatement",
       "loc": {
-        "source": "",
         "start": {
           "line": 1,
           "column": 0
@@ -335,7 +321,6 @@ func Test6(t *testing.T) {
       "expression": {
         "type": "Literal",
         "loc": {
-          "source": "",
           "start": {
             "line": 1,
             "column": 0
@@ -471,7 +456,6 @@ func Test8(t *testing.T) {
 {
   "type": "Program",
   "loc": {
-    "source": "",
     "start": {
       "line": 1,
       "column": 0
@@ -486,7 +470,6 @@ func Test8(t *testing.T) {
     {
       "type": "ExpressionStatement",
       "loc": {
-        "source": "",
         "start": {
           "line": 1,
           "column": 0
@@ -499,7 +482,6 @@ func Test8(t *testing.T) {
       "expression": {
         "type": "AssignmentExpression",
         "loc": {
-          "source": "",
           "start": {
             "line": 1,
             "column": 1
@@ -513,7 +495,6 @@ func Test8(t *testing.T) {
         "left": {
           "type": "Identifier",
           "loc": {
-            "source": "",
             "start": {
               "line": 1,
               "column": 1
@@ -528,7 +509,6 @@ func Test8(t *testing.T) {
         "right": {
           "type": "Literal",
           "loc": {
-            "source": "",
             "start": {
               "line": 1,
               "column": 5
@@ -555,7 +535,6 @@ func Test9(t *testing.T) {
 {
   "type": "Program",
   "loc": {
-    "source": "",
     "start": {
       "line": 1,
       "column": 0
@@ -570,7 +549,6 @@ func Test9(t *testing.T) {
     {
       "type": "ExpressionStatement",
       "loc": {
-        "source": "",
         "start": {
           "line": 1,
           "column": 0
@@ -583,7 +561,6 @@ func Test9(t *testing.T) {
       "expression": {
         "type": "AssignmentExpression",
         "loc": {
-          "source": "",
           "start": {
             "line": 1,
             "column": 0
@@ -597,7 +574,6 @@ func Test9(t *testing.T) {
         "left": {
           "type": "Identifier",
           "loc": {
-            "source": "",
             "start": {
               "line": 1,
               "column": 0
@@ -612,7 +588,6 @@ func Test9(t *testing.T) {
         "right": {
           "type": "ArrayExpression",
           "loc": {
-            "source": "",
             "start": {
               "line": 1,
               "column": 4
@@ -639,7 +614,6 @@ func Test10(t *testing.T) {
 {
   "type": "Program",
   "loc": {
-    "source": "",
     "start": {
       "line": 1,
       "column": 0
@@ -654,7 +628,6 @@ func Test10(t *testing.T) {
     {
       "type": "ExpressionStatement",
       "loc": {
-        "source": "",
         "start": {
           "line": 1,
           "column": 0
@@ -667,7 +640,6 @@ func Test10(t *testing.T) {
       "expression": {
         "type": "AssignmentExpression",
         "loc": {
-          "source": "",
           "start": {
             "line": 1,
             "column": 0
@@ -681,7 +653,6 @@ func Test10(t *testing.T) {
         "left": {
           "type": "Identifier",
           "loc": {
-            "source": "",
             "start": {
               "line": 1,
               "column": 0
@@ -696,7 +667,6 @@ func Test10(t *testing.T) {
         "right": {
           "type": "ArrayExpression",
           "loc": {
-            "source": "",
             "start": {
               "line": 1,
               "column": 4
@@ -710,7 +680,6 @@ func Test10(t *testing.T) {
             {
               "type": "Literal",
               "loc": {
-                "source": "",
                 "start": {
                   "line": 1,
                   "column": 6
@@ -739,7 +708,6 @@ func Test11(t *testing.T) {
 {
   "type": "Program",
   "loc": {
-    "source": "",
     "start": {
       "line": 1,
       "column": 0
@@ -754,7 +722,6 @@ func Test11(t *testing.T) {
     {
       "type": "ExpressionStatement",
       "loc": {
-        "source": "",
         "start": {
           "line": 1,
           "column": 0
@@ -767,7 +734,6 @@ func Test11(t *testing.T) {
       "expression": {
         "type": "AssignmentExpression",
         "loc": {
-          "source": "",
           "start": {
             "line": 1,
             "column": 0
@@ -781,7 +747,6 @@ func Test11(t *testing.T) {
         "left": {
           "type": "Identifier",
           "loc": {
-            "source": "",
             "start": {
               "line": 1,
               "column": 0
@@ -796,7 +761,6 @@ func Test11(t *testing.T) {
         "right": {
           "type": "ArrayExpression",
           "loc": {
-            "source": "",
             "start": {
               "line": 1,
               "column": 4
@@ -810,7 +774,6 @@ func Test11(t *testing.T) {
             {
               "type": "Literal",
               "loc": {
-                "source": "",
                 "start": {
                   "line": 1,
                   "column": 6
@@ -839,7 +802,6 @@ func Test12(t *testing.T) {
 {
   "type": "Program",
   "loc": {
-    "source": "",
     "start": {
       "line": 1,
       "column": 0
@@ -854,7 +816,6 @@ func Test12(t *testing.T) {
     {
       "type": "ExpressionStatement",
       "loc": {
-        "source": "",
         "start": {
           "line": 1,
           "column": 0
@@ -867,7 +828,6 @@ func Test12(t *testing.T) {
       "expression": {
         "type": "AssignmentExpression",
         "loc": {
-          "source": "",
           "start": {
             "line": 1,
             "column": 0
@@ -881,7 +841,6 @@ func Test12(t *testing.T) {
         "left": {
           "type": "Identifier",
           "loc": {
-            "source": "",
             "start": {
               "line": 1,
               "column": 0
@@ -896,7 +855,6 @@ func Test12(t *testing.T) {
         "right": {
           "type": "ArrayExpression",
           "loc": {
-            "source": "",
             "start": {
               "line": 1,
               "column": 4
@@ -912,7 +870,6 @@ func Test12(t *testing.T) {
             {
               "type": "Literal",
               "loc": {
-                "source": "",
                 "start": {
                   "line": 1,
                   "column": 9
@@ -941,7 +898,6 @@ func Test13(t *testing.T) {
 {
   "type": "Program",
   "loc": {
-    "source": "",
     "start": {
       "line": 1,
       "column": 0
@@ -956,7 +912,6 @@ func Test13(t *testing.T) {
     {
       "type": "ExpressionStatement",
       "loc": {
-        "source": "",
         "start": {
           "line": 1,
           "column": 0
@@ -969,7 +924,6 @@ func Test13(t *testing.T) {
       "expression": {
         "type": "AssignmentExpression",
         "loc": {
-          "source": "",
           "start": {
             "line": 1,
             "column": 0
@@ -983,7 +937,6 @@ func Test13(t *testing.T) {
         "left": {
           "type": "Identifier",
           "loc": {
-            "source": "",
             "start": {
               "line": 1,
               "column": 0
@@ -998,7 +951,6 @@ func Test13(t *testing.T) {
         "right": {
           "type": "ArrayExpression",
           "loc": {
-            "source": "",
             "start": {
               "line": 1,
               "column": 4
@@ -1012,7 +964,6 @@ func Test13(t *testing.T) {
             {
               "type": "Literal",
               "loc": {
-                "source": "",
                 "start": {
                   "line": 1,
                   "column": 6
@@ -1027,7 +978,6 @@ func Test13(t *testing.T) {
             {
               "type": "Literal",
               "loc": {
-                "source": "",
                 "start": {
                   "line": 1,
                   "column": 9
@@ -1042,7 +992,6 @@ func Test13(t *testing.T) {
             {
               "type": "Literal",
               "loc": {
-                "source": "",
                 "start": {
                   "line": 1,
                   "column": 12
@@ -1071,7 +1020,6 @@ func Test14(t *testing.T) {
 {
   "type": "Program",
   "loc": {
-    "source": "",
     "start": {
       "line": 1,
       "column": 0
@@ -1086,7 +1034,6 @@ func Test14(t *testing.T) {
     {
       "type": "ExpressionStatement",
       "loc": {
-        "source": "",
         "start": {
           "line": 1,
           "column": 0
@@ -1099,7 +1046,6 @@ func Test14(t *testing.T) {
       "expression": {
         "type": "AssignmentExpression",
         "loc": {
-          "source": "",
           "start": {
             "line": 1,
             "column": 0
@@ -1113,7 +1059,6 @@ func Test14(t *testing.T) {
         "left": {
           "type": "Identifier",
           "loc": {
-            "source": "",
             "start": {
               "line": 1,
               "column": 0
@@ -1128,7 +1073,6 @@ func Test14(t *testing.T) {
         "right": {
           "type": "ArrayExpression",
           "loc": {
-            "source": "",
             "start": {
               "line": 1,
               "column": 4
@@ -1142,7 +1086,6 @@ func Test14(t *testing.T) {
             {
               "type": "Literal",
               "loc": {
-                "source": "",
                 "start": {
                   "line": 1,
                   "column": 6
@@ -1157,7 +1100,6 @@ func Test14(t *testing.T) {
             {
               "type": "Literal",
               "loc": {
-                "source": "",
                 "start": {
                   "line": 1,
                   "column": 9
@@ -1173,7 +1115,6 @@ func Test14(t *testing.T) {
             {
               "type": "Literal",
               "loc": {
-                "source": "",
                 "start": {
                   "line": 1,
                   "column": 13
@@ -1202,7 +1143,6 @@ func Test15(t *testing.T) {
 {
   "type": "Program",
   "loc": {
-    "source": "",
     "start": {
       "line": 1,
       "column": 0
@@ -1217,7 +1157,6 @@ func Test15(t *testing.T) {
     {
       "type": "ExpressionStatement",
       "loc": {
-        "source": "",
         "start": {
           "line": 1,
           "column": 0
@@ -1230,7 +1169,6 @@ func Test15(t *testing.T) {
       "expression": {
         "type": "AssignmentExpression",
         "loc": {
-          "source": "",
           "start": {
             "line": 1,
             "column": 0
@@ -1244,7 +1182,6 @@ func Test15(t *testing.T) {
         "left": {
           "type": "Identifier",
           "loc": {
-            "source": "",
             "start": {
               "line": 1,
               "column": 0
@@ -1259,7 +1196,6 @@ func Test15(t *testing.T) {
         "right": {
           "type": "ArrayExpression",
           "loc": {
-            "source": "",
             "start": {
               "line": 1,
               "column": 6
@@ -1286,7 +1222,6 @@ func Test16(t *testing.T) {
 {
   "type": "Program",
   "loc": {
-    "source": "",
     "start": {
       "line": 1,
       "column": 0
@@ -1301,7 +1236,6 @@ func Test16(t *testing.T) {
     {
       "type": "ExpressionStatement",
       "loc": {
-        "source": "",
         "start": {
           "line": 1,
           "column": 0
@@ -1314,7 +1248,6 @@ func Test16(t *testing.T) {
       "expression": {
         "type": "AssignmentExpression",
         "loc": {
-          "source": "",
           "start": {
             "line": 1,
             "column": 0
@@ -1328,7 +1261,6 @@ func Test16(t *testing.T) {
         "left": {
           "type": "Identifier",
           "loc": {
-            "source": "",
             "start": {
               "line": 1,
               "column": 0
@@ -1343,7 +1275,6 @@ func Test16(t *testing.T) {
         "right": {
           "type": "ArrayExpression",
           "loc": {
-            "source": "",
             "start": {
               "line": 1,
               "column": 5
@@ -1371,7 +1302,6 @@ func Test17(t *testing.T) {
 {
   "type": "Program",
   "loc": {
-    "source": "",
     "start": {
       "line": 1,
       "column": 0
@@ -1386,7 +1316,6 @@ func Test17(t *testing.T) {
     {
       "type": "ExpressionStatement",
       "loc": {
-        "source": "",
         "start": {
           "line": 1,
           "column": 0
@@ -1399,7 +1328,6 @@ func Test17(t *testing.T) {
       "expression": {
         "type": "AssignmentExpression",
         "loc": {
-          "source": "",
           "start": {
             "line": 1,
             "column": 0
@@ -1413,7 +1341,6 @@ func Test17(t *testing.T) {
         "left": {
           "type": "Identifier",
           "loc": {
-            "source": "",
             "start": {
               "line": 1,
               "column": 0
@@ -1428,7 +1355,6 @@ func Test17(t *testing.T) {
         "right": {
           "type": "ArrayExpression",
           "loc": {
-            "source": "",
             "start": {
               "line": 1,
               "column": 5
@@ -1455,7 +1381,6 @@ func Test18(t *testing.T) {
 {
   "type": "Program",
   "loc": {
-    "source": "",
     "start": {
       "line": 1,
       "column": 0
@@ -1470,7 +1395,6 @@ func Test18(t *testing.T) {
     {
       "type": "ExpressionStatement",
       "loc": {
-        "source": "",
         "start": {
           "line": 1,
           "column": 0
@@ -1483,7 +1407,6 @@ func Test18(t *testing.T) {
       "expression": {
         "type": "AssignmentExpression",
         "loc": {
-          "source": "",
           "start": {
             "line": 1,
             "column": 0
@@ -1497,7 +1420,6 @@ func Test18(t *testing.T) {
         "left": {
           "type": "Identifier",
           "loc": {
-            "source": "",
             "start": {
               "line": 1,
               "column": 0
@@ -1512,7 +1434,6 @@ func Test18(t *testing.T) {
         "right": {
           "type": "ArrayExpression",
           "loc": {
-            "source": "",
             "start": {
               "line": 1,
               "column": 5
@@ -1540,7 +1461,6 @@ func Test19(t *testing.T) {
 {
   "type": "Program",
   "loc": {
-    "source": "",
     "start": {
       "line": 1,
       "column": 0
@@ -1555,7 +1475,6 @@ func Test19(t *testing.T) {
     {
       "type": "ExpressionStatement",
       "loc": {
-        "source": "",
         "start": {
           "line": 1,
           "column": 0
@@ -1568,7 +1487,6 @@ func Test19(t *testing.T) {
       "expression": {
         "type": "AssignmentExpression",
         "loc": {
-          "source": "",
           "start": {
             "line": 1,
             "column": 0
@@ -1582,7 +1500,6 @@ func Test19(t *testing.T) {
         "left": {
           "type": "Identifier",
           "loc": {
-            "source": "",
             "start": {
               "line": 1,
               "column": 0
@@ -1597,7 +1514,6 @@ func Test19(t *testing.T) {
         "right": {
           "type": "ArrayExpression",
           "loc": {
-            "source": "",
             "start": {
               "line": 1,
               "column": 5
@@ -1624,7 +1540,6 @@ func Test20(t *testing.T) {
 {
   "type": "Program",
   "loc": {
-    "source": "",
     "start": {
       "line": 1,
       "column": 0
@@ -1639,7 +1554,6 @@ func Test20(t *testing.T) {
     {
       "type": "ExpressionStatement",
       "loc": {
-        "source": "",
         "start": {
           "line": 1,
           "column": 0
@@ -1652,7 +1566,6 @@ func Test20(t *testing.T) {
       "expression": {
         "type": "AssignmentExpression",
         "loc": {
-          "source": "",
           "start": {
             "line": 1,
             "column": 0
@@ -1666,7 +1579,6 @@ func Test20(t *testing.T) {
         "left": {
           "type": "Identifier",
           "loc": {
-            "source": "",
             "start": {
               "line": 1,
               "column": 0
@@ -1681,7 +1593,6 @@ func Test20(t *testing.T) {
         "right": {
           "type": "ObjectExpression",
           "loc": {
-            "source": "",
             "start": {
               "line": 1,
               "column": 4
@@ -1708,7 +1619,6 @@ func Test21(t *testing.T) {
 {
   "type": "Program",
   "loc": {
-    "source": "",
     "start": {
       "line": 1,
       "column": 0
@@ -1723,7 +1633,6 @@ func Test21(t *testing.T) {
     {
       "type": "ExpressionStatement",
       "loc": {
-        "source": "",
         "start": {
           "line": 1,
           "column": 0
@@ -1736,7 +1645,6 @@ func Test21(t *testing.T) {
       "expression": {
         "type": "AssignmentExpression",
         "loc": {
-          "source": "",
           "start": {
             "line": 1,
             "column": 0
@@ -1750,7 +1658,6 @@ func Test21(t *testing.T) {
         "left": {
           "type": "Identifier",
           "loc": {
-            "source": "",
             "start": {
               "line": 1,
               "column": 0
@@ -1765,7 +1672,6 @@ func Test21(t *testing.T) {
         "right": {
           "type": "ObjectExpression",
           "loc": {
-            "source": "",
             "start": {
               "line": 1,
               "column": 4
@@ -1796,7 +1702,6 @@ func Test22(t *testing.T) {
     {
       "type": "ExpressionStatement",
       "loc": {
-        "source": "",
         "start": {
           "line": 1,
           "column": 0
@@ -1809,7 +1714,6 @@ func Test22(t *testing.T) {
       "expression": {
         "type": "AssignmentExpression",
         "loc": {
-          "source": "",
           "start": {
             "line": 1,
             "column": 0
@@ -1823,7 +1727,6 @@ func Test22(t *testing.T) {
         "left": {
           "type": "Identifier",
           "loc": {
-            "source": "",
             "start": {
               "line": 1,
               "column": 0
@@ -1838,7 +1741,6 @@ func Test22(t *testing.T) {
         "right": {
           "type": "ObjectExpression",
           "loc": {
-            "source": "",
             "start": {
               "line": 1,
               "column": 4
@@ -1852,7 +1754,6 @@ func Test22(t *testing.T) {
             {
               "type": "Property",
               "loc": {
-                "source": "",
                 "start": {
                   "line": 1,
                   "column": 6
@@ -1865,7 +1766,6 @@ func Test22(t *testing.T) {
               "key": {
                 "type": "Identifier",
                 "loc": {
-                  "source": "",
                   "start": {
                     "line": 1,
                     "column": 6
@@ -1880,7 +1780,6 @@ func Test22(t *testing.T) {
               "value": {
                 "type": "Literal",
                 "loc": {
-                  "source": "",
                   "start": {
                     "line": 1,
                     "column": 10

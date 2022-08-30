@@ -41,7 +41,7 @@ func CompileWithOpts(code string, opts *parser.ParserOpts) (string, error) {
 		return "", err
 	}
 
-	b, err := json.Marshal(estree.ConvertProg(ast.(*parser.Prog), estree.NewConvertCtx()))
+	b, err := json.Marshal(estree.ConvertProg(ast.(*parser.Prog), estree.NewConvertCtx(p)))
 	if err != nil {
 		return "", err
 	}

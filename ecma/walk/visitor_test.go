@@ -34,7 +34,7 @@ func TestVisitor(t *testing.T) {
 	ctx := NewWalkCtx(ast, symtab)
 	SetVisitor(&ctx.Visitors, N_NAME, func(node parser.Node, key string, ctx *VisitorCtx) {
 		n := node.(*parser.Ident)
-		names = append(names, n.Text())
+		names = append(names, n.Val())
 	})
 
 	VisitNode(ast, "", ctx.VisitorCtx())
@@ -367,7 +367,7 @@ do {
 	AddListener(&ctx.Listeners, N_NAME_AFTER, &Listener{
 		Id: "N_NAME_AFTER",
 		Handle: func(node parser.Node, key string, ctx *VisitorCtx) {
-			idName = node.(*parser.Ident).Text()
+			idName = node.(*parser.Ident).Val()
 		},
 	})
 
@@ -400,7 +400,10 @@ console.log(a == b); /* 6 */
 		AddNodeBeforeListener(&ctx.Listeners, nt, &Listener{
 			Id: "BeforeListener",
 			Handle: func(node parser.Node, key string, ctx *VisitorCtx) {
-				if cs := p.PrevStmtCmts(node); cs != nil {
+				if cs := p.PrevCmts(node); cs != nil {
+					cmts = append(cmts, cs...)
+				}
+				if cs := p.PostCmts(node); cs != nil {
 					cmts = append(cmts, cs...)
 				}
 			},
@@ -409,12 +412,10 @@ console.log(a == b); /* 6 */
 
 	VisitNode(ast, "", ctx.VisitorCtx())
 
-	cmts = append(cmts, p.BtmStmtCmts()...)
-	AssertEqual(t, "/* 1 */", cmts[0].Text(), "should pass")
-	AssertEqual(t, "/* 2 */", cmts[1].Text(), "should pass")
-	AssertEqual(t, "/* 3 */", cmts[2].Text(), "should pass")
-	AssertEqual(t, "/* 4 */", cmts[3].Text(), "should pass")
-	AssertEqual(t, "/* 5 */", cmts[4].Text(), "should pass")
-	AssertEqual(t, "/* 6 */", cmts[5].Text(), "should pass")
-	AssertEqual(t, "/* 7 */", cmts[6].Text(), "should pass")
+	AssertEqual(t, "/* 1 */", p.RngText(cmts[0]), "should pass")
+	AssertEqual(t, "/* 2 */", p.RngText(cmts[1]), "should pass")
+	AssertEqual(t, "/* 3 */", p.RngText(cmts[2]), "should pass")
+	AssertEqual(t, "/* 4 */", p.RngText(cmts[3]), "should pass")
+	AssertEqual(t, "/* 5 */", p.RngText(cmts[4]), "should pass")
+	AssertEqual(t, "/* 6 */", p.RngText(cmts[5]), "should pass")
 }

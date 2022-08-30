@@ -104,7 +104,6 @@
                     "start": 13,
                     "end": 14,
                     "loc": {
-                      "source": "",
                       "start": {
                         "line": 1,
                         "column": 13
@@ -250,7 +249,6 @@
                     "start": 60,
                     "end": 61,
                     "loc": {
-                      "source": "",
                       "start": {
                         "line": 2,
                         "column": 22
@@ -397,7 +395,6 @@
                     "start": 109,
                     "end": 110,
                     "loc": {
-                      "source": "",
                       "start": {
                         "line": 3,
                         "column": 23
@@ -543,8 +540,7 @@
                     "type": "Identifier",
                     "start": 159,
                     "end": 160,
-                    "loc": {
-                      "source": "",
+                    "loc": { 
                       "start": {
                         "line": 4,
                         "column": 23

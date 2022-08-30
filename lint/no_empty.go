@@ -67,7 +67,7 @@ func (n *NoEmpty) Create(rc *RuleCtx) map[parser.NodeType]walk.ListenFn {
 				}
 			}
 
-			if rc.unit.HasCommentInSpan(node.Loc().Begin(), node.Loc().End()) {
+			if rc.unit.HasCommentInSpan(node.Range()) {
 				return
 			}
 

@@ -29,6 +29,6 @@ func TestFixture_tsManually(t *testing.T) {
 	opts.Feature = opts.Feature.On(parser.FEAT_TS)
 	// `FEAT_JSX` will be turned on by the `options.json` of the
 	// test case automatically
-	opts.Feature = opts.Feature.On(parser.FEAT_JSX)
-	RunFixtures(t, "typescript/decorators/type-arguments", opts)
+	opts.Feature = opts.Feature.Off(parser.FEAT_JSX)
+	RunFixtures(t, "typescript/type-arguments-bit-shift-left-like/after-bit-shift", opts)
 }

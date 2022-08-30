@@ -7,6 +7,7 @@ import (
 	"github.com/hsiaosiyuan0/mole/ecma/parser"
 	"github.com/hsiaosiyuan0/mole/ecma/walk"
 	"github.com/hsiaosiyuan0/mole/plugin"
+	"github.com/hsiaosiyuan0/mole/span"
 )
 
 type Kind uint16
@@ -32,15 +33,21 @@ const (
 )
 
 type Diagnosis struct {
+	S    *span.Source
 	Lang string
 	Rule string
 
-	Loc   *parser.Loc
+	Rng   span.Range
 	Level DiagLevel
 	Msg   string
 }
 
+func (d *Diagnosis) File() string {
+	return d.S.Path
+}
+
 func (d *Diagnosis) MarshalJSON() ([]byte, error) {
+	loc := d.S.OfstLineCol(d.Rng.Lo)
 	return json.Marshal(&struct {
 		Line  uint32 `json:"line"`
 		Col   uint32 `json:"col"`
@@ -49,8 +56,8 @@ func (d *Diagnosis) MarshalJSON() ([]byte, error) {
 		Level uint16 `json:"level"`
 		Msg   string `json:"Msg"`
 	}{
-		Line:  d.Loc.Begin().Line,
-		Col:   d.Loc.Begin().Col,
+		Line:  loc.Line,
+		Col:   loc.Col,
 		Lang:  d.Lang,
 		Rule:  d.Rule,
 		Level: uint16(d.Level),
@@ -87,6 +94,7 @@ type Rule struct {
 }
 
 type RuleCtx struct {
+	s        *span.Source
 	unit     Unit
 	ruleFact RuleFact
 }
@@ -109,7 +117,8 @@ func (u *RuleCtx) Report(node parser.Node, msg string, level DiagLevel) {
 	lvl := u.Config().LevelOfRule(rule, level)
 
 	dig := &Diagnosis{
-		Loc:   node.Loc().Clone(),
+		S:     u.s,
+		Rng:   node.Range(),
 		Lang:  lang,
 		Rule:  rule,
 		Msg:   msg,

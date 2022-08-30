@@ -57,7 +57,7 @@ func TestJsonSuperSet2(t *testing.T) {
         "value": " ",
         "raw": "'\\u2028'"
       },
-      "directive": "\\u2028"
+      "directive": " "
     }
   ]
 }
@@ -74,7 +74,6 @@ func TestJsonSuperSet3(t *testing.T) {
   "start": 0,
   "end": 5,
   "loc": {
-    "source": "",
     "start": {
       "line": 1,
       "column": 0
@@ -90,7 +89,6 @@ func TestJsonSuperSet3(t *testing.T) {
       "start": 0,
       "end": 5,
       "loc": {
-        "source": "",
         "start": {
           "line": 1,
           "column": 0
@@ -124,7 +122,6 @@ func TestJsonSuperSet4(t *testing.T) {
   "start": 0,
   "end": 5,
   "loc": {
-    "source": "",
     "start": {
       "line": 1,
       "column": 0
@@ -140,7 +137,6 @@ func TestJsonSuperSet4(t *testing.T) {
       "start": 0,
       "end": 5,
       "loc": {
-        "source": "",
         "start": {
           "line": 1,
           "column": 0
@@ -161,7 +157,6 @@ func TestJsonSuperSet4(t *testing.T) {
             "start": 1,
             "end": 4,
             "loc": {
-              "source": "",
               "start": {
                 "line": 1,
                 "column": 1

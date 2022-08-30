@@ -1,28 +1,30 @@
 package estree
 
 import (
+	"math"
+
 	"github.com/hsiaosiyuan0/mole/ecma/parser"
 	"github.com/hsiaosiyuan0/mole/span"
+	"github.com/hsiaosiyuan0/mole/util"
 )
 
 func pos(p span.Pos) Position {
 	return Position{Line: int(p.Line), Column: int(p.Col)}
 }
 
-func loc(s *parser.Loc) *SrcLoc {
-	return &SrcLoc{
-		Source: s.Source(),
-		Start:  pos(s.Begin()),
-		End:    pos(s.End()),
+func locOfRng(rng span.Range, s *span.Source, ctx *ConvertCtx) *SrcLoc {
+	if ctx.LineCol {
+		begin, end := s.LineCol(rng)
+		return &SrcLoc{
+			Start: pos(begin),
+			End:   pos(end),
+		}
 	}
+	return nil
 }
 
-func start(s *parser.Loc) int {
-	return int(s.Range().Start())
-}
-
-func end(s *parser.Loc) int {
-	return int(s.Range().End())
+func locOfNode(n parser.Node, s *span.Source, ctx *ConvertCtx) *SrcLoc {
+	return locOfRng(n.Range(), s, ctx)
 }
 
 func ConvertProg(n *parser.Prog, ctx *ConvertCtx) *Program {
@@ -33,9 +35,9 @@ func ConvertProg(n *parser.Prog, ctx *ConvertCtx) *Program {
 	}
 	return &Program{
 		Type:  "Program",
-		Start: start(n.Loc()),
-		End:   end(n.Loc()),
-		Loc:   loc(n.Loc()),
+		Start: int(n.Range().Lo),
+		End:   int(n.Range().Hi),
+		Loc:   locOfNode(n, ctx.Parser.Source(), ctx),
 		Body:  body,
 	}
 }
@@ -48,9 +50,9 @@ func arrExpr(n *parser.ArrLit, ctx *ConvertCtx) *ArrayExpression {
 	}
 	return &ArrayExpression{
 		Type:     "ArrayExpression",
-		Start:    start(n.Loc()),
-		End:      end(n.Loc()),
-		Loc:      loc(n.Loc()),
+		Start:    int(n.Range().Lo),
+		End:      int(n.Range().Hi),
+		Loc:      locOfNode(n, ctx.Parser.Source(), ctx),
 		Elements: elems,
 	}
 }
@@ -63,9 +65,9 @@ func obj(n *parser.ObjLit, ctx *ConvertCtx) *ObjectExpression {
 	}
 	return &ObjectExpression{
 		Type:       "ObjectExpression",
-		Start:      start(n.Loc()),
-		End:        end(n.Loc()),
-		Loc:        loc(n.Loc()),
+		Start:      int(n.Range().Lo),
+		End:        int(n.Range().Hi),
+		Loc:        locOfNode(n, ctx.Parser.Source(), ctx),
 		Properties: props,
 	}
 }
@@ -101,9 +103,9 @@ func expressions(exprs []parser.Node, ctx *ConvertCtx) []Expression {
 func blockStmt(n *parser.BlockStmt, ctx *ConvertCtx) *BlockStatement {
 	return &BlockStatement{
 		Type:  "BlockStatement",
-		Start: start(n.Loc()),
-		End:   end(n.Loc()),
-		Loc:   loc(n.Loc()),
+		Start: int(n.Range().Lo),
+		End:   int(n.Range().Hi),
+		Loc:   locOfNode(n, ctx.Parser.Source(), ctx),
 		Body:  statements(n.Body(), ctx),
 	}
 }
@@ -114,9 +116,9 @@ func cases(cs []parser.Node, ctx *ConvertCtx) []*SwitchCase {
 		sc := c.(*parser.SwitchCase)
 		s[i] = &SwitchCase{
 			Type:       "SwitchCase",
-			Start:      start(sc.Loc()),
-			End:        end(sc.Loc()),
-			Loc:        loc(sc.Loc()),
+			Start:      int(sc.Range().Lo),
+			End:        int(sc.Range().Hi),
+			Loc:        locOfNode(sc, ctx.Parser.Source(), ctx),
 			Test:       Convert(sc.Test(), ctx),
 			Consequent: statements(sc.Cons(), ctx),
 		}
@@ -130,9 +132,9 @@ func declarations(decList []parser.Node, ctx *ConvertCtx) []*VariableDeclarator 
 		dc := d.(*parser.VarDec)
 		s[i] = &VariableDeclarator{
 			Type:  "VariableDeclarator",
-			Start: start(dc.Loc()),
-			End:   end(dc.Loc()),
-			Loc:   loc(dc.Loc()),
+			Start: int(dc.Range().Lo),
+			End:   int(dc.Range().Hi),
+			Loc:   locOfNode(dc, ctx.Parser.Source(), ctx),
 			Id:    Convert(dc.Id(), ctx),
 			Init:  Convert(dc.Init(), ctx),
 		}
@@ -140,7 +142,7 @@ func declarations(decList []parser.Node, ctx *ConvertCtx) []*VariableDeclarator 
 	return s
 }
 
-func tplLiteral(tplLoc *parser.Loc, elems []parser.Node, ctx *ConvertCtx) *TemplateLiteral {
+func tplLiteral(tplLoc span.Range, elems []parser.Node, ctx *ConvertCtx) *TemplateLiteral {
 	quasis := make([]Expression, 0)
 	exprs := make([]Expression, 0)
 	cnt := len(elems)
@@ -149,7 +151,7 @@ func tplLiteral(tplLoc *parser.Loc, elems []parser.Node, ctx *ConvertCtx) *Templ
 		last := i == cnt-1
 		if elem.Type() != parser.N_LIT_STR {
 			if first || last {
-				lc := loc(tplLoc)
+				lc := locOfRng(tplLoc, ctx.Parser.Source(), ctx)
 				if first {
 					lc.End.Column = lc.Start.Column
 				} else {
@@ -157,8 +159,8 @@ func tplLiteral(tplLoc *parser.Loc, elems []parser.Node, ctx *ConvertCtx) *Templ
 				}
 				quasis = append(quasis, &TemplateElement{
 					Type:  "TemplateElement",
-					Start: start(tplLoc),
-					End:   end(tplLoc),
+					Start: int(tplLoc.Lo),
+					End:   int(tplLoc.Hi),
 					Loc:   lc,
 					Tail:  last,
 					Value: &TemplateElementValue{
@@ -172,22 +174,22 @@ func tplLiteral(tplLoc *parser.Loc, elems []parser.Node, ctx *ConvertCtx) *Templ
 			str := elem.(*parser.StrLit)
 			quasis = append(quasis, &TemplateElement{
 				Type:  "TemplateElement",
-				Start: start(elem.Loc()),
-				End:   end(elem.Loc()),
-				Loc:   loc(elem.Loc()),
+				Start: int(elem.Range().Lo),
+				End:   int(elem.Range().Hi),
+				Loc:   locOfNode(elem, ctx.Parser.Source(), ctx),
 				Tail:  last,
 				Value: &TemplateElementValue{
-					Cooked: str.Text(),
-					Raw:    str.Raw(),
+					Cooked: ctx.Parser.NodeText(str),
+					Raw:    ctx.Parser.RngText(str.Range()),
 				},
 			})
 		}
 	}
 	return &TemplateLiteral{
 		Type:        "TemplateLiteral",
-		Start:       start(tplLoc),
-		End:         end(tplLoc),
-		Loc:         loc(tplLoc),
+		Start:       int(tplLoc.Lo),
+		End:         int(tplLoc.Hi),
+		Loc:         locOfRng(tplLoc, ctx.Parser.Source(), ctx),
 		Quasis:      quasis,
 		Expressions: exprs,
 	}
@@ -197,25 +199,25 @@ func importSpec(spec *parser.ImportSpec, ctx *ConvertCtx) Node {
 	if spec.Default() {
 		return &ImportDefaultSpecifier{
 			Type:  "ImportDefaultSpecifier",
-			Start: start(spec.Loc()),
-			End:   end(spec.Loc()),
-			Loc:   loc(spec.Loc()),
+			Start: int(spec.Range().Lo),
+			End:   int(spec.Range().Hi),
+			Loc:   locOfNode(spec, ctx.Parser.Source(), ctx),
 			Local: Convert(spec.Local(), ctx),
 		}
 	} else if spec.NameSpace() {
 		return &ImportNamespaceSpecifier{
 			Type:  "ImportNamespaceSpecifier",
-			Start: start(spec.Loc()),
-			End:   end(spec.Loc()),
-			Loc:   loc(spec.Loc()),
+			Start: int(spec.Range().Lo),
+			End:   int(spec.Range().Hi),
+			Loc:   locOfNode(spec, ctx.Parser.Source(), ctx),
 			Local: Convert(spec.Local(), ctx),
 		}
 	}
 	return &ImportSpecifier{
 		Type:       "ImportSpecifier",
-		Start:      start(spec.Loc()),
-		End:        end(spec.Loc()),
-		Loc:        loc(spec.Loc()),
+		Start:      int(spec.Range().Lo),
+		End:        int(spec.Range().Hi),
+		Loc:        locOfNode(spec, ctx.Parser.Source(), ctx),
 		Local:      Convert(spec.Local(), ctx),
 		Imported:   Convert(spec.Id(), ctx),
 		ImportKind: spec.Kind(),
@@ -237,9 +239,9 @@ func exportAll(node *parser.ExportDec, ctx *ConvertCtx) Node {
 	}
 	return &ExportAllDeclaration{
 		Type:     "ExportAllDeclaration",
-		Start:    start(node.Loc()),
-		End:      end(node.Loc()),
-		Loc:      loc(node.Loc()),
+		Start:    int(node.Range().Lo),
+		End:      int(node.Range().Hi),
+		Loc:      locOfNode(node, ctx.Parser.Source(), ctx),
 		Source:   Convert(node.Src(), ctx),
 		Exported: Convert(spec, ctx),
 	}
@@ -248,9 +250,9 @@ func exportAll(node *parser.ExportDec, ctx *ConvertCtx) Node {
 func exportDefault(node *parser.ExportDec, ctx *ConvertCtx) Node {
 	return &ExportDefaultDeclaration{
 		Type:        "ExportDefaultDeclaration",
-		Start:       start(node.Loc()),
-		End:         end(node.Loc()),
-		Loc:         loc(node.Loc()),
+		Start:       int(node.Range().Lo),
+		End:         int(node.Range().Hi),
+		Loc:         locOfNode(node, ctx.Parser.Source(), ctx),
 		Declaration: Convert(node.Dec(), ctx),
 	}
 }
@@ -261,9 +263,9 @@ func exportSpecs(specs []parser.Node, ctx *ConvertCtx) []Node {
 		s := spec.(*parser.ExportSpec)
 		ret[i] = &ExportSpecifier{
 			Type:       "ExportSpecifier",
-			Start:      start(s.Loc()),
-			End:        end(s.Loc()),
-			Loc:        loc(s.Loc()),
+			Start:      int(s.Range().Lo),
+			End:        int(s.Range().Hi),
+			Loc:        locOfNode(s, ctx.Parser.Source(), ctx),
 			Local:      Convert(s.Local(), ctx),
 			Exported:   Convert(s.Id(), ctx),
 			ExportKind: s.Kind(),
@@ -275,9 +277,9 @@ func exportSpecs(specs []parser.Node, ctx *ConvertCtx) []Node {
 func exportNamed(node *parser.ExportDec, ctx *ConvertCtx) Node {
 	return &ExportNamedDeclaration{
 		Type:        "ExportNamedDeclaration",
-		Start:       start(node.Loc()),
-		End:         end(node.Loc()),
-		Loc:         loc(node.Loc()),
+		Start:       int(node.Range().Lo),
+		End:         int(node.Range().Hi),
+		Loc:         locOfNode(node, ctx.Parser.Source(), ctx),
 		Declaration: Convert(node.Dec(), ctx),
 		Specifiers:  exportSpecs(node.Specs(), ctx),
 		Source:      Convert(node.Src(), ctx),
@@ -293,26 +295,115 @@ func elems(nodes []parser.Node, ctx *ConvertCtx) []Node {
 	return ret
 }
 
+func FirstLoc(s *span.Source, ctx *ConvertCtx, locs ...span.Range) (span.Range, *SrcLoc) {
+	k := 0
+	lo := uint32(math.MaxUint32)
+	hi := uint32(math.MaxUint32)
+	for i, loc := range locs {
+		if loc.Empty() {
+			continue
+		}
+		if loc.Lo < lo || (loc.Lo == lo && loc.Hi < hi) {
+			lo = loc.Lo
+			hi = loc.Hi
+			k = i
+		}
+	}
+	rng := locs[k]
+	return rng, locOfRng(rng, s, ctx)
+}
+
+func LastLoc(s *span.Source, ctx *ConvertCtx, locs ...span.Range) (span.Range, *SrcLoc) {
+	k := 0
+	lo := uint32(0)
+	hi := uint32(0)
+	for i, loc := range locs {
+		if loc.Empty() {
+			continue
+		}
+		if loc.Hi > hi || (loc.Hi == hi && loc.Lo > lo) {
+			lo = loc.Lo
+			hi = loc.Hi
+			k = i
+		}
+	}
+	rng := locs[k]
+	return rng, locOfRng(rng, s, ctx)
+}
+
+func CalcLoc(node parser.Node, s *span.Source, ctx *ConvertCtx) *SrcLoc {
+	if util.IsNilPtr(node) {
+		return nil
+	}
+	return locOfNode(node, s, ctx)
+}
+
+func locWithTypeInfo(node parser.Node, includeParamProp bool, s *span.Source, ctx *ConvertCtx) (rng span.Range, loc *SrcLoc) {
+	nw, ok := node.(parser.NodeWithTypInfo)
+	if !ok {
+		return node.Range(), CalcLoc(node, s, ctx)
+	}
+
+	ti := nw.TypInfo()
+	loc = CalcLoc(node, s, ctx)
+
+	starLocList := []span.Range{}
+	if ti.TypParams() != nil {
+		starLocList = append(starLocList, ti.TypParams().Range())
+	}
+	starLocList = append(starLocList, node.Range())
+
+	if includeParamProp {
+		starLocList = append(starLocList, ti.BeginRng())
+	}
+
+	firstRng, firstLoc := FirstLoc(s, ctx, starLocList...)
+	rng.Lo = firstRng.Lo
+	loc.Start = firstLoc.Start
+
+	endLocList := []span.Range{}
+	if ti.TypAnnot() != nil {
+		endLocList = append(endLocList, ti.TypAnnot().Range())
+	}
+	endLocList = append(endLocList, []span.Range{ti.Ques(), node.Range()}...)
+
+	endRng, endLoc := LastLoc(s, ctx, endLocList...)
+	rng.Hi = endRng.Hi
+	loc.End = endLoc.End
+
+	return
+}
+
+func TplLocWithTag(n *parser.TplExpr, s *span.Source, ctx *ConvertCtx) *SrcLoc {
+	loc := CalcLoc(n, s, ctx)
+	if n.Tag() != nil {
+		tl := CalcLoc(n.Tag(), s, ctx)
+		loc.Start = tl.Start
+		loc.End = tl.End
+	}
+	return loc
+}
+
 func ident(node parser.Node, ctx *ConvertCtx) Node {
 	n := node.(*parser.Ident)
-	name := n.Text()
+	name := ctx.Parser.NodeText(node)
 	if n.IsPrivate() {
 		return &PrivateIdentifier{
 			Type:  "PrivateIdentifier",
-			Start: start(n.Loc()),
-			End:   end(n.Loc()),
-			Loc:   loc(n.Loc()),
+			Start: int(n.Range().Lo),
+			End:   int(n.Range().Hi),
+			Loc:   locOfNode(n, ctx.Parser.Source(), ctx),
 			Name:  name,
 		}
 	}
 	if n.TypInfo() != nil {
 		ti := n.TypInfo()
-		lc := parser.LocWithTypeInfo(n, false)
+		rng, loc := locWithTypeInfo(n, false, ctx.Parser.Source(), ctx)
 		return &TSIdentifier{
 			Type:           "Identifier",
-			Start:          start(lc),
-			End:            end(lc),
-			Loc:            loc(lc),
+			Start:          int(rng.Lo),
+			End:            int(rng.Hi),
+			Loc:            loc,
 			Name:           name,
 			Optional:       optional(ti),
 			TypeAnnotation: typAnnot(ti, ctx),
@@ -321,31 +412,37 @@ func ident(node parser.Node, ctx *ConvertCtx) Node {
 	}
 	return &Identifier{
 		Type:  "Identifier",
-		Start: start(n.Loc()),
-		End:   end(n.Loc()),
-		Loc:   loc(n.Loc()),
+		Start: int(n.Range().Lo),
+		End:   int(n.Range().Hi),
+		Loc:   locOfNode(n, ctx.Parser.Source(), ctx),
 		Name:  name,
 	}
 }
 
-func LocWithDecorator(node parser.Node, ds []parser.Node) *parser.Loc {
+func locWithDecorator(node parser.Node, ds []parser.Node, s *span.Source, ctx *ConvertCtx) (rng span.Range, loc *SrcLoc) {
+	rng = node.Range()
+	loc = locOfNode(node, s, ctx)
 	if len(ds) == 0 {
-		return node.Loc()
+		return
 	}
-	loc := node.Loc().Clone()
 	d := ds[0]
-	loc.SetBegin(d.Loc().Begin())
-	loc.Range().SetStart(d.Loc().Range().Start())
-	return loc
+	dLoc := locOfNode(d, s, ctx)
+	loc.Start = dLoc.Start
+	rng.Lo = d.Range().Lo
+	return
 }
 
 type ConvertCtx struct {
-	Scope *ConvertScope
+	Parser  *parser.Parser
+	Scope   *ConvertScope
+	LineCol bool
 }
 
-func NewConvertCtx() *ConvertCtx {
+func NewConvertCtx(p *parser.Parser) *ConvertCtx {
 	return &ConvertCtx{
-		Scope: &ConvertScope{},
+		Parser:  p,
+		Scope:   &ConvertScope{},
+		LineCol: true,
 	}
 }
 
@@ -394,18 +491,18 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 		if exprStmt.Dir() {
 			return &Directive{
 				Type:       "ExpressionStatement",
-				Start:      start(node.Loc()),
-				End:        end(node.Loc()),
-				Loc:        loc(node.Loc()),
+				Start:      int(node.Range().Lo),
+				End:        int(node.Range().Hi),
+				Loc:        locOfNode(node, ctx.Parser.Source(), ctx),
 				Expression: expr,
-				Directive:  exprStmt.DirStr(),
+				Directive:  exprStmt.Expr().(*parser.StrLit).Val(),
 			}
 		}
 		return &ExpressionStatement{
 			Type:       "ExpressionStatement",
-			Start:      start(node.Loc()),
-			End:        end(node.Loc()),
-			Loc:        loc(node.Loc()),
+			Start:      int(node.Range().Lo),
+			End:        int(node.Range().Hi),
+			Loc:        locOfNode(node, ctx.Parser.Source(), ctx),
 			Expression: expr,
 		}
 	case parser.N_EXPR_NEW:
@@ -413,9 +510,9 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 		if n.TypInfo() != nil {
 			return &TSNewExpression{
 				Type:           "NewExpression",
-				Start:          start(n.Loc()),
-				End:            end(n.Loc()),
-				Loc:            loc(n.Loc()),
+				Start:          int(n.Range().Lo),
+				End:            int(n.Range().Hi),
+				Loc:            locOfNode(n, ctx.Parser.Source(), ctx),
 				Callee:         Convert(n.Callee(), ctx),
 				Arguments:      expressions(n.Args(), ctx),
 				TypeParameters: typArgs(n.TypInfo(), ctx),
@@ -423,9 +520,9 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 		}
 		return &NewExpression{
 			Type:      "NewExpression",
-			Start:     start(node.Loc()),
-			End:       end(node.Loc()),
-			Loc:       loc(node.Loc()),
+			Start:     int(node.Range().Lo),
+			End:       int(node.Range().Hi),
+			Loc:       locOfNode(node, ctx.Parser.Source(), ctx),
 			Callee:    Convert(n.Callee(), ctx),
 			Arguments: expressions(n.Args(), ctx),
 		}
@@ -434,55 +531,62 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 	case parser.N_EXPR_THIS:
 		return &ThisExpression{
 			Type:  "ThisExpression",
-			Start: start(node.Loc()),
-			End:   end(node.Loc()),
-			Loc:   loc(node.Loc()),
+			Start: int(node.Range().Lo),
+			End:   int(node.Range().Hi),
+			Loc:   locOfNode(node, ctx.Parser.Source(), ctx),
 		}
 	case parser.N_LIT_NULL:
 		return &Literal{
 			Type:  "Literal",
-			Start: start(node.Loc()),
-			End:   end(node.Loc()),
-			Loc:   loc(node.Loc()),
+			Start: int(node.Range().Lo),
+			End:   int(node.Range().Hi),
+			Loc:   locOfNode(node, ctx.Parser.Source(), ctx),
 		}
 	case parser.N_LIT_NUM:
 		num := node.(*parser.NumLit)
-		if num.IsBigint() {
+		t := ctx.Parser.NodeText(node)
+
+		f := parser.NodeToFloat(node, ctx.Parser.Source())
+		if math.IsInf(f, 0) {
+			f = 0
+		}
+
+		if parser.NodeIsBigint(num, ctx.Parser.Source()) {
 			return &BigIntLiteral{
 				Type:   "Literal",
-				Start:  start(node.Loc()),
-				End:    end(node.Loc()),
-				Loc:    loc(node.Loc()),
-				Value:  num.Float(),
-				Raw:    num.Text(),
-				Bigint: num.ToBigint().String(),
+				Start:  int(node.Range().Lo),
+				End:    int(node.Range().Hi),
+				Loc:    locOfNode(node, ctx.Parser.Source(), ctx),
+				Value:  f,
+				Raw:    t,
+				Bigint: parser.ParseBigint(t).String(),
 			}
 		}
 		return &Literal{
 			Type:  "Literal",
-			Start: start(node.Loc()),
-			End:   end(node.Loc()),
-			Loc:   loc(node.Loc()),
-			Value: num.Float(),
-			Raw:   num.Text(),
+			Start: int(node.Range().Lo),
+			End:   int(node.Range().Hi),
+			Loc:   locOfNode(node, ctx.Parser.Source(), ctx),
+			Value: f,
+			Raw:   t,
 		}
 	case parser.N_LIT_STR:
 		str := node.(*parser.StrLit)
 		return &Literal{
 			Type:  "Literal",
-			Start: start(node.Loc()),
-			End:   end(node.Loc()),
-			Loc:   loc(node.Loc()),
-			Value: str.Text(),
-			Raw:   str.Raw(),
+			Start: int(node.Range().Lo),
+			End:   int(node.Range().Hi),
+			Loc:   locOfNode(node, ctx.Parser.Source(), ctx),
+			Value: parser.NodeText(str, ctx.Parser.Source()),
+			Raw:   ctx.Parser.RngText(str.Range()),
 		}
 	case parser.N_LIT_REGEXP:
 		regexp := node.(*parser.RegLit)
 		return &RegExpLiteral{
 			Type:   "Literal",
-			Start:  start(node.Loc()),
-			End:    end(node.Loc()),
-			Loc:    loc(node.Loc()),
+			Start:  int(node.Range().Lo),
+			End:    int(node.Range().Hi),
+			Loc:    locOfNode(node, ctx.Parser.Source(), ctx),
 			Regexp: &Regexp{regexp.Pattern(), regexp.Flags()},
 		}
 	case parser.N_EXPR_BIN:
@@ -495,9 +599,9 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 		if opv == parser.T_AND || opv == parser.T_OR || opv == parser.T_NULLISH {
 			return &LogicalExpression{
 				Type:     "LogicalExpression",
-				Start:    start(node.Loc()),
-				End:      end(node.Loc()),
-				Loc:      loc(node.Loc()),
+				Start:    int(node.Range().Lo),
+				End:      int(node.Range().Hi),
+				Loc:      locOfNode(node, ctx.Parser.Source(), ctx),
 				Operator: op,
 				Left:     lhs,
 				Right:    rhs,
@@ -506,18 +610,18 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 		if opv == parser.T_TS_AS {
 			return &TSAsExpression{
 				Type:           "TSAsExpression",
-				Start:          start(node.Loc()),
-				End:            end(node.Loc()),
-				Loc:            loc(node.Loc()),
+				Start:          int(node.Range().Lo),
+				End:            int(node.Range().Hi),
+				Loc:            locOfNode(node, ctx.Parser.Source(), ctx),
 				Expression:     lhs,
 				TypeAnnotation: rhs,
 			}
 		}
 		return &BinaryExpression{
 			Type:     "BinaryExpression",
-			Start:    start(node.Loc()),
-			End:      end(node.Loc()),
-			Loc:      loc(node.Loc()),
+			Start:    int(node.Range().Lo),
+			End:      int(node.Range().Hi),
+			Loc:      locOfNode(node, ctx.Parser.Source(), ctx),
 			Operator: op,
 			Left:     lhs,
 			Right:    rhs,
@@ -526,12 +630,12 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 		bin := node.(*parser.AssignExpr)
 		lhs := Convert(bin.Lhs(), ctx)
 		rhs := Convert(bin.Rhs(), ctx)
-		op := bin.OpText()
+		op := bin.OpName()
 		return &AssignmentExpression{
 			Type:     "AssignmentExpression",
-			Start:    start(node.Loc()),
-			End:      end(node.Loc()),
-			Loc:      loc(node.Loc()),
+			Start:    int(node.Range().Lo),
+			End:      int(node.Range().Hi),
+			Loc:      locOfNode(node, ctx.Parser.Source(), ctx),
 			Operator: op,
 			Left:     lhs,
 			Right:    rhs,
@@ -544,9 +648,9 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 		prop := node.(*parser.Prop)
 		return &Property{
 			Type:      "Property",
-			Start:     start(prop.Loc()),
-			End:       end(prop.Loc()),
-			Loc:       loc(prop.Loc()),
+			Start:     int(prop.Range().Lo),
+			End:       int(prop.Range().Hi),
+			Loc:       locOfNode(prop, ctx.Parser.Source(), ctx),
 			Key:       Convert(prop.Key(), ctx),
 			Value:     Convert(prop.Val(), ctx),
 			Kind:      prop.Kind(),
@@ -562,9 +666,9 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 			ti := n.TypInfo()
 			return &TSFunctionExpression{
 				Type:           "FunctionExpression",
-				Start:          start(n.Loc()),
-				End:            end(n.Loc()),
-				Loc:            loc(n.Loc()),
+				Start:          int(n.Range().Lo),
+				End:            int(n.Range().Hi),
+				Loc:            locOfNode(n, ctx.Parser.Source(), ctx),
 				Id:             Convert(n.Id(), ctx),
 				Params:         fnParams(n.Params(), ctx),
 				Body:           Convert(n.Body(), ctx),
@@ -577,9 +681,9 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 		}
 		return &FunctionExpression{
 			Type:       "FunctionExpression",
-			Start:      start(n.Loc()),
-			End:        end(n.Loc()),
-			Loc:        loc(n.Loc()),
+			Start:      int(n.Range().Lo),
+			End:        int(n.Range().Hi),
+			Loc:        locOfNode(n, ctx.Parser.Source(), ctx),
 			Id:         Convert(n.Id(), ctx),
 			Params:     fnParams(n.Params(), ctx),
 			Body:       Convert(n.Body(), ctx),
@@ -591,12 +695,12 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 		n := node.(*parser.ArrowFn)
 		if n.TypInfo() != nil {
 			ti := n.TypInfo()
-			lc := parser.LocWithTypeInfo(n, false)
+			rng, loc := locWithTypeInfo(n, false, ctx.Parser.Source(), ctx)
 			return &TSArrowFunctionExpression{
 				Type:           "ArrowFunctionExpression",
-				Start:          start(lc),
-				End:            end(lc),
-				Loc:            loc(lc),
+				Start:          int(rng.Lo),
+				End:            int(rng.Hi),
+				Loc:            loc,
 				Id:             nil,
 				Params:         fnParams(n.Params(), ctx),
 				Body:           Convert(n.Body(), ctx),
@@ -609,9 +713,9 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 		}
 		return &ArrowFunctionExpression{
 			Type:       "ArrowFunctionExpression",
-			Start:      start(n.Loc()),
-			End:        end(n.Loc()),
-			Loc:        loc(n.Loc()),
+			Start:      int(n.Range().Lo),
+			End:        int(n.Range().Hi),
+			Loc:        locOfNode(n, ctx.Parser.Source(), ctx),
 			Id:         nil,
 			Params:     fnParams(n.Params(), ctx),
 			Body:       Convert(n.Body(), ctx),
@@ -626,9 +730,9 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 			if n.Body() == nil {
 				return &TSDeclareFunction{
 					Type:           "TSDeclareFunction",
-					Start:          start(n.Loc()),
-					End:            end(n.Loc()),
-					Loc:            loc(n.Loc()),
+					Start:          int(n.Range().Lo),
+					End:            int(n.Range().Hi),
+					Loc:            locOfNode(n, ctx.Parser.Source(), ctx),
 					Id:             Convert(n.Id(), ctx),
 					Params:         fnParams(n.Params(), ctx),
 					Body:           Convert(n.Body(), ctx),
@@ -640,9 +744,9 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 			}
 			return &TSFunctionDeclaration{
 				Type:           "FunctionDeclaration",
-				Start:          start(n.Loc()),
-				End:            end(n.Loc()),
-				Loc:            loc(n.Loc()),
+				Start:          int(n.Range().Lo),
+				End:            int(n.Range().Hi),
+				Loc:            locOfNode(n, ctx.Parser.Source(), ctx),
 				Id:             Convert(n.Id(), ctx),
 				Params:         fnParams(n.Params(), ctx),
 				Body:           Convert(n.Body(), ctx),
@@ -654,9 +758,9 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 		}
 		return &FunctionDeclaration{
 			Type:      "FunctionDeclaration",
-			Start:     start(n.Loc()),
-			End:       end(n.Loc()),
-			Loc:       loc(n.Loc()),
+			Start:     int(n.Range().Lo),
+			End:       int(n.Range().Hi),
+			Loc:       locOfNode(n, ctx.Parser.Source(), ctx),
 			Id:        Convert(n.Id(), ctx),
 			Params:    fnParams(n.Params(), ctx),
 			Body:      Convert(n.Body(), ctx),
@@ -667,9 +771,9 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 		node := node.(*parser.YieldExpr)
 		return &YieldExpression{
 			Type:     "YieldExpression",
-			Start:    start(node.Loc()),
-			End:      end(node.Loc()),
-			Loc:      loc(node.Loc()),
+			Start:    int(node.Range().Lo),
+			End:      int(node.Range().Hi),
+			Loc:      locOfNode(node, ctx.Parser.Source(), ctx),
 			Delegate: node.Delegate(),
 			Argument: Convert(node.Arg(), ctx),
 		}
@@ -677,30 +781,30 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 		ret := node.(*parser.RetStmt)
 		return &ReturnStatement{
 			Type:     "ReturnStatement",
-			Start:    start(ret.Loc()),
-			End:      end(ret.Loc()),
-			Loc:      loc(ret.Loc()),
+			Start:    int(ret.Range().Lo),
+			End:      int(ret.Range().Hi),
+			Loc:      locOfNode(ret, ctx.Parser.Source(), ctx),
 			Argument: Convert(ret.Arg(), ctx),
 		}
 	case parser.N_SPREAD:
 		n := node.(*parser.Spread)
 		return &SpreadElement{
 			Type:     "SpreadElement",
-			Start:    start(n.Loc()),
-			End:      end(n.Loc()),
-			Loc:      loc(n.Loc()),
+			Start:    int(n.Range().Lo),
+			End:      int(n.Range().Hi),
+			Loc:      locOfNode(n, ctx.Parser.Source(), ctx),
 			Argument: Convert(n.Arg(), ctx),
 		}
 	case parser.N_PAT_ARRAY:
 		n := node.(*parser.ArrPat)
 		ti := n.TypInfo()
 		if ti != nil {
-			lc := parser.LocWithTypeInfo(n, false)
+			rng, loc := locWithTypeInfo(n, false, ctx.Parser.Source(), ctx)
 			return &TSArrayPattern{
 				Type:           "ArrayPattern",
-				Start:          start(lc),
-				End:            end(lc),
-				Loc:            loc(lc),
+				Start:          int(rng.Lo),
+				End:            int(rng.Hi),
+				Loc:            loc,
 				Elements:       elems(n.Elems(), ctx),
 				Optional:       ti.Optional(),
 				TypeAnnotation: typAnnot(ti, ctx),
@@ -708,18 +812,18 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 		}
 		return &ArrayPattern{
 			Type:     "ArrayPattern",
-			Start:    start(n.Loc()),
-			End:      end(n.Loc()),
-			Loc:      loc(n.Loc()),
+			Start:    int(n.Range().Lo),
+			End:      int(n.Range().Hi),
+			Loc:      locOfNode(n, ctx.Parser.Source(), ctx),
 			Elements: elems(n.Elems(), ctx),
 		}
 	case parser.N_PAT_ASSIGN:
 		n := node.(*parser.AssignPat)
 		return &AssignmentPattern{
 			Type:  "AssignmentPattern",
-			Start: start(n.Loc()),
-			End:   end(n.Loc()),
-			Loc:   loc(n.Loc()),
+			Start: int(n.Range().Lo),
+			End:   int(n.Range().Hi),
+			Loc:   locOfNode(n, ctx.Parser.Source(), ctx),
 			Left:  Convert(n.Lhs(), ctx),
 			Right: Convert(n.Rhs(), ctx),
 		}
@@ -727,21 +831,21 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 		n := node.(*parser.ObjPat)
 		if n.TypInfo() != nil {
 			ti := n.TypInfo()
-			lc := parser.LocWithTypeInfo(n, false)
+			rng, loc := locWithTypeInfo(n, false, ctx.Parser.Source(), ctx)
 			return &TSObjectPattern{
 				Type:           "ObjectPattern",
-				Start:          start(lc),
-				End:            end(lc),
-				Loc:            loc(lc),
+				Start:          int(rng.Lo),
+				End:            int(rng.Hi),
+				Loc:            loc,
 				Properties:     elems(n.Props(), ctx),
 				TypeAnnotation: typAnnot(ti, ctx),
 			}
 		}
 		return &ObjectPattern{
 			Type:       "ObjectPattern",
-			Start:      start(n.Loc()),
-			End:        end(n.Loc()),
-			Loc:        loc(n.Loc()),
+			Start:      int(n.Range().Lo),
+			End:        int(n.Range().Hi),
+			Loc:        locOfNode(n, ctx.Parser.Source(), ctx),
 			Properties: elems(n.Props(), ctx),
 		}
 	case parser.N_PAT_REST:
@@ -749,9 +853,9 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 		if n.TypInfo() != nil {
 			return &TSRestElement{
 				Type:           "RestElement",
-				Start:          start(n.Loc()),
-				End:            end(n.Loc()),
-				Loc:            loc(n.Loc()),
+				Start:          int(n.Range().Lo),
+				End:            int(n.Range().Hi),
+				Loc:            locOfNode(n, ctx.Parser.Source(), ctx),
 				Argument:       Convert(n.Arg(), ctx),
 				Optional:       n.Optional(),
 				TypeAnnotation: typAnnot(n.TypInfo(), ctx),
@@ -759,18 +863,18 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 		}
 		return &RestElement{
 			Type:     "RestElement",
-			Start:    start(n.Loc()),
-			End:      end(n.Loc()),
-			Loc:      loc(n.Loc()),
+			Start:    int(n.Range().Lo),
+			End:      int(n.Range().Hi),
+			Loc:      locOfNode(n, ctx.Parser.Source(), ctx),
 			Argument: Convert(n.Arg(), ctx),
 		}
 	case parser.N_STMT_IF:
 		ifStmt := node.(*parser.IfStmt)
 		return &IfStatement{
 			Type:       "IfStatement",
-			Start:      start(ifStmt.Loc()),
-			End:        end(ifStmt.Loc()),
-			Loc:        loc(ifStmt.Loc()),
+			Start:      int(ifStmt.Range().Lo),
+			End:        int(ifStmt.Range().Hi),
+			Loc:        locOfNode(ifStmt, ctx.Parser.Source(), ctx),
 			Test:       Convert(ifStmt.Test(), ctx),
 			Consequent: Convert(ifStmt.Cons(), ctx),
 			Alternate:  Convert(ifStmt.Alt(), ctx),
@@ -780,9 +884,9 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 		if n.TypInfo() != nil {
 			return &TSCallExpression{
 				Type:           "CallExpression",
-				Start:          start(n.Loc()),
-				End:            end(n.Loc()),
-				Loc:            loc(n.Loc()),
+				Start:          int(n.Range().Lo),
+				End:            int(n.Range().Hi),
+				Loc:            locOfNode(n, ctx.Parser.Source(), ctx),
 				Callee:         Convert(n.Callee(), ctx),
 				Arguments:      expressions(n.Args(), ctx),
 				Optional:       n.Optional(),
@@ -791,9 +895,9 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 		}
 		return &CallExpression{
 			Type:      "CallExpression",
-			Start:     start(n.Loc()),
-			End:       end(n.Loc()),
-			Loc:       loc(n.Loc()),
+			Start:     int(n.Range().Lo),
+			End:       int(n.Range().Hi),
+			Loc:       locOfNode(n, ctx.Parser.Source(), ctx),
 			Callee:    Convert(n.Callee(), ctx),
 			Arguments: expressions(n.Args(), ctx),
 			Optional:  n.Optional(),
@@ -802,9 +906,9 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 		swc := node.(*parser.SwitchStmt)
 		return &SwitchStatement{
 			Type:         "SwitchStatement",
-			Start:        start(swc.Loc()),
-			End:          end(swc.Loc()),
-			Loc:          loc(swc.Loc()),
+			Start:        int(swc.Range().Lo),
+			End:          int(swc.Range().Hi),
+			Loc:          locOfNode(swc, ctx.Parser.Source(), ctx),
 			Discriminant: Convert(swc.Test(), ctx),
 			Cases:        cases(swc.Cases(), ctx),
 		}
@@ -812,9 +916,9 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 		varDec := node.(*parser.VarDecStmt)
 		return &VariableDeclaration{
 			Type:         "VariableDeclaration",
-			Start:        start(varDec.Loc()),
-			End:          end(varDec.Loc()),
-			Loc:          loc(varDec.Loc()),
+			Start:        int(varDec.Range().Lo),
+			End:          int(varDec.Range().Hi),
+			Loc:          locOfNode(varDec, ctx.Parser.Source(), ctx),
 			Kind:         varDec.Kind(),
 			Declarations: declarations(varDec.DecList(), ctx),
 		}
@@ -822,9 +926,9 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 		mem := node.(*parser.MemberExpr)
 		return &MemberExpression{
 			Type:     "MemberExpression",
-			Loc:      loc(mem.Loc()),
-			Start:    start(mem.Loc()),
-			End:      end(mem.Loc()),
+			Loc:      locOfNode(mem, ctx.Parser.Source(), ctx),
+			Start:    int(mem.Range().Lo),
+			End:      int(mem.Range().Hi),
 			Object:   Convert(mem.Obj(), ctx),
 			Property: Convert(mem.Prop(), ctx),
 			Computed: mem.Compute(),
@@ -834,18 +938,18 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 		seq := node.(*parser.SeqExpr)
 		return &SequenceExpression{
 			Type:        "SequenceExpression",
-			Start:       start(seq.Loc()),
-			End:         end(seq.Loc()),
-			Loc:         loc(seq.Loc()),
+			Start:       int(seq.Range().Lo),
+			End:         int(seq.Range().Hi),
+			Loc:         locOfNode(seq, ctx.Parser.Source(), ctx),
 			Expressions: expressions(seq.Elems(), ctx),
 		}
 	case parser.N_EXPR_UPDATE:
 		up := node.(*parser.UpdateExpr)
 		return &UpdateExpression{
 			Type:     "UpdateExpression",
-			Start:    start(up.Loc()),
-			End:      end(up.Loc()),
-			Loc:      loc(up.Loc()),
+			Start:    int(up.Range().Lo),
+			End:      int(up.Range().Hi),
+			Loc:      locOfNode(up, ctx.Parser.Source(), ctx),
 			Operator: up.OpText(),
 			Argument: Convert(up.Arg(), ctx),
 			Prefix:   up.Prefix(),
@@ -858,9 +962,9 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 		}
 		return &UnaryExpression{
 			Type:     typ,
-			Start:    start(un.Loc()),
-			End:      end(un.Loc()),
-			Loc:      loc(un.Loc()),
+			Start:    int(un.Range().Lo),
+			End:      int(un.Range().Hi),
+			Loc:      locOfNode(un, ctx.Parser.Source(), ctx),
 			Operator: un.OpText(),
 			Prefix:   true,
 			Argument: Convert(un.Arg(), ctx),
@@ -869,9 +973,9 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 		cond := node.(*parser.CondExpr)
 		return &ConditionalExpression{
 			Type:       "ConditionalExpression",
-			Start:      start(cond.Loc()),
-			End:        end(cond.Loc()),
-			Loc:        loc(cond.Loc()),
+			Start:      int(cond.Range().Lo),
+			End:        int(cond.Range().Hi),
+			Loc:        locOfNode(cond, ctx.Parser.Source(), ctx),
 			Test:       Convert(cond.Test(), ctx),
 			Consequent: Convert(cond.Cons(), ctx),
 			Alternate:  Convert(cond.Alt(), ctx),
@@ -879,17 +983,17 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 	case parser.N_STMT_EMPTY:
 		return &EmptyStatement{
 			Type:  "EmptyStatement",
-			Start: start(node.Loc()),
-			End:   end(node.Loc()),
-			Loc:   loc(node.Loc()),
+			Start: int(node.Range().Lo),
+			End:   int(node.Range().Hi),
+			Loc:   locOfNode(node, ctx.Parser.Source(), ctx),
 		}
 	case parser.N_STMT_DO_WHILE:
 		stmt := node.(*parser.DoWhileStmt)
 		return &DoWhileStatement{
 			Type:  "DoWhileStatement",
-			Start: start(node.Loc()),
-			End:   end(node.Loc()),
-			Loc:   loc(node.Loc()),
+			Start: int(node.Range().Lo),
+			End:   int(node.Range().Hi),
+			Loc:   locOfNode(node, ctx.Parser.Source(), ctx),
 			Test:  Convert(stmt.Test(), ctx),
 			Body:  Convert(stmt.Body(), ctx),
 		}
@@ -897,18 +1001,18 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 		b := node.(*parser.BoolLit)
 		return &Literal{
 			Type:  "Literal",
-			Start: start(node.Loc()),
-			End:   end(node.Loc()),
-			Loc:   loc(node.Loc()),
+			Start: int(node.Range().Lo),
+			End:   int(node.Range().Hi),
+			Loc:   locOfNode(node, ctx.Parser.Source(), ctx),
 			Value: b.Val(),
 		}
 	case parser.N_STMT_WHILE:
 		stmt := node.(*parser.WhileStmt)
 		return &WhileStatement{
 			Type:  "WhileStatement",
-			Start: start(node.Loc()),
-			End:   end(node.Loc()),
-			Loc:   loc(node.Loc()),
+			Start: int(node.Range().Lo),
+			End:   int(node.Range().Hi),
+			Loc:   locOfNode(node, ctx.Parser.Source(), ctx),
 			Test:  Convert(stmt.Test(), ctx),
 			Body:  Convert(stmt.Body(), ctx),
 		}
@@ -916,9 +1020,9 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 		stmt := node.(*parser.ForStmt)
 		return &ForStatement{
 			Type:   "ForStatement",
-			Start:  start(node.Loc()),
-			End:    end(node.Loc()),
-			Loc:    loc(node.Loc()),
+			Start:  int(node.Range().Lo),
+			End:    int(node.Range().Hi),
+			Loc:    locOfNode(node, ctx.Parser.Source(), ctx),
 			Init:   Convert(stmt.Init(), ctx),
 			Test:   Convert(stmt.Test(), ctx),
 			Update: Convert(stmt.Update(), ctx),
@@ -929,9 +1033,9 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 		if stmt.In() {
 			return &ForInStatement{
 				Type:  "ForInStatement",
-				Start: start(stmt.Loc()),
-				End:   end(stmt.Loc()),
-				Loc:   loc(stmt.Loc()),
+				Start: int(stmt.Range().Lo),
+				End:   int(stmt.Range().Hi),
+				Loc:   locOfNode(stmt, ctx.Parser.Source(), ctx),
 				Left:  Convert(stmt.Left(), ctx),
 				Right: Convert(stmt.Right(), ctx),
 				Body:  Convert(stmt.Body(), ctx),
@@ -939,9 +1043,9 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 		}
 		return &ForOfStatement{
 			Type:  "ForOfStatement",
-			Start: start(node.Loc()),
-			End:   end(node.Loc()),
-			Loc:   loc(node.Loc()),
+			Start: int(node.Range().Lo),
+			End:   int(node.Range().Hi),
+			Loc:   locOfNode(node, ctx.Parser.Source(), ctx),
 			Left:  Convert(stmt.Left(), ctx),
 			Right: Convert(stmt.Right(), ctx),
 			Body:  Convert(stmt.Body(), ctx),
@@ -951,27 +1055,27 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 		stmt := node.(*parser.ContStmt)
 		return &ContinueStatement{
 			Type:  "ContinueStatement",
-			Start: start(stmt.Loc()),
-			End:   end(stmt.Loc()),
-			Loc:   loc(stmt.Loc()),
+			Start: int(stmt.Range().Lo),
+			End:   int(stmt.Range().Hi),
+			Loc:   locOfNode(stmt, ctx.Parser.Source(), ctx),
 			Label: Convert(stmt.Label(), ctx),
 		}
 	case parser.N_STMT_BRK:
 		stmt := node.(*parser.BrkStmt)
 		return &BreakStatement{
 			Type:  "BreakStatement",
-			Start: start(stmt.Loc()),
-			End:   end(stmt.Loc()),
-			Loc:   loc(stmt.Loc()),
+			Start: int(stmt.Range().Lo),
+			End:   int(stmt.Range().Hi),
+			Loc:   locOfNode(stmt, ctx.Parser.Source(), ctx),
 			Label: Convert(stmt.Label(), ctx),
 		}
 	case parser.N_STMT_LABEL:
 		stmt := node.(*parser.LabelStmt)
 		return &LabeledStatement{
 			Type:  "LabeledStatement",
-			Start: start(stmt.Loc()),
-			End:   end(stmt.Loc()),
-			Loc:   loc(stmt.Loc()),
+			Start: int(stmt.Range().Lo),
+			End:   int(stmt.Range().Hi),
+			Loc:   locOfNode(stmt, ctx.Parser.Source(), ctx),
 			Label: Convert(stmt.Label(), ctx),
 			Body:  Convert(stmt.Body(), ctx),
 		}
@@ -979,18 +1083,18 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 		stmt := node.(*parser.ThrowStmt)
 		return &ThrowStatement{
 			Type:     "ThrowStatement",
-			Start:    start(stmt.Loc()),
-			End:      end(stmt.Loc()),
-			Loc:      loc(stmt.Loc()),
+			Start:    int(stmt.Range().Lo),
+			End:      int(stmt.Range().Hi),
+			Loc:      locOfNode(stmt, ctx.Parser.Source(), ctx),
 			Argument: Convert(stmt.Arg(), ctx),
 		}
 	case parser.N_STMT_TRY:
 		stmt := node.(*parser.TryStmt)
 		return &TryStatement{
 			Type:      "TryStatement",
-			Start:     start(stmt.Loc()),
-			End:       end(stmt.Loc()),
-			Loc:       loc(stmt.Loc()),
+			Start:     int(stmt.Range().Lo),
+			End:       int(stmt.Range().Hi),
+			Loc:       locOfNode(stmt, ctx.Parser.Source(), ctx),
 			Block:     Convert(stmt.Try(), ctx),
 			Handler:   Convert(stmt.Catch(), ctx),
 			Finalizer: Convert(stmt.Fin(), ctx),
@@ -999,26 +1103,26 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 		expr := node.(*parser.Catch)
 		return &CatchClause{
 			Type:  "CatchClause",
-			Start: start(expr.Loc()),
-			End:   end(expr.Loc()),
-			Loc:   loc(expr.Loc()),
+			Start: int(expr.Range().Lo),
+			End:   int(expr.Range().Hi),
+			Loc:   locOfNode(expr, ctx.Parser.Source(), ctx),
 			Param: Convert(expr.Param(), ctx),
 			Body:  Convert(expr.Body(), ctx),
 		}
 	case parser.N_STMT_DEBUG:
 		return &DebuggerStatement{
 			Type:  "DebuggerStatement",
-			Start: start(node.Loc()),
-			End:   end(node.Loc()),
-			Loc:   loc(node.Loc()),
+			Start: int(node.Range().Lo),
+			End:   int(node.Range().Hi),
+			Loc:   locOfNode(node, ctx.Parser.Source(), ctx),
 		}
 	case parser.N_STMT_WITH:
 		stmt := node.(*parser.WithStmt)
 		return &WithStatement{
 			Type:   "WithStatement",
-			Start:  start(stmt.Loc()),
-			End:    end(stmt.Loc()),
-			Loc:    loc(node.Loc()),
+			Start:  int(stmt.Range().Lo),
+			End:    int(stmt.Range().Hi),
+			Loc:    locOfNode(node, ctx.Parser.Source(), ctx),
 			Object: Convert(stmt.Expr(), ctx),
 			Body:   Convert(stmt.Body(), ctx),
 		}
@@ -1026,18 +1130,18 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 		stmt := node.(*parser.ImportCall)
 		return &ImportExpression{
 			Type:   "ImportExpression",
-			Start:  start(stmt.Loc()),
-			End:    end(stmt.Loc()),
-			Loc:    loc(stmt.Loc()),
+			Start:  int(stmt.Range().Lo),
+			End:    int(stmt.Range().Hi),
+			Loc:    locOfNode(stmt, ctx.Parser.Source(), ctx),
 			Source: Convert(stmt.Src(), ctx),
 		}
 	case parser.N_META_PROP:
 		stmt := node.(*parser.MetaProp)
 		return &MetaProperty{
 			Type:     "MetaProperty",
-			Start:    start(stmt.Loc()),
-			End:      end(stmt.Loc()),
-			Loc:      loc(stmt.Loc()),
+			Start:    int(stmt.Range().Lo),
+			End:      int(stmt.Range().Hi),
+			Loc:      locOfNode(stmt, ctx.Parser.Source(), ctx),
 			Meta:     Convert(stmt.Meta(), ctx),
 			Property: Convert(stmt.Prop(), ctx),
 		}
@@ -1046,13 +1150,13 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 		superTypArgs := stmt.SuperTypArgs()
 		typParams := stmt.TypParams()
 		implements := stmt.Implements()
-		lc := LocWithDecorator(stmt, parser.DecoratorsOf(stmt))
+		rng, loc := locWithDecorator(stmt, parser.DecoratorsOf(stmt), ctx.Parser.Source(), ctx)
 		if superTypArgs != nil || typParams != nil || implements != nil {
 			return &TSClassDeclaration{
 				Type:                "ClassDeclaration",
-				Start:               start(lc),
-				End:                 end(lc),
-				Loc:                 loc(lc),
+				Start:               int(rng.Lo),
+				End:                 int(rng.Hi),
+				Loc:                 loc,
 				Id:                  Convert(stmt.Id(), ctx),
 				TypeParameters:      ConvertTsTyp(typParams, ctx),
 				SuperClass:          Convert(stmt.Super(), ctx),
@@ -1066,9 +1170,9 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 		}
 		return &ClassDeclaration{
 			Type:       "ClassDeclaration",
-			Start:      start(lc),
-			End:        end(lc),
-			Loc:        loc(lc),
+			Start:      int(rng.Lo),
+			End:        int(rng.Hi),
+			Loc:        loc,
 			Id:         Convert(stmt.Id(), ctx),
 			SuperClass: Convert(stmt.Super(), ctx),
 			Body:       Convert(stmt.Body(), ctx),
@@ -1084,9 +1188,9 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 		if superTypArgs != nil || typParams != nil || implements != nil {
 			return &TSClassExpression{
 				Type:                "ClassExpression",
-				Start:               start(stmt.Loc()),
-				End:                 end(stmt.Loc()),
-				Loc:                 loc(stmt.Loc()),
+				Start:               int(stmt.Range().Lo),
+				End:                 int(stmt.Range().Hi),
+				Loc:                 locOfNode(stmt, ctx.Parser.Source(), ctx),
 				Id:                  Convert(stmt.Id(), ctx),
 				TypeParameters:      ConvertTsTyp(typParams, ctx),
 				SuperClass:          Convert(stmt.Super(), ctx),
@@ -1098,9 +1202,9 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 		}
 		return &ClassExpression{
 			Type:       "ClassExpression",
-			Start:      start(stmt.Loc()),
-			End:        end(stmt.Loc()),
-			Loc:        loc(stmt.Loc()),
+			Start:      int(stmt.Range().Lo),
+			End:        int(stmt.Range().Hi),
+			Loc:        locOfNode(stmt, ctx.Parser.Source(), ctx),
 			Id:         Convert(stmt.Id(), ctx),
 			SuperClass: Convert(stmt.Super(), ctx),
 			Body:       Convert(stmt.Body(), ctx),
@@ -1110,22 +1214,22 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 		stmt := node.(*parser.ClassBody)
 		return &ClassBody{
 			Type:  "ClassBody",
-			Start: start(stmt.Loc()),
-			End:   end(stmt.Loc()),
-			Loc:   loc(stmt.Loc()),
+			Start: int(stmt.Range().Lo),
+			End:   int(stmt.Range().Hi),
+			Loc:   locOfNode(stmt, ctx.Parser.Source(), ctx),
 			Body:  expressions(stmt.Elems(), ctx),
 		}
 	case parser.N_METHOD:
 		n := node.(*parser.Method)
 		f := n.Val().(*parser.FnDec)
-		lc := LocWithDecorator(n, parser.DecoratorsOf(n))
+		rng, loc := locWithDecorator(n, parser.DecoratorsOf(n), ctx.Parser.Source(), ctx)
 		if f.TypInfo() != nil {
 			ti := f.TypInfo()
 			return &TSMethodDefinition{
 				Type:          "MethodDefinition",
-				Start:         start(lc),
-				End:           end(lc),
-				Loc:           loc(lc),
+				Start:         int(rng.Lo),
+				End:           int(rng.Hi),
+				Loc:           loc,
 				Key:           Convert(n.Key(), ctx),
 				Value:         Convert(n.Val(), ctx),
 				Kind:          n.Kind(),
@@ -1142,9 +1246,9 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 		}
 		return &MethodDefinition{
 			Type:       "MethodDefinition",
-			Start:      start(lc),
-			End:        end(lc),
-			Loc:        loc(lc),
+			Start:      int(rng.Lo),
+			End:        int(rng.Hi),
+			Loc:        loc,
 			Key:        Convert(n.Key(), ctx),
 			Value:      Convert(n.Val(), ctx),
 			Kind:       n.Kind(),
@@ -1154,15 +1258,15 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 		}
 	case parser.N_FIELD:
 		n := node.(*parser.Field)
-		lc := LocWithDecorator(n, parser.DecoratorsOf(n))
+		rng, loc := locWithDecorator(n, parser.DecoratorsOf(n), ctx.Parser.Source(), ctx)
 		if n.TypInfo() != nil {
 			ti := n.TypInfo()
 			if n.IsTsSig() {
 				return &TSIndexSignature{
 					Type:           "TSIndexSignature",
-					Start:          start(lc),
-					End:            end(lc),
-					Loc:            loc(lc),
+					Start:          int(rng.Lo),
+					End:            int(rng.Hi),
+					Loc:            loc,
 					Static:         n.Static(),
 					Abstract:       ti.Abstract(),
 					Optional:       ti.Optional(),
@@ -1177,9 +1281,9 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 
 			return &TSPropertyDefinition{
 				Type:           "PropertyDefinition",
-				Start:          start(lc),
-				End:            end(lc),
-				Loc:            loc(lc),
+				Start:          int(rng.Lo),
+				End:            int(rng.Hi),
+				Loc:            loc,
 				Key:            Convert(n.Key(), ctx),
 				Value:          Convert(n.Val(), ctx),
 				Computed:       n.Computed(),
@@ -1197,9 +1301,9 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 		}
 		return &PropertyDefinition{
 			Type:       "PropertyDefinition",
-			Start:      start(lc),
-			End:        end(lc),
-			Loc:        loc(lc),
+			Start:      int(rng.Lo),
+			End:        int(rng.Hi),
+			Loc:        loc,
 			Key:        Convert(n.Key(), ctx),
 			Value:      Convert(n.Val(), ctx),
 			Computed:   n.Computed(),
@@ -1210,46 +1314,47 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 		n := node.(*parser.Super)
 		return &Super{
 			Type:  "Super",
-			Start: start(n.Loc()),
-			End:   end(n.Loc()),
-			Loc:   loc(n.Loc()),
+			Start: int(n.Range().Lo),
+			End:   int(n.Range().Hi),
+			Loc:   locOfNode(n, ctx.Parser.Source(), ctx),
 		}
 	case parser.N_EXPR_TPL:
 		tpl := node.(*parser.TplExpr)
 		if tpl.Tag() == nil {
-			return tplLiteral(tpl.Loc(), tpl.Elems(), ctx)
+			return tplLiteral(tpl.Range(), tpl.Elems(), ctx)
 		}
-		locWithTag := tpl.LocWithTag()
+		locWithTag := tpl.Tag().Range()
+		locWithTag.Hi = tpl.Range().Hi
 		tag := tpl.Tag()
 		if wt, ok := tag.(parser.NodeWithTypInfo); ok {
 			ti := wt.TypInfo()
 			if ti != nil {
 				return &TSTaggedTemplateExpression{
 					Type:           "TaggedTemplateExpression",
-					Start:          start(locWithTag),
-					End:            end(locWithTag),
-					Loc:            loc(locWithTag),
+					Start:          int(locWithTag.Lo),
+					End:            int(locWithTag.Hi),
+					Loc:            locOfRng(locWithTag, ctx.Parser.Source(), ctx),
 					Tag:            Convert(tpl.Tag(), ctx),
-					Quasi:          tplLiteral(tpl.Loc(), tpl.Elems(), ctx),
+					Quasi:          tplLiteral(tpl.Range(), tpl.Elems(), ctx),
 					TypeParameters: typArgs(ti, ctx),
 				}
 			}
 		}
 		return &TaggedTemplateExpression{
 			Type:  "TaggedTemplateExpression",
-			Start: start(locWithTag),
-			End:   end(locWithTag),
-			Loc:   loc(locWithTag),
+			Start: int(locWithTag.Lo),
+			End:   int(locWithTag.Hi),
+			Loc:   locOfRng(locWithTag, ctx.Parser.Source(), ctx),
 			Tag:   Convert(tpl.Tag(), ctx),
-			Quasi: tplLiteral(tpl.Loc(), tpl.Elems(), ctx),
+			Quasi: tplLiteral(tpl.Range(), tpl.Elems(), ctx),
 		}
 	case parser.N_STMT_IMPORT:
 		stmt := node.(*parser.ImportDec)
 		return &ImportDeclaration{
 			Type:       "ImportDeclaration",
-			Start:      start(stmt.Loc()),
-			End:        end(stmt.Loc()),
-			Loc:        loc(stmt.Loc()),
+			Start:      int(stmt.Range().Lo),
+			End:        int(stmt.Range().Hi),
+			Loc:        locOfNode(stmt, ctx.Parser.Source(), ctx),
 			Specifiers: importSpecs(stmt.Specs(), ctx),
 			Source:     Convert(stmt.Src(), ctx),
 			ImportKind: stmt.Kind(),
@@ -1268,9 +1373,9 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 				if n.Alias() {
 					return &TSNamespaceExportDeclaration{
 						Type:  "TSNamespaceExportDeclaration",
-						Start: start(node.Loc()),
-						End:   end(node.Loc()),
-						Loc:   loc(node.Loc()),
+						Start: int(node.Range().Lo),
+						End:   int(node.Range().Hi),
+						Loc:   locOfNode(node, ctx.Parser.Source(), ctx),
 						Id:    Convert(n.Id(), ctx),
 					}
 				}
@@ -1286,36 +1391,36 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 		stmt := node.(*parser.StaticBlock)
 		return &StaticBlock{
 			Type:  "StaticBlock",
-			Start: start(stmt.Loc()),
-			End:   end(stmt.Loc()),
-			Loc:   loc(stmt.Loc()),
+			Start: int(stmt.Range().Lo),
+			End:   int(stmt.Range().Hi),
+			Loc:   locOfNode(stmt, ctx.Parser.Source(), ctx),
 			Body:  statements(stmt.Body(), ctx),
 		}
 	case parser.N_EXPR_CHAIN:
 		node := node.(*parser.ChainExpr)
 		return &ChainExpression{
 			Type:       "ChainExpression",
-			Start:      start(node.Loc()),
-			End:        end(node.Loc()),
-			Loc:        loc(node.Loc()),
+			Start:      int(node.Range().Lo),
+			End:        int(node.Range().Hi),
+			Loc:        locOfNode(node, ctx.Parser.Source(), ctx),
 			Expression: Convert(node.Expr(), ctx),
 		}
 	case parser.N_JSX_ID:
 		node := node.(*parser.JsxIdent)
 		return &JSXIdentifier{
 			Type:  "JSXIdentifier",
-			Start: start(node.Loc()),
-			End:   end(node.Loc()),
-			Loc:   loc(node.Loc()),
-			Name:  node.Text(),
+			Start: int(node.Range().Lo),
+			End:   int(node.Range().Hi),
+			Loc:   locOfNode(node, ctx.Parser.Source(), ctx),
+			Name:  node.Val(),
 		}
 	case parser.N_JSX_NS:
 		node := node.(*parser.JsxNsName)
 		return &JSXNamespacedName{
 			Type:      "JSXNamespacedName",
-			Start:     start(node.Loc()),
-			End:       end(node.Loc()),
-			Loc:       loc(node.Loc()),
+			Start:     int(node.Range().Lo),
+			End:       int(node.Range().Hi),
+			Loc:       locOfNode(node, ctx.Parser.Source(), ctx),
 			Namespace: node.NS(),
 			Name:      node.Name(),
 		}
@@ -1323,9 +1428,9 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 		node := node.(*parser.JsxMember)
 		return &JSXMemberExpression{
 			Type:     "JSXMemberExpression",
-			Start:    start(node.Loc()),
-			End:      end(node.Loc()),
-			Loc:      loc(node.Loc()),
+			Start:    int(node.Range().Lo),
+			End:      int(node.Range().Hi),
+			Loc:      locOfNode(node, ctx.Parser.Source(), ctx),
 			Object:   Convert(node.Obj(), ctx),
 			Property: Convert(node.Prop(), ctx),
 		}
@@ -1336,29 +1441,29 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 			close := node.Close().(*parser.JsxClose)
 			return &JSXFragment{
 				Type:  "JSXFragment",
-				Start: start(node.Loc()),
-				End:   end(node.Loc()),
-				Loc:   loc(node.Loc()),
+				Start: int(node.Range().Lo),
+				End:   int(node.Range().Hi),
+				Loc:   locOfNode(node, ctx.Parser.Source(), ctx),
 				OpeningFragment: &JSXOpeningFragment{
 					Type:  "JSXOpeningFragment",
-					Start: start(open.Loc()),
-					End:   end(open.Loc()),
-					Loc:   loc(open.Loc()),
+					Start: int(open.Range().Lo),
+					End:   int(open.Range().Hi),
+					Loc:   locOfNode(open, ctx.Parser.Source(), ctx),
 				},
 				Children: elems(node.Children(), ctx),
 				ClosingFragment: &JSXClosingFragment{
 					Type:  "JSXClosingFragment",
-					Start: start(close.Loc()),
-					End:   end(close.Loc()),
-					Loc:   loc(close.Loc()),
+					Start: int(close.Range().Lo),
+					End:   int(close.Range().Hi),
+					Loc:   locOfNode(close, ctx.Parser.Source(), ctx),
 				},
 			}
 		}
 		return &JSXElement{
 			Type:           "JSXElement",
-			Start:          start(node.Loc()),
-			End:            end(node.Loc()),
-			Loc:            loc(node.Loc()),
+			Start:          int(node.Range().Lo),
+			End:            int(node.Range().Hi),
+			Loc:            locOfNode(node, ctx.Parser.Source(), ctx),
 			OpeningElement: Convert(node.Open(), ctx),
 			Children:       elems(node.Children(), ctx),
 			ClosingElement: Convert(node.Close(), ctx),
@@ -1370,9 +1475,9 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 			if ti != nil {
 				return &TSXOpeningElement{
 					Type:           "JSXOpeningElement",
-					Start:          start(node.Loc()),
-					End:            end(node.Loc()),
-					Loc:            loc(node.Loc()),
+					Start:          int(node.Range().Lo),
+					End:            int(node.Range().Hi),
+					Loc:            locOfNode(node, ctx.Parser.Source(), ctx),
 					Name:           Convert(node.Name(), ctx),
 					Attributes:     elems(node.Attrs(), ctx),
 					SelfClosing:    node.Closed(),
@@ -1382,9 +1487,9 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 		}
 		return &JSXOpeningElement{
 			Type:        "JSXOpeningElement",
-			Start:       start(node.Loc()),
-			End:         end(node.Loc()),
-			Loc:         loc(node.Loc()),
+			Start:       int(node.Range().Lo),
+			End:         int(node.Range().Hi),
+			Loc:         locOfNode(node, ctx.Parser.Source(), ctx),
 			Name:        Convert(node.Name(), ctx),
 			Attributes:  elems(node.Attrs(), ctx),
 			SelfClosing: node.Closed(),
@@ -1393,37 +1498,37 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 		node := node.(*parser.JsxClose)
 		return &JSXClosingElement{
 			Type:  "JSXClosingElement",
-			Start: start(node.Loc()),
-			End:   end(node.Loc()),
-			Loc:   loc(node.Loc()),
+			Start: int(node.Range().Lo),
+			End:   int(node.Range().Hi),
+			Loc:   locOfNode(node, ctx.Parser.Source(), ctx),
 			Name:  Convert(node.Name(), ctx),
 		}
 	case parser.N_JSX_TXT:
 		node := node.(*parser.JsxText)
 		return &JSXText{
 			Type:  "JSXText",
-			Start: start(node.Loc()),
-			End:   end(node.Loc()),
-			Loc:   loc(node.Loc()),
+			Start: int(node.Range().Lo),
+			End:   int(node.Range().Hi),
+			Loc:   locOfNode(node, ctx.Parser.Source(), ctx),
 			Value: node.Val(),
-			Raw:   node.Raw(),
+			Raw:   ctx.Parser.RngText(node.Range()),
 		}
 	case parser.N_JSX_EXPR_SPAN:
 		node := node.(*parser.JsxExprSpan)
 		return &JSXExpressionContainer{
 			Type:       "JSXExpressionContainer",
-			Start:      start(node.Loc()),
-			End:        end(node.Loc()),
-			Loc:        loc(node.Loc()),
+			Start:      int(node.Range().Lo),
+			End:        int(node.Range().Hi),
+			Loc:        locOfNode(node, ctx.Parser.Source(), ctx),
 			Expression: Convert(node.Expr(), ctx),
 		}
 	case parser.N_JSX_ATTR:
 		node := node.(*parser.JsxAttr)
 		return &JSXAttribute{
 			Type:  "JSXAttribute",
-			Start: start(node.Loc()),
-			End:   end(node.Loc()),
-			Loc:   loc(node.Loc()),
+			Start: int(node.Range().Lo),
+			End:   int(node.Range().Hi),
+			Loc:   locOfNode(node, ctx.Parser.Source(), ctx),
 			Name:  Convert(node.Name(), ctx),
 			Value: Convert(node.Val(), ctx),
 		}
@@ -1431,35 +1536,35 @@ func Convert(node parser.Node, ctx *ConvertCtx) Node {
 		node := node.(*parser.JsxSpreadAttr)
 		return &JSXSpreadAttribute{
 			Type:     "JSXSpreadAttribute",
-			Start:    start(node.Loc()),
-			End:      end(node.Loc()),
-			Loc:      loc(node.Loc()),
+			Start:    int(node.Range().Lo),
+			End:      int(node.Range().Hi),
+			Loc:      locOfNode(node, ctx.Parser.Source(), ctx),
 			Argument: Convert(node.Arg(), ctx),
 		}
 	case parser.N_JSX_CHILD_SPREAD:
 		node := node.(*parser.JsxSpreadChild)
 		return &JSXSpreadChild{
 			Type:       "JSXSpreadChild",
-			Start:      start(node.Loc()),
-			End:        end(node.Loc()),
-			Loc:        loc(node.Loc()),
+			Start:      int(node.Range().Lo),
+			End:        int(node.Range().Hi),
+			Loc:        locOfNode(node, ctx.Parser.Source(), ctx),
 			Expression: Convert(node.Expr(), ctx),
 		}
 	case parser.N_JSX_EMPTY:
 		node := node.(*parser.JsxEmpty)
 		return &JSXEmptyExpression{
 			Type:  "JSXEmptyExpression",
-			Start: start(node.Loc()),
-			End:   end(node.Loc()),
-			Loc:   loc(node.Loc()),
+			Start: int(node.Range().Lo),
+			End:   int(node.Range().Hi),
+			Loc:   locOfNode(node, ctx.Parser.Source(), ctx),
 		}
 	case parser.N_DECORATOR:
 		node := node.(*parser.Decorator)
 		return &Decorator{
 			Type:       "Decorator",
-			Start:      start(node.Loc()),
-			End:        end(node.Loc()),
-			Loc:        loc(node.Loc()),
+			Start:      int(node.Range().Lo),
+			End:        int(node.Range().Hi),
+			Loc:        locOfNode(node, ctx.Parser.Source(), ctx),
 			Expression: Convert(node.Expr(), ctx),
 		}
 	}

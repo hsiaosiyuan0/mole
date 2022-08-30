@@ -16,22 +16,22 @@ func newParser(code string, opts *parser.ParserOpts) *parser.Parser {
 	return parser.NewParser(s, opts)
 }
 
-func compile(code string, opts *parser.ParserOpts) (parser.Node, *parser.SymTab, error) {
+func compile(code string, opts *parser.ParserOpts) (*parser.Parser, parser.Node, *parser.SymTab, error) {
 	p := newParser(code, opts)
 	ast, err := p.Prog()
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
-	return ast, p.Symtab(), nil
+	return p, ast, p.Symtab(), nil
 }
 
 func TestCtrlflow_Basic(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 a
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -48,12 +48,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_Logic(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
  a && b
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -75,12 +75,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_LogicMix(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
  a && b || c
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -105,7 +105,7 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_IfStmt(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   a;
   if (b) c;
   else d;
@@ -113,7 +113,7 @@ func TestCtrlflow_IfStmt(t *testing.T) {
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -137,7 +137,7 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_IfBlkStmt(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   a;
   if (b) {
     c;
@@ -148,7 +148,7 @@ func TestCtrlflow_IfBlkStmt(t *testing.T) {
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -172,7 +172,7 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_IfBlk2Stmt(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   a;
   if (b) {
     c;
@@ -185,7 +185,7 @@ func TestCtrlflow_IfBlk2Stmt(t *testing.T) {
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -209,13 +209,13 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_IfLogic(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   if (a && b) c
   else d
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -242,14 +242,14 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_IfLogicMix(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   a
   if (b || c && d) e
   else f
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -279,12 +279,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_UpdateExpr(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   a++
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -301,12 +301,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_VarDecStmt(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   let a = 1, c = d
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -323,7 +323,7 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_ForStmt(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   for (let b = 1; b < c; b++) {
     d;
   }
@@ -331,7 +331,7 @@ func TestCtrlflow_ForStmt(t *testing.T) {
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -355,7 +355,7 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_ForStmtOmitInit(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   for (; b < c; b++) {
     d;
   }
@@ -363,7 +363,7 @@ func TestCtrlflow_ForStmtOmitInit(t *testing.T) {
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -387,7 +387,7 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_ForStmtOmitInitUpdate(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   for (; b < c;) {
     d;
   }
@@ -395,7 +395,7 @@ func TestCtrlflow_ForStmtOmitInitUpdate(t *testing.T) {
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -419,7 +419,7 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_ForStmtOmitInitUpdate_TestLogic(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   for (; b && c;) {
     d;
   }
@@ -427,7 +427,7 @@ func TestCtrlflow_ForStmtOmitInitUpdate_TestLogic(t *testing.T) {
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -454,7 +454,7 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_ForStmtOmitAll(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   for (; ;) {
     d;
   }
@@ -462,7 +462,7 @@ func TestCtrlflow_ForStmtOmitAll(t *testing.T) {
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -484,7 +484,7 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_ForStmtLitTest(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   for (; 1 ;) {
     d;
   }
@@ -492,7 +492,7 @@ func TestCtrlflow_ForStmtLitTest(t *testing.T) {
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -516,12 +516,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_While(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   while(a) b;
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -545,14 +545,14 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_WhileBodyBlk(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   while(a) {
     b;
   }
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -576,14 +576,14 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_WhileLogicOr(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   while((a + b) || c) {
     d;
   }
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -610,14 +610,14 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_WhileTestLit(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   while(1) {
     d;
   }
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -639,14 +639,14 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_WhileLogicMix(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   while(a || b && c) {
     d
   }
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -676,7 +676,7 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_WhileCont(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 while (a) {
   continue
   c
@@ -684,7 +684,7 @@ while (a) {
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -711,7 +711,7 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_WhileLitCont(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 while (1) {
   continue
   c
@@ -719,7 +719,7 @@ while (1) {
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -744,12 +744,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_ParenExpr(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   (a + b)
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -766,12 +766,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_ParenExprLogic(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   (a && b)
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -793,12 +793,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_DoWhile(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   do { a } while(b)
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -820,12 +820,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_DoWhileLogicOr(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   do { a } while(b || c)
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -850,12 +850,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_DoWhileLogicAnd(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   do { a } while(b && c)
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -880,14 +880,14 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_DoWhileLit(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   do {
     d;
   } while(1)
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -909,7 +909,7 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_DoWhileCont(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 do {
   continue
   c
@@ -917,7 +917,7 @@ do {
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -944,7 +944,7 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_DoWhileLitCont(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 do {
   continue
   c
@@ -952,7 +952,7 @@ do {
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -979,7 +979,7 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_ContinueBasicEntry(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   LabelA: while(a) {
     continue LabelA
     d
@@ -987,7 +987,7 @@ func TestCtrlflow_ContinueBasicEntry(t *testing.T) {
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -1014,7 +1014,7 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_Continue(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   LabelA: while(a || b && c) {
     continue LabelA
     d
@@ -1022,7 +1022,7 @@ func TestCtrlflow_Continue(t *testing.T) {
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -1055,7 +1055,7 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_ContinueOuter(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   LabelA: while(a) {
     while(b) {
       continue LabelA
@@ -1065,7 +1065,7 @@ func TestCtrlflow_ContinueOuter(t *testing.T) {
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -1099,7 +1099,7 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_ContinueDoWhile(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 LabelA: do {
   a;
   do {
@@ -1110,7 +1110,7 @@ LabelA: do {
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -1142,7 +1142,7 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_ContinueForBasic(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 for (let a = 1; a < 10; a++) {
   continue
   c
@@ -1150,7 +1150,7 @@ for (let a = 1; a < 10; a++) {
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -1179,7 +1179,7 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_ContinueForListTestLabel(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 LabelA: for (let a = 1; 1; a++) {
   continue LabelA
   c
@@ -1187,7 +1187,7 @@ LabelA: for (let a = 1; 1; a++) {
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -1216,7 +1216,7 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_ContinueForBasicLabel(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 LabelA: for (let a = 1; a < 10; a++) {
   continue LabelA
   c
@@ -1224,7 +1224,7 @@ LabelA: for (let a = 1; a < 10; a++) {
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -1253,7 +1253,7 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_ContinueFor(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 LabelA: for (let a = 1; a < 10; a++) {
   for (let b = a; b < 10; b++) {
     continue LabelA
@@ -1263,7 +1263,7 @@ LabelA: for (let a = 1; a < 10; a++) {
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -1299,7 +1299,7 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_ContinueForNoUpdate(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 LabelA: for (let a = 1; a < 10; ) {
   for (let b = a; b < 10; b++) {
     continue LabelA
@@ -1309,7 +1309,7 @@ LabelA: for (let a = 1; a < 10; ) {
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -1343,7 +1343,7 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_ContinueForNoTest(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 LabelA: for (let a = 1; ; ) {
   for (let b = a; b < 10; b++) {
     continue LabelA
@@ -1353,7 +1353,7 @@ LabelA: for (let a = 1; ; ) {
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -1385,14 +1385,14 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_ForIn(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 for (a in b) {
     c
 }
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -1416,14 +1416,14 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_ForInLet(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 for (let a in b) {
     c
 }
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -1447,7 +1447,7 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_ContinueForIn(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 s
 LabelA: for(a in b) {
   for(c in d) {
@@ -1461,7 +1461,7 @@ LabelA: for(a in b) {
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -1503,7 +1503,7 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_ContinueNoLabel(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 while(a) {
   if (a > 10) {
     continue;
@@ -1514,7 +1514,7 @@ while(a) {
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -1546,7 +1546,7 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_BreakNoLabelForNest(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 while(a) {
   if (a > 10) break;
   a--
@@ -1554,7 +1554,7 @@ while(a) {
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -1584,7 +1584,7 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_BreakNoLabelFor(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 for (; a; ) {
   if (a > 10) {
     break;
@@ -1595,7 +1595,7 @@ for (; a; ) {
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -1627,7 +1627,7 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_BreakLabelWhile(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   LabelA: while(a) {
     for( ; b; ) {
       break LabelA
@@ -1637,7 +1637,7 @@ func TestCtrlflow_BreakLabelWhile(t *testing.T) {
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -1671,7 +1671,7 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_BreakNoLabelWhile(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   LabelA: while(a) {
     for(;b;) {
       break
@@ -1681,7 +1681,7 @@ func TestCtrlflow_BreakNoLabelWhile(t *testing.T) {
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -1715,12 +1715,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_CallExpr(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   fn()
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -1737,12 +1737,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_CallExprArgs(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   fn(1, 2, a && b)
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -1764,12 +1764,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_CallExprArgsBin(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   fn(1, a || b && c, d && e)
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -1799,12 +1799,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_Nullish(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   const foo = null ?? 'default string';
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -1826,13 +1826,13 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_FnDecOuter(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 function f() {
 }
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -1849,14 +1849,14 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_FnDecBody(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 function f() {
   a
 }
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	fn := ast.(*parser.Prog).Body()[0]
@@ -1876,7 +1876,7 @@ initial->b9 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_ReturnNoArg(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 function f() {
   a;
   return;
@@ -1885,7 +1885,7 @@ function f() {
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	fn := ast.(*parser.Prog).Body()[0]
@@ -1910,7 +1910,7 @@ initial->b14 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_ReturnArg(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 function f() {
   a;
   return a ?? b;
@@ -1919,7 +1919,7 @@ function f() {
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	fn := ast.(*parser.Prog).Body()[0]
@@ -1949,7 +1949,7 @@ initial->b20 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_ReturnArgBinNested(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 function f() {
   a;
   return a && b || c;
@@ -1958,7 +1958,7 @@ function f() {
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	fn := ast.(*parser.Prog).Body()[0]
@@ -1991,12 +1991,12 @@ initial->b25 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_FnDecParam(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 function f(a, b) {}
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	fn := ast.(*parser.Prog).Body()[0]
@@ -2016,12 +2016,12 @@ initial->b8 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_FnExpr(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 fn = function f(a, b) { c }
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	fn := ast.(*parser.Prog).Body()[0].(*parser.ExprStmt).Expr().(*parser.AssignExpr).Rhs()
@@ -2041,12 +2041,12 @@ initial->b11 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_ArrLit(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 a = [b, c, d ?? e]
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -2068,12 +2068,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_ObjLit(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 a = { b: 1, c: d }
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -2090,12 +2090,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_ObjLitNest(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 a = { b: {c: 1} }
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -2112,12 +2112,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_ObjLitFn(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 a = { b: function (a, b) {} }
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	rhs := ast.(*parser.Prog).Body()[0].(*parser.ExprStmt).Expr().(*parser.AssignExpr).Rhs().(*parser.ObjLit)
@@ -2139,13 +2139,13 @@ initial->b7 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_EmptyExpr(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 a;
 ;
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -2162,13 +2162,13 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_DebugStmt(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 a
 debugger
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -2185,13 +2185,13 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_LitNull(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 a = null
 null
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -2208,13 +2208,13 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_LitBool(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 a = true
 false
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -2231,13 +2231,13 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_LitNum(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 a = 1
 1.1
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -2254,13 +2254,13 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_LitStr(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 a = "str"
 'str'
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -2277,13 +2277,13 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_LitArr(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 a = [1, 2, 3];
 [1, 2, 3]
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -2300,12 +2300,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_LitArrNest(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 a = [1, 2, [4, 5, 6]];
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -2322,12 +2322,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_LitArrSpread(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   a = [1, 2, ...d];
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -2344,12 +2344,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_LitObj(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 a = { b: { c: 1 }, ...d };
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -2366,13 +2366,13 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_LitObjSpread(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 a = {b: { c: 1 } };
 ({b: { c: 1 } })
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -2389,12 +2389,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_LitObjNest(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 a = {b: { c: 1, d: [1, { f: 2}] } };
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -2411,12 +2411,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_LitRegexp(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 a = /reg/;
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -2433,7 +2433,7 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_SwitchCase(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 switch(a) {
   case 1: doSth1();
   case 2: doSth2();
@@ -2443,7 +2443,7 @@ switch(a) {
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -2477,7 +2477,7 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_SwitchCaseBlk(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 switch(a) {
   case 1: doSth1();
   case 2: {
@@ -2490,7 +2490,7 @@ switch(a) {
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -2524,7 +2524,7 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_SwitchCaseFallthrough(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 switch(a) {
   case 1:
   case 2: {
@@ -2537,7 +2537,7 @@ switch(a) {
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -2571,7 +2571,7 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_SwitchCaseDefaultFirst(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 switch(a) {
   default: doSthDefault();
   case 1: doSth1();
@@ -2580,7 +2580,7 @@ switch(a) {
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -2611,7 +2611,7 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_SwitchCaseDefaultInMiddle(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 switch(a) {
   case 1: doSth1();
   default: doSthDefault();
@@ -2621,7 +2621,7 @@ switch(a) {
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -2657,7 +2657,7 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_SwitchCaseDefaultInMiddleFallthrough(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 switch(a) {
   case 1:
   default: doSthDefault();
@@ -2667,7 +2667,7 @@ switch(a) {
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -2703,7 +2703,7 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_SwitchCaseBasic(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 switch(a) {
   case 1: doSth1(); break;
   case 2: doSth2();
@@ -2712,7 +2712,7 @@ switch(a) {
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -2749,7 +2749,7 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_SwitchCaseBreak(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 switch(a) {
   case 1: doSth1(); break;
   default: doSthDefault();
@@ -2759,7 +2759,7 @@ switch(a) {
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -2800,7 +2800,7 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_SwitchCaseBreakInBlock(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 switch(a) {
   case 1: {
     doSth1(); break;
@@ -2812,7 +2812,7 @@ switch(a) {
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -2853,7 +2853,7 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_SwitchCaseBreakSiblingBlock(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 switch(a) {
   case 1: {
     doSth1();
@@ -2866,7 +2866,7 @@ switch(a) {
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -2907,7 +2907,7 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_SwitchCaseBreakDefaultFirst(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 switch(a) {
   default: doSthDefault(); break;
   case 2: doSth2();
@@ -2916,7 +2916,7 @@ switch(a) {
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -2952,7 +2952,7 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_SwitchCaseBreakDefaultMiddle(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 switch(a) {
   case 1: doSth1();
   default: doSthDefault(); break;
@@ -2962,7 +2962,7 @@ switch(a) {
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -3003,7 +3003,7 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_SwitchCaseReturnDefaultMiddle(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 function f() {
   switch(a) {
     case 1: {
@@ -3016,7 +3016,7 @@ function f() {
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	fn := ast.(*parser.Prog).Body()[0]
@@ -3055,7 +3055,7 @@ initial->b51 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_TryCatchBasic(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 try {
   doSth1();
   doSth2();
@@ -3065,7 +3065,7 @@ try {
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -3087,7 +3087,7 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_TryCatchIf(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 try {
   if (a) {
     doSth1();
@@ -3099,7 +3099,7 @@ try {
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -3128,7 +3128,7 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_TryCatchFin(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 try {
   doSth1();
   doSth2();
@@ -3140,7 +3140,7 @@ try {
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -3162,7 +3162,7 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_TryReturn(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 function f() {
   try {
     doSth1();
@@ -3176,7 +3176,7 @@ function f() {
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	fn := ast.(*parser.Prog).Body()[0]
@@ -3207,7 +3207,7 @@ initial->b45 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_TryReturnFin(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 function f() {
   try {
     doSth1();
@@ -3223,7 +3223,7 @@ function f() {
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	fn := ast.(*parser.Prog).Body()[0]
@@ -3257,7 +3257,7 @@ initial->b54 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_TryReturnFinIf(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 function f() {
   try {
     doSth1();
@@ -3276,7 +3276,7 @@ function f() {
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	fn := ast.(*parser.Prog).Body()[0]
@@ -3315,7 +3315,7 @@ initial->b67 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_TryCatchReturn(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 function f() {
   try {
     doSth1();
@@ -3329,7 +3329,7 @@ function f() {
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	fn := ast.(*parser.Prog).Body()[0]
@@ -3359,7 +3359,7 @@ initial->b45 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_TryCatchReturnFin(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 function f() {
   try {
     doSth1();
@@ -3375,7 +3375,7 @@ function f() {
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	fn := ast.(*parser.Prog).Body()[0]
@@ -3408,7 +3408,7 @@ initial->b54 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_TryFinReturn(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 function f() {
   try {
     doSth1();
@@ -3425,7 +3425,7 @@ function f() {
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	fn := ast.(*parser.Prog).Body()[0]
@@ -3461,7 +3461,7 @@ initial->b56 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_TryNested(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 try {
   doSth1()
 
@@ -3476,7 +3476,7 @@ try {
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -3506,7 +3506,7 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_TryNestedTryReturn(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 function f() {
   try {
     doSth1()
@@ -3524,7 +3524,7 @@ function f() {
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	fn := ast.(*parser.Prog).Body()[0]
@@ -3562,7 +3562,7 @@ initial->b51 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_TryNestedTryFinReturn(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 function f() {
   try {
     doSth1()
@@ -3584,7 +3584,7 @@ function f() {
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	fn := ast.(*parser.Prog).Body()[0]
@@ -3626,7 +3626,7 @@ initial->b69 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_TryNestedNested(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 function f() {
   try {
     doSth1()
@@ -3655,7 +3655,7 @@ function f() {
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	fn := ast.(*parser.Prog).Body()[0]
@@ -3698,7 +3698,7 @@ initial->b106 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_TryNestedNestedTryFinReturn(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 function f() {
   try {
     doSth1()
@@ -3728,7 +3728,7 @@ function f() {
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	fn := ast.(*parser.Prog).Body()[0]
@@ -3779,7 +3779,7 @@ initial->b96 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_Throw(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 try {
   throw a
   a
@@ -3789,7 +3789,7 @@ try {
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -3817,7 +3817,7 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_ThrowBin(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 try {
   throw a && b || c
   a
@@ -3827,7 +3827,7 @@ try {
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -3863,7 +3863,7 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_ThrowNested(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 try {
   try {
     throw a
@@ -3876,7 +3876,7 @@ try {
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -3910,7 +3910,7 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_ThrowNestedReturn(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 function f() {
   try {
     if (a) {
@@ -3927,7 +3927,7 @@ function f() {
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	fn := ast.(*parser.Prog).Body()[0]
@@ -3971,7 +3971,7 @@ initial->b40 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_ThrowCatch(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 try {
   try {
     throw 1
@@ -3987,7 +3987,7 @@ try {
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -4026,13 +4026,13 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_ThrowBare(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 throw 1
 a
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -4054,12 +4054,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_NewExpr(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   new fn()
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -4076,12 +4076,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_NewExprArgs(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   new fn(1, 2, a && b)
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -4103,12 +4103,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_NewExprArgsBin(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   new fn(1, a || b && c, d && e)
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -4138,12 +4138,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_MemberExpr(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   a.b
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -4160,12 +4160,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_MemberExprChain(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   a.b.c
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -4182,12 +4182,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_MemberExprCompute(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   (a && b).c
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -4209,12 +4209,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_MemberExprSubscript(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   a[b]
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -4231,12 +4231,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_MemberExprSubscriptBin(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   a[b && c]
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -4258,12 +4258,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_MemberExprSubscriptBinBin(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   a[b && c][e || f]
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -4290,12 +4290,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_MemberExprMixChain(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   a.b[c && d].e
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -4317,12 +4317,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_SeqExpr(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   a, b, c
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -4339,12 +4339,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_SeqExprBin(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   a, b && c || d, e || f
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -4374,12 +4374,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_SeqExprParen(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   (a, b && c || d, e || f)
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -4409,14 +4409,14 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_ThisExpr(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   function f() {
     this
   }
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	fn := ast.(*parser.Prog).Body()[0]
@@ -4436,12 +4436,12 @@ initial->b9 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_Unary(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   !a
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -4458,12 +4458,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_UnaryParen(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   !(a || b && c)
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -4488,12 +4488,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_CondExpr(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   a ? b : c
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -4517,12 +4517,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_CondExprTestBin(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   a && b ? c : d
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -4549,12 +4549,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_CondExprTestBinOr(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   a || b ? c : d
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -4581,12 +4581,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_CondExprTestBinMix(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   a || b && c ? d : e
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -4616,12 +4616,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_CondExprTestBinMixAnd(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   a && b || c ? d : e
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -4651,12 +4651,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_CondExprNestedLeft(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   a ? b ? c : d : c
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -4687,12 +4687,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_CondExprNestedRight(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   a ? b : c ? d : e
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -4723,12 +4723,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_AssignExpr(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   a = 1
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -4745,12 +4745,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_AssignExprBin(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   a = b && c
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -4772,12 +4772,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_ImportCall(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   import("a")
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -4794,12 +4794,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_AwaitImportExpr(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   await import("a")
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -4819,14 +4819,14 @@ func TestCtrlflow_WithStmt(t *testing.T) {
 	opts := parser.NewParserOpts()
 	opts.Feature = opts.Feature.Off(parser.FEAT_STRICT)
 
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   with (a) {
     b
   }
   `, opts)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -4846,14 +4846,14 @@ func TestCtrlflow_WithStmtBin(t *testing.T) {
 	opts := parser.NewParserOpts()
 	opts.Feature = opts.Feature.Off(parser.FEAT_STRICT)
 
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   with (a || b) {
     c
   }
   `, opts)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -4875,12 +4875,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_ImportEffect(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   import "a";
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -4897,12 +4897,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_ImportNs(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   import * as a from "a";
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -4919,12 +4919,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_ImportDefault(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   import a from "a";
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -4941,12 +4941,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_ImportDefaultMix(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   import a, * as b from "a";
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -4963,12 +4963,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_ImportNamed(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   import { a } from "a";
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -4985,12 +4985,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_ImportDefaultMixNamed(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   import a, { b } from "a";
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -5007,12 +5007,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_ImportNamedAs(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   import { a as b } from "a";
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -5029,12 +5029,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_ExportIndividual(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   export let a, b, c;
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -5051,12 +5051,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_ExportFn(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   export function f() {}
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -5073,12 +5073,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_ExportClass(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   export class A {}
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -5095,13 +5095,13 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_ExportList(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   let a, b, c;
   export { a, b, c }
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -5118,13 +5118,13 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_ExportRename(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   let a, b, c;
   export { a as aa, b as bb, c as cc }
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -5141,12 +5141,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_ExportDestructArr(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   export const [ a ] = arr
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -5163,12 +5163,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_ExportDestructObj(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   export const { a, b: c } = obj
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -5185,12 +5185,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_ExportDefault(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   export default a
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -5207,12 +5207,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_ExportDefaultFn(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   export default function f() {}
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -5229,13 +5229,13 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_ExportAsDefault(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   let a;
   export { a as default }
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -5252,12 +5252,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_ExportNs(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   export * from "a"
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -5274,12 +5274,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_ExportNsAs(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   export * as a from "a"
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -5296,12 +5296,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_ExportNamed(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   export { a, b, c as cc, default, default as d } from "a"
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -5318,12 +5318,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_PatArr(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   let [a, b] = [1, 2]
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -5340,13 +5340,13 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_PatArrAssign(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   let a, b;
   [a, b] = [1, 2]
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -5363,12 +5363,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_PatArrDefault(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   let [a = 3, b = 4] = [1, 2]
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -5395,12 +5395,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_PatArrNested(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   let [a = e && f, [ b, c = 2 ]] = arr
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -5430,12 +5430,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_PatArrRest(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   let [a, b, ...rest] = arr
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -5452,12 +5452,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_PatArrDiscardMiddle(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   [a,,b] = [1, 2]
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -5474,12 +5474,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_PatArrDiscardAll(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   [,,] = [1, 2]
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -5496,12 +5496,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_PatObj(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   let {a, b} = { a: 1, b: 2 }
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -5518,13 +5518,13 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_PatObjAssign(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   let a, b;
   ({ a, b } = { a: 1, b: 2 })
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -5541,13 +5541,13 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_PatObjDefault(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   let a, b;
   ({ a = 3, b = 4 } = { a: 1, b: 2 })
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -5574,12 +5574,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_PatObjRename(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   let { a: b } = obj
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -5596,12 +5596,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_PatObjNested(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   let { a: { b } } = obj
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -5618,13 +5618,13 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_PatObjCompute(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   let key = "a"
   let { [key]: foo } = obj
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -5641,12 +5641,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_PatObjRest(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   let { a, b, ...rest } = obj
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -5663,12 +5663,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_ArrowFn(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   let f = () => {}
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -5685,12 +5685,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_ArrowFnExpr(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   let f = () => b
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -5707,12 +5707,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_ArrowFnExprBody(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   let f = () => a && b || c
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	varDec := ast.(*parser.Prog).Body()[0].(*parser.VarDecStmt)
@@ -5741,14 +5741,14 @@ initial->b13 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_ArrowFnArgs(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   let f = (a, b) => {
     c
   }
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	varDec := ast.(*parser.Prog).Body()[0].(*parser.VarDecStmt)
@@ -5769,7 +5769,7 @@ initial->b10 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_ArrowFnRet(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   let f = (a, b) => {
     return
     c
@@ -5777,7 +5777,7 @@ func TestCtrlflow_ArrowFnRet(t *testing.T) {
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	varDec := ast.(*parser.Prog).Body()[0].(*parser.VarDecStmt)
@@ -5803,14 +5803,14 @@ initial->b12 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_Yield(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   function* f() {
     yield 1
   }
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	fn := ast.(*parser.Prog).Body()[0]
@@ -5830,14 +5830,14 @@ initial->b13 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_YieldStar(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   function* f() {
     yield* ff()
   }
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	fn := ast.(*parser.Prog).Body()[0]
@@ -5857,12 +5857,12 @@ initial->b16 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_OptChain(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   obj?.prop
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -5884,12 +5884,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_OptChainCompute(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   (a || b)?.prop
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -5916,12 +5916,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_OptChainMember(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   obj.val?.prop
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -5943,12 +5943,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_OptChainCallee(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   obj.func?.()
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -5970,12 +5970,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_OptChainCalleeArgs(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   obj.func?.(args)
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -5997,12 +5997,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_OptChainIdx(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   obj.arr?.[index]
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -6024,12 +6024,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_OptChainNested(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   a?.b?.c()
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -6054,10 +6054,10 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_TplStr(t *testing.T) {
-	ast, symtab, err := compile("`string text`", nil)
+	p, ast, symtab, err := compile("`string text`", nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -6074,10 +6074,10 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_TplStrExpr(t *testing.T) {
-	ast, symtab, err := compile("`string text ${a && b} string ${c} text`", nil)
+	p, ast, symtab, err := compile("`string text ${a && b} string ${c} text`", nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -6099,10 +6099,10 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_TplStrExprLast(t *testing.T) {
-	ast, symtab, err := compile("`string text ${a} string ${b} text ${c && d}`", nil)
+	p, ast, symtab, err := compile("`string text ${a} string ${b} text ${c && d}`", nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -6124,10 +6124,10 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_TplStrFn(t *testing.T) {
-	ast, symtab, err := compile("tagFn`string text ${a} string text`", nil)
+	p, ast, symtab, err := compile("tagFn`string text ${a} string text`", nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -6144,14 +6144,14 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_MetaProp(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   function f() {
     new.target
   }
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	fn := ast.(*parser.Prog).Body()[0]
@@ -6171,12 +6171,12 @@ initial->b13 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_JsxBasic(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   let a = <div></div>
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -6193,12 +6193,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_JsxSelfClosed(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   let a = <div/>
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -6215,12 +6215,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_JsxExpr(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   let a = <div>a {b && c} d</div>
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -6242,12 +6242,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_JsxEmpty(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   let a = <div>{/* empty */}</div>
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -6264,12 +6264,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_JsxMember(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   let a = <A.b/>
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -6289,12 +6289,12 @@ func TestCtrlflow_JsxNs(t *testing.T) {
 	opts := parser.NewParserOpts()
 	opts.Feature = opts.Feature.On(parser.FEAT_JSX_NS)
 
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   let a = <div:a>text</div:a>
   `, opts)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -6311,14 +6311,14 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_JsxSpread(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   let a = <div>
     {...e}
   </div>
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -6335,12 +6335,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_JsxAttr(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   let a = <div attr="str">text</div>
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -6357,12 +6357,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_JsxAttrExpr(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   let a = <div attr={1}>text</div>
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -6379,12 +6379,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_JsxAttrExprBin(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   let a = <div attr={a && b}>text</div>
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -6406,12 +6406,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_JsxAttrFlag(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   let a = <div attr>text</div>
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -6428,12 +6428,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_JsxAttrSpread(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   let a = <div {...props}>text</div>
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -6450,12 +6450,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_JsxAttrMixed(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   let a = <div attr0 attr1={true} attr2="a" {...b}>text</div>
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -6472,12 +6472,12 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_ClassStmt(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 class A {}
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -6494,7 +6494,7 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_ClassField(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 class A {
   a;
   b = 1
@@ -6505,7 +6505,7 @@ class A {
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -6527,7 +6527,7 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_ClassFieldFn(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 class A {
   a = function f() {
     b
@@ -6536,7 +6536,7 @@ class A {
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	fn := ast.(*parser.Prog).Body()[0].(*parser.ClassDec).Body().(*parser.ClassBody).Elems()[0].(*parser.Field).Val().(*parser.FnDec)
@@ -6556,7 +6556,7 @@ initial->b9 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_ClassFieldArrowFn(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 class A {
   a = () => {
     b
@@ -6565,7 +6565,7 @@ class A {
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	fn := ast.(*parser.Prog).Body()[0].(*parser.ClassDec).Body().(*parser.ClassBody).Elems()[0].(*parser.Field).Val().(*parser.ArrowFn)
@@ -6585,14 +6585,14 @@ initial->b8 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_ClassFieldArrowFnExpr(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
 class A {
   a = () => a?.b()
 }
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	fn := ast.(*parser.Prog).Body()[0].(*parser.ClassDec).Body().(*parser.ClassBody).Elems()[0].(*parser.Field).Val().(*parser.ArrowFn)
@@ -6617,12 +6617,12 @@ initial->b14 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_ClassExpr(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   let a = class A {}
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -6639,14 +6639,14 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_ClassMethod(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   class A {
     f () {}
   }
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -6663,7 +6663,7 @@ initial->b0 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_ClassMethodBdy(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   class A {
     f () {
       a
@@ -6672,7 +6672,7 @@ func TestCtrlflow_ClassMethodBdy(t *testing.T) {
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	fn := ast.(*parser.Prog).Body()[0].(*parser.ClassDec).Body().(*parser.ClassBody).Elems()[0].(*parser.Method).Val().(*parser.FnDec)
@@ -6692,7 +6692,7 @@ initial->b8 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_ClassCtor(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   class A extends B {
     constructor () {
       super()
@@ -6701,7 +6701,7 @@ func TestCtrlflow_ClassCtor(t *testing.T) {
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	fn := ast.(*parser.Prog).Body()[0].(*parser.ClassDec).Body().(*parser.ClassBody).Elems()[0].(*parser.Method).Val().(*parser.FnDec)
@@ -6721,7 +6721,7 @@ initial->b11 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_ClassSuper(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   class A {
     f () {
       super.a()
@@ -6730,7 +6730,7 @@ func TestCtrlflow_ClassSuper(t *testing.T) {
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	fn := ast.(*parser.Prog).Body()[0].(*parser.ClassDec).Body().(*parser.ClassBody).Elems()[0].(*parser.Method).Val().(*parser.FnDec)
@@ -6750,7 +6750,7 @@ initial->b15 [xlabel="",color="black"];
 }
 
 func TestCtrlflow_StaticBlk(t *testing.T) {
-	ast, symtab, err := compile(`
+	p, ast, symtab, err := compile(`
   class A {
     static {
       a
@@ -6759,7 +6759,7 @@ func TestCtrlflow_StaticBlk(t *testing.T) {
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")
 
-	ana := NewAnalysis(ast, symtab)
+	ana := NewAnalysis(ast, symtab, p.Source())
 	ana.Analyze()
 
 	AssertEqualString(t, `
@@ -6781,7 +6781,7 @@ initial->b0 [xlabel="",color="black"];
 //   `, nil)
 // 	AssertEqual(t, nil, err, "should be prog ok")
 
-// 	ana := NewAnalysis(ast, symtab)
+// 	ana := NewAnalysis(ast, symtab,p.Source())
 // 	ana.Analyze()
 
 // 	fn := ast.(*parser.Prog).Body()[0].(*parser.VarDecStmt).DecList()[0].(*parser.VarDec).Init()

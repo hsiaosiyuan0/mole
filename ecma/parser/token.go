@@ -63,8 +63,7 @@ func (t *Token) IsLegal() bool {
 }
 
 func (t *Token) IsBin(notIn bool, ts bool) TokenValue {
-	bin := t.value > T_BIN_OP_BEGIN && t.value < T_BIN_OP_END
-	if bin {
+	if t.value > T_BIN_OP_BEGIN && t.value < T_BIN_OP_END {
 		return t.value
 	}
 	if !notIn && IsName(t, "in", false) {
@@ -559,7 +558,7 @@ func IsStrictKeyword(str string) bool {
 }
 
 func IsName(tok *Token, name string, canContainsEscape bool) bool {
-	tt := TokText(tok, nil)
+	tt := tok.text
 	matched := tok.value == T_NAME && tt == name
 	if !matched {
 		return false

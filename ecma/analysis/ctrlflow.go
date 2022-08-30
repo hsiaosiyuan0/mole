@@ -3,6 +3,7 @@ package analysis
 import (
 	"github.com/hsiaosiyuan0/mole/ecma/parser"
 	"github.com/hsiaosiyuan0/mole/ecma/walk"
+	"github.com/hsiaosiyuan0/mole/span"
 	"github.com/hsiaosiyuan0/mole/util"
 )
 
@@ -11,6 +12,7 @@ const (
 )
 
 type AnalysisCtx struct {
+	s        *span.Source
 	graphMap map[parser.Node]*Graph
 	root     *Graph
 	graph    *Graph
@@ -19,8 +21,9 @@ type AnalysisCtx struct {
 	exprStack []*Block
 }
 
-func newAnalysisCtx() *AnalysisCtx {
+func newAnalysisCtx(s *span.Source) *AnalysisCtx {
 	root := newGraph()
+	root.s = s
 	a := &AnalysisCtx{
 		graphMap:  map[parser.Node]*Graph{},
 		root:      root,
@@ -46,6 +49,7 @@ func (a *AnalysisCtx) GraphOf(node parser.Node) *Graph {
 
 func (a *AnalysisCtx) enterGraph(node parser.Node) {
 	graph := newGraph()
+	graph.s = a.graph.s
 	graph.Parent = a.graph
 
 	a.graphMap[node] = graph
@@ -127,11 +131,11 @@ type Analysis struct {
 	WalkCtx *walk.WalkCtx
 }
 
-func NewAnalysis(root parser.Node, symtab *parser.SymTab) *Analysis {
+func NewAnalysis(root parser.Node, symtab *parser.SymTab, s *span.Source) *Analysis {
 	a := &Analysis{
 		WalkCtx: walk.NewWalkCtx(root, symtab),
 	}
-	a.init()
+	a.init(s)
 	return a
 }
 
@@ -1656,8 +1660,8 @@ func resolveCont(a *AnalysisCtx, loopNode parser.Node, loopTailBlk *Block) {
 	}
 }
 
-func (a *Analysis) init() {
-	a.WalkCtx.Extra = newAnalysisCtx()
+func (a *Analysis) init(s *span.Source) {
+	a.WalkCtx.Extra = newAnalysisCtx(s)
 
 	walk.AddBeforeListener(&a.WalkCtx.Listeners, &walk.Listener{
 		Id:     "ctrlflow_handleBefore",

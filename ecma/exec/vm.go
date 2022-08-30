@@ -14,6 +14,7 @@ import (
 
 type ExprEvaluator struct {
 	id      string
+	p       *parser.Parser
 	node    parser.Node
 	walkCtx *walk.WalkCtx
 	vars    map[string]interface{}
@@ -40,9 +41,10 @@ var builtinProto = map[reflect.Type]map[string]NativeFn{
 	},
 }
 
-func NewExprEvaluator(node parser.Node) *ExprEvaluator {
+func NewExprEvaluator(node parser.Node, p *parser.Parser) *ExprEvaluator {
 	ee := &ExprEvaluator{
 		id:        fmt.Sprintf("expr_evaluator_%d", time.Now().Nanosecond()),
+		p:         p,
 		node:      node,
 		walkCtx:   walk.NewWalkCtx(node, nil),
 		vars:      map[string]interface{}{},
@@ -102,7 +104,7 @@ func (ee *ExprEvaluator) init() {
 				return
 			}
 
-			name := node.(*parser.Ident).Text()
+			name := node.(*parser.Ident).Val()
 			if ctx.ParentNode().Type() == parser.N_EXPR_MEMBER && key == "Prop" {
 				ee.push(name)
 			} else if name == "undefined" {
@@ -134,12 +136,8 @@ func (ee *ExprEvaluator) init() {
 			}
 
 			n := node.(*parser.NumLit)
-			i, err := strconv.ParseFloat(n.Text(), 64)
-			if err != nil {
-				ee.push(math.NaN())
-			} else {
-				ee.push(i)
-			}
+			i := parser.NodeToFloat(n, ee.p.Source())
+			ee.push(i)
 		})
 
 	ee.addListener(walk.NodeAfterEvent(parser.N_LIT_STR),
@@ -148,7 +146,7 @@ func (ee *ExprEvaluator) init() {
 				return
 			}
 
-			ee.push(node.(*parser.StrLit).Text())
+			ee.push(node.(*parser.StrLit).Val())
 		})
 
 	ee.addListener(walk.NodeAfterEvent(parser.N_EXPR_MEMBER),

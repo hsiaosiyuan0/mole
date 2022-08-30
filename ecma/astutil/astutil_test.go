@@ -16,13 +16,14 @@ func newParser(code string, opts *parser.ParserOpts) *parser.Parser {
 	return parser.NewParser(s, opts)
 }
 
-func compile(code string, opts *parser.ParserOpts) (parser.Node, error) {
+func compile(code string, opts *parser.ParserOpts) (*parser.Parser, parser.Node, error) {
 	p := newParser(code, opts)
-	return p.Prog()
+	prg, err := p.Prog()
+	return p, prg, err
 }
 
 func TestIfStmtToSwitchBranches(t *testing.T) {
-	ast, err := compile(`
+	_, ast, err := compile(`
   if (a) {
     b
   } else if (c) {
@@ -38,7 +39,7 @@ func TestIfStmtToSwitchBranches(t *testing.T) {
 }
 
 func TestIsNodeContains(t *testing.T) {
-	ast, err := compile(`
+	_, ast, err := compile(`
   if (a) {
     b
   } else if (c) {
@@ -62,7 +63,7 @@ func TestIsNodeContains(t *testing.T) {
 }
 
 func TestSelectIf(t *testing.T) {
-	ast, err := compile(`
+	p, ast, err := compile(`
   if (a) {
     b
   } else if (c) {
@@ -78,22 +79,22 @@ func TestSelectIf(t *testing.T) {
 	nodes := SelectTrueBranches(ifSmt, map[string]interface{}{
 		"a": 0,
 		"c": 0,
-	})
+	}, p)
 
-	e := nodes[0].(*parser.BlockStmt).Body()[0].(*parser.ExprStmt).Expr().(*parser.Ident).Text()
+	e := nodes[0].(*parser.BlockStmt).Body()[0].(*parser.ExprStmt).Expr().(*parser.Ident).Val()
 	util.AssertEqual(t, "e", e, "should be ok")
 
 	// 2
 	nodes = SelectTrueBranches(ifSmt, map[string]interface{}{
 		"a": 0,
 		"c": 1,
-	})
-	d := nodes[0].(*parser.BlockStmt).Body()[0].(*parser.ExprStmt).Expr().(*parser.Ident).Text()
+	}, p)
+	d := nodes[0].(*parser.BlockStmt).Body()[0].(*parser.ExprStmt).Expr().(*parser.Ident).Val()
 	util.AssertEqual(t, "d", d, "should be ok")
 }
 
 func TestSelectBin(t *testing.T) {
-	ast, err := compile(`
+	p, ast, err := compile(`
   a && b
 `, nil)
 	util.AssertEqual(t, nil, err, "should be prog ok")
@@ -101,14 +102,14 @@ func TestSelectBin(t *testing.T) {
 	bin := ast.(*parser.Prog).Body()[0].(*parser.ExprStmt).Expr().(*parser.BinExpr)
 	nodes := SelectTrueBranches(bin, map[string]interface{}{
 		"a": 1,
-	})
+	}, p)
 
-	a := nodes[0].(*parser.Ident).Text()
+	a := nodes[0].(*parser.Ident).Val()
 	util.AssertEqual(t, "a", a, "should be ok")
 }
 
 func TestSelectBin1(t *testing.T) {
-	ast, err := compile(`
+	p, ast, err := compile(`
   a && b
 `, nil)
 	util.AssertEqual(t, nil, err, "should be prog ok")
@@ -118,14 +119,14 @@ func TestSelectBin1(t *testing.T) {
 	nodes := SelectTrueBranches(bin, map[string]interface{}{
 		"a": 1,
 		"b": 1,
-	})
+	}, p)
 
-	a := nodes[0].(*parser.Ident).Text()
+	a := nodes[0].(*parser.Ident).Val()
 	util.AssertEqual(t, "a", a, "should be ok")
 }
 
 func TestSelectBin2(t *testing.T) {
-	ast, err := compile(`
+	p, ast, err := compile(`
   a && b
 `, nil)
 	util.AssertEqual(t, nil, err, "should be prog ok")
@@ -134,14 +135,14 @@ func TestSelectBin2(t *testing.T) {
 	nodes := SelectTrueBranches(bin, map[string]interface{}{
 		"a": 0,
 		"b": 1,
-	})
+	}, p)
 
-	a := nodes[0].(*parser.Ident).Text()
+	a := nodes[0].(*parser.Ident).Val()
 	util.AssertEqual(t, "a", a, "should be ok")
 }
 
 func TestCollectNodesInTrueBranches(t *testing.T) {
-	ast, err := compile(`
+	p, ast, err := compile(`
   a && require("a.js")
 `, nil)
 	util.AssertEqual(t, nil, err, "should be prog ok")
@@ -150,14 +151,14 @@ func TestCollectNodesInTrueBranches(t *testing.T) {
 	nodes := CollectNodesInTrueBranches(bin, []parser.NodeType{parser.N_EXPR_CALL}, map[string]interface{}{
 		"a":       1,
 		"require": 1,
-	})
+	}, p)
 
-	require := nodes[0].(*parser.CallExpr).Callee().(*parser.Ident).Text()
+	require := nodes[0].(*parser.CallExpr).Callee().(*parser.Ident).Val()
 	util.AssertEqual(t, "require", require, "should be ok")
 }
 
 func TestCollectNodesInTrueBranches1(t *testing.T) {
-	ast, err := compile(`
+	p, ast, err := compile(`
   if (a) {
     a && require("a.js")
   }
@@ -168,14 +169,14 @@ func TestCollectNodesInTrueBranches1(t *testing.T) {
 	nodes := CollectNodesInTrueBranches(ifSmt, []parser.NodeType{parser.N_EXPR_CALL}, map[string]interface{}{
 		"a":       1,
 		"require": 1,
-	})
+	}, p)
 
-	require := nodes[0].(*parser.CallExpr).Callee().(*parser.Ident).Text()
+	require := nodes[0].(*parser.CallExpr).Callee().(*parser.Ident).Val()
 	util.AssertEqual(t, "require", require, "should be ok")
 }
 
 func TestCollectNodesInTrueBranches2(t *testing.T) {
-	ast, err := compile(`
+	p, ast, err := compile(`
   if (a) {
    if (b) {
      a && require("a.js")
@@ -189,14 +190,14 @@ func TestCollectNodesInTrueBranches2(t *testing.T) {
 		"a":       1,
 		"b":       1,
 		"require": 1,
-	})
+	}, p)
 
-	require := nodes[0].(*parser.CallExpr).Callee().(*parser.Ident).Text()
+	require := nodes[0].(*parser.CallExpr).Callee().(*parser.Ident).Val()
 	util.AssertEqual(t, "require", require, "should be ok")
 }
 
 func TestCollectNodesInTrueBranches3(t *testing.T) {
-	ast, err := compile(`
+	p, ast, err := compile(`
   if (a) {
    if (b) {
      a && require("a.js")
@@ -209,13 +210,13 @@ func TestCollectNodesInTrueBranches3(t *testing.T) {
 	nodes := CollectNodesInTrueBranches(ifSmt, []parser.NodeType{parser.N_EXPR_CALL}, map[string]interface{}{
 		"a":       1,
 		"require": 1,
-	})
+	}, p)
 
 	util.AssertEqual(t, 0, len(nodes), "should be ok")
 }
 
 func TestCollectNodesInTrueBranches4(t *testing.T) {
-	ast, err := compile(`
+	p, ast, err := compile(`
   if (a) {
    require("a1.js")
    if (b) {
@@ -232,13 +233,13 @@ func TestCollectNodesInTrueBranches4(t *testing.T) {
 		"a":       1,
 		"b":       1,
 		"require": 1,
-	})
+	}, p)
 
 	util.AssertEqual(t, 4, len(nodes), "should be ok")
 }
 
 func TestCollectNodesInTrueBranches5(t *testing.T) {
-	ast, err := compile(`
+	p, ast, err := compile(`
   if (a) {
    require("a1.js")
    if (b) {
@@ -254,13 +255,13 @@ func TestCollectNodesInTrueBranches5(t *testing.T) {
 		"a":       1,
 		"b":       1,
 		"require": 1,
-	})
+	}, p)
 
 	util.AssertEqual(t, 4, len(nodes), "should be ok")
 }
 
 func TestCollectNodesInTrueBranches6(t *testing.T) {
-	ast, err := compile(`
+	p, ast, err := compile(`
   if (process.env.NODE_ENV === 'production') {
     module.exports = require('./cjs/react.production.min.js');
   } else {
@@ -277,8 +278,8 @@ func TestCollectNodesInTrueBranches6(t *testing.T) {
 				"NODE_ENV": "development",
 			},
 		},
-	})
-	util.AssertEqual(t, "./cjs/react.development.js", nodes[0].(*parser.CallExpr).Args()[0].(*parser.StrLit).Text(), "should be ok")
+	}, p)
+	util.AssertEqual(t, "./cjs/react.development.js", nodes[0].(*parser.CallExpr).Args()[0].(*parser.StrLit).Val(), "should be ok")
 
 	// 2
 	nodes = CollectNodesInTrueBranches(ifSmt, []parser.NodeType{parser.N_EXPR_CALL}, map[string]interface{}{
@@ -287,12 +288,12 @@ func TestCollectNodesInTrueBranches6(t *testing.T) {
 				"NODE_ENV": "production",
 			},
 		},
-	})
-	util.AssertEqual(t, "./cjs/react.production.min.js", nodes[0].(*parser.CallExpr).Args()[0].(*parser.StrLit).Text(), "should be ok")
+	}, p)
+	util.AssertEqual(t, "./cjs/react.production.min.js", nodes[0].(*parser.CallExpr).Args()[0].(*parser.StrLit).Val(), "should be ok")
 }
 
 func TestCollectNodesInTrueBranches7(t *testing.T) {
-	ast, err := compile(`
+	p, ast, err := compile(`
   if (process.env.NODE_ENV !== "production") {
     (function() {
   'use strict';
@@ -315,7 +316,7 @@ func TestCollectNodesInTrueBranches7(t *testing.T) {
 				"NODE_ENV": "production",
 			},
 		},
-	})
+	}, p)
 	util.AssertEqual(t, 0, len(nodes), "should be ok")
 
 	// 2
@@ -325,6 +326,6 @@ func TestCollectNodesInTrueBranches7(t *testing.T) {
 				"NODE_ENV": "development",
 			},
 		},
-	})
+	}, p)
 	util.AssertEqual(t, 6, len(nodes), "should be ok")
 }

@@ -43,7 +43,7 @@ func (p *Parser) jsxId() (Node, string, error) {
 		return nil, "", p.errorTok(tok)
 	}
 
-	t := p.tokText(tok)
+	t := p.TokText(tok)
 	return &JsxIdent{N_JSX_ID, p.finRng(tok.rng), t, span.Range{}, p.newTypInfo(N_JSX_ID)}, t, nil
 }
 
@@ -91,15 +91,15 @@ func (p *Parser) jsxName() (Node, string, error) {
 func (p *Parser) jsxAttr() (Node, error) {
 	ahead := p.lexer.Peek()
 	if ahead.value == T_BRACE_L {
-		tok := p.lexer.Next()
-		val, err := p.jsxExpr(tok.rng)
+		rng := p.lexer.Next().rng
+		val, err := p.jsxExpr(rng)
 		if err != nil {
 			return nil, err
 		}
 		if val.Type() != N_SPREAD {
-			return nil, p.errorAtLoc(tok.rng, ERR_UNEXPECTED_TOKEN)
+			return nil, p.errorAtLoc(rng, ERR_UNEXPECTED_TOKEN)
 		}
-		return &JsxSpreadAttr{N_JSX_ATTR_SPREAD, p.finRng(tok.rng), val}, nil
+		return &JsxSpreadAttr{N_JSX_ATTR_SPREAD, p.finRng(rng), val}, nil
 	}
 
 	id, name, err := p.jsxName()
@@ -118,21 +118,22 @@ func (p *Parser) jsxAttr() (Node, error) {
 	av := ahead.value
 	var val Node
 	if av == T_BRACE_L {
-		tok := p.lexer.Next()
-		val, err = p.jsxExpr(tok.rng)
+		rng := p.lexer.Next().rng
+		val, err = p.jsxExpr(rng)
 		if err != nil {
 			return nil, err
 		}
 	} else if av == T_STRING {
 		tok := p.lexer.Next()
-		val = &StrLit{N_LIT_STR, p.finRng(tok.rng), p.tokText(tok), tok.HasLegacyOctalEscapeSeq(), span.Range{}, nil}
+		rng := tok.rng
+		val = &StrLit{N_LIT_STR, p.finRng(rng), p.TokText(tok), tok.HasLegacyOctalEscapeSeq(), span.Range{}, nil}
 	} else if av == T_LT {
 		val, err = p.jsx(true, false)
 		if err != nil {
 			return nil, err
 		}
 	}
-	p.finRng(attr.rng)
+	attr.rng = p.finRng(attr.rng)
 	attr.val = val
 	p.lexer.PopMode()
 	return attr, nil
@@ -156,10 +157,11 @@ func (p *Parser) jsxAttrs() ([]Node, error) {
 }
 
 func (p *Parser) jsxOpen(tok *Token) (Node, error) {
+	rng := tok.rng
 	// fragment
 	if p.lexer.Peek().value == T_GT {
 		p.lexer.Next()
-		return &JsxOpen{N_JSX_OPEN, p.finRng(tok.rng), nil, "", nil, false}, nil
+		return &JsxOpen{N_JSX_OPEN, p.finRng(rng), nil, "", nil, false}, nil
 	}
 
 	id, name, err := p.jsxName()
@@ -177,7 +179,7 @@ func (p *Parser) jsxOpen(tok *Token) (Node, error) {
 	if _, err := p.nextMustTok(T_GT); err != nil {
 		return nil, err
 	}
-	return &JsxOpen{N_JSX_OPEN, p.finRng(tok.rng), id, name, attrs, closed}, nil
+	return &JsxOpen{N_JSX_OPEN, p.finRng(rng), id, name, attrs, closed}, nil
 }
 
 func (p *Parser) jsxExpr(rng span.Range) (Node, error) {
@@ -202,7 +204,7 @@ func (p *Parser) jsxExpr(rng span.Range) (Node, error) {
 	} else if av == T_BRACE_R {
 		tok := p.lexer.Next()
 		// adjust loc of the empty node
-		locAfterBrace.Lo = tok.rng.Lo
+		locAfterBrace.Hi = tok.rng.Lo
 		empty = &JsxEmpty{N_JSX_EMPTY, locAfterBrace}
 		expr = &JsxExprSpan{N_JSX_EXPR_SPAN, p.finRng(rng), empty}
 	} else {
@@ -261,7 +263,7 @@ func (p *Parser) jsxWsTxt() Node {
 	rng.Lo = prevWs.rng.Lo
 	rng.Hi = prevWs.rng.Hi
 	prevWs.len = 0
-	return &JsxText{N_JSX_TXT, rng, p.rngText(rng)}
+	return &JsxText{N_JSX_TXT, rng, p.RngText(rng)}
 }
 
 // `opening` indicates the opening of the tag has presented, so the

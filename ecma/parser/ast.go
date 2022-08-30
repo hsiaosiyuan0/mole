@@ -183,6 +183,10 @@ func (n *StrLit) Range() span.Range {
 	return n.rng
 }
 
+func (n *StrLit) Val() string {
+	return n.val
+}
+
 func (n *StrLit) OuterParen() span.Range {
 	return n.opa
 }
@@ -405,6 +409,10 @@ func (n *Ident) Type() NodeType {
 
 func (n *Ident) Range() span.Range {
 	return n.rng
+}
+
+func (n *Ident) Val() string {
+	return n.val
 }
 
 func (n *Ident) IsPrivate() bool {

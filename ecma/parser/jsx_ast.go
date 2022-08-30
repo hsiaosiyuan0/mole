@@ -28,7 +28,7 @@ func (n *JsxIdent) SetOuterParen(rng span.Range) {
 	n.opa = rng
 }
 
-func (n *JsxIdent) Text() string {
+func (n *JsxIdent) Val() string {
 	return n.val
 }
 
@@ -56,11 +56,11 @@ func (n *JsxNsName) Range() span.Range {
 }
 
 func (n *JsxNsName) NS() string {
-	return n.ns.(*JsxIdent).Text()
+	return n.ns.(*JsxIdent).Val()
 }
 
 func (n *JsxNsName) Name() string {
-	return n.name.(*JsxIdent).Text()
+	return n.name.(*JsxIdent).Val()
 }
 
 // #[visitor(Obj,Prop)]

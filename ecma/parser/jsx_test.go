@@ -9,7 +9,7 @@ import (
 func TestJSX(t *testing.T) {
 	opts := NewParserOpts()
 	opts.Feature = opts.Feature.On(FEAT_JSX_NS)
-	ast, err := compile(`
+	ast, _, err := compile(`
   <div:a attr0 attr1={true}
   attr2 = <b/> {...b}
   >&CounterClockwiseContourIntegral;{<i>{a}</i>}t2
@@ -46,7 +46,7 @@ func TestJSX(t *testing.T) {
 }
 
 func TestJSXFragment(t *testing.T) {
-	ast, err := compile(`
+	ast, _, err := compile(`
   <>&CounterClockwiseContourIntegral;{<i>{a}</i>}t2
   {...e}
   </>
@@ -68,7 +68,7 @@ func TestJSXFragment(t *testing.T) {
 }
 
 func TestJSXEmpty(t *testing.T) {
-	ast, err := compile(`
+	ast, _, err := compile(`
   <>&CounterClockwiseContourIntegral;{<i>{a}</i>}t2
   {/* empty */}
   {...e}
@@ -95,7 +95,7 @@ func TestJSXEmpty(t *testing.T) {
 }
 
 func TestJSXNoChild(t *testing.T) {
-	ast, err := compile(`
+	ast, _, err := compile(`
   <a></a>
   `, nil)
 	AssertEqual(t, nil, err, "should be prog ok")

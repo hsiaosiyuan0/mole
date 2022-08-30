@@ -13,7 +13,7 @@ func GetStaticPropertyName(node parser.Node) string {
 	case parser.N_EXPR_MEMBER:
 		n := node.(*parser.MemberExpr)
 		if n.Prop().Type() == parser.N_NAME {
-			return n.Prop().(*parser.Ident).Text()
+			return n.Prop().(*parser.Ident).Val()
 		}
 	case parser.N_EXPR_CHAIN:
 		n := node.(*parser.ChainExpr)
@@ -26,7 +26,7 @@ func GetName(node parser.Node) string {
 	if node.Type() != parser.N_NAME {
 		return ""
 	}
-	return node.(*parser.Ident).Text()
+	return node.(*parser.Ident).Val()
 }
 
 type SwitchBranch struct {
@@ -83,14 +83,14 @@ func NodeToSwitchBranches(node parser.Node) []*SwitchBranch {
 	return bs
 }
 
-func SelectTrueBranches(node parser.Node, vars map[string]interface{}) []parser.Node {
+func SelectTrueBranches(node parser.Node, vars map[string]interface{}, p *parser.Parser) []parser.Node {
 	bs := NodeToSwitchBranches(node)
 	tbs := []parser.Node{}
 	for _, b := range bs {
 		if b.test == nil {
 			tbs = append(tbs, b.body)
 		}
-		v, err := exec.NewExprEvaluator(b.test).Exec(vars).GetResult()
+		v, err := exec.NewExprEvaluator(b.test, p).Exec(vars).GetResult()
 		if err != nil {
 			continue
 		}
@@ -104,12 +104,12 @@ func SelectTrueBranches(node parser.Node, vars map[string]interface{}) []parser.
 }
 
 // the minimal unit of the target nodes is expr
-func CollectNodesInTrueBranches(node parser.Node, typ []parser.NodeType, vars map[string]interface{}) []parser.Node {
+func CollectNodesInTrueBranches(node parser.Node, typ []parser.NodeType, vars map[string]interface{}, p *parser.Parser) []parser.Node {
 	ret := []parser.Node{}
 	wc := walk.NewWalkCtx(node, nil)
 
 	walkTrueBranches := func(node parser.Node, key string, ctx *walk.VisitorCtx) {
-		subs := SelectTrueBranches(node, vars)
+		subs := SelectTrueBranches(node, vars, p)
 		for _, sub := range subs {
 			walk.VisitNode(sub, key, ctx)
 		}

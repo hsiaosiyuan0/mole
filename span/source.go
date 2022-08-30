@@ -225,7 +225,7 @@ func (s *Source) RngText(rng Range) string {
 	return s.code[rng.Lo:rng.Hi]
 }
 
-var linefeed = regexp.MustCompile("(?m)\r\n?|\n|\u2028|\u2029")
+var linefeed = regexp.MustCompile("(?m)\r\n?|\n")
 
 // line-column is useful for developer can figure out where the errors occur, however
 // it will pressure memory footprint if we directly store them in Node, this method is
@@ -237,33 +237,32 @@ func (s *Source) LineCol(rng Range) (from, to Pos) {
 	buf := util.Str2bytes(s.code)
 
 	pos := &from
-	prev := 0
 	cur := 0
 	ofst := int(start)
 
 	line := 1
-	i := 1
+	i := 0
 
 RESTORE:
 	for {
 		span := linefeed.FindIndex(buf[cur:])
 		if span != nil {
-			prev = cur
 			cur += span[1]
 
 			if cur <= ofst {
 				line += 1
 				continue
+			} else {
+				cur -= span[1]
 			}
 		}
 
 		pos.Line = uint32(line)
-		pos.Col = uint32(ofst - prev)
-		cur = prev
+		pos.Col = uint32(len([]rune(s.code[cur:ofst])))
 		break
 	}
 
-	if i != 2 {
+	if i != 1 {
 		i += 1
 		ofst = int(end)
 		pos = &to
@@ -276,7 +275,6 @@ RESTORE:
 func (s *Source) OfstLineCol(ofst uint32) (pos Pos) {
 	buf := util.Str2bytes(s.code)
 
-	prev := 0
 	cur := 0
 	end := int(ofst)
 
@@ -285,17 +283,19 @@ func (s *Source) OfstLineCol(ofst uint32) (pos Pos) {
 	for {
 		span := linefeed.FindIndex(buf[cur:])
 		if span != nil {
-			prev = cur
+
 			cur += span[1]
 
 			if cur <= end {
 				line += 1
 				continue
+			} else {
+				cur -= span[1]
 			}
 		}
 
 		pos.Line = uint32(line)
-		pos.Col = uint32(end - prev)
+		pos.Col = uint32(len([]rune(s.code[cur:end])))
 		return
 	}
 }
@@ -311,6 +311,10 @@ func (r Range) Before(rng Range) bool {
 
 func (r Range) Empty() bool {
 	return r.Lo == 0 && r.Hi == 0
+}
+
+func (r Range) Valid() bool {
+	return r.Lo <= r.Hi
 }
 
 type Pos struct {
