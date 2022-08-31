@@ -100,6 +100,8 @@ func main() {
 }
 ```
 
+The produced AST can be consumed by the ast-walker in Mole, more runnable demos see [mole-demo](https://github.com/hsiaosiyuan0/mole-demo)
+
 </details>
 
 ## Preview
