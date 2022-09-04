@@ -11,9 +11,15 @@ import (
 )
 
 func TestParseDep(t *testing.T) {
-	deps, _, _, err := parseDep("", `
+	p, err := parse("", `
   require('a.js')
-`, nil, nil, nil, false)
+`, parser.NewParserOpts(), true)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	deps, _, err := walkDep(p, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -22,10 +28,16 @@ func TestParseDep(t *testing.T) {
 }
 
 func TestParseDepRebound(t *testing.T) {
-	deps, _, _, err := parseDep("", `
+	p, err := parse("", `
   require = a
   require('a.js')
-`, nil, nil, nil, false)
+`, parser.NewParserOpts(), true)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	deps, _, err := walkDep(p, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -34,12 +46,18 @@ func TestParseDepRebound(t *testing.T) {
 }
 
 func TestParseDepValShadow(t *testing.T) {
-	deps, _, _, err := parseDep("", `
-function f() {
-  var require = a
-  require('a.js')
-}
-`, nil, nil, nil, false)
+	p, err := parse("", `
+  function f() {
+    var require = a
+    require('a.js')
+  }
+`, parser.NewParserOpts(), true)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	deps, _, err := walkDep(p, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -48,13 +66,19 @@ function f() {
 }
 
 func TestParseDepAfterValShadow(t *testing.T) {
-	deps, _, _, err := parseDep("", `
-function f() {
-  var require = a
+	p, err := parse("", `
+  function f() {
+    var require = a
+    require('a.js')
+  }
   require('a.js')
-}
-require('a.js')
-`, nil, nil, nil, false)
+`, parser.NewParserOpts(), true)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	deps, _, err := walkDep(p, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -63,9 +87,15 @@ require('a.js')
 }
 
 func TestParseDepImport(t *testing.T) {
-	deps, _, _, err := parseDep("", `
-import('a.js')
-`, nil, nil, nil, false)
+	p, err := parse("", `
+  import('a.js')
+`, parser.NewParserOpts(), true)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	deps, _, err := walkDep(p, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -82,7 +112,7 @@ func TestParseCondImport1(t *testing.T) {
 		},
 	}
 
-	deps, _, _, err := parseDep("", `
+	p, err := parse("", `
 if (process.env.NODE_ENV === 'production') {
   // DCE check should happen before ReactDOM bundle executes so that
   // DevTools can report bad minification during injection.
@@ -91,7 +121,13 @@ if (process.env.NODE_ENV === 'production') {
 } else {
   module.exports = require('./cjs/react-dom.development.js');
 }
-`, vars, nil, nil, false)
+`, parser.NewParserOpts(), true)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	deps, _, err := walkDep(p, vars, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -109,7 +145,7 @@ func TestParseCondImport2(t *testing.T) {
 		},
 	}
 
-	deps, _, _, err := parseDep("", `
+	p, err := parse("", `
 if (process.env.NODE_ENV === 'production') {
   // DCE check should happen before ReactDOM bundle executes so that
   // DevTools can report bad minification during injection.
@@ -118,7 +154,13 @@ if (process.env.NODE_ENV === 'production') {
 } else {
   module.exports = require('./cjs/react-dom.development.js');
 }
-`, vars, nil, nil, false)
+`, parser.NewParserOpts(), true)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	deps, _, err := walkDep(p, vars, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -132,7 +174,7 @@ func TestDepScanner(t *testing.T) {
 	basepath := filepath.Dir(b)
 
 	dir := filepath.Join(basepath, "test", "asset", "dep-scanner")
-	util.ShellInDir(dir, "npm", "i")
+	util.ShellInDir(dir, "npm", "ci")
 
 	opts := NewDepScannerOpts()
 	opts.Dir = dir
@@ -152,7 +194,7 @@ func TestDepScanner(t *testing.T) {
 	})
 
 	s := NewDepScanner(opts)
-	err = s.Run()
+	err = s.ResolveDeps()
 	if err != nil {
 		t.Fatal(err)
 	}

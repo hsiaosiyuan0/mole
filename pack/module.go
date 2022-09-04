@@ -5,6 +5,8 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+
+	"github.com/hsiaosiyuan0/mole/ecma/parser"
 )
 
 type Relation struct {
@@ -22,7 +24,7 @@ func FindOutlet(a Module, dst int64, create bool) (*Relation, bool) {
 		}
 	}
 
-	if edge == nil && create {
+	if create {
 		edge = &Relation{}
 		edge.Lhs = a.Id()
 		edge.Rhs = dst
@@ -41,7 +43,7 @@ func FindInlet(a Module, src int64, create bool) (*Relation, bool) {
 		}
 	}
 
-	if edge == nil && create {
+	if create {
 		edge = &Relation{}
 		edge.Lhs = src
 		edge.Rhs = a.Id()
@@ -65,23 +67,24 @@ type Module interface {
 
 	Lang() string
 
-	setFile(string)
 	File() string
+	setFile(string)
 
-	setStrict(bool)
 	Strict() bool
+	setStrict(bool)
 
-	addSize(int64)
 	Size() int64
 	setSize(int64)
+	addSize(int64)
 
+	// indicate if this module is a entry point
 	Entry() bool
 	setAsEntry()
 
 	Outside() bool
 
-	setUmbrella(int64)
 	Umbrella() int64
+	setUmbrella(int64)
 
 	IsUmbrella() bool
 
@@ -93,8 +96,8 @@ type Module interface {
 	AddOutlet(int64)
 	Outlets() []*Relation
 
-	setImportStk([]*ImportFrame)
 	ImportStk() []*ImportFrame
+	setImportStk([]*ImportFrame)
 
 	MarshalJSON() ([]byte, error)
 }
@@ -123,8 +126,23 @@ type JsModule struct {
 
 	stk []*ImportFrame
 
-	parseTime int64
-	walkTime  int64
+	// moduleId => owned exports in this module and can be
+	// used as the key of the `exports`
+	owners     map[int64][]string
+	ownersLock sync.Mutex
+
+	exports   map[string]*TopmostDec
+	exportAll []*TopmostDec
+	tds       map[parser.Node]*TopmostDec // topmostDecs
+
+	// the src of `import` or `export` in this module => target module id
+	extsMap     map[string]int64
+	extsMapLock sync.Mutex
+	dceSize     int64
+
+	parseTime       int64
+	walkDepTime     int64
+	walkTopmostTime int64
 }
 
 func (m *JsModule) setId(id int64) {
@@ -243,40 +261,76 @@ func (m *JsModule) ImportStk() []*ImportFrame {
 	return m.stk
 }
 
-func (m *JsModule) setParseTime(t int64) {
-	m.parseTime = t
+func (m *JsModule) addOwner(id int64, names []string) {
+	m.ownersLock.Lock()
+	defer m.ownersLock.Unlock()
+
+	m.owners[id] = append(m.owners[id], names...)
 }
 
-func (m *JsModule) setWalkTime(t int64) {
-	m.walkTime = t
+func (m *JsModule) topmostDecs() []*TopmostDec {
+	decs := []*TopmostDec{}
+	for _, d := range m.tds {
+		decs = append(decs, d)
+	}
+	return decs
+}
+
+func (m *JsModule) setExtsMap(ext string, id int64) {
+	m.extsMapLock.Lock()
+	defer m.extsMapLock.Unlock()
+
+	m.extsMap[ext] = id
+}
+
+func (m *JsModule) calcDceSize() int64 {
+	var ret int64
+	for _, td := range m.tds {
+		if td.Alive || td.SideEffect {
+			rng := td.Node.Range()
+			ret += int64(rng.Hi) - int64(rng.Lo)
+		}
+	}
+	m.dceSize = ret
+	return ret
 }
 
 func (m *JsModule) MarshalJSON() ([]byte, error) {
-	return json.Marshal(&struct {
-		ID        int64       `json:"id"`
-		Name      string      `json:"name"`
-		Version   string      `json:"version"`
-		File      string      `json:"file"`
-		Size      int64       `json:"size"`
-		Strict    bool        `json:"strict"`
-		Entry     bool        `json:"entry"`
-		Umbrella  int64       `json:"umbrella"`
-		Inlets    []*Relation `json:"inlets"`
-		Outlets   []*Relation `json:"outlets"`
-		ParseTime int64       `json:"parseTime"`
-		WalkTime  int64       `json:"walkTime"`
+	return json.Marshal(struct {
+		ID              int64              `json:"id"`
+		Name            string             `json:"name"`
+		Version         string             `json:"version"`
+		File            string             `json:"file"`
+		Size            int64              `json:"size"`
+		DceSize         int64              `json:"dceSize"`
+		Strict          bool               `json:"strict"`
+		Entry           bool               `json:"entry"`
+		Umbrella        int64              `json:"umbrella"`
+		Inlets          []*Relation        `json:"inlets"`
+		Outlets         []*Relation        `json:"outlets"`
+		Owners          map[int64][]string `json:"owners"`
+		ExtsMap         map[string]int64   `json:"extsMap"`
+		TopmostDecs     []*TopmostDec      `json:"topmostDecs"`
+		ParseTime       int64              `json:"parseTime"`
+		WalkDepTime     int64              `json:"walkDepTime"`
+		WalkTopmostTime int64              `json:"walkTopmostTime"`
 	}{
-		ID:        m.id,
-		Name:      m.name,
-		Version:   m.version,
-		File:      m.file,
-		Size:      m.size,
-		Strict:    m.strict,
-		Entry:     m.entry,
-		Umbrella:  m.umbrella,
-		Inlets:    m.inlets,
-		Outlets:   m.outlets,
-		ParseTime: m.parseTime,
-		WalkTime:  m.walkTime,
+		ID:              m.id,
+		Name:            m.name,
+		Version:         m.version,
+		File:            m.file,
+		Size:            m.size,
+		DceSize:         m.dceSize,
+		Strict:          m.strict,
+		Entry:           m.entry,
+		Umbrella:        m.umbrella,
+		Inlets:          m.inlets,
+		Outlets:         m.outlets,
+		Owners:          m.owners,
+		ExtsMap:         m.extsMap,
+		TopmostDecs:     m.topmostDecs(),
+		ParseTime:       m.parseTime,
+		WalkDepTime:     m.walkDepTime,
+		WalkTopmostTime: m.walkTopmostTime,
 	})
 }

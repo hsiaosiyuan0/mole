@@ -29,6 +29,83 @@ func GetName(node parser.Node) string {
 	return node.(*parser.Ident).Val()
 }
 
+func GetNodeName(node parser.Node) string {
+	switch node.Type() {
+	case parser.N_EXPR_FN, parser.N_STMT_FN:
+		n := node.(*parser.FnDec)
+		if n.Id() == nil {
+			return ""
+		}
+		return n.Id().(*parser.Ident).Val()
+	case parser.N_STMT_VAR_DEC:
+		n := node.(*parser.VarDecStmt)
+		if len(n.DecList()) != 1 {
+			return ""
+		}
+		vd := n.DecList()[0].(*parser.VarDec)
+		if vd.Id().Type() == parser.N_NAME {
+			return vd.Id().(*parser.Ident).Val()
+		}
+	case parser.N_NAME:
+		return node.(*parser.Ident).Val()
+	case parser.N_JSX_ID:
+		return node.(*parser.JsxIdent).Val()
+	}
+	return ""
+}
+
+func NamesInDecNode(node parser.Node) (ret []string, all bool) {
+	ret = []string{}
+	switch node.Type() {
+	case parser.N_STMT_VAR_DEC:
+		n := node.(*parser.VarDecStmt)
+		for _, name := range n.Names() {
+			ret = append(ret, name.(*parser.Ident).Val())
+		}
+	case parser.N_STMT_FN, parser.N_EXPR_FN:
+		n := node.(*parser.FnDec)
+		if n.Id() != nil {
+			ret = append(ret, n.Id().(*parser.Ident).Val())
+		}
+	case parser.N_STMT_CLASS, parser.N_EXPR_CLASS:
+		n := node.(*parser.ClassDec)
+		if n.Id() != nil {
+			ret = append(ret, n.Id().(*parser.Ident).Val())
+		}
+	case parser.N_STMT_IMPORT:
+		n := node.(*parser.ImportDec)
+		for _, s := range n.Specs() {
+			spec := s.(*parser.ImportSpec)
+			if spec.Default() {
+				ret = append(ret, "default")
+			} else if spec.NameSpace() {
+				all = true
+			} else {
+				ret = append(ret, spec.Id().(*parser.Ident).Val())
+			}
+		}
+	case parser.N_STMT_EXPORT:
+		n := node.(*parser.ExportDec)
+		if n.Default() {
+			ret = append(ret, "default")
+		} else if n.All() {
+			all = true
+		} else if n.Dec() != nil {
+			ret, _ = NamesInDecNode(n.Dec())
+		} else {
+			for _, spec := range n.Specs() {
+				sp := spec.(*parser.ExportSpec)
+				if sp.NameSpace() {
+					all = true
+				} else {
+					ret = append(ret, sp.Id().(*parser.Ident).Val())
+				}
+			}
+		}
+	}
+	return
+}
+
 type SwitchBranch struct {
 	negative bool
 	test     parser.Node

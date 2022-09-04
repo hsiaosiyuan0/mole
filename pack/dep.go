@@ -26,6 +26,7 @@ type DepUnitFact interface {
 	NewModule(string) Module
 }
 
+// the compilation-unit to represent the minimal unit in dependency analysis
 type DepUnit interface {
 	Load() error
 }
@@ -39,15 +40,28 @@ const (
 type DepScannerOpts struct {
 	target string
 
-	Dir        string
-	Entries    []string
+	// the dir to start dependency analysis, generally the root dir of you application
+	Dir string
+
+	// the entry files like you feed to webpack
+	Entries []string
+
+	// the file extensions used to resolve the file of the module
+	// for js the default values are `[]string{".js", ".jsx", ".mjs", ".cjs", ".json", ".node"}`
+	// for ts the default values are `[]string{".ts", ".tsx", ".js", ".jsx", ".mjs", ".d.ts", ".json", ".node"}`
 	Extensions []string
 
+	// the conditions used by the module-resolution algorithm
+	// both of them have default values `[][]string{{"browser", "require"}, {"default"}}`
+	//
+	// refer: https://nodejs.org/api/esm.html#esm_resolution_algorithm
 	Exports [][]string
 	Imports [][]string
 
 	Vars map[string]interface{}
 
+	// the builtin modules such as `node:fs`, you don't need to set it only if you have
+	// some custom builtin modules in your application
 	Builtin map[string]bool
 
 	concurrent int
@@ -122,6 +136,11 @@ func (s *DepScannerOpts) regUnitFact(u DepUnitFact) *DepScannerOpts {
 	return s
 }
 
+type ImportRecord struct {
+	name   string
+	module int64
+}
+
 type DepScanner struct {
 	opts *DepScannerOpts
 
@@ -130,6 +149,7 @@ type DepScanner struct {
 	modResolver *resolver.ModResolver
 
 	mId         int64
+	entries     []int64
 	allModules  map[int64]Module
 	fileModules map[string]Module
 	modulesLock sync.Mutex
@@ -295,34 +315,6 @@ func (s *DepScanner) addNewJob(req *DepFileReq) {
 	}()
 }
 
-func (s *DepScanner) Run() error {
-	err := s.prepareEntries()
-	if err != nil {
-		return err
-	}
-
-	go func() {
-		s.wg.Wait()
-		s.wgFin <- true
-	}()
-
-loop:
-	for {
-		select {
-		case <-s.wgFin:
-			break loop
-		case err := <-s.stop:
-			s.fatal = err
-			break loop
-		case err := <-s.minor:
-			s.minors = append(s.minors, err)
-		}
-	}
-
-	s.fin <- true
-	return s.fatal
-}
-
 func (s *DepScanner) newModule(file string) Module {
 	lang := filepath.Ext(file)
 	uf := s.opts.unitFacts[lang]
@@ -353,6 +345,10 @@ func (s *DepScanner) getOrNewUmbrella(pi *resolver.PkgJson) Module {
 		inletsLock:  sync.Mutex{},
 		outlets:     []*Relation{},
 		outletsLock: sync.Mutex{},
+		owners:      map[int64][]string{},
+		ownersLock:  sync.Mutex{},
+		extsMap:     map[string]int64{},
+		extsMapLock: sync.Mutex{},
 	}
 	m.setUmbrella(m.Id())
 	s.umbrellas[file] = m
@@ -411,11 +407,40 @@ func (s *DepScanner) prepareEntries() error {
 		m.setAsEntry()
 		s.fileModules[file] = m
 		s.allModules[m.Id()] = m
+		s.entries = append(s.entries, m.Id())
 
-		req := &DepFileReq{true, sc, []*ImportFrame{}, nil, file, dir, filepath.Ext(file)}
+		req := &DepFileReq{true, sc, []*ImportFrame{}, nil, file, dir, filepath.Ext(file), 0, nil}
 		s.addNewJob(req)
 	}
 	return nil
+}
+
+func (s *DepScanner) ResolveDeps() error {
+	err := s.prepareEntries()
+	if err != nil {
+		return err
+	}
+
+	go func() {
+		s.wg.Wait()
+		s.wgFin <- true
+	}()
+
+loop:
+	for {
+		select {
+		case <-s.wgFin:
+			break loop
+		case err := <-s.stop:
+			s.fatal = err
+			break loop
+		case err := <-s.minor:
+			s.minors = append(s.minors, err)
+		}
+	}
+
+	s.fin <- true
+	return s.fatal
 }
 
 func (s *DepScanner) Minors() []error {
@@ -436,19 +461,22 @@ func (s *DepScanner) Fin() chan bool {
 
 type ImportFrame struct {
 	S      *span.Source
-	Mid    int64
-	Rng    span.Range
-	Import bool
+	Mid    int64      // id of the module issue this frame
+	Rng    span.Range // the
+	Import bool       // `import` or `require`
 }
 
 type DepFileReq struct {
 	entry  bool
-	sc     *resolver.PkgJson
+	sc     *resolver.PkgJson // package scope
 	stk    []*ImportFrame
 	parent Module
 	target string
 	cw     string
 	lang   string
+
+	owner    int64
+	acquired []string
 }
 
 type JsUnitFact struct{}
@@ -468,6 +496,10 @@ func (j *JsUnitFact) NewModule(file string) Module {
 		inletsLock:  sync.Mutex{},
 		outlets:     []*Relation{},
 		outletsLock: sync.Mutex{},
+		owners:      map[int64][]string{},
+		ownersLock:  sync.Mutex{},
+		extsMap:     map[string]int64{},
+		extsMapLock: sync.Mutex{},
 	}
 }
 
@@ -477,10 +509,11 @@ type JsUnit struct {
 }
 
 type importPoint struct {
-	s    *span.Source
-	file string
-	rng  span.Range
-	ipt  bool
+	s        *span.Source
+	file     string
+	rng      span.Range
+	ipt      bool // if `import`
+	iptNames []string
 }
 
 var isFlowReg = regexp.MustCompile(`(?s)/\*.*?\*\s*@flow.*?\*/`)
@@ -489,49 +522,31 @@ func isFlow(code string) bool {
 	return len(isFlowReg.Find([]byte(code))) > 0
 }
 
-func parseDep(file, code string, vars map[string]interface{}, parserOpts map[string]interface{}, m *JsModule, skipFlow bool) ([]*importPoint, int64, int64, error) {
+func parse(file, code string, opts *parser.ParserOpts, skipFlow bool) (*parser.Parser, error) {
 	if skipFlow && isFlow(code) {
-		return []*importPoint{}, 0, 0, nil
+		return nil, nil
 	}
 
 	s := span.NewSource(file, code)
-	opts := parser.NewParserOpts()
-	if parserOpts != nil {
-		opts.MergeJson(parserOpts)
-	}
-
-	ext := filepath.Ext(file)
-	if ext == ".ts" {
-		opts.Feature = opts.Feature.On(parser.FEAT_STRICT)
-		opts.Feature = opts.Feature.On(parser.FEAT_TS)
-		opts.Feature = opts.Feature.Off(parser.FEAT_JSX)
-		if strings.HasSuffix(file, ".d.ts") {
-			opts.Feature = opts.Feature.On(parser.FEAT_DTS)
-		}
-	} else if ext == ".tsx" {
-		opts.Feature = opts.Feature.On(parser.FEAT_STRICT)
-		opts.Feature = opts.Feature.On(parser.FEAT_TS)
-		opts.Feature = opts.Feature.On(parser.FEAT_JSX)
-	} else if ext == ".jsx" {
-		opts.Feature = opts.Feature.On(parser.FEAT_JSX)
-	} else {
-		opts.Feature = opts.Feature.Off(parser.FEAT_STRICT)
-	}
-
 	p := parser.NewParser(s, opts)
 
-	start := time.Now()
-	ast, err := p.Prog()
-	parseTime := time.Since(start)
-
+	_, err := p.Prog()
 	if err != nil {
-		return nil, 0, 0, err
+		return nil, err
+	}
+	return p, nil
+}
+
+func walkDep(p *parser.Parser, vars map[string]interface{}, m *JsModule) ([]*importPoint, int64, error) {
+	if p == nil {
+		return []*importPoint{}, 0, nil
 	}
 
 	if m != nil {
 		m.setStrict(p.Symtab().Root.IsKind(parser.SPK_STRICT))
 	}
 
+	ast := p.Ast()
 	ctx := walk.NewWalkCtx(ast, p.Symtab())
 	derived := []*importPoint{}
 
@@ -540,7 +555,18 @@ func parseDep(file, code string, vars map[string]interface{}, parserOpts map[str
 		Id: "parseDep",
 		Handle: func(node parser.Node, key string, ctx *walk.VisitorCtx) {
 			n := node.(*parser.ImportDec)
-			derived = append(derived, &importPoint{p.Source(), n.Src().(*parser.StrLit).Val(), n.Range(), true})
+			names := []string{}
+			for _, spec := range n.Specs() {
+				sp := spec.(*parser.ImportSpec)
+				if sp.Default() {
+					names = append(names, "default")
+				} else if sp.NameSpace() {
+					names = append(names, "#all")
+				} else {
+					names = append(names, sp.Id().(*parser.Ident).Val())
+				}
+			}
+			derived = append(derived, &importPoint{p.Source(), n.Src().(*parser.StrLit).Val(), n.Range(), true, names})
 		},
 	})
 
@@ -549,9 +575,27 @@ func parseDep(file, code string, vars map[string]interface{}, parserOpts map[str
 		Id: "parseDep",
 		Handle: func(node parser.Node, key string, ctx *walk.VisitorCtx) {
 			n := node.(*parser.ExportDec)
-			if n.Src() != nil {
-				derived = append(derived, &importPoint{p.Source(), n.Src().(*parser.StrLit).Val(), n.Range(), true})
+			if n.Src() == nil {
+				return
 			}
+
+			names := []string{}
+			if n.Default() {
+				names = append(names, "default")
+			} else if n.All() {
+				names = append(names, "#all")
+			} else {
+				for _, spec := range n.Specs() {
+					sp := spec.(*parser.ExportSpec)
+					if sp.NameSpace() {
+						names = append(names, "#all")
+					} else {
+						names = append(names, sp.Id().(*parser.Ident).Val())
+					}
+				}
+			}
+
+			derived = append(derived, &importPoint{p.Source(), n.Src().(*parser.StrLit).Val(), n.Range(), true, names})
 		},
 	})
 
@@ -598,7 +642,7 @@ func parseDep(file, code string, vars map[string]interface{}, parserOpts map[str
 	})
 
 	// do the collecting processes mentioned above
-	start = time.Now()
+	start := time.Now()
 	walk.VisitNode(ast, "", ctx.VisitorCtx())
 	walkTime := time.Since(start)
 
@@ -615,15 +659,41 @@ func parseDep(file, code string, vars map[string]interface{}, parserOpts map[str
 			switch it.Type() {
 			case parser.N_EXPR_CALL:
 				n := node.(*parser.CallExpr)
-				derived = append(derived, &importPoint{p.Source(), n.Args()[0].(*parser.StrLit).Val(), n.Range(), false})
+				derived = append(derived, &importPoint{p.Source(), n.Args()[0].(*parser.StrLit).Val(), n.Range(), false, nil})
 			case parser.N_IMPORT_CALL:
 				n := node.(*parser.ImportCall)
-				derived = append(derived, &importPoint{p.Source(), n.Src().(*parser.StrLit).Val(), n.Range(), true})
+				derived = append(derived, &importPoint{p.Source(), n.Src().(*parser.StrLit).Val(), n.Range(), true, nil})
 			}
 		}
 	}
 
-	return derived, parseTime.Nanoseconds(), walkTime.Nanoseconds(), nil
+	return derived, walkTime.Nanoseconds(), nil
+}
+
+func (j *JsUnit) parserOpts(file string) *parser.ParserOpts {
+	opts := parser.NewParserOpts()
+	if j.s.opts.ParserOpts != nil {
+		opts.MergeJson(j.s.opts.ParserOpts)
+	}
+
+	ext := filepath.Ext(file)
+	if ext == ".ts" {
+		opts.Feature = opts.Feature.On(parser.FEAT_STRICT)
+		opts.Feature = opts.Feature.On(parser.FEAT_TS)
+		opts.Feature = opts.Feature.Off(parser.FEAT_JSX)
+		if strings.HasSuffix(file, ".d.ts") {
+			opts.Feature = opts.Feature.On(parser.FEAT_DTS)
+		}
+	} else if ext == ".tsx" {
+		opts.Feature = opts.Feature.On(parser.FEAT_STRICT)
+		opts.Feature = opts.Feature.On(parser.FEAT_TS)
+		opts.Feature = opts.Feature.On(parser.FEAT_JSX)
+	} else if ext == ".jsx" {
+		opts.Feature = opts.Feature.On(parser.FEAT_JSX)
+	} else {
+		opts.Feature = opts.Feature.Off(parser.FEAT_STRICT)
+	}
+	return opts
 }
 
 func (j *JsUnit) load(m Module) ([]byte, error) {
@@ -643,13 +713,25 @@ func (j *JsUnit) scan(m Module) ([]*importPoint, error) {
 	jm.size = int64(len(f))
 	jm.scanned = true
 
-	stk, parseTime, walkTime, err := parseDep(jm.file, string(f), j.s.opts.Vars, j.s.opts.ParserOpts, jm, j.s.opts.target == TGT_RN)
+	opts := j.parserOpts(jm.file)
+	start := time.Now()
+	parser, err := parse(jm.file, string(f), opts, j.s.opts.target == TGT_RN)
+	if err != nil {
+		return nil, err
+	}
+	jm.parseTime = time.Since(start).Nanoseconds()
+
+	stk, walkTime, err := walkDep(parser, j.s.opts.Vars, jm)
 	if err != nil {
 		return nil, err
 	}
 
-	jm.setParseTime(parseTime)
-	jm.setWalkTime(walkTime)
+	start = time.Now()
+	jm.tds, jm.exports, jm.exportAll = resolveTopmostDecs(parser)
+	walkTopmostTime := time.Since(start).Nanoseconds()
+
+	jm.walkDepTime = walkTime
+	jm.walkTopmostTime = walkTopmostTime
 	return stk, nil
 }
 
@@ -678,45 +760,53 @@ func (j *JsUnit) Load() error {
 
 	if req.parent != nil {
 		link(req.parent, m)
+		if pjm, ok := req.parent.(*JsModule); ok {
+			pjm.setExtsMap(req.target, m.Id())
+		}
 	}
 
 	umb := j.s.getOrNewUmbrella(r.Pjson)
 	m.setUmbrella(umb.Id())
 
-	if jm, ok := m.(*JsModule); ok && !m.Scanned() {
-		if !jm.IsJson() {
-			derived, err := j.scan(m)
-			if err != nil {
-				return err
-			}
-
-			curLang := filepath.Ext(r.File)
-			cw := filepath.Dir(r.File)
-			for _, d := range derived {
-				frame := &ImportFrame{d.s, m.Id(), d.rng, d.ipt}
-				stk := util.Copy(req.stk)
-				lang := filepath.Ext(d.file)
-				if lang == "" {
-					// if there is no ext in the importing target use
-					// the host file ext instead
-					lang = curLang
+	if jm, ok := m.(*JsModule); ok {
+		if !jm.scanned {
+			if !jm.IsJson() {
+				derived, err := j.scan(m)
+				if err != nil {
+					return err
 				}
-				j.s.addNewJob(&DepFileReq{false, req.sc, append(stk, frame), m, d.file, cw, lang})
-			}
 
-			umb.addSize(m.Size())
-		} else if !jm.IsUmbrella() {
-			jm.scanned = true
+				curLang := filepath.Ext(r.File)
+				cw := filepath.Dir(r.File)
+				for _, d := range derived {
+					frame := &ImportFrame{d.s, m.Id(), d.rng, d.ipt}
+					stk := util.Copy(req.stk)
+					lang := filepath.Ext(d.file)
+					if lang == "" {
+						// if there is no ext in the importing target use
+						// the host file ext instead
+						lang = curLang
+					}
+					j.s.addNewJob(&DepFileReq{false, req.sc, append(stk, frame), m, d.file, cw, lang, jm.id, d.iptNames})
+				}
 
-			s, err := os.Stat(r.File)
-			if err != nil {
-				return err
+				umb.addSize(m.Size())
+			} else if !jm.IsUmbrella() {
+				jm.scanned = true
+
+				s, err := os.Stat(r.File)
+				if err != nil {
+					return err
+				}
+				jm.size = s.Size()
+				umb.addSize(jm.size)
 			}
-			jm.size = s.Size()
-			umb.addSize(jm.size)
+		}
+
+		if len(req.acquired) > 0 {
+			jm.addOwner(req.owner, req.acquired)
 		}
 	}
-
 	return nil
 }
 

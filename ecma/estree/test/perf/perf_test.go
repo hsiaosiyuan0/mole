@@ -22,7 +22,9 @@ func compileToESTree(code string, toEstree bool) error {
 	}
 
 	if toEstree {
-		estree.ConvertProg(ast.(*parser.Prog), estree.NewConvertCtx(p))
+		ctx := estree.NewConvertCtx(p)
+		ctx.LineCol = false
+		estree.ConvertProg(ast.(*parser.Prog), ctx)
 	}
 	return nil
 }

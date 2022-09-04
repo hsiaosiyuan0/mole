@@ -96,7 +96,8 @@ func (t RefDefType) IsPureVal() bool {
 
 type Ref struct {
 	Scope *Scope
-	Def   *Ident
+	Id    *Ident
+	Dec   Node
 	Typ   RefDefType
 
 	// points to the ref referenced by this one, eg:
@@ -110,20 +111,14 @@ type Ref struct {
 
 	// ref with bind kind not none means it's a variable binding
 	BindKind BindKind
-	Props    map[string][]*Ref
-	Refs     []*Ref
 }
 
 func (r *Ref) RetainBy(ref *Ref) {
 	ref.Forward = r
-	r.Refs = append(r.Refs, ref)
 }
 
 func NewRef() *Ref {
-	return &Ref{
-		Props: make(map[string][]*Ref),
-		Refs:  make([]*Ref, 0, 5),
-	}
+	return &Ref{}
 }
 
 type Scope struct {
@@ -451,7 +446,7 @@ func IsOneOfNs(r1, r2 *Ref) bool {
 }
 
 func (s *Scope) DelLocal(ref *Ref) {
-	s.Refs[ref.Def.val] = nil
+	s.Refs[ref.Id.val] = nil
 }
 
 func (s *Scope) BindingOf(name string) *Ref {

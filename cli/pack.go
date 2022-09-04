@@ -117,10 +117,12 @@ func (a *PkgAnalysis) Process(opts *Options) bool {
 	}
 
 	begin := time.Now()
-	err = s.Run()
+	err = s.ResolveDeps()
 	if err != nil {
 		panic(err)
 	}
+
+	s.DCE()
 
 	res.Elapsed = time.Since(begin).Milliseconds()
 

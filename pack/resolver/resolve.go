@@ -24,7 +24,7 @@ type ModResolver struct {
 	pkgLoader *PjsonLoader
 }
 
-var DefaultJsExts = []string{".js", ".jsx", ".mjs", ".json", ".node"}
+var DefaultJsExts = []string{".js", ".jsx", ".mjs", ".cjs", ".json", ".node"}
 var DefaultTsExts = []string{".ts", ".tsx", ".js", ".jsx", ".mjs", ".d.ts", ".json", ".node"}
 var DefaultImpConds = [][]string{{"browser", "require"}}
 var DefaultExpConds = [][]string{{"browser", "require"}}

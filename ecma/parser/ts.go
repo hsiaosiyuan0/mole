@@ -1863,10 +1863,10 @@ func (p *Parser) tsTypDec(rng span.Range, skipDec bool) (Node, error) {
 	}
 
 	ref := NewRef()
-	ref.Def = name
+	ref.Id = name
 	ref.BindKind = BK_LET
 	ref.Typ = RDT_TYPE
-	if err := p.addLocalBinding(nil, ref, true, ref.Def.val); err != nil {
+	if err := p.addLocalBinding(nil, ref, true, ref.Id.val); err != nil {
 		return nil, err
 	}
 
@@ -1980,10 +1980,10 @@ func (p *Parser) tsItf() (Node, error) {
 		return nil, err
 	}
 	ref := NewRef()
-	ref.Def = name
+	ref.Id = name
 	ref.BindKind = BK_CONST
 	ref.Typ = RDT_ITF | RDT_TYPE
-	if err := p.addLocalBinding(nil, ref, true, ref.Def.val); err != nil {
+	if err := p.addLocalBinding(nil, ref, true, ref.Id.val); err != nil {
 		return nil, err
 	}
 
@@ -2068,7 +2068,7 @@ func (p *Parser) tsEnum(rng span.Range, cst bool) (Node, error) {
 		return nil, err
 	}
 	ref := NewRef()
-	ref.Def = name
+	ref.Id = name
 	ref.BindKind = BK_CONST
 	ref.Typ = RDT_TYPE
 	if cst {
@@ -2076,7 +2076,7 @@ func (p *Parser) tsEnum(rng span.Range, cst bool) (Node, error) {
 	} else {
 		ref.Typ = ref.Typ.On(RDT_ENUM)
 	}
-	if err := p.addLocalBinding(nil, ref, true, ref.Def.val); err != nil {
+	if err := p.addLocalBinding(nil, ref, true, ref.Id.val); err != nil {
 		return nil, err
 	}
 
@@ -2146,10 +2146,10 @@ func (p *Parser) tsImportAliasRsh(rng span.Range, typ span.Range, name Node, exp
 	}
 
 	ref := NewRef()
-	ref.Def = name.(*Ident)
+	ref.Id = name.(*Ident)
 	ref.BindKind = BK_LET
 	ref.Typ = RDT_TYPE
-	if err := p.addLocalBinding(nil, ref, true, ref.Def.val); err != nil {
+	if err := p.addLocalBinding(nil, ref, true, ref.Id.val); err != nil {
 		return nil, err
 	}
 
@@ -2215,7 +2215,7 @@ func (p *Parser) tsNS() (Node, error) {
 			mod.rng.Hi = mod.body.Range().Hi
 			n = ns.lhs
 			if n.Type() == N_NAME {
-				mod = &TsNS{N_TS_NAMESPACE, span.Range{n.Range().Lo, mod.rng.Hi}, n, mod, false}
+				mod = &TsNS{N_TS_NAMESPACE, span.Range{Lo: n.Range().Lo, Hi: mod.rng.Hi}, n, mod, false}
 				mod.rng.Lo = rng.Lo
 				break
 			} else {
@@ -2229,10 +2229,10 @@ func (p *Parser) tsNS() (Node, error) {
 		def = mod.name
 	}
 	ref := NewRef()
-	ref.Def = def.(*Ident)
+	ref.Id = def.(*Ident)
 	ref.BindKind = BK_CONST
 	ref.Typ = RDT_NS | RDT_TYPE
-	if err := p.addLocalBinding(nil, ref, !p.dts, ref.Def.val); err != nil {
+	if err := p.addLocalBinding(nil, ref, !p.dts, ref.Id.val); err != nil {
 		return nil, err
 	}
 
