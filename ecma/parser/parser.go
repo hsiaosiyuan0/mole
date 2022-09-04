@@ -503,10 +503,9 @@ func (p *Parser) exportDec() (Node, error) {
 			return nil, err
 		}
 	} else if tv == T_DEFAULT {
-		def := p.lexer.Next()
+		node.def = p.lexer.Next().rng
 		tok := p.lexer.Peek()
 		tv = tok.value
-		node.def = def.rng
 		if tv == T_FUNC {
 			node.dec, err = p.fnDec(false, nil, true)
 		} else if p.aheadIsAsync(tok, false, false) {

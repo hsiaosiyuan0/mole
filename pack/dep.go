@@ -393,6 +393,9 @@ func (s *DepScanner) prepareEntries() error {
 				entries = append(entries, matches...)
 			}
 		} else {
+			if entry[0] != '/' {
+				entry = filepath.Join(dir, entry)
+			}
 			entries = append(entries, entry)
 		}
 	}
@@ -719,6 +722,10 @@ func (j *JsUnit) scan(m Module) ([]*importPoint, error) {
 	if err != nil {
 		return nil, err
 	}
+	if parser == nil { // maybe the flow syntax
+		return nil, nil
+	}
+
 	jm.parseTime = time.Since(start).Nanoseconds()
 
 	stk, walkTime, err := walkDep(parser, j.s.opts.Vars, jm)
@@ -787,7 +794,7 @@ func (j *JsUnit) Load() error {
 						// the host file ext instead
 						lang = curLang
 					}
-					j.s.addNewJob(&DepFileReq{false, req.sc, append(stk, frame), m, d.file, cw, lang, jm.id, d.iptNames})
+					j.s.addNewJob(&DepFileReq{false, r.Pjson, append(stk, frame), m, d.file, cw, lang, jm.id, d.iptNames})
 				}
 
 				umb.addSize(m.Size())

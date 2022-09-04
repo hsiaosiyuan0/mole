@@ -10,7 +10,6 @@ import (
 	"github.com/hsiaosiyuan0/mole/ecma/parser"
 	"github.com/hsiaosiyuan0/mole/ecma/walk"
 	"github.com/hsiaosiyuan0/mole/span"
-	"github.com/hsiaosiyuan0/mole/util"
 )
 
 type TopmostDec struct {
@@ -116,7 +115,13 @@ func isPure(node parser.Node, p *parser.Parser) bool {
 		return hasPureAnno(init, p)
 	case parser.N_STMT_IMPORT:
 		n := node.(*parser.ImportDec)
-		return len(n.Specs()) > 0
+		for _, s := range n.Specs() {
+			sp := s.(*parser.ImportSpec)
+			if sp.NameSpace() {
+				return false
+			}
+		}
+		return true
 	}
 
 	return hasPureAnno(node, p)
@@ -222,14 +227,25 @@ func resolveTopmostDecs(p *parser.Parser) (tds map[parser.Node]*TopmostDec, expo
 		Handle: func(node parser.Node, key string, ctx *walk.VisitorCtx) {
 			n := node.(*parser.ExportDec)
 
-			// named
 			td := tds[n]
-			names, all := astutil.NamesInDecNode(n)
-			if all {
+			if n.Default() {
+				exports["default"] = td
+			} else if n.All() {
 				exportAll = append(exportAll, td)
-			}
-			for _, name := range names {
-				exports[name] = td
+			} else {
+				scope := symtab.Scopes[ctx.ScopeId()]
+				ext := n.Src() != nil
+				for _, s := range n.Specs() {
+					sp := s.(*parser.ExportSpec)
+					name := sp.Id().(*parser.Ident).Val()
+					if ext {
+						exports[name] = td
+					} else {
+						local := sp.Local().(*parser.Ident).Val()
+						ref := scope.BindingOf(local)
+						exports[name] = tds[ref.Dec]
+					}
+				}
 			}
 		},
 	})
@@ -398,6 +414,7 @@ func importsOfTopmostDec(td *TopmostDec, m *JsModule) *list.List {
 func (s *DepScanner) DCE() {
 	imports := list.New()
 
+	imported := []int64{}
 	for _, mid := range s.entries {
 		m := s.allModules[mid].(*JsModule)
 
@@ -435,45 +452,15 @@ func (s *DepScanner) DCE() {
 		m := s.allModules[ipt.from]
 		jm := m.(*JsModule)
 
+		imported = append(imported, ipt.from)
+
 		// apply affects
 		all := ipt.name == "#all"
-		found := false
-		if !ipt.delegate {
-			for _, td := range jm.tds {
-				td.Alive = td.Alive || td.SideEffect || all
-				if !td.Alive {
-					names, _ := astutil.NamesInDecNode(td.Node)
-					td.Alive = util.Includes(names, ipt.name)
-					found = td.Alive
-				}
 
-				if td.Alive {
-					markTopmostDec(td, func(td *TopmostDec) {
-						td.Alive = true
-						if !all {
-							src := importSrcOf(td.Node)
-							if src != "" {
-								// does not eliminate the unused named-import yet
-								names, all := astutil.NamesInDecNode(td.Node)
-								from := jm.extsMap[src]
-								if all {
-									pushImport(&Import{"#all", from, false})
-								} else if from != 0 {
-									for _, name := range names {
-										pushImport(&Import{name, from, false})
-									}
-								}
-							}
-						}
-					})
-				}
-			}
-		}
-
-		// if the caller uses named-imports
-		if !found && (!all || ipt.delegate) {
+		if !all {
 			td := jm.exports[ipt.name]
 			if td != nil {
+				td.Alive = true
 				markTopmostDec(td, func(td *TopmostDec) {
 					td.Alive = true
 					imports := importsOfTopmostDec(td, jm)
@@ -507,15 +494,40 @@ func (s *DepScanner) DCE() {
 				}
 			}
 		}
+
+		for _, td := range jm.tds {
+			td.Alive = td.Alive || td.SideEffect || all
+			if td.Alive {
+				markTopmostDec(td, func(td *TopmostDec) {
+					td.Alive = true
+					src := importSrcOf(td.Node)
+					if src != "" {
+						// does not eliminate the unused named-import yet
+						names, all := astutil.NamesInDecNode(td.Node)
+						from := jm.extsMap[src]
+						if all {
+							pushImport(&Import{"#all", from, false})
+						} else if from != 0 {
+							for _, name := range names {
+								pushImport(&Import{name, from, false})
+							}
+						}
+					}
+				})
+			}
+		}
 	}
 
 	// recalculate the size of umbrella modules
-	for _, m := range s.allModules {
+	for _, mid := range imported {
+		m := s.allModules[mid]
 		jm := m.(*JsModule)
 
 		if !jm.IsUmbrella() {
-			um := s.allModules[jm.umbrella].(*JsModule)
-			um.dceSize += jm.calcDceSize()
+			um := s.allModules[jm.umbrella]
+			if um != nil {
+				um.(*JsModule).dceSize += jm.calcDceSize()
+			}
 		}
 	}
 }
