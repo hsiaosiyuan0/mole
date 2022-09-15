@@ -5721,7 +5721,15 @@ func (p *Parser) primaryExpr(notColon bool) (Node, error) {
 	case T_BRACKET_L:
 		return p.arrLit()
 	case T_BRACE_L:
-		return p.objLit()
+		cmts := p.lexer.takeExprCmts()
+		node, err := p.objLit()
+		if err != nil {
+			return nil, err
+		}
+		if len(cmts) > 0 {
+			p.prevCmts[node] = cmts
+		}
+		return node, nil
 	case T_FUNC:
 		return p.fnDec(true, nil, false)
 	case T_REGEXP:

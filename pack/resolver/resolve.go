@@ -196,7 +196,11 @@ func (t *ModResolveTask) loadNodeModules(pkgName, subpath string) bool {
 			return true
 		}
 		if tt.loadAsDir(d) == nil {
-			t.setResult(tt.result())
+			r := tt.result()
+			if r.Pjson.Private {
+				r.Pjson = t.lookupPkgScope(r.Pjson.dir)
+			}
+			t.setResult(r)
 			return true
 		}
 	}

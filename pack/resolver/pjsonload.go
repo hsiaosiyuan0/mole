@@ -14,15 +14,17 @@ import (
 
 // only stores the info for module resolution
 type PkgJson struct {
-	Name       string                 `json:"name"`
-	Version    string                 `json:"version"`
-	Main       string                 `json:"main"`
-	Browser    interface{}            `json:"browser"`
-	Module     string                 `json:"module"`
-	Type       string                 `json:"type"`
-	Types      string                 `json:"types"`
-	RawExports interface{}            `json:"exports"`
-	RawImports map[string]interface{} `json:"imports"`
+	Name        string                 `json:"name"`
+	Version     string                 `json:"version"`
+	Private     bool                   `json:"private"`
+	Main        string                 `json:"main"`
+	Browser     interface{}            `json:"browser"`
+	Module      string                 `json:"module"`
+	Type        string                 `json:"type"`
+	Types       string                 `json:"types"`
+	RawExports  interface{}            `json:"exports"`
+	RawImports  map[string]interface{} `json:"imports"`
+	SideEffects interface{}            `json:"sideEffects"`
 
 	// the filesystem location of the pjson
 	file string
@@ -34,6 +36,16 @@ type PkgJson struct {
 
 	onlyMain bool
 	main     []string
+}
+
+func (pj *PkgJson) IsSideEffectsFree() bool {
+	switch v := pj.SideEffects.(type) {
+	case bool:
+		return v == false
+	case map[string]interface{}:
+		return v != nil
+	}
+	return false
 }
 
 func (pj *PkgJson) Dir() string {
@@ -243,7 +255,9 @@ func (pl *PjsonLoader) LookupPkgScope(start string) *PkgJson {
 		}
 
 		pi, err := pl.Load(file)
-		if err == nil {
+		// some modules use internal package.json to redirect user's imports, if that internal
+		// package.json was tagged as `private` then use its outer scope instead
+		if err == nil && !(pi.Private && strings.Index(file, "/node_modules") != -1) {
 			return pi
 		}
 

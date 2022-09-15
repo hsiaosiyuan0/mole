@@ -6,6 +6,8 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"sort"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/hsiaosiyuan0/mole/ecma/parser"
@@ -38,7 +40,7 @@ func (d DupItems) Len() int           { return len(d) }
 func (d DupItems) Less(i, j int) bool { return d[i].Size > d[j].Size }
 func (d DupItems) Swap(i, j int)      { d[i], d[j] = d[j], d[i] }
 
-func (d *DupItem) addVersion(m pack.Module) {
+func (d *DupItem) addVersion(m *pack.Module) {
 	for _, v := range d.Versions {
 		if v.Id == m.Id() {
 			return
@@ -50,8 +52,13 @@ func (d *DupItem) addVersion(m pack.Module) {
 }
 
 type ImportPoint struct {
-	File       string   `json:"file"`
-	ImportPath []string `json:"importPath"`
+	File   string   `json:"file"`
+	Reason []string `json:"reason"`
+}
+
+type ImportInfo struct {
+	IncludePath  [][]int64      `json:"includePath"`
+	ImportPoints []*ImportPoint `json:"importPoints"`
 }
 
 type Result struct {
@@ -60,10 +67,10 @@ type Result struct {
 	// name => versions
 	DupModules []*DupItem `json:"dupModules"`
 
-	// name+version => []*ImportPoint
-	ImportPoints map[string][]*ImportPoint `json:"importPoints"`
+	// name+moduleId => []*ImportPoint
+	ImportInfo map[string]*ImportInfo `json:"importInfo"`
 
-	Modules map[int64]pack.Module `json:"modules"`
+	Modules map[int64]*pack.Module `json:"modules"`
 
 	ParserErrors  []error `json:"parserErrors"`
 	ResolveErrors []error `json:"resolveErrors"`
@@ -110,7 +117,7 @@ func (a *PkgAnalysis) Process(opts *Options) bool {
 
 	res := &Result{
 		DupModules:    []*DupItem{},
-		ImportPoints:  map[string][]*ImportPoint{},
+		ImportInfo:    map[string]*ImportInfo{},
 		ParserErrors:  []error{},
 		ResolveErrors: []error{},
 		TimeoutErrors: []error{},
@@ -128,36 +135,34 @@ func (a *PkgAnalysis) Process(opts *Options) bool {
 
 	// find the dup umbrellas
 	umbrellas := s.Umbrellas()
-	mvsMap := map[string][]string{} // module name => version names
-	dupVs := map[string][]int64{}   // module name => version ids
+	modules := s.Modules()
+
+	moduleIds := map[string][]int64{} // module name => ids
 	dups := []string{}
 	for _, m := range umbrellas {
-		vs := mvsMap[m.Name()]
-		if mvsMap[m.Name()] == nil {
-			mvsMap[m.Name()] = []string{}
-			vs = mvsMap[m.Name()]
+		id := m.Id()
+		name := m.Name()
 
-			dupVs[m.Name()] = []int64{}
-		}
-		ds := dupVs[m.Name()]
-
-		if !util.Includes(vs, m.Version()) {
-			mvsMap[m.Name()] = append(vs, m.Version())
-			dupVs[m.Name()] = append(ds, m.Id())
-			if len(mvsMap[m.Name()]) > 1 {
+		ids := moduleIds[name]
+		if !util.Includes(ids, id) {
+			moduleIds[name] = append(moduleIds[name], id)
+			cnt := len(moduleIds[name])
+			if cnt > 1 {
+				if cnt == 2 {
+					dups = append(dups, modules[moduleIds[name][0]].File())
+				}
 				dups = append(dups, m.File())
 			}
 		}
 	}
 
 	dupItemsMap := map[string]*DupItem{}
-	modules := s.Modules()
 	for _, mf := range dups {
 		m := umbrellas[mf]
 		n := m.Name()
 
-		for _, v := range dupVs[n] {
-			sm := modules[v]
+		for _, id := range moduleIds[n] {
+			sm := modules[id]
 
 			dupItem := dupItemsMap[m.Name()]
 			if dupItem == nil {
@@ -166,7 +171,7 @@ func (a *PkgAnalysis) Process(opts *Options) bool {
 			}
 
 			dupItem.addVersion(sm)
-			res.ImportPoints[sm.Name()+"@"+sm.Version()] = findImportPoints(sm, modules)
+			res.ImportInfo[sm.Name()+"@"+strconv.Itoa(int(sm.Id()))] = resolveImportInfo(sm, modules)
 		}
 	}
 
@@ -214,9 +219,28 @@ func (a *PkgAnalysis) Process(opts *Options) bool {
 	return true
 }
 
-// find the import points where cause the umbrella being introduced
-func findImportPoints(main pack.Module, modules map[int64]pack.Module) []*ImportPoint {
-	subs := []pack.Module{}
+func umbrellasOfFrames(c int64, frames []*pack.ImportFrame, modules map[int64]*pack.Module) ([]int64, string) {
+	ret := []int64{}
+	key := []string{}
+	for _, frame := range frames {
+		um := modules[modules[frame.Mid].Umbrella()]
+		uid := um.Id()
+		cnt := len(ret)
+		if cnt == 0 || ret[cnt-1] != uid {
+			ret = append(ret, uid)
+			key = append(key, strconv.Itoa(int(uid)))
+		}
+	}
+	if ret[len(ret)-1] != c {
+		ret = append(ret, c)
+		key = append(key, strconv.Itoa(int(c)))
+	}
+	return ret, strings.Join(key, "-")
+}
+
+// find out the import points which cause the umbrella being introduced
+func resolveImportInfo(main *pack.Module, modules map[int64]*pack.Module) *ImportInfo {
+	subs := []*pack.Module{}
 	for _, m := range modules {
 		if m == nil {
 			continue
@@ -226,16 +250,25 @@ func findImportPoints(main pack.Module, modules map[int64]pack.Module) []*Import
 		}
 	}
 
-	ret := []*ImportPoint{}
+	points := []*ImportPoint{}
+	unique := map[string]bool{}
+	includePaths := [][]int64{}
 	for _, c := range subs {
+		frames := c.ImportStk()
+		ums, key := umbrellasOfFrames(c.Umbrella(), frames, modules)
+		if !unique[key] {
+			unique[key] = true
+			includePaths = append(includePaths, ums)
+		}
+
 		stk := []string{}
-		for _, frame := range c.ImportStk() {
+		for _, frame := range frames {
 			fm := modules[frame.Mid]
 			loc := frame.S.OfstLineCol(frame.Rng.Lo)
 			stk = append(stk, fmt.Sprintf("%s(%d:%d)", fm.File(), loc.Line, loc.Col))
 		}
-		ret = append(ret, &ImportPoint{c.File(), stk})
+		points = append(points, &ImportPoint{c.File(), stk})
 	}
 
-	return ret
+	return &ImportInfo{includePaths, points}
 }

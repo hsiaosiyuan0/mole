@@ -46,6 +46,17 @@ func GetNodeName(node parser.Node) string {
 		if vd.Id().Type() == parser.N_NAME {
 			return vd.Id().(*parser.Ident).Val()
 		}
+	case parser.N_STMT_EXPORT:
+		n := node.(*parser.ExportDec)
+		if n.Default() {
+			return "default"
+		}
+		if n.All() {
+			return "#all"
+		}
+		if dec := n.Dec(); dec != nil {
+			return GetNodeName(dec)
+		}
 	case parser.N_NAME:
 		return node.(*parser.Ident).Val()
 	case parser.N_JSX_ID:
@@ -248,4 +259,41 @@ func GetParent(ctx *walk.VisitorCtx, targetTyp, barrierTyp []parser.NodeType) (p
 		ctx = ctx.Parent
 	}
 	return nil, nil
+}
+
+func IsPrimitive(node parser.Node) bool {
+	nt := node.Type()
+	return nt == parser.N_NAME || nt == parser.N_LIT_STR || nt == parser.N_LIT_NUM || nt == parser.N_LIT_BOOL || nt == parser.N_LIT_NULL || nt == parser.N_LIT_REGEXP
+}
+
+func IsPlainArr(node parser.Node) bool {
+	if node.Type() != parser.N_LIT_ARR {
+		return false
+	}
+	els := node.(*parser.ArrLit).Elems()
+	for _, el := range els {
+		if !IsPlainObj(el) {
+			return false
+		}
+	}
+	return true
+}
+
+func IsPlainObjLit(node parser.Node) bool {
+	if node.Type() != parser.N_LIT_OBJ {
+		return false
+	}
+	props := node.(*parser.ObjLit).Props()
+	for _, prop := range props {
+		if prop.Type() == parser.N_PROP {
+			if !IsPlainObj(prop.(*parser.Prop).Val()) {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func IsPlainObj(node parser.Node) bool {
+	return IsPrimitive(node) || IsPlainArr(node) || IsPlainObjLit(node)
 }

@@ -19,30 +19,12 @@ func TestParseDep(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	deps, _, err := walkDep(p, nil, nil)
+	deps, _, _, err := walkDep(p, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	util.AssertEqual(t, 1, len(deps), "should be ok")
-}
-
-func TestParseDepRebound(t *testing.T) {
-	p, err := parse("", `
-  require = a
-  require('a.js')
-`, parser.NewParserOpts(), true)
-
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	deps, _, err := walkDep(p, nil, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	util.AssertEqual(t, 0, len(deps), "should be ok")
 }
 
 func TestParseDepValShadow(t *testing.T) {
@@ -57,7 +39,7 @@ func TestParseDepValShadow(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	deps, _, err := walkDep(p, nil, nil)
+	deps, _, _, err := walkDep(p, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -78,7 +60,7 @@ func TestParseDepAfterValShadow(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	deps, _, err := walkDep(p, nil, nil)
+	deps, _, _, err := walkDep(p, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -95,7 +77,7 @@ func TestParseDepImport(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	deps, _, err := walkDep(p, nil, nil)
+	deps, _, _, err := walkDep(p, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -127,7 +109,7 @@ if (process.env.NODE_ENV === 'production') {
 		t.Fatal(err)
 	}
 
-	deps, _, err := walkDep(p, vars, nil)
+	deps, _, _, err := walkDep(p, vars, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -160,7 +142,7 @@ if (process.env.NODE_ENV === 'production') {
 		t.Fatal(err)
 	}
 
-	deps, _, err := walkDep(p, vars, nil)
+	deps, _, _, err := walkDep(p, vars, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

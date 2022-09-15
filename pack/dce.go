@@ -57,6 +57,9 @@ func (d *TopmostDec) MarshalJSON() ([]byte, error) {
 	default:
 		rng := d.Node.Range()
 		rng.Hi = rng.Lo + 15
+		if int(rng.Hi) > d.s.Len() {
+			rng.Hi = uint32(d.s.Len())
+		}
 		src = d.s.RngText(rng)
 	}
 
@@ -111,6 +114,9 @@ func isPure(node parser.Node, p *parser.Parser) bool {
 			if binding != nil && binding.Typ == parser.RDT_FN {
 				return true
 			}
+		}
+		if astutil.IsPlainObj(init) {
+			return true
 		}
 		return hasPureAnno(init, p)
 	case parser.N_STMT_IMPORT:
@@ -232,6 +238,11 @@ func resolveTopmostDecs(p *parser.Parser) (tds map[parser.Node]*TopmostDec, expo
 				exports["default"] = td
 			} else if n.All() {
 				exportAll = append(exportAll, td)
+			} else if dec := n.Dec(); dec != nil {
+				name := astutil.GetNodeName(dec)
+				if name != "" {
+					exports[name] = td
+				}
 			} else {
 				scope := symtab.Scopes[ctx.ScopeId()]
 				ext := n.Src() != nil
@@ -286,7 +297,7 @@ func (t *Import) key() string {
 	return fmt.Sprintf("%s:%d", t.name, t.from)
 }
 
-func importsOfNode(node parser.Node, m *JsModule) *list.List {
+func importsOfNode(node parser.Node, m *Module) *list.List {
 	imports := list.New()
 	switch node.Type() {
 	case parser.N_STMT_IMPORT:
@@ -334,11 +345,38 @@ func importsOfNode(node parser.Node, m *JsModule) *list.List {
 				}
 			}
 		}
+	default:
+		walkRequireCall(node, func(str string) {
+			from := m.extsMap[str]
+			imports.PushBack(&Import{"#all", from, false})
+		})
 	}
 	return imports
 }
 
-func importsOfModule(m *JsModule) *list.List {
+type RequireCb = func(str string)
+
+func walkRequireCall(node parser.Node, cb RequireCb) {
+	wc := walk.NewWalkCtx(node, nil)
+	walk.AddNodeAfterListener(&wc.Listeners, parser.N_EXPR_CALL, &walk.Listener{
+		Id: "N_EXPR_CALL",
+		Handle: func(node parser.Node, key string, ctx *walk.VisitorCtx) {
+			n := node.(*parser.CallExpr)
+			s := ctx.WalkCtx.Scope()
+			callee := n.Callee()
+			args := n.Args()
+
+			isRequire := astutil.GetName(callee) == "require" && s.BindingOf("require") == nil &&
+				len(args) == 1 && args[0].Type() == parser.N_LIT_STR
+
+			if isRequire {
+				cb(args[0].(*parser.StrLit).Val())
+			}
+		},
+	})
+}
+
+func importsOfModule(m *Module) *list.List {
 	imports := list.New()
 	for _, d := range m.tds {
 		imports.PushBackList(importsOfNode(d.Node, m))
@@ -369,23 +407,29 @@ func markTopmostDec(td *TopmostDec, cb markTopmostDecCb) {
 	}
 }
 
-func importSrcOf(node parser.Node) string {
+func importSrcOf(node parser.Node) ([]string, bool) {
 	switch node.Type() {
 	case parser.N_STMT_IMPORT:
 		n := node.(*parser.ImportDec)
 		if n.Src() != nil {
-			return n.Src().(*parser.StrLit).Val()
+			return []string{n.Src().(*parser.StrLit).Val()}, false
 		}
 	case parser.N_STMT_EXPORT:
 		n := node.(*parser.ExportDec)
 		if n.Src() != nil {
-			return n.Src().(*parser.StrLit).Val()
+			return []string{n.Src().(*parser.StrLit).Val()}, false
 		}
+	default:
+		ret := []string{}
+		walkRequireCall(node, func(str string) {
+			ret = append(ret, str)
+		})
+		return ret, true
 	}
-	return ""
+	return []string{}, false
 }
 
-func importsOfTopmostDec(td *TopmostDec, m *JsModule) *list.List {
+func importsOfTopmostDec(td *TopmostDec, m *Module) *list.List {
 	imports := list.New()
 	owned := []*TopmostDec{td}
 
@@ -414,9 +458,9 @@ func importsOfTopmostDec(td *TopmostDec, m *JsModule) *list.List {
 func (s *DepScanner) DCE() {
 	imports := list.New()
 
-	imported := []int64{}
+	imported := map[int64]bool{}
 	for _, mid := range s.entries {
-		m := s.allModules[mid].(*JsModule)
+		m := s.allModules[mid]
 
 		// every export in entry has side-effect
 		for _, exp := range m.exports {
@@ -450,20 +494,19 @@ func (s *DepScanner) DCE() {
 
 		ipt := imports.Remove(imports.Front()).(*Import)
 		m := s.allModules[ipt.from]
-		jm := m.(*JsModule)
 
-		imported = append(imported, ipt.from)
+		imported[ipt.from] = true
 
 		// apply affects
 		all := ipt.name == "#all"
 
 		if !all {
-			td := jm.exports[ipt.name]
+			td := m.exports[ipt.name]
 			if td != nil {
 				td.Alive = true
 				markTopmostDec(td, func(td *TopmostDec) {
 					td.Alive = true
-					imports := importsOfTopmostDec(td, jm)
+					imports := importsOfTopmostDec(td, m)
 					next := imports.Front()
 					for {
 						if next == nil {
@@ -476,16 +519,16 @@ func (s *DepScanner) DCE() {
 				})
 			} else {
 				// delegate the import to the modules which are imported by `*`
-				for _, exp := range jm.exportAll {
+				for _, exp := range m.exportAll {
 					var from int64
 					switch exp.Node.Type() {
 					case parser.N_STMT_IMPORT:
 						n := exp.Node.(*parser.ImportDec)
-						from = jm.extsMap[n.Src().(*parser.StrLit).Val()]
+						from = m.extsMap[n.Src().(*parser.StrLit).Val()]
 					case parser.N_STMT_EXPORT:
 						n := exp.Node.(*parser.ExportDec)
 						if n.Src() != nil {
-							from = jm.extsMap[n.Src().(*parser.StrLit).Val()]
+							from = m.extsMap[n.Src().(*parser.StrLit).Val()]
 						}
 					}
 					if from != 0 {
@@ -495,21 +538,23 @@ func (s *DepScanner) DCE() {
 			}
 		}
 
-		for _, td := range jm.tds {
+		for _, td := range m.tds {
 			td.Alive = td.Alive || td.SideEffect || all
 			if td.Alive {
 				markTopmostDec(td, func(td *TopmostDec) {
 					td.Alive = true
-					src := importSrcOf(td.Node)
-					if src != "" {
-						// does not eliminate the unused named-import yet
-						names, all := astutil.NamesInDecNode(td.Node)
-						from := jm.extsMap[src]
-						if all {
-							pushImport(&Import{"#all", from, false})
-						} else if from != 0 {
-							for _, name := range names {
-								pushImport(&Import{name, from, false})
+					srcList, sideEffect := importSrcOf(td.Node)
+					for _, src := range srcList {
+						if src != "" {
+							// does not eliminate the unused named-import yet
+							names, all := astutil.NamesInDecNode(td.Node)
+							from := m.extsMap[src]
+							if all || sideEffect {
+								pushImport(&Import{"#all", from, false})
+							} else if from != 0 {
+								for _, name := range names {
+									pushImport(&Import{name, from, false})
+								}
 							}
 						}
 					}
@@ -519,14 +564,13 @@ func (s *DepScanner) DCE() {
 	}
 
 	// recalculate the size of umbrella modules
-	for _, mid := range imported {
+	for mid := range imported {
 		m := s.allModules[mid]
-		jm := m.(*JsModule)
 
-		if !jm.IsUmbrella() {
-			um := s.allModules[jm.umbrella]
+		if !m.IsUmbrella() {
+			um := s.allModules[m.umbrella]
 			if um != nil {
-				um.(*JsModule).dceSize += jm.calcDceSize()
+				um.dceSize += m.calcDceSize()
 			}
 		}
 	}

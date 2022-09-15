@@ -32,6 +32,11 @@ func TestResolveTopmostDecs(t *testing.T) {
   /*#__PURE__*/ double(55);
 
   class A {}
+
+  const hooks = /*#__PURE__*/ {
+    fetch: fetch,
+    fetchBatch: fetchBatch,
+  }
 `, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -45,6 +50,7 @@ func TestResolveTopmostDecs(t *testing.T) {
 	util.AssertEqual(t, false, tds[stmts[3]].SideEffect, "")
 	util.AssertEqual(t, true, tds[stmts[4]].SideEffect, "")
 	util.AssertEqual(t, false, tds[stmts[5]].SideEffect, "")
+	util.AssertEqual(t, false, tds[stmts[7]].SideEffect, "")
 }
 
 func TestResolveTopmostDecsRef(t *testing.T) {

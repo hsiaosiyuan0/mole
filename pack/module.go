@@ -14,7 +14,7 @@ type Relation struct {
 	Rhs int64 `json:"rhs"`
 }
 
-func FindOutlet(a Module, dst int64, create bool) (*Relation, bool) {
+func FindOutlet(a *Module, dst int64, create bool) (*Relation, bool) {
 	rs := a.Outlets()
 
 	var edge *Relation
@@ -33,7 +33,7 @@ func FindOutlet(a Module, dst int64, create bool) (*Relation, bool) {
 	return nil, false
 }
 
-func FindInlet(a Module, src int64, create bool) (*Relation, bool) {
+func FindInlet(a *Module, src int64, create bool) (*Relation, bool) {
 	rs := a.Inlets()
 
 	var edge *Relation
@@ -52,57 +52,12 @@ func FindInlet(a Module, src int64, create bool) (*Relation, bool) {
 	return nil, false
 }
 
-func link(a, b Module) {
+func link(a, b *Module) {
 	a.AddOutlet(b.Id())
 	b.AddInlet(a.Id())
 }
 
-// methods on `Module` should be thread-safe
-type Module interface {
-	Id() int64
-	setId(id int64)
-
-	Name() string
-	Version() string
-
-	Lang() string
-
-	File() string
-	setFile(string)
-
-	Strict() bool
-	setStrict(bool)
-
-	Size() int64
-	setSize(int64)
-	addSize(int64)
-
-	// indicate if this module is a entry point
-	Entry() bool
-	setAsEntry()
-
-	Outside() bool
-
-	Umbrella() int64
-	setUmbrella(int64)
-
-	IsUmbrella() bool
-
-	Scanned() bool
-
-	AddInlet(int64)
-	Inlets() []*Relation
-
-	AddOutlet(int64)
-	Outlets() []*Relation
-
-	ImportStk() []*ImportFrame
-	setImportStk([]*ImportFrame)
-
-	MarshalJSON() ([]byte, error)
-}
-
-type JsModule struct {
+type Module struct {
 	id   int64
 	lang string
 
@@ -114,9 +69,17 @@ type JsModule struct {
 	strict  bool
 	scanned bool
 
-	entry    bool
-	outside  bool
-	umbrella int64
+	entry          bool
+	outside        bool
+	umbrella       int64
+	sideEffectFree bool
+
+	cjs         bool
+	cjsList     []int64
+	cjsListLock sync.Mutex
+
+	esmList     []int64
+	esmListLock sync.Mutex
 
 	inlets     []*Relation
 	inletsLock sync.Mutex
@@ -145,87 +108,87 @@ type JsModule struct {
 	walkTopmostTime int64
 }
 
-func (m *JsModule) setId(id int64) {
+func (m *Module) setId(id int64) {
 	m.id = id
 }
 
-func (m *JsModule) Id() int64 {
+func (m *Module) Id() int64 {
 	return m.id
 }
 
-func (m *JsModule) Name() string {
+func (m *Module) Name() string {
 	return m.name
 }
 
-func (m *JsModule) Version() string {
+func (m *Module) Version() string {
 	return m.version
 }
 
-func (m *JsModule) Lang() string {
+func (m *Module) Lang() string {
 	return m.lang
 }
 
-func (m *JsModule) setFile(file string) {
+func (m *Module) setFile(file string) {
 	m.file = file
 }
 
-func (m *JsModule) File() string {
+func (m *Module) File() string {
 	return m.file
 }
 
-func (m *JsModule) addSize(s int64) {
+func (m *Module) addSize(s int64) {
 	atomic.AddInt64(&m.size, s)
 }
 
-func (m *JsModule) Size() int64 {
+func (m *Module) Size() int64 {
 	return m.size
 }
 
-func (m *JsModule) setSize(s int64) {
+func (m *Module) setSize(s int64) {
 	atomic.StoreInt64(&m.size, s)
 }
 
-func (m *JsModule) setAsEntry() {
+func (m *Module) setAsEntry() {
 	m.entry = true
 }
 
-func (m *JsModule) Entry() bool {
+func (m *Module) Entry() bool {
 	return m.entry
 }
 
-func (m *JsModule) Scanned() bool {
+func (m *Module) Scanned() bool {
 	return m.scanned
 }
 
-func (m *JsModule) Outside() bool {
+func (m *Module) Outside() bool {
 	return m.outside
 }
 
-func (m *JsModule) setUmbrella(id int64) {
+func (m *Module) setUmbrella(id int64) {
 	m.umbrella = id
 }
 
-func (m *JsModule) IsUmbrella() bool {
+func (m *Module) IsUmbrella() bool {
 	return m.id == m.umbrella
 }
 
-func (m *JsModule) setStrict(f bool) {
+func (m *Module) setStrict(f bool) {
 	m.strict = f
 }
 
-func (m *JsModule) Strict() bool {
+func (m *Module) Strict() bool {
 	return m.strict
 }
 
-func (m *JsModule) IsJson() bool {
+func (m *Module) IsJson() bool {
 	return strings.HasSuffix(m.file, ".json")
 }
 
-func (m *JsModule) Umbrella() int64 {
+func (m *Module) Umbrella() int64 {
 	return m.umbrella
 }
 
-func (m *JsModule) AddInlet(src int64) {
+func (m *Module) AddInlet(src int64) {
 	m.inletsLock.Lock()
 	defer m.inletsLock.Unlock()
 
@@ -235,11 +198,11 @@ func (m *JsModule) AddInlet(src int64) {
 	}
 }
 
-func (m *JsModule) Inlets() []*Relation {
+func (m *Module) Inlets() []*Relation {
 	return m.inlets
 }
 
-func (m *JsModule) AddOutlet(dst int64) {
+func (m *Module) AddOutlet(dst int64) {
 	m.outletsLock.Lock()
 	defer m.outletsLock.Unlock()
 
@@ -249,26 +212,26 @@ func (m *JsModule) AddOutlet(dst int64) {
 	}
 }
 
-func (m *JsModule) Outlets() []*Relation {
+func (m *Module) Outlets() []*Relation {
 	return m.outlets
 }
 
-func (m *JsModule) setImportStk(s []*ImportFrame) {
+func (m *Module) setImportStk(s []*ImportFrame) {
 	m.stk = s
 }
 
-func (m *JsModule) ImportStk() []*ImportFrame {
+func (m *Module) ImportStk() []*ImportFrame {
 	return m.stk
 }
 
-func (m *JsModule) addOwner(id int64, names []string) {
+func (m *Module) addOwner(id int64, names []string) {
 	m.ownersLock.Lock()
 	defer m.ownersLock.Unlock()
 
 	m.owners[id] = append(m.owners[id], names...)
 }
 
-func (m *JsModule) topmostDecs() []*TopmostDec {
+func (m *Module) topmostDecs() []*TopmostDec {
 	decs := []*TopmostDec{}
 	for _, d := range m.tds {
 		decs = append(decs, d)
@@ -276,14 +239,28 @@ func (m *JsModule) topmostDecs() []*TopmostDec {
 	return decs
 }
 
-func (m *JsModule) setExtsMap(ext string, id int64) {
+func (m *Module) setExtsMap(ext string, id int64) {
 	m.extsMapLock.Lock()
 	defer m.extsMapLock.Unlock()
 
 	m.extsMap[ext] = id
 }
 
-func (m *JsModule) calcDceSize() int64 {
+func (m *Module) addCjs(mid int64) {
+	m.cjsListLock.Lock()
+	defer m.cjsListLock.Unlock()
+
+	m.cjsList = append(m.cjsList, mid)
+}
+
+func (m *Module) addEsm(mid int64) {
+	m.esmListLock.Lock()
+	defer m.esmListLock.Unlock()
+
+	m.esmList = append(m.esmList, mid)
+}
+
+func (m *Module) calcDceSize() int64 {
 	var ret int64
 	for _, td := range m.tds {
 		if td.Alive || td.SideEffect {
@@ -295,7 +272,7 @@ func (m *JsModule) calcDceSize() int64 {
 	return ret
 }
 
-func (m *JsModule) MarshalJSON() ([]byte, error) {
+func (m *Module) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {
 		ID              int64              `json:"id"`
 		Name            string             `json:"name"`
@@ -306,6 +283,10 @@ func (m *JsModule) MarshalJSON() ([]byte, error) {
 		Strict          bool               `json:"strict"`
 		Entry           bool               `json:"entry"`
 		Umbrella        int64              `json:"umbrella"`
+		Cjs             bool               `json:"cjs"`
+		CjsList         []int64            `json:"cjsList"`
+		EsmList         []int64            `json:"esmList"`
+		SideEffectFree  bool               `json:"sideEffectFree"`
 		Inlets          []*Relation        `json:"inlets"`
 		Outlets         []*Relation        `json:"outlets"`
 		Owners          map[int64][]string `json:"owners"`
@@ -324,6 +305,10 @@ func (m *JsModule) MarshalJSON() ([]byte, error) {
 		Strict:          m.strict,
 		Entry:           m.entry,
 		Umbrella:        m.umbrella,
+		Cjs:             m.cjs,
+		CjsList:         m.cjsList,
+		EsmList:         m.esmList,
+		SideEffectFree:  m.sideEffectFree,
 		Inlets:          m.inlets,
 		Outlets:         m.outlets,
 		Owners:          m.owners,
