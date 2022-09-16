@@ -94,9 +94,9 @@ type Module struct {
 	owners     map[int64][]string
 	ownersLock sync.Mutex
 
-	exports   map[string]*TopmostDec
-	exportAll []*TopmostDec
-	tds       map[parser.Node]*TopmostDec // topmostDecs
+	exports   map[string]*TopmostStmt
+	exportAll []*TopmostStmt
+	tds       map[parser.Node]*TopmostStmt // topmostStmts
 
 	// the src of `import` or `export` in this module => target module id
 	extsMap     map[string]int64
@@ -231,8 +231,8 @@ func (m *Module) addOwner(id int64, names []string) {
 	m.owners[id] = append(m.owners[id], names...)
 }
 
-func (m *Module) topmostDecs() []*TopmostDec {
-	decs := []*TopmostDec{}
+func (m *Module) topmostStmts() []*TopmostStmt {
+	decs := []*TopmostStmt{}
 	for _, d := range m.tds {
 		decs = append(decs, d)
 	}
@@ -291,7 +291,7 @@ func (m *Module) MarshalJSON() ([]byte, error) {
 		Outlets         []*Relation        `json:"outlets"`
 		Owners          map[int64][]string `json:"owners"`
 		ExtsMap         map[string]int64   `json:"extsMap"`
-		TopmostDecs     []*TopmostDec      `json:"topmostDecs"`
+		TopmostStmts    []*TopmostStmt     `json:"topmostStmts"`
 		ParseTime       int64              `json:"parseTime"`
 		WalkDepTime     int64              `json:"walkDepTime"`
 		WalkTopmostTime int64              `json:"walkTopmostTime"`
@@ -313,7 +313,7 @@ func (m *Module) MarshalJSON() ([]byte, error) {
 		Outlets:         m.outlets,
 		Owners:          m.owners,
 		ExtsMap:         m.extsMap,
-		TopmostDecs:     m.topmostDecs(),
+		TopmostStmts:    m.topmostStmts(),
 		ParseTime:       m.parseTime,
 		WalkDepTime:     m.walkDepTime,
 		WalkTopmostTime: m.walkTopmostTime,

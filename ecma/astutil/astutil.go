@@ -29,40 +29,48 @@ func GetName(node parser.Node) string {
 	return node.(*parser.Ident).Val()
 }
 
-func GetNodeName(node parser.Node) string {
+func GetNodeNames(node parser.Node) []string {
 	switch node.Type() {
 	case parser.N_EXPR_FN, parser.N_STMT_FN:
 		n := node.(*parser.FnDec)
 		if n.Id() == nil {
-			return ""
+			return nil
 		}
-		return n.Id().(*parser.Ident).Val()
+		return []string{n.Id().(*parser.Ident).Val()}
 	case parser.N_STMT_VAR_DEC:
 		n := node.(*parser.VarDecStmt)
 		if len(n.DecList()) != 1 {
-			return ""
+			return nil
 		}
 		vd := n.DecList()[0].(*parser.VarDec)
 		if vd.Id().Type() == parser.N_NAME {
-			return vd.Id().(*parser.Ident).Val()
+			return []string{vd.Id().(*parser.Ident).Val()}
 		}
+	case parser.N_STMT_IMPORT:
+		n := node.(*parser.ImportDec)
+		ret := []string{}
+		for _, s := range n.Specs() {
+			spec := s.(*parser.ImportSpec)
+			ret = append(ret, spec.Local().(*parser.Ident).Val())
+		}
+		return ret
 	case parser.N_STMT_EXPORT:
 		n := node.(*parser.ExportDec)
 		if n.Default() {
-			return "default"
+			return []string{"default"}
 		}
 		if n.All() {
-			return "#all"
+			return []string{"#all"}
 		}
 		if dec := n.Dec(); dec != nil {
-			return GetNodeName(dec)
+			return GetNodeNames(dec)
 		}
 	case parser.N_NAME:
-		return node.(*parser.Ident).Val()
+		return []string{node.(*parser.Ident).Val()}
 	case parser.N_JSX_ID:
-		return node.(*parser.JsxIdent).Val()
+		return []string{node.(*parser.JsxIdent).Val()}
 	}
-	return ""
+	return nil
 }
 
 func NamesInDecNode(node parser.Node) (ret []string, all bool) {
@@ -85,6 +93,7 @@ func NamesInDecNode(node parser.Node) (ret []string, all bool) {
 		}
 	case parser.N_STMT_IMPORT:
 		n := node.(*parser.ImportDec)
+		ret = []string{}
 		for _, s := range n.Specs() {
 			spec := s.(*parser.ImportSpec)
 			if spec.Default() {

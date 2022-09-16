@@ -62,7 +62,8 @@ type ImportInfo struct {
 }
 
 type Result struct {
-	Elapsed int64 `json:"elapsed"`
+	Options *pack.Config `json:"options"`
+	Elapsed int64        `json:"elapsed"`
 
 	// name => versions
 	DupModules []*DupItem `json:"dupModules"`
@@ -131,6 +132,7 @@ func (a *PkgAnalysis) Process(opts *Options) bool {
 
 	s.DCE()
 
+	res.Options = c
 	res.Elapsed = time.Since(begin).Milliseconds()
 
 	// find the dup umbrellas

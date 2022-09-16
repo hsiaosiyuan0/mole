@@ -6281,7 +6281,7 @@ func (p *Parser) method(rng span.Range, key Node, accMode ACC_MOD, compute span.
 		}
 		body, err = p.fnBody()
 		if gen {
-			p.lexer.PopMode()
+			p.lexer.EraseMode(LM_GENERATOR)
 		}
 		if err != nil {
 			return nil, err

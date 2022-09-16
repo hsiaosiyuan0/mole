@@ -22,7 +22,7 @@ func compile(code string, opts *parser.ParserOpts) (parser.Node, *parser.Parser,
 	return prog, p, err
 }
 
-func TestResolveTopmostDecs(t *testing.T) {
+func TestResolveTopmostStmts(t *testing.T) {
 	ast, p, err := compile(`
   function f() {}
   let f1 = f
@@ -43,7 +43,7 @@ func TestResolveTopmostDecs(t *testing.T) {
 	}
 
 	stmts := ast.(*parser.Prog).Body()
-	tds, _, _ := resolveTopmostDecs(p)
+	tds, _, _ := resolveTopmostStmts(p)
 	util.AssertEqual(t, false, tds[stmts[0]].SideEffect, "")
 	util.AssertEqual(t, false, tds[stmts[1]].SideEffect, "")
 	util.AssertEqual(t, true, tds[stmts[2]].SideEffect, "")
@@ -53,7 +53,7 @@ func TestResolveTopmostDecs(t *testing.T) {
 	util.AssertEqual(t, false, tds[stmts[7]].SideEffect, "")
 }
 
-func TestResolveTopmostDecsRef(t *testing.T) {
+func TestResolveTopmostStmtsRef(t *testing.T) {
 	ast, p, err := compile(`
   function f() {}
   let f1 = f
@@ -75,7 +75,7 @@ func TestResolveTopmostDecsRef(t *testing.T) {
 	}
 
 	stmts := ast.(*parser.Prog).Body()
-	tds, _, _ := resolveTopmostDecs(p)
+	tds, _, _ := resolveTopmostStmts(p)
 
 	f := tds[stmts[0]]
 	f1 := tds[stmts[1]]
@@ -91,7 +91,7 @@ func TestResolveTopmostDecsRef(t *testing.T) {
 	util.AssertEqual(t, true, f2.Owned[exp1] != nil, "")
 }
 
-func TestResolveTopmostDecsJsx(t *testing.T) {
+func TestResolveTopmostStmtsJsx(t *testing.T) {
 	ast, p, err := compile(`
   import { F3 } from "./test.js"
   const el = <F3 />
@@ -104,7 +104,7 @@ func TestResolveTopmostDecsJsx(t *testing.T) {
 	}
 
 	stmts := ast.(*parser.Prog).Body()
-	tds, _, _ := resolveTopmostDecs(p)
+	tds, _, _ := resolveTopmostStmts(p)
 
 	f3 := tds[stmts[0]]
 	el := tds[stmts[1]]

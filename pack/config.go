@@ -8,12 +8,13 @@ type Config struct {
 	// web, node, react-native
 	Target string `json:"target"`
 
-	Entries       []string               `json:"entries"`
-	Extensions    []string               `json:"extensions"`
-	DefinedVars   map[string]interface{} `json:"definedVars"`
-	Tsconfig      string                 `json:"tsconfig"`
-	Ts            bool                   `json:"ts"`
-	ParserOptions map[string]interface{} `json:"parserOptions"`
+	Entries                []string               `json:"entries"`
+	Extensions             []string               `json:"extensions"`
+	DefinedVars            map[string]interface{} `json:"definedVars"`
+	Tsconfig               string                 `json:"tsconfig"`
+	Ts                     bool                   `json:"ts"`
+	ParserOptions          map[string]interface{} `json:"parserOptions"`
+	SideEffectsFreeModules []string               `json:"sideEffectsFreeModules"`
 
 	dir string
 }
@@ -46,6 +47,14 @@ func (c *Config) NewDepScannerOpts() *DepScannerOpts {
 	o.SerVars(c.DefinedVars)
 	o.ParserOpts = c.ParserOptions
 	o.FillDefault()
+
+	if c.SideEffectsFreeModules != nil {
+		dict := map[string]bool{}
+		for _, name := range c.SideEffectsFreeModules {
+			dict[name] = true
+		}
+		o.SideEffectsFreeModules = dict
+	}
 
 	return o
 }

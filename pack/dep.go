@@ -64,6 +64,8 @@ type DepScannerOpts struct {
 	// some custom builtin *modules in your application
 	Builtin map[string]bool
 
+	SideEffectsFreeModules map[string]bool
+
 	concurrent int
 	unitFacts  map[string]DepUnitFact
 
@@ -768,7 +770,7 @@ func (j *JsUnit) scan(m *Module) ([]*importPoint, error) {
 	jm.cjs = cjs
 
 	start = time.Now()
-	jm.tds, jm.exports, jm.exportAll = resolveTopmostDecs(parser)
+	jm.tds, jm.exports, jm.exportAll = resolveTopmostStmts(parser)
 	walkTopmostTime := time.Since(start).Nanoseconds()
 
 	jm.walkDepTime = walkTime

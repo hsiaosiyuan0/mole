@@ -12,13 +12,13 @@ import (
 	"github.com/hsiaosiyuan0/mole/span"
 )
 
-type TopmostDec struct {
+type TopmostStmt struct {
 	s          *span.Source
 	Node       parser.Node
 	Alive      bool
 	SideEffect bool
-	Owners     map[*TopmostDec]*TopmostDec
-	Owned      map[*TopmostDec]*TopmostDec
+	Owners     map[*TopmostStmt]*TopmostStmt
+	Owned      map[*TopmostStmt]*TopmostStmt
 }
 
 func idOfDec(n parser.Node) uint64 {
@@ -26,7 +26,7 @@ func idOfDec(n parser.Node) uint64 {
 	return uint64(rng.Lo)<<32 | uint64(rng.Hi)
 }
 
-func (d *TopmostDec) MarshalJSON() ([]byte, error) {
+func (d *TopmostStmt) MarshalJSON() ([]byte, error) {
 	owners := []uint64{}
 	for _, d := range d.Owners {
 		owners = append(owners, idOfDec(d.Node))
@@ -158,41 +158,48 @@ func isRefDefInNode(ref *parser.Ref, n parser.Node) bool {
 	return false
 }
 
-func resolveTopmostDecs(p *parser.Parser) (tds map[parser.Node]*TopmostDec, exports map[string]*TopmostDec, exportAll []*TopmostDec) {
+func resolveTopmostStmts(p *parser.Parser) (tds map[parser.Node]*TopmostStmt, exports map[string]*TopmostStmt, exportAll []*TopmostStmt) {
 	ast := p.Ast()
 	stmts := ast.(*parser.Prog).Body()
-	tds = map[parser.Node]*TopmostDec{}
+	tds = map[parser.Node]*TopmostStmt{}
 
 	symtab := p.Symtab()
-	ref2td := map[*parser.Ref]*TopmostDec{}
+	ref2td := map[*parser.Ref]*TopmostStmt{}
 	for _, n := range stmts {
-		td := &TopmostDec{p.Source(), n, false, !isPure(n, p), map[*TopmostDec]*TopmostDec{}, map[*TopmostDec]*TopmostDec{}}
-		name := astutil.GetNodeName(n)
-		ref := symtab.Scopes[0].BindingOf(name)
-		if ref != nil {
-			ref2td[ref] = td
+		td := &TopmostStmt{p.Source(), n, false, !isPure(n, p), map[*TopmostStmt]*TopmostStmt{}, map[*TopmostStmt]*TopmostStmt{}}
+		names := astutil.GetNodeNames(n)
+		for _, name := range names {
+			ref := symtab.Scopes[0].BindingOf(name)
+			if ref != nil {
+				ref2td[ref] = td
+			}
 		}
 		tds[n] = td
 	}
 
 	ctx := walk.NewWalkCtx(ast, p.Symtab())
 
-	// build the relations of the topmostDecs
+	// build the relations of the topmostStmts
 	handleName := func(node parser.Node, key string, ctx *walk.VisitorCtx) {
 		if key == "Id" {
 			return
 		}
 
 		scope := symtab.Scopes[ctx.ScopeId()]
-		ref := scope.BindingOf(astutil.GetNodeName(node))
+		names := astutil.GetNodeNames(node)
+		if len(names) == 0 {
+			return
+		}
+		name := names[0]
+		ref := scope.BindingOf(name)
 		if ref == nil || ref.Scope.Id != 0 {
 			return
 		}
 
-		// ref here is a topmost ref and `td` will be its target topmostDec
-		if td := tds[ref.Dec]; td != nil {
+		// ref here is a topmost ref and `td` will be its target topmostStmt
+		if td := ref2td[ref]; td != nil {
 
-			// find the topmostDec which encapsulates this reference point then
+			// find the topmostStmt which encapsulates this reference point then
 			// set it ast the the owner of `td`
 			ctx = ctx.Parent
 			for {
@@ -225,11 +232,11 @@ func resolveTopmostDecs(p *parser.Parser) (tds map[parser.Node]*TopmostDec, expo
 		Handle: handleName,
 	})
 
-	// build the map for routing the export name to its topmostDec
-	exports = map[string]*TopmostDec{}
-	exportAll = []*TopmostDec{}
+	// build the map for routing the export name to its topmostStmt
+	exports = map[string]*TopmostStmt{}
+	exportAll = []*TopmostStmt{}
 	walk.AddNodeAfterListener(&ctx.Listeners, parser.N_STMT_EXPORT, &walk.Listener{
-		Id: "parseDep",
+		Id: "N_STMT_EXPORT",
 		Handle: func(node parser.Node, key string, ctx *walk.VisitorCtx) {
 			n := node.(*parser.ExportDec)
 
@@ -239,9 +246,9 @@ func resolveTopmostDecs(p *parser.Parser) (tds map[parser.Node]*TopmostDec, expo
 			} else if n.All() {
 				exportAll = append(exportAll, td)
 			} else if dec := n.Dec(); dec != nil {
-				name := astutil.GetNodeName(dec)
-				if name != "" {
-					exports[name] = td
+				names := astutil.GetNodeNames(dec)
+				if names != nil {
+					exports[names[0]] = td
 				}
 			} else {
 				scope := symtab.Scopes[ctx.ScopeId()]
@@ -384,11 +391,11 @@ func importsOfModule(m *Module) *list.List {
 	return imports
 }
 
-type markTopmostDecCb = func(*TopmostDec)
+type markTopmostStmtCb = func(*TopmostStmt)
 
-func markTopmostDec(td *TopmostDec, cb markTopmostDecCb) {
-	tds := []*TopmostDec{td}
-	unique := map[*TopmostDec]bool{}
+func markTopmostStmt(td *TopmostStmt, cb markTopmostStmtCb) {
+	tds := []*TopmostStmt{td}
+	unique := map[*TopmostStmt]bool{}
 	for {
 		if len(tds) == 0 {
 			break
@@ -429,9 +436,9 @@ func importSrcOf(node parser.Node) ([]string, bool) {
 	return []string{}, false
 }
 
-func importsOfTopmostDec(td *TopmostDec, m *Module) *list.List {
+func importsOfTopmostStmt(td *TopmostStmt, m *Module) *list.List {
 	imports := list.New()
-	owned := []*TopmostDec{td}
+	owned := []*TopmostStmt{td}
 
 	unique := map[parser.Node]bool{}
 	for {
@@ -462,16 +469,16 @@ func (s *DepScanner) DCE() {
 	for _, mid := range s.entries {
 		m := s.allModules[mid]
 
-		// every export in entry has side-effect
+		// every export in entry has side-effects
 		for _, exp := range m.exports {
 			exp.SideEffect = true
-			markTopmostDec(exp, func(td *TopmostDec) {
+			markTopmostStmt(exp, func(td *TopmostStmt) {
 				td.Alive = true
 			})
 		}
 		for _, exp := range m.exportAll {
 			exp.SideEffect = true
-			markTopmostDec(exp, func(td *TopmostDec) {
+			markTopmostStmt(exp, func(td *TopmostStmt) {
 				td.Alive = true
 			})
 		}
@@ -496,17 +503,18 @@ func (s *DepScanner) DCE() {
 		m := s.allModules[ipt.from]
 
 		imported[ipt.from] = true
-
-		// apply affects
 		all := ipt.name == "#all"
 
+		// if current import is a named one
 		if !all {
 			td := m.exports[ipt.name]
+
+			// if the imported name is directly exported from module exports
 			if td != nil {
 				td.Alive = true
-				markTopmostDec(td, func(td *TopmostDec) {
+				markTopmostStmt(td, func(td *TopmostStmt) {
 					td.Alive = true
-					imports := importsOfTopmostDec(td, m)
+					imports := importsOfTopmostStmt(td, m)
 					next := imports.Front()
 					for {
 						if next == nil {
@@ -518,7 +526,12 @@ func (s *DepScanner) DCE() {
 					}
 				})
 			} else {
-				// delegate the import to the modules which are imported by `*`
+				// or delegate the import to the modules which are exported in module file by using `*`:
+				//
+				// ```
+				// export * from "maybe-exported-in-delegate-module-1"
+				// export * from "may-also-be-exported-in-delegate-module-2"
+				// ```
 				for _, exp := range m.exportAll {
 					var from int64
 					switch exp.Node.Type() {
@@ -539,9 +552,11 @@ func (s *DepScanner) DCE() {
 		}
 
 		for _, td := range m.tds {
+			// if module is being imported in the namespace form then none of
+			// its internal parts can take the benefits of DCE
 			td.Alive = td.Alive || td.SideEffect || all
 			if td.Alive {
-				markTopmostDec(td, func(td *TopmostDec) {
+				markTopmostStmt(td, func(td *TopmostStmt) {
 					td.Alive = true
 					srcList, sideEffect := importSrcOf(td.Node)
 					for _, src := range srcList {
@@ -570,6 +585,19 @@ func (s *DepScanner) DCE() {
 		if !m.IsUmbrella() {
 			um := s.allModules[m.umbrella]
 			if um != nil {
+				// umbrella modules have a field `sideEffectFree` to indicate if their settings are
+				// satisfied by the bundler to apply DCE on them, by default the value of this field
+				// is followed the webpack behaviors - by using the `sideEffects` field in `package.json`
+				// to flag some modules are `side-effects-free` or not
+				//
+				// for some defective bundles like the Metro for ReactNative which does not have DCE yet,
+				// developers have to use some tricks to apply DCE and in most cases the tricks can only
+				// act on deterministic restricted modules and those modules can be list by using the option
+				// `sideEffectsFree`
+				if s.opts.SideEffectsFreeModules != nil {
+					um.sideEffectFree = s.opts.SideEffectsFreeModules[um.name]
+				}
+
 				um.dceSize += m.calcDceSize()
 			}
 		}
