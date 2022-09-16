@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-VERSION=0.0.36
+VERSION=0.0.37
 
 OS=$(uname -s | awk '{print tolower($0)}')
 ARCH=$(uname -m | awk '{print tolower($0)}')
