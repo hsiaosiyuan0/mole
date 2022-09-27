@@ -637,9 +637,13 @@ func (l *Lexer) readName(jsx bool) *Token {
 			return l.errTokMsg(tok, ERR_ESCAPE_IN_KEYWORD)
 		}
 		return l.finToken(tok, Keywords[text])
-	} else if l.IsMode(LM_STRICT) && IsStrictKeyword(text) {
+	}
+
+	if l.IsMode(LM_STRICT) && IsStrictKeyword(text) {
 		return l.finToken(tok, StrictKeywords[text])
-	} else if text == "await" {
+	}
+
+	if text == "await" {
 		if l.feat&FEAT_MODULE != 0 || (l.feat&FEAT_ASYNC_AWAIT != 0 && l.IsMode(LM_ASYNC)) {
 			if containsEscape {
 				return l.errTokMsg(tok, ERR_ESCAPE_IN_KEYWORD)

@@ -23,8 +23,6 @@ func Includes[T comparable](arr []T, v T) bool {
 
 func Copy[T any](arr []T) []T {
 	ret := make([]T, len(arr))
-	for i, v := range arr {
-		ret[i] = v
-	}
+	copy(ret, arr)
 	return ret
 }

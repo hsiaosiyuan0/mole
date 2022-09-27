@@ -221,6 +221,10 @@ func (s *Source) Text(start, end uint32) string {
 	return s.code[start:end]
 }
 
+func (s *Source) Len() int {
+	return len(s.code)
+}
+
 func (s *Source) RngText(rng Range) string {
 	return s.code[rng.Lo:rng.Hi]
 }

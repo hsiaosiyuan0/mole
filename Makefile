@@ -4,9 +4,6 @@ dep:
 mole:
 	go build -o mole ./cli
 
-npm_syncver:
-	go run script/npm_syncver/main.go
-
 mole_wasm:
 	GOOS=js GOARCH=wasm go build -o mole.wasm ./wasm
 

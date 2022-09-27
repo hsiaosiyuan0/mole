@@ -49,7 +49,7 @@ type SubCommand interface {
 
 func main() {
 	opts := newOptions()
-	cmds := &[]SubCommand{&AstInspector{}, &PkgAnalysis{}}
+	cmds := &[]SubCommand{&AstInspector{}}
 	for _, cmd := range *cmds {
 		if cmd.Process(opts) {
 			return

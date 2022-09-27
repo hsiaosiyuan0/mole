@@ -29,6 +29,103 @@ func GetName(node parser.Node) string {
 	return node.(*parser.Ident).Val()
 }
 
+func GetNodeNames(node parser.Node) []string {
+	switch node.Type() {
+	case parser.N_EXPR_FN, parser.N_STMT_FN:
+		n := node.(*parser.FnDec)
+		if n.Id() == nil {
+			return nil
+		}
+		return []string{n.Id().(*parser.Ident).Val()}
+	case parser.N_STMT_VAR_DEC:
+		n := node.(*parser.VarDecStmt)
+		if len(n.DecList()) != 1 {
+			return nil
+		}
+		vd := n.DecList()[0].(*parser.VarDec)
+		if vd.Id().Type() == parser.N_NAME {
+			return []string{vd.Id().(*parser.Ident).Val()}
+		}
+	case parser.N_STMT_IMPORT:
+		n := node.(*parser.ImportDec)
+		ret := []string{}
+		for _, s := range n.Specs() {
+			spec := s.(*parser.ImportSpec)
+			ret = append(ret, spec.Local().(*parser.Ident).Val())
+		}
+		return ret
+	case parser.N_STMT_EXPORT:
+		n := node.(*parser.ExportDec)
+		if n.Default() {
+			return []string{"default"}
+		}
+		if n.All() {
+			return []string{"#all"}
+		}
+		if dec := n.Dec(); dec != nil {
+			return GetNodeNames(dec)
+		}
+	case parser.N_NAME:
+		return []string{node.(*parser.Ident).Val()}
+	case parser.N_JSX_ID:
+		return []string{node.(*parser.JsxIdent).Val()}
+	}
+	return nil
+}
+
+func NamesInDecNode(node parser.Node) (ret []string, all bool) {
+	ret = []string{}
+	switch node.Type() {
+	case parser.N_STMT_VAR_DEC:
+		n := node.(*parser.VarDecStmt)
+		for _, name := range n.Names() {
+			ret = append(ret, name.(*parser.Ident).Val())
+		}
+	case parser.N_STMT_FN, parser.N_EXPR_FN:
+		n := node.(*parser.FnDec)
+		if n.Id() != nil {
+			ret = append(ret, n.Id().(*parser.Ident).Val())
+		}
+	case parser.N_STMT_CLASS, parser.N_EXPR_CLASS:
+		n := node.(*parser.ClassDec)
+		if n.Id() != nil {
+			ret = append(ret, n.Id().(*parser.Ident).Val())
+		}
+	case parser.N_STMT_IMPORT:
+		n := node.(*parser.ImportDec)
+		ret = []string{}
+		for _, s := range n.Specs() {
+			spec := s.(*parser.ImportSpec)
+			if spec.Default() {
+				ret = append(ret, "default")
+			} else if spec.NameSpace() {
+				all = true
+			} else {
+				ret = append(ret, spec.Id().(*parser.Ident).Val())
+			}
+		}
+	case parser.N_STMT_EXPORT:
+		n := node.(*parser.ExportDec)
+		if n.Default() {
+			ret = append(ret, "default")
+		} else if n.All() {
+			all = true
+		} else if n.Dec() != nil {
+			ret, _ = NamesInDecNode(n.Dec())
+		} else {
+			for _, spec := range n.Specs() {
+				sp := spec.(*parser.ExportSpec)
+				if sp.NameSpace() {
+					all = true
+				} else {
+					ret = append(ret, sp.Id().(*parser.Ident).Val())
+				}
+			}
+		}
+	}
+	return
+}
+
 type SwitchBranch struct {
 	negative bool
 	test     parser.Node
@@ -171,4 +268,41 @@ func GetParent(ctx *walk.VisitorCtx, targetTyp, barrierTyp []parser.NodeType) (p
 		ctx = ctx.Parent
 	}
 	return nil, nil
+}
+
+func IsPrimitive(node parser.Node) bool {
+	nt := node.Type()
+	return nt == parser.N_NAME || nt == parser.N_LIT_STR || nt == parser.N_LIT_NUM || nt == parser.N_LIT_BOOL || nt == parser.N_LIT_NULL || nt == parser.N_LIT_REGEXP
+}
+
+func IsPlainArr(node parser.Node) bool {
+	if node.Type() != parser.N_LIT_ARR {
+		return false
+	}
+	els := node.(*parser.ArrLit).Elems()
+	for _, el := range els {
+		if !IsPlainObj(el) {
+			return false
+		}
+	}
+	return true
+}
+
+func IsPlainObjLit(node parser.Node) bool {
+	if node.Type() != parser.N_LIT_OBJ {
+		return false
+	}
+	props := node.(*parser.ObjLit).Props()
+	for _, prop := range props {
+		if prop.Type() == parser.N_PROP {
+			if !IsPlainObj(prop.(*parser.Prop).Val()) {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func IsPlainObj(node parser.Node) bool {
+	return IsPrimitive(node) || IsPlainArr(node) || IsPlainObjLit(node)
 }
