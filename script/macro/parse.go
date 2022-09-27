@@ -22,10 +22,10 @@ import (
 // CallWithArgs := GoIdent '(' Args? ')'
 // Args := Arg (',' Arg)*
 // Arg := GoIdent | GoBasicLit | True | False | GoSelectorExpr
-// GoBasicLic := GoInt | GoFloat | GoString
+// GoBasicLit := GoInt | GoFloat | GoString
 // ```
 //
-// The permitted postions to put the macro are:
+// The permitted positions to put the macro are:
 // - the last comment on top of the struct definition
 // - immediately follow the field of struct and/or enum
 //
