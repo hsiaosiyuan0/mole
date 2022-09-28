@@ -281,7 +281,7 @@ func IsPlainArr(node parser.Node) bool {
 	}
 	els := node.(*parser.ArrLit).Elems()
 	for _, el := range els {
-		if !IsPlainObj(el) {
+		if el != nil && !IsPlainObj(el) {
 			return false
 		}
 	}
