@@ -81,7 +81,7 @@ func main() {
 
 	// by default the parsed AST is not the ESTree form because the latter has a little redundancy,
 	// however Mole supports to convert its AST to ESTree by using the `estree.ConvertProg` function
-	b, err := json.Marshal(estree.ConvertProg(ast.(*parser.Prog), estree.NewConvertCtx()))
+	b, err := json.Marshal(estree.ConvertProg(ast.(*parser.Prog), estree.NewConvertCtx(p)))
 	if err != nil {
 		log.Fatal(err)
 	}

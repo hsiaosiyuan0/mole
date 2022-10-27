@@ -33,6 +33,7 @@
     "keyof",
     "molecast",
     "parens",
+    "parseutil",
     "pbcopy",
     "pjson",
     "Pkgs",

@@ -256,8 +256,8 @@ func enterFnGraph(node parser.Node, ctx *walk.VisitorCtx, stmt bool) {
 	// enter new graph
 	ac.enterGraph(node)
 
-	// use an empty block as header since we will push fn id and params back to header
-	// the mimic header will be used the start of function body, so `pushStmt` is needed
+	// use an empty block as header at here since we will push fn id and params back to header,
+	// the mimic header will be used as the start of function body, so `pushStmt` is needed
 	// below
 	ac.graph.Head = ac.graph.newBasicBlk()
 	ac.pushStmt(ac.graph.Head)
@@ -1340,8 +1340,8 @@ func handleAfter(node parser.Node, key string, ctx *walk.VisitorCtx) {
 			link(ac, test, EK_SEQ, ET_NONE, EK_JMP, ET_JMP_T, body, LF_NONE)
 			link(ac, body, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, exit, LF_NONE)
 		} else {
-			// discard the empty entry block which is ued for holding
-			// the body of case clause
+			// discard the empty entry block which is used for holding
+			// the body of the case-clause
 			ac.popStmt()
 
 			link(ac, test, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, exit, LF_NONE)

@@ -297,7 +297,7 @@ func TestCollectNodesInTrueBranches7(t *testing.T) {
   if (process.env.NODE_ENV !== "production") {
     (function() {
   'use strict';
-  
+
   var React = require('react');
   var _assign = require('object-assign');
   var Scheduler = require('scheduler');
@@ -328,4 +328,89 @@ func TestCollectNodesInTrueBranches7(t *testing.T) {
 		},
 	}, p)
 	util.AssertEqual(t, 6, len(nodes), "should be ok")
+}
+
+func TestBuildFnDepGraph(t *testing.T) {
+	p, ast, err := compile(`
+const imgSuffix = (picUrl) => ImageSuffix.directSuffix(picUrl, { paramWidth: 50 })
+function test() {
+  imgSuffix()
+}
+`, nil)
+	util.AssertEqual(t, nil, err, "should be prog ok")
+
+	graph := BuildFnDepGraph(ast, p.Symtab())
+	stmts := ast.(*parser.Prog).Body()
+
+	imgSuffix := graph.Nodes[stmts[0].(*parser.VarDecStmt).DecList()[0].(*parser.VarDec).Init()]
+	test := graph.Nodes[stmts[1].(*parser.FnDec)]
+	util.AssertEqual(t, true, test.Deps[0] == imgSuffix, "should be prog ok")
+}
+
+func TestIsFnDepsOnNode(t *testing.T) {
+	p, ast, err := compile(`
+const fn0 = () => {}
+const fn1 = () => fn0()
+const fn2 = () => fn1()
+`, nil)
+	util.AssertEqual(t, nil, err, "should be prog ok")
+
+	graph := BuildFnDepGraph(ast, p.Symtab())
+	stmts := ast.(*parser.Prog).Body()
+
+	fn2 := stmts[2].(*parser.VarDecStmt).DecList()[0].(*parser.VarDec).Init()
+	fn0 := stmts[0]
+	util.AssertEqual(t, true, IsFnDepsOnNode(graph, fn2, fn0), "should be prog ok")
+}
+
+func TestIsFnDepsOnNode1(t *testing.T) {
+	p, ast, err := compile(`
+function fn0() {}
+const fn1 = () => fn0()
+const fn2 = () => fn1()
+`, nil)
+	util.AssertEqual(t, nil, err, "should be prog ok")
+
+	graph := BuildFnDepGraph(ast, p.Symtab())
+	stmts := ast.(*parser.Prog).Body()
+
+	fn2 := stmts[2].(*parser.VarDecStmt).DecList()[0].(*parser.VarDec).Init()
+	fn0 := stmts[0]
+	util.AssertEqual(t, true, IsFnDepsOnNode(graph, fn2, fn0), "should be prog ok")
+}
+
+func TestIsFnDepsOnNode2(t *testing.T) {
+	p, ast, err := compile(`
+import ImageSuffix from '@music/mobile-image'
+
+function fn0() { ImageSuffix() }
+const fn1 = () => fn0()
+const fn2 = () => fn1()
+`, nil)
+	util.AssertEqual(t, nil, err, "should be prog ok")
+
+	graph := BuildFnDepGraph(ast, p.Symtab())
+	stmts := ast.(*parser.Prog).Body()
+
+	fn2 := stmts[3].(*parser.VarDecStmt).DecList()[0].(*parser.VarDec).Init()
+	ifx := stmts[0]
+	util.AssertEqual(t, true, IsFnDepsOnNode(graph, fn2, ifx), "should be prog ok")
+}
+
+func TestIsFnDepsOnNode3(t *testing.T) {
+	p, ast, err := compile(`
+import ImageSuffix from '@music/mobile-image'
+
+function fn0() { ImageSuffix() }
+const fn1 = () => () => fn0();
+const fn2 = () => fn1()
+`, nil)
+	util.AssertEqual(t, nil, err, "should be prog ok")
+
+	graph := BuildFnDepGraph(ast, p.Symtab())
+	stmts := ast.(*parser.Prog).Body()
+
+	fn2 := stmts[3].(*parser.VarDecStmt).DecList()[0].(*parser.VarDec).Init()
+	ifx := stmts[0]
+	util.AssertEqual(t, true, IsFnDepsOnNode(graph, fn2, ifx), "should be prog ok")
 }

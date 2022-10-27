@@ -97,7 +97,7 @@ func NamesInDecNode(node parser.Node) (ret []string, all bool) {
 		for _, s := range n.Specs() {
 			spec := s.(*parser.ImportSpec)
 			if spec.Default() {
-				ret = append(ret, "default")
+				ret = append(ret, spec.Local().(*parser.Ident).Val())
 			} else if spec.NameSpace() {
 				all = true
 			} else {
@@ -305,4 +305,205 @@ func IsPlainObjLit(node parser.Node) bool {
 
 func IsPlainObj(node parser.Node) bool {
 	return IsPrimitive(node) || IsPlainArr(node) || IsPlainObjLit(node)
+}
+
+func GetVarDec(name string, varDecStmt *parser.VarDecStmt) *parser.VarDec {
+	for _, n := range varDecStmt.DecList() {
+		dec := n.(*parser.VarDec)
+		if dec.Id().Type() == parser.N_NAME && dec.Id().(*parser.Ident).Val() == name {
+			return dec
+		}
+	}
+	return nil
+}
+
+func IsIdentBoundInImportDec(ident *parser.Ident, scope *parser.Scope) *parser.ImportDec {
+	name := ident.Val()
+	ref := scope.BindingOf(name)
+	dec := ref.Dec
+	if dec != nil && dec.Type() == parser.N_STMT_IMPORT {
+		return dec.(*parser.ImportDec)
+	}
+	return nil
+}
+
+func IsFn(node parser.Node) bool {
+	typ := node.Type()
+	return typ == parser.N_STMT_FN || typ == parser.N_EXPR_FN || typ == parser.N_EXPR_ARROW
+}
+
+type FnDepGraph struct {
+	Nodes map[parser.Node]*FnDepNode
+}
+
+type FnDepNode struct {
+	// the ast node defines this dep node
+	Dec parser.Node
+
+	// the refs captured by this fn
+	Captures []*parser.Ref
+
+	// the fns which this fn depends on
+	Deps []*FnDepNode
+}
+
+func BuildFnDepGraph(node parser.Node, symtab *parser.SymTab) *FnDepGraph {
+	ctx := walk.NewWalkCtx(node, symtab)
+
+	graph := &FnDepGraph{
+		Nodes: map[parser.Node]*FnDepNode{},
+	}
+
+	depNodeOfFn := func(node parser.Node) *FnDepNode {
+		if graph.Nodes[node] != nil {
+			return graph.Nodes[node]
+		}
+		fnNode := &FnDepNode{}
+		graph.Nodes[node] = fnNode
+		return fnNode
+	}
+
+	fnNodeStk := []*FnDepNode{}
+
+	var fnNode *FnDepNode
+	fnBefore := func(node parser.Node, key string, ctx *walk.VisitorCtx) {
+		newFn := depNodeOfFn(node)
+		newFn.Dec = node
+		fnNodeStk = append(fnNodeStk, newFn)
+
+		if fnNode != nil {
+			fnNode.Deps = append(fnNode.Deps, newFn)
+		}
+		fnNode = newFn
+	}
+
+	fnAfter := func(node parser.Node, key string, ctx *walk.VisitorCtx) {
+		cnt := len(fnNodeStk)
+		if cnt > 0 {
+			fnNode = fnNodeStk[cnt-1]
+			fnNodeStk = fnNodeStk[:cnt-1]
+		} else {
+			fnNode = nil
+		}
+	}
+
+	walk.AddListener(&ctx.Listeners, walk.N_STMT_FN_BEFORE, &walk.Listener{
+		Id:     "N_STMT_FN_BEFORE",
+		Handle: fnBefore,
+	})
+	walk.AddListener(&ctx.Listeners, walk.N_EXPR_FN_BEFORE, &walk.Listener{
+		Id:     "N_EXPR_FN_BEFORE",
+		Handle: fnBefore,
+	})
+	walk.AddListener(&ctx.Listeners, walk.N_EXPR_ARROW_BEFORE, &walk.Listener{
+		Id:     "N_EXPR_ARROW_BEFORE",
+		Handle: fnBefore,
+	})
+
+	walk.AddListener(&ctx.Listeners, walk.N_STMT_FN_AFTER, &walk.Listener{
+		Id:     "N_STMT_FN_AFTER",
+		Handle: fnAfter,
+	})
+	walk.AddListener(&ctx.Listeners, walk.N_EXPR_FN_AFTER, &walk.Listener{
+		Id:     "N_EXPR_FN_AFTER",
+		Handle: fnAfter,
+	})
+	walk.AddListener(&ctx.Listeners, walk.N_EXPR_ARROW_AFTER, &walk.Listener{
+		Id:     "N_EXPR_ARROW_AFTER",
+		Handle: fnAfter,
+	})
+
+	walk.AddListener(&ctx.Listeners, walk.N_NAME_AFTER, &walk.Listener{
+		Id: "N_NAME_AFTER",
+		Handle: func(node parser.Node, key string, ctx *walk.VisitorCtx) {
+			if fnNode == nil {
+				return
+			}
+
+			pn := ctx.ParentNode()
+			if pn != nil && pn.Type() == parser.N_EXPR_MEMBER && key == "Prop" && pn.(*parser.MemberExpr).Compute() == false {
+				return
+			}
+
+			name := node.(*parser.Ident).Val()
+			scope := ctx.Scope()
+			if scope.Local(name) == nil {
+				ref := scope.BindingOf(name)
+				if ref != nil {
+					fnNode.Captures = append(fnNode.Captures, ref)
+
+					dec := ref.Dec
+					if dec == nil {
+						return
+					}
+
+					var fn parser.Node
+					if dec.Type() == parser.N_STMT_VAR_DEC {
+						varDec := GetVarDec(name, dec.(*parser.VarDecStmt))
+						if varDec != nil {
+							init := varDec.Init()
+							if IsFn(init) {
+								fn = init
+							}
+						}
+					} else if IsFn(dec) {
+						fn = dec
+					}
+
+					if fn != nil {
+						dep := depNodeOfFn(fn)
+						if !util.Includes(fnNode.Deps, dep) {
+							fnNode.Deps = append(fnNode.Deps, dep)
+						}
+					}
+				}
+			}
+		},
+	})
+
+	walk.VisitNode(node, "", ctx.VisitorCtx())
+
+	return graph
+}
+
+func IsFnDepsOnNode(graph *FnDepGraph, fn parser.Node, target parser.Node) bool {
+	f := graph.Nodes[fn]
+	if f == nil {
+		return false
+	}
+
+	visited := map[*FnDepNode]bool{}
+	nodes := []*FnDepNode{f}
+	for {
+		if len(nodes) == 0 {
+			break
+		}
+
+		node, rest := nodes[0], nodes[1:]
+		nodes = rest
+		if visited[node] {
+			continue
+		}
+		visited[node] = true
+
+		for _, cap := range node.Captures {
+			if cap.Dec == target {
+				return true
+			}
+		}
+
+		nodes = append(nodes, node.Deps...)
+	}
+
+	return false
+}
+
+func IdOfLocalInImportDec(local string, n *parser.ImportDec) string {
+	for _, s := range n.Specs() {
+		spec := s.(*parser.ImportSpec)
+		if spec.Local().(*parser.Ident).Val() == local {
+			return spec.Id().(*parser.Ident).Val()
+		}
+	}
+	return ""
 }

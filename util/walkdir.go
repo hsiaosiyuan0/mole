@@ -91,7 +91,7 @@ loop:
 			}
 
 			// process the handle of directory synchronously to keep the lexical order
-			// between the directory and its children files
+			// within the directory and its children files
 			w.handle(dir, true, w)
 
 			for _, file := range files {
