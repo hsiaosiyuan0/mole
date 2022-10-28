@@ -1,6 +1,6 @@
 # Mole
 
-Mole is a collection of parsers made with 💕 to process the frontend stuffs.
+Mole is a collection of parsers to parse the frontend stuffs.
 
 <details>
   <summary>Why Golang</summary>
@@ -24,6 +24,7 @@ Fine, just all because I'm too fool to use a fancy language
 
 - TypeScript Parser
 
+  - Type information retained
   - [babel/typescript](https://babeljs.io/docs/en/babel-types#typescript) compatible outputs
 
 ### WIP
@@ -52,44 +53,44 @@ After the installation is succeeded, below code can be used as a demo:
 package main
 
 import (
-	"bytes"
-	"encoding/json"
-	"fmt"
-	"log"
+  "bytes"
+  "encoding/json"
+  "fmt"
+  "log"
 
-	"github.com/hsiaosiyuan0/mole/ecma/estree"
-	"github.com/hsiaosiyuan0/mole/ecma/parser"
-	"github.com/hsiaosiyuan0/mole/span"
+  "github.com/hsiaosiyuan0/mole/ecma/estree"
+  "github.com/hsiaosiyuan0/mole/ecma/parser"
+  "github.com/hsiaosiyuan0/mole/span"
 )
 
 func main() {
-	// imitate the source code you want to parse
-	code := `console.log("hello world")`
+  // imitate the source code you want to parse
+  code := `console.log("hello world")`
 
-	// create a Source instance to handle to the source code
-	s := span.NewSource("", code)
+  // create a Source instance to handle to the source code
+  s := span.NewSource("", code)
 
-	// create a parser, here we use the default options
-	opts := parser.NewParserOpts()
-	p := parser.NewParser(s, opts)
+  // create a parser, here we use the default options
+  opts := parser.NewParserOpts()
+  p := parser.NewParser(s, opts)
 
-	// inform the parser do its parsing process
-	ast, err := p.Prog()
-	if err != nil {
-		log.Fatal(err)
-	}
+  // inform the parser do its parsing process
+  ast, err := p.Prog()
+  if err != nil {
+    log.Fatal(err)
+  }
 
-	// by default the parsed AST is not the ESTree form because the latter has a little redundancy,
-	// however Mole supports to convert its AST to ESTree by using the `estree.ConvertProg` function
-	b, err := json.Marshal(estree.ConvertProg(ast.(*parser.Prog), estree.NewConvertCtx(p)))
-	if err != nil {
-		log.Fatal(err)
-	}
+  // by default the parsed AST is not the ESTree form because the latter has a little redundancy,
+  // however Mole supports to convert its AST to ESTree by using the `estree.ConvertProg` function
+  b, err := json.Marshal(estree.ConvertProg(ast.(*parser.Prog), estree.NewConvertCtx(p)))
+  if err != nil {
+    log.Fatal(err)
+  }
 
-	// below is nothing new, we just print the ESTree in JSON form
-	var out bytes.Buffer
-	json.Indent(&out, b, "", "  ")
-	fmt.Println(out.String())
+  // below is nothing new, we just print the ESTree in JSON form
+  var out bytes.Buffer
+  json.Indent(&out, b, "", "  ")
+  fmt.Println(out.String())
 }
 ```
 

@@ -15,7 +15,7 @@ type Parsed = interface{}
 
 type Parser interface {
 	Type() ParserType
-	Parse(file, code string, readFile bool, biz interface{}) Parsed
+	Parse(file, code string, forceRead bool, biz interface{}) Parsed
 }
 
 type ParseCache[T comparable] struct {
