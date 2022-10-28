@@ -38,7 +38,12 @@ func (c *ParseCache[T]) SetParser(p Parser) {
 }
 
 func (c *ParseCache[T]) Parse(typ ParserType, key T, file, code string, readFile bool, biz interface{}) FutureParsed {
-	switch v := c.store[key].(type) {
+	var r interface{}
+	c.storeLock.Lock()
+	r = c.store[key]
+	c.storeLock.Unlock()
+
+	switch v := r.(type) {
 	case FutureParsed: // already has a pending process
 		return v
 

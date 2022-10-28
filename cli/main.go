@@ -9,10 +9,9 @@ type Options struct {
 	ast  bool
 	file string
 
-	packAna bool
-	dir     string
-	cfg     string
-	out     string
+	dir string
+	cfg string
+	out string
 
 	perf bool
 }
@@ -23,7 +22,6 @@ func newOptions() *Options {
 	flag.BoolVar(&opts.ast, "ast", false, "print AST of the target file")
 	flag.StringVar(&opts.file, "file", "", "print AST of the target file")
 
-	flag.BoolVar(&opts.packAna, "pkg-ana", false, "analyze the package information")
 	flag.StringVar(&opts.dir, "dir", "", "the project directory")
 	flag.StringVar(&opts.cfg, "cfg", "", "the config file")
 	flag.StringVar(&opts.out, "out", "", "the output file")

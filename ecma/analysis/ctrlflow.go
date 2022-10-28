@@ -139,6 +139,13 @@ func NewAnalysis(root parser.Node, symtab *parser.SymTab, s *span.Source) *Analy
 	return a
 }
 
+func NewAnalysisOnlyWalk(root parser.Node, symtab *parser.SymTab, s *span.Source) *Analysis {
+	a := &Analysis{
+		WalkCtx: walk.NewWalkCtx(root, symtab),
+	}
+	return a
+}
+
 func (a *Analysis) AnalysisCtx() *AnalysisCtx {
 	return analysisCtx(a.WalkCtx.VisitorCtx())
 }
@@ -698,6 +705,14 @@ func handleAfter(node parser.Node, key string, ctx *walk.VisitorCtx) {
 	case parser.N_JSX_OPEN:
 		n := node.(*parser.JsxOpen)
 
+		if n.Name() == nil { // fragment
+			enter := ac.popExpr()
+			exit := ac.newExit(node, "")
+			link(ac, enter, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, exit, LF_NONE)
+			ac.pushExpr(enter)
+			return
+		}
+
 		head, tail := ac.popExprsAndLink(len(n.Attrs()))
 		name := ac.popExpr()
 		enter := ac.popExpr()
@@ -714,6 +729,15 @@ func handleAfter(node parser.Node, key string, ctx *walk.VisitorCtx) {
 		ac.pushExpr(grpBlock(ac, enter, exit))
 
 	case parser.N_JSX_CLOSE:
+		n := node.(*parser.JsxClose)
+		if n.Name() == nil {
+			enter := ac.popExpr()
+			exit := ac.newExit(node, "")
+			link(ac, enter, EK_SEQ, ET_NONE, EK_SEQ, ET_NONE, exit, LF_NONE)
+			ac.pushExpr(enter)
+			return
+		}
+
 		name := ac.popExpr()
 		enter := ac.popExpr()
 		exit := ac.newExit(node, "")
