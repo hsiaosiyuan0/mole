@@ -6775,6 +6775,28 @@ initial->b0 [xlabel="",color="black"];
 `, ana.Graph().Dot(), "should be ok")
 }
 
+func TestCtrlflow_Fixture1(t *testing.T) {
+	p, ast, symtab, err := compile(`
+const a = <></>;
+  `, nil)
+	AssertEqual(t, nil, err, "should be prog ok")
+
+	ana := NewAnalysis(ast, symtab, p.Source())
+	ana.Analyze()
+
+	AssertEqualString(t, `
+digraph G {
+node[shape=box,style="rounded,filled",fillcolor=white,fontname="Consolas",fontsize=10];
+edge[fontname="Consolas",fontsize=10]
+initial[label="",shape=circle,style=filled,fillcolor=black,width=0.25,height=0.25];
+final[label="",shape=doublecircle,style=filled,fillcolor=black,width=0.25,height=0.25];
+b0[label="Prog:enter\nVarDecStmt:enter\nVarDec:enter\nIdent(a)\nJsxElem:enter\nJsxOpen:enter\nJsxOpen:exit\nJsxClose:enter\nJsxClose:exit\nJsxElem:exit\nVarDec:exit\nVarDecStmt:exit\nProg:exit\n"];
+b0->final [xlabel="",color="black"];
+initial->b0 [xlabel="",color="black"];
+}
+`, ana.Graph().Dot(), "should be ok")
+}
+
 // func TestCtrlflow_Demo(t *testing.T) {
 // 	ast, symtab, err := compile(`
 //   var a = function f() { if (baz) { return true; } return 1 }
