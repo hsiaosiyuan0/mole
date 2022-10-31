@@ -320,6 +320,10 @@ func GetVarDec(name string, varDecStmt *parser.VarDecStmt) *parser.VarDec {
 func IsIdentBoundInImportDec(ident *parser.Ident, scope *parser.Scope) *parser.ImportDec {
 	name := ident.Val()
 	ref := scope.BindingOf(name)
+	if ref == nil {
+		return nil
+	}
+
 	dec := ref.Dec
 	if dec != nil && dec.Type() == parser.N_STMT_IMPORT {
 		return dec.(*parser.ImportDec)
